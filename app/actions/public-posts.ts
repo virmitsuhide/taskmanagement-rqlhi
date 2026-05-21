@@ -22,7 +22,7 @@ export async function createPublicPostAction(_: unknown, formData: FormData) {
   if (type === 'tugas_guru') {
     const allowed = canPostTugasGuru(session.role)
     if (!allowed) return { error: 'Tidak memiliki izin untuk posting tugas guru.' }
-    target = allowed
+    if (allowed !== 'all') target = allowed
   }
 
   const supabase = createServerClient()

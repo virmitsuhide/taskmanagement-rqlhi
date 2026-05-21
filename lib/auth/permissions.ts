@@ -145,6 +145,7 @@ export function canPostPengumuman(role: UserRole): boolean {
 }
 
 export function canPostTugasGuru(role: UserRole): PublicTarget | null {
+  if (role === 'kepala_rq') return 'all'
   if (HOME_POST_ROLES.tugas_guru_sd.includes(role)) return 'sd'
   if (HOME_POST_ROLES.tugas_guru_smp.includes(role)) return 'smp'
   return null
