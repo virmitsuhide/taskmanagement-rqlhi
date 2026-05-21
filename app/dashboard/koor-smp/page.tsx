@@ -22,7 +22,7 @@ export default async function KoorSmpDashboardPage() {
 
   return (
     <div>
-      <DashboardHeader displayName={session.displayName} role={session.role} title="Dashboard Koor SMP" />
+      <DashboardHeader displayName={session.displayName} role={session.role} title="Dashboard Koor SMP" showBack />
       <div className="p-4 md:p-6 space-y-6 max-w-4xl">
         <DivisionStats {...stats} />
 

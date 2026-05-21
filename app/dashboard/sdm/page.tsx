@@ -24,7 +24,7 @@ export default async function SdmDashboardPage() {
 
   return (
     <div>
-      <DashboardHeader displayName={session.displayName} role={session.role} title="Dashboard SDM" />
+      <DashboardHeader displayName={session.displayName} role={session.role} title="Dashboard SDM" showBack />
       <div className="p-4 md:p-6 space-y-6 max-w-4xl">
         <DivisionStats {...stats} />
 

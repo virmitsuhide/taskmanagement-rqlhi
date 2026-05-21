@@ -24,7 +24,7 @@ export default async function KoorSdDashboardPage() {
 
   return (
     <div>
-      <DashboardHeader displayName={session.displayName} role={session.role} title="Dashboard Koor SD" />
+      <DashboardHeader displayName={session.displayName} role={session.role} title="Dashboard Koor SD" showBack />
       <div className="p-4 md:p-6 space-y-6 max-w-4xl">
         <DivisionStats {...stats} />
 

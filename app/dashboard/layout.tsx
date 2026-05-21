@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/auth/session'
 import { Sidebar } from '@/components/layout/Sidebar'
+import { MobileNav } from '@/components/layout/MobileNav'
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const session = await getSession()
@@ -15,7 +16,12 @@ export default async function DashboardLayout({ children }: { children: React.Re
           username={session.username}
         />
       </div>
-      <main className="flex-1 overflow-y-auto">
+      <MobileNav
+        role={session.role}
+        displayName={session.displayName}
+        username={session.username}
+      />
+      <main className="flex-1 overflow-y-auto pb-16 md:pb-0">
         {children}
       </main>
     </div>
