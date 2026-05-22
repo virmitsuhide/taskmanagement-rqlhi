@@ -1,51 +1,71 @@
-import { Calendar, User } from 'lucide-react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
+import { ArrowRight } from 'lucide-react'
 import type { PublicPost } from '@/types'
 
 interface Props {
   post: PublicPost
 }
 
-function formatDate(dateStr: string) {
-  return new Date(dateStr).toLocaleDateString('id-ID', {
-    day: 'numeric', month: 'long', year: 'numeric',
-  })
+const MONTH_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
+
+function splitDate(dateStr: string): [string, string] {
+  const d = new Date(dateStr)
+  return [String(d.getDate()), MONTH_SHORT[d.getMonth()]]
+}
+
+function isNew(createdAt: string) {
+  const diff = Date.now() - new Date(createdAt).getTime()
+  return diff < 3 * 86_400_000
+}
+
+function categoryOf(post: PublicPost): { label: string; tone: 'wash' | 'warm' | 'muted' } {
+  if (post.due_date) return { label: 'Kegiatan', tone: 'wash' }
+  if (post.target === 'sd' || post.target === 'smp') return { label: 'Akademik', tone: 'warm' }
+  return { label: 'Informasi', tone: 'muted' }
 }
 
 export function AnnouncementCard({ post }: Props) {
+  const [day, mon] = splitDate(post.created_at)
+  const fresh = isNew(post.created_at)
+  const cat = categoryOf(post)
+
+  const toneClass =
+    cat.tone === 'wash'
+      ? 'bg-primary-wash text-primary'
+      : cat.tone === 'warm'
+      ? 'bg-accent-warm-wash text-accent-warm'
+      : 'bg-muted text-muted-foreground'
+
   return (
-    <Card>
-      <CardHeader className="pb-2">
-        <div className="flex items-start justify-between gap-2">
-          <CardTitle className="text-base leading-snug">{post.title}</CardTitle>
-          {post.target !== 'all' && (
-            <Badge variant="secondary" className="shrink-0 text-xs">
-              {post.target.toUpperCase()}
-            </Badge>
-          )}
+    <article className="group rounded-xl border bg-card p-5 hover:border-foreground/20 hover:shadow-sm transition cursor-pointer">
+      <div className="grid grid-cols-[auto_1fr_auto] gap-5 items-center">
+        <div className="text-center pr-5 border-r border-dashed min-w-[64px]">
+          <div className="text-xl font-semibold leading-none tracking-tight">{day}</div>
+          <div className="mt-1 text-[10px] uppercase tracking-widest text-muted-foreground">
+            {mon}
+          </div>
         </div>
-        <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
-          <span className="flex items-center gap-1">
-            <Calendar className="h-3 w-3" />
-            {formatDate(post.created_at)}
-          </span>
-          {post.creator && (
-            <span className="flex items-center gap-1">
-              <User className="h-3 w-3" />
-              {post.creator.display_name}
+
+        <div className="min-w-0">
+          <div className="flex flex-wrap gap-1.5 mb-1.5">
+            <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide ${toneClass}`}>
+              {cat.label}
             </span>
-          )}
-        </div>
-      </CardHeader>
-      <CardContent>
-        <p className="text-sm text-muted-foreground whitespace-pre-line">{post.content}</p>
-        {post.due_date && (
-          <p className="mt-3 text-xs font-medium text-amber-600">
-            Deadline: {formatDate(post.due_date)}
+            {fresh && (
+              <span className="inline-flex items-center rounded-full bg-primary-wash text-primary px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide">
+                Baru
+              </span>
+            )}
+          </div>
+          <h3 className="font-semibold text-base leading-snug">{post.title}</h3>
+          <p className="text-sm text-muted-foreground mt-1 line-clamp-2 leading-relaxed">
+            {post.content}
           </p>
-        )}
-      </CardContent>
-    </Card>
+        </div>
+
+        <div className="hidden md:inline-flex items-center gap-1.5 text-sm font-semibold text-primary whitespace-nowrap shrink-0">
+          Selengkapnya <ArrowRight className="h-3.5 w-3.5" />
+        </div>
+      </div>
+    </article>
   )
 }

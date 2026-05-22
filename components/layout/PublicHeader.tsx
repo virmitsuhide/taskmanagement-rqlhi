@@ -1,18 +1,33 @@
 import Link from 'next/link'
+import { ArrowRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 export function PublicHeader() {
   return (
-    <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container mx-auto flex h-14 items-center justify-between px-4">
-        <Link href="/" className="flex items-center gap-2">
-          <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary text-primary-foreground text-xs font-bold">
+    <header className="sticky top-0 z-50 border-b bg-background/85 backdrop-blur supports-[backdrop-filter]:bg-background/70">
+      <div className="container mx-auto max-w-6xl flex h-16 items-center justify-between px-4">
+        <Link href="/" className="flex items-center gap-2.5">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-primary/70 text-primary-foreground text-sm font-bold shadow-sm">
             RQ
           </div>
-          <span className="font-semibold text-sm">Rumah Qur'an LHI</span>
+          <div className="leading-tight">
+            <p className="font-semibold text-sm">Rumah Qur&apos;an LHI</p>
+            <p className="text-[10px] uppercase tracking-widest text-muted-foreground">
+              Banguntapan · Bantul
+            </p>
+          </div>
         </Link>
-        <Button asChild size="sm">
-          <Link href="/login">Masuk</Link>
+
+        <nav className="hidden md:flex items-center gap-6 text-sm text-muted-foreground">
+          <Link href="#program" className="hover:text-foreground transition">Program</Link>
+          <Link href="#" className="hover:text-foreground transition">Pengumuman</Link>
+          <Link href="#" className="hover:text-foreground transition">Tentang</Link>
+        </nav>
+
+        <Button asChild size="sm" className="rounded-full">
+          <Link href="/login">
+            Masuk <ArrowRight className="h-3.5 w-3.5 ml-1" />
+          </Link>
         </Button>
       </div>
     </header>
