@@ -7,7 +7,7 @@ import {
   LayoutDashboard, BookOpen, CheckSquare, ImageIcon,
   FileText, User, Megaphone, LogOut, ChevronRight, GraduationCap,
 } from 'lucide-react'
-import { DASHBOARD_LABELS, getAccessibleDashboards } from '@/lib/auth/permissions'
+import { DASHBOARD_LABELS, getAccessibleDashboards, ROLE_LABELS } from '@/lib/auth/permissions'
 import { canAccessNotes, canPostToHome, canRequestToHumas } from '@/lib/auth/permissions'
 import type { UserRole } from '@/types'
 import { logoutAction } from '@/app/actions/auth'
@@ -40,13 +40,13 @@ export function Sidebar({ role, displayName, username }: Props) {
   return (
     <aside className="flex h-full w-64 flex-col border-r bg-sidebar text-sidebar-foreground">
       {/* Logo / Brand */}
-      <div className="flex items-center gap-2 border-b px-4 py-4">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground text-sm font-bold">
+      <div className="flex items-center gap-2.5 border-b px-4 py-4">
+        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-sidebar-primary to-sidebar-primary/70 text-sidebar-primary-foreground text-sm font-bold shadow-sm">
           RQ
         </div>
-        <div>
+        <div className="min-w-0">
           <p className="text-sm font-semibold leading-none">RQ LHI</p>
-          <p className="text-xs text-sidebar-foreground/60 mt-0.5">Sistem Manajemen</p>
+          <p className="text-[11px] text-sidebar-foreground/60 mt-1 truncate">{ROLE_LABELS[role]}</p>
         </div>
       </div>
 

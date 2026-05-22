@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
+import { RichTextEditor } from '@/components/ui/rich-text-editor'
 import { Plus, Trash2 } from 'lucide-react'
 import { MEETING_TYPE_LABELS } from '@/lib/auth/permissions'
 import type { MeetingType, AgendaTag, Meeting, AgendaItem } from '@/types'
@@ -162,12 +163,12 @@ export function MeetingForm({ allowedTypes, action, defaultValues, submitLabel =
 
               <div className="space-y-1.5">
                 <Label>Diskusi / Isi</Label>
-                <Textarea
+                <RichTextEditor
                   value={item.discussion}
-                  onChange={e => update(i, 'discussion', e.target.value)}
+                  onChange={v => update(i, 'discussion', v)}
                   name={`agenda_${i}_discussion`}
-                  rows={2}
-                  placeholder="Isi diskusi atau keputusan..."
+                  rows={3}
+                  placeholder="Isi diskusi, keputusan, atau catatan... Gunakan **tebal**, *miring*, atau emoji 😊"
                   required
                 />
               </div>
