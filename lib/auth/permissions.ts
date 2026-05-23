@@ -161,6 +161,10 @@ export function canAccessNotes(role: UserRole): boolean {
   return role === 'bendahara'
 }
 
+export function canCreateNews(role: UserRole): boolean {
+  return role === 'kepala_rq' || role === 'humas'
+}
+
 // Display labels
 export const ROLE_LABELS: Record<UserRole, string> = {
   kepala_rq: 'Kepala RQ',

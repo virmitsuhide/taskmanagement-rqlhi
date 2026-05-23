@@ -5,10 +5,10 @@ import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import {
   LayoutDashboard, BookOpen, CheckSquare, ImageIcon,
-  FileText, User, Megaphone, LogOut, ChevronRight, GraduationCap,
+  FileText, User, Megaphone, LogOut, ChevronRight, GraduationCap, Newspaper,
 } from 'lucide-react'
 import { DASHBOARD_LABELS, getAccessibleDashboards, ROLE_LABELS } from '@/lib/auth/permissions'
-import { canAccessNotes, canPostToHome, canRequestToHumas } from '@/lib/auth/permissions'
+import { canAccessNotes, canPostToHome, canRequestToHumas, canCreateNews } from '@/lib/auth/permissions'
 import type { UserRole } from '@/types'
 import { logoutAction } from '@/app/actions/auth'
 
@@ -93,6 +93,9 @@ export function Sidebar({ role, displayName, username }: Props) {
             )}
             {canPostToHome(role) && (
               <NavItem href="/home-post" icon={<Megaphone className="h-4 w-4" />} label="Home Publik" active={isActive('/home-post')} />
+            )}
+            {canCreateNews(role) && (
+              <NavItem href="/news" icon={<Newspaper className="h-4 w-4" />} label="Berita" active={isActive('/news')} />
             )}
             {canAccessNotes(role) && (
               <NavItem href="/notes" icon={<FileText className="h-4 w-4" />} label="Catatan Pribadi" active={isActive('/notes')} />

@@ -5,12 +5,12 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
   Menu, X, LayoutDashboard, CheckSquare, BookOpen,
-  ImageIcon, Megaphone, FileText, User, LogOut, GraduationCap,
+  ImageIcon, Megaphone, FileText, User, LogOut, GraduationCap, Newspaper,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
   DASHBOARD_LABELS, getAccessibleDashboards, DEFAULT_DASHBOARD,
-  canAccessNotes, canPostToHome, canRequestToHumas,
+  canAccessNotes, canPostToHome, canRequestToHumas, canCreateNews,
 } from '@/lib/auth/permissions'
 import type { UserRole } from '@/types'
 import { logoutAction } from '@/app/actions/auth'
@@ -102,6 +102,9 @@ export function MobileNav({ role, displayName, username }: Props) {
               )}
               {canPostToHome(role) && (
                 <li><Link href="/home-post" onClick={() => setOpen(false)} className={navLinkClass('/home-post')}><Megaphone className="h-4 w-4" />Home Publik</Link></li>
+              )}
+              {canCreateNews(role) && (
+                <li><Link href="/news" onClick={() => setOpen(false)} className={navLinkClass('/news')}><Newspaper className="h-4 w-4" />Berita</Link></li>
               )}
               {canAccessNotes(role) && (
                 <li><Link href="/notes" onClick={() => setOpen(false)} className={navLinkClass('/notes')}><FileText className="h-4 w-4" />Catatan Pribadi</Link></li>

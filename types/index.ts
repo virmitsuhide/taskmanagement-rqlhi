@@ -129,6 +129,17 @@ export interface ContentRequest {
   requester?: User
 }
 
+export interface NewsArticle {
+  id: string
+  title: string
+  content: string
+  author_id: string | null
+  is_active: boolean
+  created_at: string
+  updated_at: string
+  author?: User
+}
+
 export interface PrivateNote {
   id: string
   user_id: string

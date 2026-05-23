@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 const NAV = [
   { label: 'Beranda',    href: '/'        },
   { label: 'Tugas',      href: '#tugas'   },
-  { label: 'Kabar',      href: '#kabar'   },
+  { label: 'News',       href: '/news'    },
   { label: 'Program',    href: '#program' },
   { label: 'Tentang RQ', href: '#tentang' },
 ]
