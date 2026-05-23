@@ -35,7 +35,7 @@ export default async function HumasRequestPage() {
   return (
     <div>
       <DashboardHeader displayName={session.displayName} role={session.role} title="Request ke Humas" />
-      <div className="p-4 md:p-6 max-w-3xl">
+      <div className="p-4 md:p-6 max-w-3xl mx-auto">
         <div className="flex items-center justify-between mb-4">
           <p className="text-sm text-muted-foreground">{requests.length} request total</p>
           {canRequestToHumas(session.role) && (

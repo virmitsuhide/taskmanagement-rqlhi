@@ -51,7 +51,12 @@ export default async function RapatDetailPage({ params }: { params: Promise<{ id
 
   return (
     <div>
-      <DashboardHeader displayName={session.displayName} role={session.role} />
+      <DashboardHeader
+        displayName={session.displayName}
+        role={session.role}
+        title={m.subject}
+        breadcrumbs={[{ label: 'Rapat & Notulen', href: '/rapat' }, { label: m.subject }]}
+      />
       <div className="p-4 md:p-6 max-w-3xl mx-auto">
         <div className="flex items-center justify-between gap-2 mb-4 print:hidden">
           <Button asChild variant="ghost" size="sm">

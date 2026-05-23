@@ -20,8 +20,13 @@ export default async function BuatRapatPage() {
 
   return (
     <div>
-      <DashboardHeader displayName={session.displayName} role={session.role} title="Buat Rapat Baru" />
-      <div className="p-4 md:p-6 max-w-2xl">
+      <DashboardHeader
+        displayName={session.displayName}
+        role={session.role}
+        title="Buat Rapat Baru"
+        breadcrumbs={[{ label: 'Rapat & Notulen', href: '/rapat' }, { label: 'Buat Rapat' }]}
+      />
+      <div className="p-4 md:p-6 max-w-2xl mx-auto">
         <Button asChild variant="ghost" size="sm" className="mb-4">
           <Link href="/rapat"><ArrowLeft className="h-4 w-4 mr-1" />Kembali</Link>
         </Button>

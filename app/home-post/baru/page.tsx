@@ -14,8 +14,13 @@ export default async function BuatHomePostPage() {
 
   return (
     <div>
-      <DashboardHeader displayName={session.displayName} role={session.role} title="Buat Post Publik" />
-      <div className="p-4 md:p-6 max-w-2xl">
+      <DashboardHeader
+        displayName={session.displayName}
+        role={session.role}
+        title="Buat Post Publik"
+        breadcrumbs={[{ label: 'Home Publik', href: '/home-post' }, { label: 'Buat Post' }]}
+      />
+      <div className="p-4 md:p-6 max-w-2xl mx-auto">
         <Button asChild variant="ghost" size="sm" className="mb-4">
           <Link href="/home-post"><ArrowLeft className="h-4 w-4 mr-1" />Kembali ke Manajemen Home</Link>
         </Button>
