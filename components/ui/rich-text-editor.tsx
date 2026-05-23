@@ -1,7 +1,7 @@
 'use client'
 
 import { useRef, useState, useCallback } from 'react'
-import { Bold, Italic, List, Smile, Code } from 'lucide-react'
+import { Bold, Italic, List, ListOrdered, Smile, Code } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const EMOJI_GROUPS: { label: string; emojis: string[] }[] = [
@@ -125,15 +125,18 @@ export function RichTextEditor({
           <Code className="h-3.5 w-3.5" />
         </ToolbarButton>
         <span className="mx-1 h-4 w-px bg-border" />
-        <ToolbarButton onClick={() => prefixLine('- ')} title="Daftar">
+        <ToolbarButton onClick={() => prefixLine('- ')} title="Daftar poin">
           <List className="h-3.5 w-3.5" />
+        </ToolbarButton>
+        <ToolbarButton onClick={() => prefixLine('1. ')} title="Daftar bernomor">
+          <ListOrdered className="h-3.5 w-3.5" />
         </ToolbarButton>
         <span className="mx-1 h-4 w-px bg-border" />
         <ToolbarButton onClick={() => setEmojiOpen((v) => !v)} title="Emoji" active={emojiOpen}>
           <Smile className="h-3.5 w-3.5" />
         </ToolbarButton>
         <span className="ml-auto text-[10px] text-muted-foreground/70 pr-1 hidden sm:block">
-          **tebal**  ·  *miring*  ·  - daftar
+          **tebal**  ·  *miring*  ·  - daftar  ·  1. nomor
         </span>
 
         {emojiOpen && (

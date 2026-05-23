@@ -6,24 +6,54 @@ import { createServerClient } from '@/lib/supabase/server'
 import { getSession } from '@/lib/auth/session'
 import { canCreateNews } from '@/lib/auth/permissions'
 
+const BUCKET = 'news-images'
+
+async function uploadThumbnail(
+  supabase: ReturnType<typeof createServerClient>,
+  file: File,
+): Promise<string | null> {
+  try {
+    const bytes = await file.arrayBuffer()
+    const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg'
+    const filename = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`
+    const { data, error } = await supabase.storage
+      .from(BUCKET)
+      .upload(filename, Buffer.from(bytes), { contentType: file.type, upsert: false })
+    if (error || !data) return null
+    return supabase.storage.from(BUCKET).getPublicUrl(data.path).data.publicUrl
+  } catch {
+    return null
+  }
+}
+
 export async function createNewsAction(_: unknown, formData: FormData) {
   const session = await getSession()
   if (!session) return { error: 'Sesi tidak valid.' }
   if (!canCreateNews(session.role)) return { error: 'Tidak memiliki izin.' }
 
   const title   = (formData.get('title') as string)?.trim()
+  const excerpt = (formData.get('excerpt') as string)?.trim() || null
   const content = (formData.get('content') as string)?.trim()
   if (!title || !content) return { error: 'Judul dan isi wajib diisi.' }
 
   const supabase = createServerClient()
+
+  const thumbnailFile = formData.get('thumbnail') as File | null
+  let thumbnailUrl: string | null = null
+  if (thumbnailFile && thumbnailFile.size > 0) {
+    thumbnailUrl = await uploadThumbnail(supabase, thumbnailFile)
+  }
+
   const { error } = await supabase.from('news_articles').insert({
     title,
+    excerpt,
     content,
+    thumbnail_url: thumbnailUrl,
     author_id: session.userId,
     is_active: true,
   })
 
-  if (error) return { error: 'Gagal membuat berita.' }
+  if (error) return { error: error.message || 'Gagal membuat berita.' }
 
   revalidatePath('/')
   revalidatePath('/news')
@@ -41,7 +71,7 @@ export async function toggleNewsAction(newsId: string, isActive: boolean) {
     .update({ is_active: isActive })
     .eq('id', newsId)
 
-  if (error) return { error: 'Gagal memperbarui berita.' }
+  if (error) return { error: error.message }
   revalidatePath('/news')
   revalidatePath('/')
   return { success: true }
@@ -54,7 +84,7 @@ export async function deleteNewsAction(newsId: string) {
 
   const supabase = createServerClient()
   const { error } = await supabase.from('news_articles').delete().eq('id', newsId)
-  if (error) return { error: 'Gagal menghapus berita.' }
+  if (error) return { error: error.message }
 
   revalidatePath('/news')
   revalidatePath('/')

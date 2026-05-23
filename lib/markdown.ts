@@ -23,30 +23,33 @@ export function renderMarkdown(input: string): string {
   const escaped = escapeHtml(input)
   const lines = escaped.split('\n')
   const out: string[] = []
-  let inList = false
+  let inList: 'ul' | 'ol' | null = null
 
   for (const raw of lines) {
     const line = raw.trimEnd()
     const bullet = line.match(/^\s*[-*]\s+(.+)$/)
+    const numbered = line.match(/^\s*\d+\.\s+(.+)$/)
+
     if (bullet) {
-      if (!inList) {
-        out.push('<ul class="list-disc pl-5 space-y-0.5 my-1">')
-        inList = true
-      }
+      if (inList === 'ol') { out.push('</ol>'); inList = null }
+      if (!inList) { out.push('<ul class="list-disc pl-5 space-y-0.5 my-1">'); inList = 'ul' }
       out.push(`<li>${applyInline(bullet[1])}</li>`)
       continue
     }
-    if (inList) {
-      out.push('</ul>')
-      inList = false
+    if (numbered) {
+      if (inList === 'ul') { out.push('</ul>'); inList = null }
+      if (!inList) { out.push('<ol class="list-decimal pl-5 space-y-0.5 my-1">'); inList = 'ol' }
+      out.push(`<li>${applyInline(numbered[1])}</li>`)
+      continue
     }
+    if (inList) { out.push(inList === 'ul' ? '</ul>' : '</ol>'); inList = null }
     if (line.trim() === '') {
       out.push('<br />')
     } else {
       out.push(applyInline(line))
     }
   }
-  if (inList) out.push('</ul>')
+  if (inList) out.push(inList === 'ul' ? '</ul>' : '</ol>')
 
   return out.join('\n').replace(/(<\/(?:strong|em|code)>)\n(?!<)/g, '$1<br />')
 }

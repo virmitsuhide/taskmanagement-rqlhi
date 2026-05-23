@@ -2,6 +2,7 @@
 
 import { useRef } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { ChevronLeft, ChevronRight, Plus } from 'lucide-react'
 import type { NewsArticle } from '@/types'
 
@@ -102,7 +103,11 @@ export function NewsCarousel({ items, canCreate }: Props) {
               href="/news"
               className="snap-start shrink-0 w-[calc(50%-7px)] sm:w-[calc(33.33%-9.33px)] lg:w-[calc(25%-10.5px)] bg-card border rounded-xl overflow-hidden hover:-translate-y-0.5 hover:shadow-md transition-all group block"
             >
-              <div className={`h-28 bg-gradient-to-br ${CARD_GRADIENTS[i % CARD_GRADIENTS.length]} border-b`} />
+              <div className={`relative h-28 border-b overflow-hidden bg-gradient-to-br ${CARD_GRADIENTS[i % CARD_GRADIENTS.length]}`}>
+                {item.thumbnail_url && (
+                  <Image src={item.thumbnail_url} alt={item.title} fill className="object-cover" unoptimized />
+                )}
+              </div>
               <div className="p-3 pb-3.5">
                 <div className="text-[10px] text-muted-foreground mb-1">
                   {formatDate(item.created_at)}
@@ -112,7 +117,7 @@ export function NewsCarousel({ items, canCreate }: Props) {
                   {item.title}
                 </div>
                 <div className="text-[11px] text-muted-foreground leading-relaxed">
-                  {excerpt(item.content)}
+                  {excerpt(item.excerpt ?? item.content)}
                 </div>
               </div>
             </Link>

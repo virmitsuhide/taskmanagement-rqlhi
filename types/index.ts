@@ -132,7 +132,9 @@ export interface ContentRequest {
 export interface NewsArticle {
   id: string
   title: string
+  excerpt: string | null
   content: string
+  thumbnail_url: string | null
   author_id: string | null
   is_active: boolean
   created_at: string
