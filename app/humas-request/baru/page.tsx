@@ -1,75 +1,27 @@
-'use client'
-
-import { useActionState } from 'react'
+import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { createContentRequestAction } from '@/app/actions/content-requests'
+import { getSession } from '@/lib/auth/session'
+import { canRequestToHumas } from '@/lib/auth/permissions'
+import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { ArrowLeft } from 'lucide-react'
+import { ContentRequestForm } from './ContentRequestForm'
 
-const REQUEST_TYPES = [
-  { value: 'flyer_ujian', label: 'Flyer Ujian' },
-  { value: 'flyer_lain', label: 'Flyer Lainnya' },
-  { value: 'video', label: 'Video' },
-  { value: 'lain_lain', label: 'Lain-lain' },
-]
-
-export default function BuatHumasRequestPage() {
-  const [state, action, isPending] = useActionState(createContentRequestAction, null)
-  const today = new Date().toISOString().split('T')[0]
+export default async function BuatHumasRequestPage() {
+  const session = await getSession()
+  if (!session) redirect('/login')
+  if (!canRequestToHumas(session.role)) redirect('/humas-request')
 
   return (
-    <div className="p-4 md:p-6 max-w-2xl">
-      <Button asChild variant="ghost" size="sm" className="mb-4">
-        <Link href="/humas-request"><ArrowLeft className="h-4 w-4 mr-1" />Kembali</Link>
-      </Button>
-
-      <h1 className="text-xl font-bold mb-6">Request Konten ke Humas</h1>
-
-      <form action={action} className="space-y-5">
-        <div className="space-y-1.5">
-          <Label htmlFor="request_type">Jenis Konten</Label>
-          <Select name="request_type" required>
-            <SelectTrigger>
-              <SelectValue placeholder="Pilih jenis konten" />
-            </SelectTrigger>
-            <SelectContent>
-              {REQUEST_TYPES.map(t => (
-                <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-1.5">
-          <Label htmlFor="description">Keterangan</Label>
-          <Textarea
-            id="description"
-            name="description"
-            rows={4}
-            required
-            placeholder="Jelaskan konten yang dibutuhkan, detail, referensi, dll..."
-          />
-        </div>
-
-        <div className="space-y-1.5">
-          <Label htmlFor="requested_date">Tanggal Dibutuhkan</Label>
-          <Input id="requested_date" name="requested_date" type="date" defaultValue={today} required />
-        </div>
-
-        {state?.error && (
-          <p className="text-sm text-destructive bg-destructive/10 px-3 py-2 rounded-md">
-            {state.error}
-          </p>
-        )}
-
-        <Button type="submit" disabled={isPending} className="w-full">
-          {isPending ? 'Mengirim...' : 'Kirim Request'}
+    <div>
+      <DashboardHeader displayName={session.displayName} role={session.role} title="Request Konten ke Humas" />
+      <div className="p-4 md:p-6 max-w-2xl">
+        <Button asChild variant="ghost" size="sm" className="mb-4">
+          <Link href="/humas-request"><ArrowLeft className="h-4 w-4 mr-1" />Kembali ke Daftar Request</Link>
         </Button>
-      </form>
+        <h1 className="text-xl font-bold mb-6">Request Konten ke Humas</h1>
+        <ContentRequestForm />
+      </div>
     </div>
   )
 }
