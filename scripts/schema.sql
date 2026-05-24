@@ -138,6 +138,19 @@ create table private_notes (
   updated_at   timestamptz default now()
 );
 
+-- NEWS ARTICLES
+create table news_articles (
+  id            uuid primary key default gen_random_uuid(),
+  title         text not null,
+  content       text not null,
+  excerpt       text,
+  thumbnail_url text,
+  author_id     uuid references users(id) on delete set null,
+  is_active     boolean default true not null,
+  created_at    timestamptz default now() not null,
+  updated_at    timestamptz default now() not null
+);
+
 -- ============================================================
 -- ROW LEVEL SECURITY
 -- Catatan: aplikasi menggunakan service role key yang bypass RLS.
@@ -151,6 +164,7 @@ alter table task_history enable row level security;
 alter table public_posts enable row level security;
 alter table content_requests enable row level security;
 alter table private_notes enable row level security;
+alter table news_articles enable row level security;
 
 -- Updated_at trigger function
 create or replace function update_updated_at()
@@ -174,4 +188,7 @@ create trigger content_requests_updated_at before update on content_requests
   for each row execute function update_updated_at();
 
 create trigger private_notes_updated_at before update on private_notes
+  for each row execute function update_updated_at();
+
+create trigger news_articles_updated_at before update on news_articles
   for each row execute function update_updated_at();
