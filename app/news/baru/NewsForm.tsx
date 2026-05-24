@@ -13,6 +13,8 @@ import Image from 'next/image'
 export function NewsForm() {
   const [state, action, isPending] = useActionState(createNewsAction, null)
   const [preview, setPreview] = useState<string | null>(null)
+  const [title, setTitle] = useState('')
+  const [excerpt, setExcerpt] = useState('')
 
   function handleThumbnail(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -37,6 +39,8 @@ export function NewsForm() {
           required
           placeholder="Tulis judul berita yang informatif..."
           className="text-base font-medium"
+          value={title}
+          onChange={e => setTitle(e.target.value)}
         />
       </div>
 
@@ -87,6 +91,8 @@ export function NewsForm() {
           maxLength={280}
           placeholder="Ringkasan singkat yang tampil di bawah thumbnail di halaman beranda..."
           className="resize-none"
+          value={excerpt}
+          onChange={e => setExcerpt(e.target.value)}
         />
         <p className="text-xs text-muted-foreground">
           Ditampilkan di bawah thumbnail pada halaman News dan carousel. Maks 280 karakter.
