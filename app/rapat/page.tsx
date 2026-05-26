@@ -7,21 +7,30 @@ import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { MeetingCard } from '@/components/rapat/MeetingCard'
 import { Button } from '@/components/ui/button'
 import { Plus, BookOpen } from 'lucide-react'
+import { SearchInput } from '@/components/ui/search-input'
 import type { Meeting, MeetingType } from '@/types'
 
-export default async function RapatPage() {
+interface PageProps {
+  searchParams: Promise<{ q?: string }>
+}
+
+export default async function RapatPage({ searchParams }: PageProps) {
   const session = await getSession()
   if (!session) redirect('/login')
+
+  const { q } = await searchParams
+  const query = (q ?? '').trim()
 
   const viewableTypes = getViewableMeetingTypes(session.role)
   const canCreate = viewableTypes.some(t => canCreateMeeting(session.role, t))
 
   const supabase = createServerClient()
-  const { data } = await supabase
+  let dbQuery = supabase
     .from('meetings')
     .select('*, creator:users!meetings_created_by_fkey(id, display_name)')
     .in('type', viewableTypes)
-    .order('date', { ascending: false })
+  if (query) dbQuery = dbQuery.ilike('subject', `%${query}%`)
+  const { data } = await dbQuery.order('date', { ascending: false })
 
   const meetings = (data ?? []) as Meeting[]
 
@@ -45,6 +54,15 @@ export default async function RapatPage() {
             <Button asChild size="sm">
               <Link href="/rapat/baru"><Plus className="h-4 w-4 mr-1" />Buat Rapat</Link>
             </Button>
+          )}
+        </div>
+
+        <div>
+          <SearchInput placeholder="Cari rapat berdasarkan subjek…" />
+          {query && (
+            <p className="text-xs text-muted-foreground mt-1.5">
+              Menampilkan hasil untuk <span className="font-medium">&ldquo;{query}&rdquo;</span>
+            </p>
           )}
         </div>
 

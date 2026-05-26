@@ -1,7 +1,9 @@
 'use client'
 
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { useTransition } from 'react'
+import { toast } from 'sonner'
 import { Pencil, Eye, EyeOff, Trash2 } from 'lucide-react'
 import { toggleNewsAction, deleteNewsAction } from '@/app/actions/news'
 
@@ -11,18 +13,31 @@ interface Props {
 }
 
 export function DetailEditorBar({ newsId, isActive }: Props) {
+  const router = useRouter()
   const [pending, startTransition] = useTransition()
 
   function handleToggle() {
     startTransition(async () => {
-      await toggleNewsAction(newsId, !isActive)
+      const result = await toggleNewsAction(newsId, !isActive)
+      if (result?.error) {
+        toast.error(result.error)
+      } else {
+        toast.success(isActive ? 'Berita dinonaktifkan' : 'Berita diaktifkan')
+        router.refresh()
+      }
     })
   }
 
   function handleDelete() {
     if (!confirm('Hapus berita ini? Tindakan tidak bisa dibatalkan.')) return
     startTransition(async () => {
-      await deleteNewsAction(newsId)
+      const result = await deleteNewsAction(newsId)
+      if (result?.error) {
+        toast.error(result.error)
+      } else {
+        toast.success('Berita dihapus')
+        router.push('/news')
+      }
     })
   }
 

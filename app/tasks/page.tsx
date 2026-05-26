@@ -8,27 +8,39 @@ import { TaskCard } from '@/components/tasks/TaskCard'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Plus, CheckSquare, Clock, AlertCircle, CheckCircle2 } from 'lucide-react'
+import { SearchInput } from '@/components/ui/search-input'
 import type { Task } from '@/types'
 
-export default async function TasksPage() {
+interface PageProps {
+  searchParams: Promise<{ q?: string }>
+}
+
+export default async function TasksPage({ searchParams }: PageProps) {
   const session = await getSession()
   if (!session) redirect('/login')
 
+  const { q } = await searchParams
+  const query = (q ?? '').trim()
+
   const supabase = createServerClient()
-  const [assignedToMe, assignedByMe] = await Promise.all([
-    supabase
+  const buildAssignedToMe = () => {
+    let q = supabase
       .from('tasks')
       .select('*, assigner:users!tasks_assigned_by_fkey(id, display_name, role)')
       .eq('assigned_to', session.userId)
-      .order('priority', { ascending: false })
-      .order('created_at', { ascending: false }),
-    supabase
+    if (query) q = q.ilike('title', `%${query}%`)
+    return q.order('priority', { ascending: false }).order('created_at', { ascending: false })
+  }
+  const buildAssignedByMe = () => {
+    let q = supabase
       .from('tasks')
       .select('*, assignee:users!tasks_assigned_to_fkey(id, display_name, role)')
       .eq('assigned_by', session.userId)
       .neq('assigned_to', session.userId)
-      .order('created_at', { ascending: false }),
-  ])
+    if (query) q = q.ilike('title', `%${query}%`)
+    return q.order('created_at', { ascending: false })
+  }
+  const [assignedToMe, assignedByMe] = await Promise.all([buildAssignedToMe(), buildAssignedByMe()])
 
   const myTasks = (assignedToMe.data ?? []) as Task[]
   const delegatedTasks = (assignedByMe.data ?? []) as Task[]
@@ -62,6 +74,15 @@ export default async function TasksPage() {
           <StatCard icon={<Clock className="h-4 w-4 text-blue-500" />} label="Aktif" value={activeMy.length} />
           <StatCard icon={<AlertCircle className="h-4 w-4 text-destructive" />} label="Terlambat" value={overdueCount} tone={overdueCount > 0 ? 'danger' : undefined} />
           <StatCard icon={<CheckCircle2 className="h-4 w-4 text-green-600" />} label="Selesai" value={doneMy.length} />
+        </div>
+
+        <div className="mb-4">
+          <SearchInput placeholder="Cari task berdasarkan judul…" />
+          {query && (
+            <p className="text-xs text-muted-foreground mt-1.5">
+              Menampilkan hasil untuk <span className="font-medium">&ldquo;{query}&rdquo;</span>
+            </p>
+          )}
         </div>
 
         <Tabs defaultValue="active">

@@ -153,5 +153,5 @@ export async function deleteNewsAction(newsId: string) {
 
   revalidatePath('/news')
   revalidatePath('/')
-  redirect('/news')
+  return { success: true }
 }

@@ -8,6 +8,7 @@ import { canCreateNews } from '@/lib/auth/permissions'
 import { PublicHeader } from '@/components/layout/PublicHeader'
 import { EditorControls } from './_components/EditorControls'
 import { Button } from '@/components/ui/button'
+import { SearchInput } from '@/components/ui/search-input'
 import type { NewsArticle, NewsCategory, NewsType } from '@/types'
 
 const lora = Lora({ subsets: ['latin'], variable: '--font-lora', display: 'swap' })
@@ -69,19 +70,27 @@ function CategoryBadge({ category, type }: { category: NewsCategory | null; type
 }
 
 interface PageProps {
-  searchParams: Promise<{ category?: string; type?: string }>
+  searchParams: Promise<{ category?: string; type?: string; q?: string }>
 }
 
 export default async function NewsPage({ searchParams }: PageProps) {
   const params = await searchParams
   const activeCategory = (params.category as NewsCategory | undefined)
   const activeType = (params.type as NewsType | undefined)
+  const query = (params.q ?? '').trim()
+  const queryLower = query.toLowerCase()
 
   const [news, session] = await Promise.all([getNews(), getSession()])
   const isEditor = session && canCreateNews(session.role)
   let visible = isEditor ? news : news.filter(n => n.is_active)
   if (activeType) visible = visible.filter(n => n.type === activeType)
   if (activeCategory) visible = visible.filter(n => n.category === activeCategory)
+  if (queryLower) {
+    visible = visible.filter(n =>
+      n.title.toLowerCase().includes(queryLower) ||
+      (n.excerpt?.toLowerCase().includes(queryLower) ?? false)
+    )
+  }
 
   const featured = visible[0]
   const sideSlot = visible.slice(1, 4)
@@ -133,6 +142,16 @@ export default async function NewsPage({ searchParams }: PageProps) {
                 <Plus className="h-4 w-4 mr-1" />Buat Berita
               </Link>
             </Button>
+          )}
+        </div>
+
+        {/* Search */}
+        <div className="mb-5 max-w-md">
+          <SearchInput placeholder="Cari berita berdasarkan judul atau ringkasan…" />
+          {query && (
+            <p className="text-xs text-muted-foreground mt-1.5">
+              Menampilkan hasil untuk <span className="font-medium">&ldquo;{query}&rdquo;</span>
+            </p>
           )}
         </div>
 
