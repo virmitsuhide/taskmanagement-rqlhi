@@ -100,7 +100,7 @@ export function NewsCarousel({ items, canCreate }: Props) {
           {items.map((item, i) => (
             <Link
               key={item.id}
-              href="/news"
+              href={`/news/${item.id}`}
               className="snap-start shrink-0 w-[calc(50%-7px)] sm:w-[calc(33.33%-9.33px)] lg:w-[calc(25%-10.5px)] bg-card border rounded-xl overflow-hidden hover:-translate-y-0.5 hover:shadow-md transition-all group block"
             >
               <div className={`relative h-28 border-b overflow-hidden bg-gradient-to-br ${CARD_GRADIENTS[i % CARD_GRADIENTS.length]}`}>

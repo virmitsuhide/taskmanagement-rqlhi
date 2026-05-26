@@ -137,6 +137,8 @@ export const newsArticles = pgTable('news_articles', {
   content: text('content').notNull(),
   excerpt: text('excerpt'),
   thumbnail_url: text('thumbnail_url'),
+  category: text('category'),
+  type: text('type').default('berita').notNull(),
   author_id: uuid('author_id').references(() => users.id, { onDelete: 'set null' }),
   is_active: boolean('is_active').default(true).notNull(),
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),

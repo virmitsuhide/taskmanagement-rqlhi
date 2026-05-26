@@ -129,12 +129,17 @@ export interface ContentRequest {
   requester?: User
 }
 
+export type NewsCategory = 'sdit_lhi' | 'smpit_lhi' | 'sma_lhi' | 'paud_lhi' | 'sd_lhi_juara'
+export type NewsType = 'berita' | 'artikel'
+
 export interface NewsArticle {
   id: string
   title: string
   excerpt: string | null
   content: string
   thumbnail_url: string | null
+  category: NewsCategory | null
+  type: NewsType
   author_id: string | null
   is_active: boolean
   created_at: string

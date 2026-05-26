@@ -145,6 +145,8 @@ create table news_articles (
   content       text not null,
   excerpt       text,
   thumbnail_url text,
+  category      text,
+  type          text default 'berita' not null,
   author_id     uuid references users(id) on delete set null,
   is_active     boolean default true not null,
   created_at    timestamptz default now() not null,

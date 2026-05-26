@@ -10,11 +10,21 @@ import { RichTextEditor } from '@/components/ui/rich-text-editor'
 import { ImagePlus, X } from 'lucide-react'
 import Image from 'next/image'
 
+const CATEGORIES = [
+  { value: 'sdit_lhi',     label: 'SDIT LHI' },
+  { value: 'smpit_lhi',    label: 'SMPIT LHI' },
+  { value: 'sma_lhi',      label: 'SMA LHI' },
+  { value: 'paud_lhi',     label: 'PAUD LHI' },
+  { value: 'sd_lhi_juara', label: 'SD LHI Juara' },
+] as const
+
 export function NewsForm() {
   const [state, action, isPending] = useActionState(createNewsAction, null)
   const [preview, setPreview] = useState<string | null>(null)
   const [title, setTitle] = useState('')
   const [excerpt, setExcerpt] = useState('')
+  const [type, setType] = useState<'berita' | 'artikel'>('berita')
+  const [category, setCategory] = useState<string>('')
 
   function handleThumbnail(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -30,6 +40,54 @@ export function NewsForm() {
 
   return (
     <form action={action} className="space-y-6">
+      {/* Tipe + Kategori */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="space-y-1.5">
+          <Label>Tipe <span className="text-destructive">*</span></Label>
+          <div className="flex gap-2">
+            {(['berita', 'artikel'] as const).map(t => (
+              <label
+                key={t}
+                className={`flex-1 cursor-pointer text-center px-3 py-2 rounded-md border text-sm font-medium capitalize transition-colors ${
+                  type === t
+                    ? 'bg-primary text-primary-foreground border-primary'
+                    : 'bg-card hover:bg-muted border-border'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="type"
+                  value={t}
+                  checked={type === t}
+                  onChange={() => setType(t)}
+                  className="sr-only"
+                />
+                {t}
+              </label>
+            ))}
+          </div>
+        </div>
+
+        <div className="space-y-1.5">
+          <Label htmlFor="category">
+            Kategori Unit {type === 'berita' && <span className="text-destructive">*</span>}
+          </Label>
+          <select
+            id="category"
+            name="category"
+            value={category}
+            onChange={e => setCategory(e.target.value)}
+            required={type === 'berita'}
+            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          >
+            <option value="">{type === 'artikel' ? '(opsional)' : 'Pilih unit…'}</option>
+            {CATEGORIES.map(c => (
+              <option key={c.value} value={c.value}>{c.label}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
       {/* Judul */}
       <div className="space-y-1.5">
         <Label htmlFor="title">Judul Berita <span className="text-destructive">*</span></Label>

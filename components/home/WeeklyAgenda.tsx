@@ -1,8 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { Calendar, MapPin } from 'lucide-react'
-import { AbstractTile } from './Decorations'
+import { Calendar } from 'lucide-react'
 import type { PublicPost, KaldiEvent } from '@/types'
 
 interface Props {
@@ -235,26 +234,6 @@ export function WeeklyAgenda({ posts, kaldiEvents = [], weekStartIso, todayIso }
         </div>
       </div>
 
-      {/* TODO: Acara mendatang — isi judul/tanggal/lokasi acara wisuda atau event besar berikutnya */}
-      <div className="rounded-xl border bg-card overflow-hidden">
-        <AbstractTile height={130} variant={1} />
-        <div className="p-5">
-          <p className="text-[10px] font-semibold uppercase tracking-widest text-accent-warm">
-            Acara mendatang
-          </p>
-          <h3 className="text-lg font-semibold mt-2 leading-snug">
-            Wisuda Tahfizh angkatan ke-8.
-          </h3>
-          <div className="flex flex-wrap gap-3 mt-2.5 text-xs text-muted-foreground">
-            <span className="inline-flex items-center gap-1.5">
-              <Calendar className="h-3 w-3" /> 15 Juli 2026
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <MapPin className="h-3 w-3" /> Aula LHI
-            </span>
-          </div>
-        </div>
-      </div>
     </div>
   )
 }

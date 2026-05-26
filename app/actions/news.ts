@@ -8,6 +8,9 @@ import { canCreateNews } from '@/lib/auth/permissions'
 
 const BUCKET = 'news-images'
 
+const VALID_CATEGORIES = ['sdit_lhi', 'smpit_lhi', 'sma_lhi', 'paud_lhi', 'sd_lhi_juara'] as const
+const VALID_TYPES = ['berita', 'artikel'] as const
+
 async function uploadThumbnail(
   supabase: ReturnType<typeof createServerClient>,
   file: File,
@@ -36,6 +39,14 @@ export async function createNewsAction(_: unknown, formData: FormData) {
   const content = (formData.get('content') as string)?.trim()
   if (!title || !content) return { error: 'Judul dan isi wajib diisi.' }
 
+  const rawCategory = (formData.get('category') as string)?.trim() || ''
+  const rawType = (formData.get('type') as string)?.trim() || 'berita'
+  const category = (VALID_CATEGORIES as readonly string[]).includes(rawCategory) ? rawCategory : null
+  const type = (VALID_TYPES as readonly string[]).includes(rawType) ? rawType : 'berita'
+  if (type === 'berita' && !category) {
+    return { error: 'Kategori unit wajib dipilih untuk berita.' }
+  }
+
   const supabase = createServerClient()
 
   const thumbnailFile = formData.get('thumbnail') as File | null
@@ -49,6 +60,8 @@ export async function createNewsAction(_: unknown, formData: FormData) {
     excerpt,
     content,
     thumbnail_url: thumbnailUrl,
+    category,
+    type,
     author_id: session.userId,
     is_active: true,
   })
