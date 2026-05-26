@@ -131,6 +131,18 @@ export const privateNotes = pgTable('private_notes', {
   updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
 })
 
+export const newsArticles = pgTable('news_articles', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  title: text('title').notNull(),
+  content: text('content').notNull(),
+  excerpt: text('excerpt'),
+  thumbnail_url: text('thumbnail_url'),
+  author_id: uuid('author_id').references(() => users.id, { onDelete: 'set null' }),
+  is_active: boolean('is_active').default(true).notNull(),
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+})
+
 // ─── Relations ────────────────────────────────────────────────────────────────
 export const usersRelations = relations(users, ({ many }) => ({
   created_meetings: many(meetings, { relationName: 'creator' }),
@@ -173,4 +185,8 @@ export const contentRequestsRelations = relations(contentRequests, ({ one }) => 
 
 export const privateNotesRelations = relations(privateNotes, ({ one }) => ({
   user: one(users, { fields: [privateNotes.user_id], references: [users.id] }),
+}))
+
+export const newsArticlesRelations = relations(newsArticles, ({ one }) => ({
+  author: one(users, { fields: [newsArticles.author_id], references: [users.id] }),
 }))

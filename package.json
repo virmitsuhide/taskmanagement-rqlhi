@@ -10,6 +10,8 @@
     "lint": "eslint",
     "format": "prettier --write \"**/*.{ts,tsx}\"",
     "typecheck": "tsc --noEmit",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "tsx scripts/migrate.ts",
     "seed": "tsx scripts/seed.ts"
   },
   "dependencies": {
@@ -38,12 +40,14 @@
     "@tailwindcss/postcss": "^4.2.1",
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^25.5.0",
+    "@types/pg": "^8.20.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "dotenv": "^17.4.2",
     "drizzle-kit": "^0.31.10",
     "eslint": "^9.39.4",
     "eslint-config-next": "16.1.7",
+    "pg": "^8.21.0",
     "postcss": "^8",
     "prettier": "^3.8.1",
     "prettier-plugin-tailwindcss": "^0.7.2",
