@@ -73,6 +73,58 @@ export async function createNewsAction(_: unknown, formData: FormData) {
   redirect('/news')
 }
 
+export async function updateNewsAction(newsId: string, _: unknown, formData: FormData) {
+  const session = await getSession()
+  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!canCreateNews(session.role)) return { error: 'Tidak memiliki izin.' }
+
+  const title   = (formData.get('title') as string)?.trim()
+  const excerpt = (formData.get('excerpt') as string)?.trim() || null
+  const content = (formData.get('content') as string)?.trim()
+  if (!title || !content) return { error: 'Judul dan isi wajib diisi.' }
+
+  const rawCategory = (formData.get('category') as string)?.trim() || ''
+  const rawType = (formData.get('type') as string)?.trim() || 'berita'
+  const category = (VALID_CATEGORIES as readonly string[]).includes(rawCategory) ? rawCategory : null
+  const type = (VALID_TYPES as readonly string[]).includes(rawType) ? rawType : 'berita'
+  if (type === 'berita' && !category) {
+    return { error: 'Kategori unit wajib dipilih untuk berita.' }
+  }
+
+  const supabase = createServerClient()
+
+  const removeThumbnail = formData.get('remove_thumbnail') === '1'
+  const thumbnailFile = formData.get('thumbnail') as File | null
+
+  const update: Record<string, unknown> = {
+    title,
+    excerpt,
+    content,
+    category,
+    type,
+    updated_at: new Date().toISOString(),
+  }
+
+  if (thumbnailFile && thumbnailFile.size > 0) {
+    const url = await uploadThumbnail(supabase, thumbnailFile)
+    if (url) update.thumbnail_url = url
+  } else if (removeThumbnail) {
+    update.thumbnail_url = null
+  }
+
+  const { error } = await supabase
+    .from('news_articles')
+    .update(update)
+    .eq('id', newsId)
+
+  if (error) return { error: error.message || 'Gagal menyimpan perubahan.' }
+
+  revalidatePath('/')
+  revalidatePath('/news')
+  revalidatePath(`/news/${newsId}`)
+  redirect(`/news/${newsId}`)
+}
+
 export async function toggleNewsAction(newsId: string, isActive: boolean) {
   const session = await getSession()
   if (!session) return { error: 'Sesi tidak valid.' }

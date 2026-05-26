@@ -1,9 +1,11 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { notFound } from 'next/navigation'
-import { ArrowLeft, Calendar, User as UserIcon } from 'lucide-react'
+import { ArrowLeft, Calendar, User as UserIcon, Pencil } from 'lucide-react'
 import { Lora, Playfair_Display } from 'next/font/google'
 import { createServerClient } from '@/lib/supabase/server'
+import { getSession } from '@/lib/auth/session'
+import { canCreateNews } from '@/lib/auth/permissions'
 import { PublicHeader } from '@/components/layout/PublicHeader'
 import { PublicFooter } from '@/components/home/PublicFooter'
 import { Markdown } from '@/components/ui/markdown'
@@ -95,8 +97,10 @@ interface PageProps {
 
 export default async function NewsDetailPage({ params }: PageProps) {
   const { id } = await params
-  const article = await getArticle(id)
-  if (!article || !article.is_active) notFound()
+  const [article, session] = await Promise.all([getArticle(id), getSession()])
+  const isEditor = session && canCreateNews(session.role)
+  if (!article) notFound()
+  if (!article.is_active && !isEditor) notFound()
 
   const related = await getRelated(article)
 
@@ -111,22 +115,38 @@ export default async function NewsDetailPage({ params }: PageProps) {
       <PublicHeader />
 
       <div className="max-w-3xl mx-auto px-6 pt-9 pb-12">
-        {/* Breadcrumb */}
-        <nav className="flex items-center gap-1.5 text-xs text-muted-foreground mb-6 flex-wrap">
-          <Link href="/" className="hover:text-foreground transition-colors">Beranda</Link>
-          <span>/</span>
-          <Link href="/news" className="hover:text-foreground transition-colors">
-            {article.type === 'artikel' ? 'Artikel' : 'Berita'}
-          </Link>
-          {categoryLabel && (
-            <>
-              <span>/</span>
-              <Link href={categoryHref} className="hover:text-foreground transition-colors">
-                {categoryLabel}
-              </Link>
-            </>
+        {/* Breadcrumb + edit */}
+        <div className="flex items-center justify-between gap-3 mb-6 flex-wrap">
+          <nav className="flex items-center gap-1.5 text-xs text-muted-foreground flex-wrap">
+            <Link href="/" className="hover:text-foreground transition-colors">Beranda</Link>
+            <span>/</span>
+            <Link href="/news" className="hover:text-foreground transition-colors">
+              {article.type === 'artikel' ? 'Artikel' : 'Berita'}
+            </Link>
+            {categoryLabel && (
+              <>
+                <span>/</span>
+                <Link href={categoryHref} className="hover:text-foreground transition-colors">
+                  {categoryLabel}
+                </Link>
+              </>
+            )}
+          </nav>
+          {isEditor && (
+            <Link
+              href={`/news/${article.id}/edit`}
+              className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-md border bg-card hover:bg-muted transition-colors"
+            >
+              <Pencil className="h-3 w-3" /> Edit
+            </Link>
           )}
-        </nav>
+        </div>
+
+        {!article.is_active && (
+          <div className="mb-5 px-3 py-2 rounded-md bg-muted text-xs text-muted-foreground">
+            Status: <span className="font-semibold">Non-aktif</span> — hanya editor yang bisa melihat halaman ini.
+          </div>
+        )}
 
         {/* Category badge */}
         <div className="mb-4">
