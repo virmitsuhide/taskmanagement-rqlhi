@@ -1,12 +1,12 @@
 import Link from 'next/link'
 import Image from 'next/image'
-import { ArrowLeft, Plus, Eye, EyeOff, Trash2, Pencil } from 'lucide-react'
+import { ArrowLeft, Plus } from 'lucide-react'
 import { Lora, Playfair_Display } from 'next/font/google'
 import { createServerClient } from '@/lib/supabase/server'
 import { getSession } from '@/lib/auth/session'
 import { canCreateNews } from '@/lib/auth/permissions'
 import { PublicHeader } from '@/components/layout/PublicHeader'
-import { toggleNewsAction, deleteNewsAction } from '@/app/actions/news'
+import { EditorControls } from './_components/EditorControls'
 import { Button } from '@/components/ui/button'
 import type { NewsArticle, NewsCategory, NewsType } from '@/types'
 
@@ -174,10 +174,12 @@ export default async function NewsPage({ searchParams }: PageProps) {
         {featured && (
           <div className="grid md:grid-cols-[1.6fr_1fr] gap-6 mb-10">
             {/* Lead */}
-            <Link
-              href={`/news/${featured.id}`}
-              className={`group block ${!featured.is_active ? 'opacity-50' : ''}`}
-            >
+            <div className="relative">
+              {isEditor && <EditorControls newsId={featured.id} isActive={featured.is_active} size="md" />}
+              <Link
+                href={`/news/${featured.id}`}
+                className={`group block ${!featured.is_active ? 'opacity-50' : ''}`}
+              >
               <article className="rounded-xl border bg-card overflow-hidden hover:border-foreground/20 hover:shadow-sm transition">
                 {featured.thumbnail_url ? (
                   <div className="relative w-full aspect-[16/10] overflow-hidden">
@@ -218,13 +220,15 @@ export default async function NewsPage({ searchParams }: PageProps) {
                   )}
                 </div>
               </article>
-            </Link>
+              </Link>
+            </div>
 
             {/* Side slot */}
             <div className="flex flex-col gap-3">
               {sideSlot.map(item => (
+                <div key={item.id} className="relative">
+                  {isEditor && <EditorControls newsId={item.id} isActive={item.is_active} />}
                 <Link
-                  key={item.id}
                   href={`/news/${item.id}`}
                   className={`flex gap-3 rounded-lg border bg-card p-3 hover:border-foreground/20 hover:shadow-sm transition group ${!item.is_active ? 'opacity-50' : ''}`}
                 >
@@ -246,6 +250,7 @@ export default async function NewsPage({ searchParams }: PageProps) {
                     </p>
                   </div>
                 </Link>
+                </div>
               ))}
             </div>
           </div>
@@ -290,35 +295,7 @@ export default async function NewsPage({ searchParams }: PageProps) {
                     </p>
                   </div>
                 </Link>
-                {isEditor && (
-                  <div className="absolute top-2 right-2 flex gap-1 bg-card/80 backdrop-blur rounded-md p-0.5">
-                    <Link
-                      href={`/news/${item.id}/edit`}
-                      title="Edit"
-                      className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                    >
-                      <Pencil className="h-3.5 w-3.5" />
-                    </Link>
-                    <form action={toggleNewsAction.bind(null, item.id, !item.is_active) as unknown as (fd: FormData) => void}>
-                      <button
-                        type="submit"
-                        title={item.is_active ? 'Nonaktifkan' : 'Aktifkan'}
-                        className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                      >
-                        {item.is_active ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-                      </button>
-                    </form>
-                    <form action={deleteNewsAction.bind(null, item.id) as unknown as (fd: FormData) => void}>
-                      <button
-                        type="submit"
-                        title="Hapus"
-                        className="p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    </form>
-                  </div>
-                )}
+                {isEditor && <EditorControls newsId={item.id} isActive={item.is_active} />}
               </article>
             ))}
           </div>

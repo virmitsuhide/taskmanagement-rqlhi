@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { notFound } from 'next/navigation'
-import { ArrowLeft, Calendar, User as UserIcon, Pencil } from 'lucide-react'
+import { ArrowLeft, Calendar, User as UserIcon } from 'lucide-react'
 import { Lora, Playfair_Display } from 'next/font/google'
 import { createServerClient } from '@/lib/supabase/server'
 import { getSession } from '@/lib/auth/session'
@@ -10,6 +10,7 @@ import { PublicHeader } from '@/components/layout/PublicHeader'
 import { PublicFooter } from '@/components/home/PublicFooter'
 import { Markdown } from '@/components/ui/markdown'
 import { ShareButton } from './ShareButton'
+import { DetailEditorBar } from './DetailEditorBar'
 import type { NewsArticle, NewsCategory, NewsType } from '@/types'
 
 const lora = Lora({ subsets: ['latin'], variable: '--font-lora', display: 'swap' })
@@ -132,14 +133,7 @@ export default async function NewsDetailPage({ params }: PageProps) {
               </>
             )}
           </nav>
-          {isEditor && (
-            <Link
-              href={`/news/${article.id}/edit`}
-              className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-md border bg-card hover:bg-muted transition-colors"
-            >
-              <Pencil className="h-3 w-3" /> Edit
-            </Link>
-          )}
+          {isEditor && <DetailEditorBar newsId={article.id} isActive={article.is_active} />}
         </div>
 
         {!article.is_active && (
