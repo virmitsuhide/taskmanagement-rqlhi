@@ -9,7 +9,10 @@ import { PublicHeader } from '@/components/layout/PublicHeader'
 import { EditorControls } from './_components/EditorControls'
 import { Button } from '@/components/ui/button'
 import { SearchInput } from '@/components/ui/search-input'
+import { Pagination } from '@/components/ui/pagination'
 import type { NewsArticle, NewsCategory, NewsType } from '@/types'
+
+const PAGE_SIZE = 12
 
 const lora = Lora({ subsets: ['latin'], variable: '--font-lora', display: 'swap' })
 const playfair = Playfair_Display({ subsets: ['latin'], variable: '--font-playfair', display: 'swap' })
@@ -70,7 +73,7 @@ function CategoryBadge({ category, type }: { category: NewsCategory | null; type
 }
 
 interface PageProps {
-  searchParams: Promise<{ category?: string; type?: string; q?: string }>
+  searchParams: Promise<{ category?: string; type?: string; q?: string; page?: string }>
 }
 
 export default async function NewsPage({ searchParams }: PageProps) {
@@ -79,22 +82,31 @@ export default async function NewsPage({ searchParams }: PageProps) {
   const activeType = (params.type as NewsType | undefined)
   const query = (params.q ?? '').trim()
   const queryLower = query.toLowerCase()
+  const page = Math.max(1, parseInt(params.page ?? '1', 10) || 1)
 
   const [news, session] = await Promise.all([getNews(), getSession()])
   const isEditor = session && canCreateNews(session.role)
-  let visible = isEditor ? news : news.filter(n => n.is_active)
-  if (activeType) visible = visible.filter(n => n.type === activeType)
-  if (activeCategory) visible = visible.filter(n => n.category === activeCategory)
+  let filtered = isEditor ? news : news.filter(n => n.is_active)
+  if (activeType) filtered = filtered.filter(n => n.type === activeType)
+  if (activeCategory) filtered = filtered.filter(n => n.category === activeCategory)
   if (queryLower) {
-    visible = visible.filter(n =>
+    filtered = filtered.filter(n =>
       n.title.toLowerCase().includes(queryLower) ||
       (n.excerpt?.toLowerCase().includes(queryLower) ?? false)
     )
   }
 
-  const featured = visible[0]
-  const sideSlot = visible.slice(1, 4)
-  const rest = visible.slice(4)
+  const total = filtered.length
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
+  const safePage = Math.min(page, totalPages)
+  const startIdx = (safePage - 1) * PAGE_SIZE
+  const visible = filtered.slice(startIdx, startIdx + PAGE_SIZE)
+
+  // Page 1 uses featured + sidebar + grid; page 2+ is pure grid
+  const isFirstPage = safePage === 1
+  const featured = isFirstPage ? visible[0] : undefined
+  const sideSlot = isFirstPage ? visible.slice(1, 4) : []
+  const rest = isFirstPage ? visible.slice(4) : visible
 
   function tabHref(next: Partial<{ category: string; type: string }>) {
     const merged: Record<string, string> = {}
@@ -133,7 +145,7 @@ export default async function NewsPage({ searchParams }: PageProps) {
               Berita &amp; Kabar
             </h1>
             <p className="text-sm text-muted-foreground mt-1">
-              {visible.length} {visible.length === 1 ? 'artikel' : 'artikel'} · Rumah Qur&apos;an LHI
+              {total} artikel · Rumah Qur&apos;an LHI
             </p>
           </div>
           {isEditor && (
@@ -319,6 +331,18 @@ export default async function NewsPage({ searchParams }: PageProps) {
             ))}
           </div>
         )}
+
+        <Pagination
+          page={safePage}
+          pageSize={PAGE_SIZE}
+          total={total}
+          basePath="/news"
+          searchParams={{
+            category: activeCategory,
+            type: activeType,
+            q: query || undefined,
+          }}
+        />
       </div>
     </div>
   )

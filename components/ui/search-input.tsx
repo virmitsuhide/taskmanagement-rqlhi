@@ -23,6 +23,7 @@ export function SearchInput({ placeholder = 'Cari…', paramKey = 'q' }: Props) 
       const trimmed = value.trim()
       if (trimmed) params.set(paramKey, trimmed)
       else params.delete(paramKey)
+      params.delete('page')
       const qs = params.toString()
       startTransition(() => {
         router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false })
