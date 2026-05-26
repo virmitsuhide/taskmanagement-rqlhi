@@ -10,6 +10,9 @@ interface Props {
 const DAY_LABELS = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min']
 const MONTH_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
 
+const DEFAULT_DOT = '#94A3B8' // slate-400 fallback when API has no color
+const INTERNAL_COLOR = '#E07A2D' // matches accent-warm — for internal posts
+
 function getWeekDates(): Date[] {
   const now = new Date()
   const day = (now.getDay() + 6) % 7 // 0 = Monday
@@ -27,7 +30,6 @@ function sameDay(a: Date, b: Date) {
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate()
 }
 
-// Normalize kaldi event to a Date — handles "start", "date", "startDate", etc.
 function kaldiEventDate(e: KaldiEvent): Date | null {
   const raw = e.start ?? e.date ?? e.startDate ?? e.dtstart ?? null
   if (!raw) return null
@@ -40,28 +42,40 @@ export function WeeklyAgenda({ posts, kaldiEvents = [] }: Props) {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
 
-  // Internal post events
   const postEvents = posts
     .filter((p) => p.due_date)
-    .map((p) => ({ post: p, date: new Date(p.due_date!), source: 'internal' as const }))
+    .map((p) => ({ post: p, date: new Date(p.due_date!) }))
     .filter((e) => week.some((d) => sameDay(d, e.date)))
 
-  // External kaldi events
   const externalEvents = kaldiEvents
-    .map((e) => ({ event: e, date: kaldiEventDate(e), source: 'kaldi' as const }))
-    .filter((e): e is { event: KaldiEvent; date: Date; source: 'kaldi' } =>
+    .map((e) => ({ event: e, date: kaldiEventDate(e) }))
+    .filter((e): e is { event: KaldiEvent; date: Date } =>
       e.date !== null && week.some((d) => sameDay(d, e.date!))
     )
 
-  function hasPostEvent(d: Date) {
-    return postEvents.some((e) => sameDay(e.date, d))
+  // Up to 3 distinct color dots per day
+  function dayDots(d: Date): string[] {
+    const colors: string[] = []
+    if (postEvents.some((e) => sameDay(e.date, d))) colors.push(INTERNAL_COLOR)
+    for (const e of externalEvents) {
+      if (!sameDay(e.date, d)) continue
+      const c = e.event.color || DEFAULT_DOT
+      if (!colors.includes(c)) colors.push(c)
+    }
+    return colors.slice(0, 3)
   }
 
-  function hasKaldiEvent(d: Date) {
-    return externalEvents.some((e) => sameDay(e.date, d))
-  }
+  // Legend: distinct (unit, color) pairs present in the visible window
+  const legend: { label: string; color: string }[] = (() => {
+    const seen = new Map<string, string>()
+    if (postEvents.length > 0) seen.set('Internal', INTERNAL_COLOR)
+    for (const e of externalEvents) {
+      const unit = e.event.unit || 'Lain'
+      if (!seen.has(unit)) seen.set(unit, e.event.color || DEFAULT_DOT)
+    }
+    return Array.from(seen, ([label, color]) => ({ label, color }))
+  })()
 
-  // Merge and sort upcoming for the list, max 6
   type UpcomingItem =
     | { kind: 'post'; post: PublicPost; date: Date }
     | { kind: 'kaldi'; event: KaldiEvent; date: Date }
@@ -71,7 +85,7 @@ export function WeeklyAgenda({ posts, kaldiEvents = [] }: Props) {
     ...externalEvents.map(({ event, date }) => ({ kind: 'kaldi' as const, event, date })),
   ]
     .sort((a, b) => a.date.getTime() - b.date.getTime())
-    .slice(0, 6)
+    .slice(0, 8)
 
   return (
     <div className="space-y-4">
@@ -94,25 +108,28 @@ export function WeeklyAgenda({ posts, kaldiEvents = [] }: Props) {
           ))}
           {week.map((d) => {
             const isToday = sameDay(d, today)
-            const hasPost = hasPostEvent(d)
-            const hasKaldi = hasKaldiEvent(d)
-            const hasAny = hasPost || hasKaldi
+            const dots = dayDots(d)
             return (
               <div
                 key={d.toISOString()}
                 className={`relative aspect-square rounded-lg flex items-center justify-center text-sm font-medium border ${
                   isToday
                     ? 'bg-primary text-primary-foreground border-primary'
-                    : hasAny
-                    ? 'bg-accent-warm-wash text-foreground border-border'
+                    : dots.length > 0
+                    ? 'bg-muted/50 text-foreground border-border'
                     : 'border-border'
                 }`}
               >
                 {d.getDate()}
-                {!isToday && (hasPost || hasKaldi) && (
+                {!isToday && dots.length > 0 && (
                   <span className="absolute bottom-1 left-1/2 -translate-x-1/2 flex gap-0.5">
-                    {hasPost && <span className="h-1 w-1 rounded-full bg-accent-warm" />}
-                    {hasKaldi && <span className="h-1 w-1 rounded-full bg-primary" />}
+                    {dots.map((c, i) => (
+                      <span
+                        key={i}
+                        className="h-1 w-1 rounded-full"
+                        style={{ backgroundColor: c }}
+                      />
+                    ))}
                   </span>
                 )}
               </div>
@@ -120,21 +137,17 @@ export function WeeklyAgenda({ posts, kaldiEvents = [] }: Props) {
           })}
         </div>
 
-        {/* Legend */}
-        {(postEvents.length > 0 || externalEvents.length > 0) && (
-          <div className="mt-3 flex gap-4">
-            {postEvents.length > 0 && (
-              <span className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
-                <span className="h-1.5 w-1.5 rounded-full bg-accent-warm" />
-                Internal
+        {legend.length > 0 && (
+          <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5">
+            {legend.map(({ label, color }) => (
+              <span key={label} className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                <span
+                  className="h-1.5 w-1.5 rounded-full"
+                  style={{ backgroundColor: color }}
+                />
+                {label}
               </span>
-            )}
-            {externalEvents.length > 0 && (
-              <span className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
-                <span className="h-1.5 w-1.5 rounded-full bg-primary" />
-                Kalender RQ
-              </span>
-            )}
+            ))}
           </div>
         )}
 
@@ -143,7 +156,10 @@ export function WeeklyAgenda({ posts, kaldiEvents = [] }: Props) {
             {upcoming.map((item, i) =>
               item.kind === 'post' ? (
                 <div key={`post-${item.post.id}`} className="flex items-center gap-2">
-                  <span className="h-1.5 w-1.5 rounded-full bg-accent-warm shrink-0" />
+                  <span
+                    className="h-1.5 w-1.5 rounded-full shrink-0"
+                    style={{ backgroundColor: INTERNAL_COLOR }}
+                  />
                   <p className="flex-1 text-sm truncate">{item.post.title}</p>
                   <p className="text-xs text-muted-foreground shrink-0">
                     {item.date.getDate()} {MONTH_SHORT[item.date.getMonth()]}
@@ -151,7 +167,10 @@ export function WeeklyAgenda({ posts, kaldiEvents = [] }: Props) {
                 </div>
               ) : (
                 <div key={`kaldi-${item.event.id ?? i}`} className="flex items-center gap-2">
-                  <span className="h-1.5 w-1.5 rounded-full bg-primary shrink-0" />
+                  <span
+                    className="h-1.5 w-1.5 rounded-full shrink-0"
+                    style={{ backgroundColor: item.event.color || DEFAULT_DOT }}
+                  />
                   <p className="flex-1 text-sm truncate">{item.event.title}</p>
                   <p className="text-xs text-muted-foreground shrink-0">
                     {item.date.getDate()} {MONTH_SHORT[item.date.getMonth()]}

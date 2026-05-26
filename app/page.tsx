@@ -15,7 +15,6 @@ const playfair = Playfair_Display({ subsets: ['latin'], variable: '--font-playfa
 
 const MONTH_ID = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember']
 const DAY_ID   = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu']
-const MONTH_S  = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des']
 
 async function getNews(): Promise<NewsArticle[]> {
   try {
@@ -67,10 +66,6 @@ export default async function HomePage() {
   const tugasSMP    = posts.filter(p => p.type === 'tugas_guru' && (p.target === 'smp' || p.target === 'all'))
   const allTugas    = [...tugasSD, ...tugasSMP]
   const overdueCount = allTugas.filter(p => p.due_date && new Date(p.due_date) < now).length
-  const agendaTerdekat = posts
-    .filter(p => p.type === 'pengumuman' && p.due_date && new Date(p.due_date) >= now)
-    .sort((a, b) => new Date(a.due_date!).getTime() - new Date(b.due_date!).getTime())
-    .slice(0, 3)
   const userCanCreateNews = session ? canCreateNews(session.role) : false
 
   const dateLabel = `${DAY_ID[now.getDay()]}, ${now.getDate()} ${MONTH_ID[now.getMonth()]} ${now.getFullYear()}`
@@ -101,7 +96,6 @@ export default async function HomePage() {
             {allTugas.length > 0
               ? `${allTugas.length} tugas aktif`
               : 'Belum ada tugas aktif'}
-            {agendaTerdekat.length > 0 && ` · ${agendaTerdekat.length} agenda terdekat`}
             {overdueCount > 0 && ` · ${overdueCount} mendekati tenggat`}
           </p>
         </div>
@@ -132,49 +126,9 @@ export default async function HomePage() {
           <TugasGuruList tugasSD={tugasSD} tugasSMP={tugasSMP} />
         </div>
 
-        {/* Kanan: Pengumuman + Agenda */}
+        {/* Kanan: Agenda */}
         <div className="flex flex-col gap-4">
 
-          {/* Agenda Terdekat */}
-          <div className="bg-card border rounded-2xl p-5">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="m-0 text-base font-bold tracking-tight text-foreground" style={headingFont}>
-                Agenda Terdekat
-              </h2>
-              {agendaTerdekat.length > 0 && (
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-accent-warm-wash text-accent-warm tracking-wide">
-                  {agendaTerdekat.length} agenda
-                </span>
-              )}
-            </div>
-
-            {agendaTerdekat.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-7">Belum ada agenda mendatang.</p>
-            ) : (
-              <>
-                {agendaTerdekat.map(p => {
-                  const d = new Date(p.due_date!)
-                  return (
-                    <div key={p.id} className="flex justify-between items-center py-2.5 border-b border-dashed border-border last:border-0 gap-2">
-                      <p className="text-[13px] font-medium flex-1 leading-snug">{p.title}</p>
-                      <span className="text-[11px] text-muted-foreground shrink-0">
-                        {d.getDate()} {MONTH_S[d.getMonth()]}
-                      </span>
-                      <span className="text-base text-muted-foreground/40 shrink-0 leading-none">›</span>
-                    </div>
-                  )
-                })}
-                <Link
-                  href="/login"
-                  className="block text-left text-xs text-muted-foreground mt-2.5 hover:text-foreground transition-colors"
-                >
-                  lihat semua agenda →
-                </Link>
-              </>
-            )}
-          </div>
-
-          {/* Agenda */}
           <WeeklyAgenda posts={posts} kaldiEvents={kaldiEvents} />
 
           {/* CTA login */}
