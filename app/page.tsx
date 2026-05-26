@@ -8,7 +8,7 @@ import { WeeklyAgenda } from '@/components/home/WeeklyAgenda'
 import { TugasGuruList } from '@/components/home/TugasGuruList'
 import { NewsCarousel } from '@/components/home/NewsCarousel'
 import { PublicFooter } from '@/components/home/PublicFooter'
-import type { PublicPost, NewsArticle } from '@/types'
+import type { PublicPost, NewsArticle, KaldiEvent } from '@/types'
 
 const lora = Lora({ subsets: ['latin'], variable: '--font-lora', display: 'swap' })
 const playfair = Playfair_Display({ subsets: ['latin'], variable: '--font-playfair', display: 'swap' })
@@ -32,6 +32,19 @@ async function getNews(): Promise<NewsArticle[]> {
   }
 }
 
+async function getKaldiEvents(): Promise<KaldiEvent[]> {
+  try {
+    const res = await fetch('https://kaldikrqlhi.vercel.app/api/upcoming?days=14', {
+      next: { revalidate: 3600 },
+    })
+    if (!res.ok) return []
+    const data = await res.json()
+    return (data.events ?? []) as KaldiEvent[]
+  } catch {
+    return []
+  }
+}
+
 async function getPosts() {
   try {
     const supabase = createServerClient()
@@ -47,7 +60,7 @@ async function getPosts() {
 }
 
 export default async function HomePage() {
-  const [posts, newsItems, session] = await Promise.all([getPosts(), getNews(), getSession()])
+  const [posts, newsItems, session, kaldiEvents] = await Promise.all([getPosts(), getNews(), getSession(), getKaldiEvents()])
   const now    = new Date()
 
   const tugasSD     = posts.filter(p => p.type === 'tugas_guru' && (p.target === 'sd'  || p.target === 'all'))
@@ -162,7 +175,7 @@ export default async function HomePage() {
           </div>
 
           {/* Agenda */}
-          <WeeklyAgenda posts={posts} />
+          <WeeklyAgenda posts={posts} kaldiEvents={kaldiEvents} />
 
           {/* CTA login */}
           <Link

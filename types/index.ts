@@ -164,3 +164,29 @@ export interface ActionResult {
   error?: string
   data?: unknown
 }
+
+export interface KaldiEvent {
+  id?: string
+  title: string
+  start?: string
+  date?: string
+  end?: string
+  location?: string
+  description?: string
+  color?: string
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  [key: string]: any
+}
+
+export interface KaldiApiResponse {
+  events: KaldiEvent[]
+  total: number
+  meta: {
+    from: string
+    to: string
+    days: number
+    limit: number
+    unit: string
+    source: string
+  }
+}
