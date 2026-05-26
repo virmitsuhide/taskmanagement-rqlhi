@@ -68,6 +68,12 @@ export default async function HomePage() {
   const overdueCount = allTugas.filter(p => p.due_date && new Date(p.due_date) < now).length
   const userCanCreateNews = session ? canCreateNews(session.role) : false
 
+  const todayStart = new Date(now); todayStart.setHours(0, 0, 0, 0)
+  const monday = new Date(todayStart)
+  monday.setDate(todayStart.getDate() - ((now.getDay() + 6) % 7))
+  const weekStartIso = monday.toISOString()
+  const todayIso = todayStart.toISOString()
+
   const dateLabel = `${DAY_ID[now.getDay()]}, ${now.getDate()} ${MONTH_ID[now.getMonth()]} ${now.getFullYear()}`
 
   const headingFont = { fontFamily: "var(--font-playfair), 'Georgia', serif" }
@@ -129,7 +135,12 @@ export default async function HomePage() {
         {/* Kanan: Agenda */}
         <div className="flex flex-col gap-4">
 
-          <WeeklyAgenda posts={posts} kaldiEvents={kaldiEvents} />
+          <WeeklyAgenda
+            posts={posts}
+            kaldiEvents={kaldiEvents}
+            weekStartIso={weekStartIso}
+            todayIso={todayIso}
+          />
 
           {/* CTA login */}
           <Link

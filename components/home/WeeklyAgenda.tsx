@@ -1,3 +1,6 @@
+'use client'
+
+import { useMemo, useState } from 'react'
 import { Calendar, MapPin } from 'lucide-react'
 import { AbstractTile } from './Decorations'
 import type { PublicPost, KaldiEvent } from '@/types'
@@ -5,26 +8,16 @@ import type { PublicPost, KaldiEvent } from '@/types'
 interface Props {
   posts: PublicPost[]
   kaldiEvents?: KaldiEvent[]
+  weekStartIso: string
+  todayIso: string
 }
 
 const DAY_LABELS = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min']
+const DAY_FULL = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu']
 const MONTH_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
 
-const DEFAULT_DOT = '#94A3B8' // slate-400 fallback when API has no color
-const INTERNAL_COLOR = '#E07A2D' // matches accent-warm — for internal posts
-
-function getWeekDates(): Date[] {
-  const now = new Date()
-  const day = (now.getDay() + 6) % 7 // 0 = Monday
-  const monday = new Date(now)
-  monday.setDate(now.getDate() - day)
-  monday.setHours(0, 0, 0, 0)
-  return Array.from({ length: 14 }, (_, i) => {
-    const d = new Date(monday)
-    d.setDate(monday.getDate() + i)
-    return d
-  })
-}
+const DEFAULT_DOT = '#94A3B8'
+const INTERNAL_COLOR = '#E07A2D'
 
 function sameDay(a: Date, b: Date) {
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate()
@@ -37,23 +30,39 @@ function kaldiEventDate(e: KaldiEvent): Date | null {
   return isNaN(d.getTime()) ? null : d
 }
 
-export function WeeklyAgenda({ posts, kaldiEvents = [] }: Props) {
-  const week = getWeekDates()
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
+export function WeeklyAgenda({ posts, kaldiEvents = [], weekStartIso, todayIso }: Props) {
+  const week = useMemo(() => {
+    const start = new Date(weekStartIso)
+    return Array.from({ length: 14 }, (_, i) => {
+      const d = new Date(start)
+      d.setDate(start.getDate() + i)
+      return d
+    })
+  }, [weekStartIso])
 
-  const postEvents = posts
-    .filter((p) => p.due_date)
-    .map((p) => ({ post: p, date: new Date(p.due_date!) }))
-    .filter((e) => week.some((d) => sameDay(d, e.date)))
+  const today = useMemo(() => new Date(todayIso), [todayIso])
+  const [selectedIso, setSelectedIso] = useState<string>(todayIso)
+  const selected = useMemo(() => new Date(selectedIso), [selectedIso])
 
-  const externalEvents = kaldiEvents
-    .map((e) => ({ event: e, date: kaldiEventDate(e) }))
-    .filter((e): e is { event: KaldiEvent; date: Date } =>
-      e.date !== null && week.some((d) => sameDay(d, e.date!))
-    )
+  const postEvents = useMemo(
+    () =>
+      posts
+        .filter((p) => p.due_date)
+        .map((p) => ({ post: p, date: new Date(p.due_date!) }))
+        .filter((e) => week.some((d) => sameDay(d, e.date))),
+    [posts, week]
+  )
 
-  // Up to 3 distinct color dots per day
+  const externalEvents = useMemo(
+    () =>
+      kaldiEvents
+        .map((e) => ({ event: e, date: kaldiEventDate(e) }))
+        .filter((e): e is { event: KaldiEvent; date: Date } =>
+          e.date !== null && week.some((d) => sameDay(d, e.date!))
+        ),
+    [kaldiEvents, week]
+  )
+
   function dayDots(d: Date): string[] {
     const colors: string[] = []
     if (postEvents.some((e) => sameDay(e.date, d))) colors.push(INTERNAL_COLOR)
@@ -65,8 +74,7 @@ export function WeeklyAgenda({ posts, kaldiEvents = [] }: Props) {
     return colors.slice(0, 3)
   }
 
-  // Legend: distinct (unit, color) pairs present in the visible window
-  const legend: { label: string; color: string }[] = (() => {
+  const legend = useMemo(() => {
     const seen = new Map<string, string>()
     if (postEvents.length > 0) seen.set('Internal', INTERNAL_COLOR)
     for (const e of externalEvents) {
@@ -74,18 +82,24 @@ export function WeeklyAgenda({ posts, kaldiEvents = [] }: Props) {
       if (!seen.has(unit)) seen.set(unit, e.event.color || DEFAULT_DOT)
     }
     return Array.from(seen, ([label, color]) => ({ label, color }))
-  })()
+  }, [postEvents, externalEvents])
 
-  type UpcomingItem =
-    | { kind: 'post'; post: PublicPost; date: Date }
-    | { kind: 'kaldi'; event: KaldiEvent; date: Date }
+  type DayItem =
+    | { kind: 'post'; post: PublicPost }
+    | { kind: 'kaldi'; event: KaldiEvent }
 
-  const upcoming: UpcomingItem[] = [
-    ...postEvents.map(({ post, date }) => ({ kind: 'post' as const, post, date })),
-    ...externalEvents.map(({ event, date }) => ({ kind: 'kaldi' as const, event, date })),
-  ]
-    .sort((a, b) => a.date.getTime() - b.date.getTime())
-    .slice(0, 8)
+  const selectedItems: DayItem[] = useMemo(() => {
+    const items: DayItem[] = []
+    for (const { post, date } of postEvents) {
+      if (sameDay(date, selected)) items.push({ kind: 'post', post })
+    }
+    for (const { event, date } of externalEvents) {
+      if (sameDay(date, selected)) items.push({ kind: 'kaldi', event })
+    }
+    return items
+  }, [postEvents, externalEvents, selected])
+
+  const selectedLabel = `${DAY_FULL[selected.getDay()]}, ${selected.getDate()} ${MONTH_SHORT[selected.getMonth()]}`
 
   return (
     <div className="space-y-4">
@@ -107,32 +121,35 @@ export function WeeklyAgenda({ posts, kaldiEvents = [] }: Props) {
             </div>
           ))}
           {week.map((d) => {
+            const isSelected = sameDay(d, selected)
             const isToday = sameDay(d, today)
             const dots = dayDots(d)
             return (
-              <div
+              <button
+                type="button"
                 key={d.toISOString()}
-                className={`relative aspect-square rounded-lg flex items-center justify-center text-sm font-medium border ${
-                  isToday
+                onClick={() => setSelectedIso(d.toISOString())}
+                className={`relative aspect-square rounded-lg flex items-center justify-center text-sm font-medium border transition-colors cursor-pointer ${
+                  isSelected
                     ? 'bg-primary text-primary-foreground border-primary'
+                    : isToday
+                    ? 'bg-accent-warm-wash text-foreground border-accent-warm/40 hover:bg-accent-warm/15'
                     : dots.length > 0
-                    ? 'bg-muted/50 text-foreground border-border'
-                    : 'border-border'
+                    ? 'bg-muted/50 text-foreground border-border hover:bg-muted'
+                    : 'border-border hover:bg-muted/40'
                 }`}
+                aria-pressed={isSelected}
+                aria-label={`${d.getDate()} ${MONTH_SHORT[d.getMonth()]}${dots.length ? ` (${dots.length === 1 ? '1 agenda' : 'beberapa agenda'})` : ''}`}
               >
                 {d.getDate()}
-                {!isToday && dots.length > 0 && (
+                {!isSelected && dots.length > 0 && (
                   <span className="absolute bottom-1 left-1/2 -translate-x-1/2 flex gap-0.5">
                     {dots.map((c, i) => (
-                      <span
-                        key={i}
-                        className="h-1 w-1 rounded-full"
-                        style={{ backgroundColor: c }}
-                      />
+                      <span key={i} className="h-1 w-1 rounded-full" style={{ backgroundColor: c }} />
                     ))}
                   </span>
                 )}
-              </div>
+              </button>
             )
           })}
         </div>
@@ -141,53 +158,81 @@ export function WeeklyAgenda({ posts, kaldiEvents = [] }: Props) {
           <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5">
             {legend.map(({ label, color }) => (
               <span key={label} className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
-                <span
-                  className="h-1.5 w-1.5 rounded-full"
-                  style={{ backgroundColor: color }}
-                />
+                <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: color }} />
                 {label}
               </span>
             ))}
           </div>
         )}
 
-        {upcoming.length > 0 && (
-          <div className="mt-5 pt-4 border-t space-y-2.5">
-            {upcoming.map((item, i) =>
-              item.kind === 'post' ? (
-                <div key={`post-${item.post.id}`} className="flex items-center gap-2">
-                  <span
-                    className="h-1.5 w-1.5 rounded-full shrink-0"
-                    style={{ backgroundColor: INTERNAL_COLOR }}
-                  />
-                  <p className="flex-1 text-sm truncate">{item.post.title}</p>
-                  <p className="text-xs text-muted-foreground shrink-0">
-                    {item.date.getDate()} {MONTH_SHORT[item.date.getMonth()]}
-                  </p>
-                </div>
-              ) : (
-                <div key={`kaldi-${item.event.id ?? i}`} className="flex items-center gap-2">
-                  <span
-                    className="h-1.5 w-1.5 rounded-full shrink-0"
-                    style={{ backgroundColor: item.event.color || DEFAULT_DOT }}
-                  />
-                  <p className="flex-1 text-sm truncate">{item.event.title}</p>
-                  <p className="text-xs text-muted-foreground shrink-0">
-                    {item.date.getDate()} {MONTH_SHORT[item.date.getMonth()]}
-                  </p>
-                </div>
-              )
+        <div className="mt-5 pt-4 border-t">
+          <div className="flex items-baseline justify-between mb-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              {selectedLabel}
+              {sameDay(selected, today) && (
+                <span className="ml-2 text-[9px] font-bold text-accent-warm normal-case">Hari ini</span>
+              )}
+            </p>
+            {selectedItems.length > 0 && (
+              <span className="text-[10px] text-muted-foreground">
+                {selectedItems.length} agenda
+              </span>
             )}
           </div>
-        )}
 
-        {upcoming.length === 0 && (
-          <div className="mt-5 pt-4 border-t">
-            <p className="text-xs text-muted-foreground text-center py-2">
-              Tidak ada agenda 2 minggu ini.
-            </p>
-          </div>
-        )}
+          {selectedItems.length === 0 ? (
+            <p className="text-xs text-muted-foreground text-center py-3">Tidak ada agenda.</p>
+          ) : (
+            <div className="space-y-3">
+              {selectedItems.map((item, i) => {
+                if (item.kind === 'post') {
+                  return (
+                    <div key={`post-${item.post.id}`} className="flex items-start gap-2.5">
+                      <span
+                        className="mt-1.5 h-1.5 w-1.5 rounded-full shrink-0"
+                        style={{ backgroundColor: INTERNAL_COLOR }}
+                      />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm leading-snug">{item.post.title}</p>
+                        <span
+                          className="inline-block mt-1 text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded"
+                          style={{ backgroundColor: `${INTERNAL_COLOR}1A`, color: INTERNAL_COLOR }}
+                        >
+                          Internal
+                        </span>
+                      </div>
+                    </div>
+                  )
+                }
+                const color = item.event.color || DEFAULT_DOT
+                const unit = item.event.unit || 'Lain'
+                const desc = item.event.description
+                return (
+                  <div key={`kaldi-${item.event.id ?? i}`} className="flex items-start gap-2.5">
+                    <span
+                      className="mt-1.5 h-1.5 w-1.5 rounded-full shrink-0"
+                      style={{ backgroundColor: color }}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm leading-snug">{item.event.title}</p>
+                      <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                        <span
+                          className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded"
+                          style={{ backgroundColor: `${color}1A`, color }}
+                        >
+                          {unit}
+                        </span>
+                        {desc && (
+                          <span className="text-xs text-muted-foreground">{desc}</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* TODO: Acara mendatang — isi judul/tanggal/lokasi acara wisuda atau event besar berikutnya */}
