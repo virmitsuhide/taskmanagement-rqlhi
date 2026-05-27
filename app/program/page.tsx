@@ -1,18 +1,32 @@
-import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { getSession } from '@/lib/auth/session'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
-import { ChevronRight } from 'lucide-react'
+import { PublicHeader } from '@/components/layout/PublicHeader'
+import { ChevronRight, ArrowLeft } from 'lucide-react'
 import { PROGRAMS } from './_data'
 
 export default async function ProgramPage() {
   const session = await getSession()
-  if (!session) redirect('/login')
+  const isLoggedIn = !!session?.isLoggedIn
 
   return (
     <div>
-      <DashboardHeader displayName={session.displayName} role={session.role} title="Program" />
+      {isLoggedIn && session ? (
+        <DashboardHeader displayName={session.displayName} role={session.role} title="Program" />
+      ) : (
+        <PublicHeader />
+      )}
+
       <div className="p-4 md:p-6 max-w-5xl mx-auto">
+        {!isLoggedIn && (
+          <Link
+            href="/"
+            className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground mb-3 transition-colors"
+          >
+            <ArrowLeft className="h-3 w-3" /> Kembali ke Beranda
+          </Link>
+        )}
+
         <div className="mb-6">
           <p className="text-2xl font-bold leading-tight">Program RQ</p>
           <p className="text-sm text-muted-foreground mt-0.5">

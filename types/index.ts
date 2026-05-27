@@ -183,6 +183,17 @@ export interface KaldiEvent {
   [key: string]: any
 }
 
+export interface ProgramDetail {
+  slug: string
+  long_description: string
+  curriculum: string
+  schedule: string
+  target_audience: string
+  contact_info: string
+  updated_at: string
+  updated_by: string | null
+}
+
 export interface KaldiApiResponse {
   events: KaldiEvent[]
   total: number

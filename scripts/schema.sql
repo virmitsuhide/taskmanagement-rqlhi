@@ -153,6 +153,19 @@ create table news_articles (
   updated_at    timestamptz default now() not null
 );
 
+-- PROGRAM DETAILS
+-- Konten editorial untuk setiap program. Slug cocok dengan PROGRAMS di app/program/_data.ts.
+create table program_details (
+  slug              text primary key,
+  long_description  text default '' not null,
+  curriculum        text default '' not null,
+  schedule          text default '' not null,
+  target_audience   text default '' not null,
+  contact_info      text default '' not null,
+  updated_at        timestamptz default now() not null,
+  updated_by        uuid references users(id) on delete set null
+);
+
 -- ============================================================
 -- ROW LEVEL SECURITY
 -- Catatan: aplikasi menggunakan service role key yang bypass RLS.
@@ -167,6 +180,7 @@ alter table public_posts enable row level security;
 alter table content_requests enable row level security;
 alter table private_notes enable row level security;
 alter table news_articles enable row level security;
+alter table program_details enable row level security;
 
 -- Updated_at trigger function
 create or replace function update_updated_at()
@@ -193,4 +207,7 @@ create trigger private_notes_updated_at before update on private_notes
   for each row execute function update_updated_at();
 
 create trigger news_articles_updated_at before update on news_articles
+  for each row execute function update_updated_at();
+
+create trigger program_details_updated_at before update on program_details
   for each row execute function update_updated_at();

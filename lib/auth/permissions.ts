@@ -165,6 +165,10 @@ export function canCreateNews(role: UserRole): boolean {
   return role === 'kepala_rq' || role === 'humas'
 }
 
+export function canEditProgram(role: UserRole): boolean {
+  return role === 'kepala_rq' || role === 'humas'
+}
+
 // Display labels
 export const ROLE_LABELS: Record<UserRole, string> = {
   kepala_rq: 'Kepala RQ',
