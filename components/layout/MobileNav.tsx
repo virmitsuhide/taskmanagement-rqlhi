@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
   Menu, X, LayoutDashboard, CheckSquare, BookOpen,
-  ImageIcon, Megaphone, FileText, User, LogOut, GraduationCap, Newspaper,
+  ImageIcon, Megaphone, FileText, User, LogOut, GraduationCap, Newspaper, LayoutGrid,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
@@ -95,6 +95,7 @@ export function MobileNav({ role, displayName, username }: Props) {
           <div>
             <p className="px-2 mb-2 text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/50">Fitur</p>
             <ul className="space-y-1">
+              <li><Link href="/program" onClick={() => setOpen(false)} className={navLinkClass('/program')}><LayoutGrid className="h-4 w-4" />Program RQ</Link></li>
               <li><Link href="/rapat" onClick={() => setOpen(false)} className={navLinkClass('/rapat')}><BookOpen className="h-4 w-4" />Rapat & Notulen</Link></li>
               <li><Link href="/tasks" onClick={() => setOpen(false)} className={navLinkClass('/tasks')}><CheckSquare className="h-4 w-4" />Task</Link></li>
               {canRequestToHumas(role) && (

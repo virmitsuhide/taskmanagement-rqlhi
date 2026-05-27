@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import {
   LayoutDashboard, BookOpen, CheckSquare, ImageIcon,
-  FileText, User, Megaphone, LogOut, ChevronRight, GraduationCap, Newspaper,
+  FileText, User, Megaphone, LogOut, ChevronRight, GraduationCap, Newspaper, LayoutGrid,
 } from 'lucide-react'
 import { DASHBOARD_LABELS, getAccessibleDashboards, ROLE_LABELS } from '@/lib/auth/permissions'
 import { canAccessNotes, canPostToHome, canRequestToHumas, canCreateNews } from '@/lib/auth/permissions'
@@ -86,6 +86,7 @@ export function Sidebar({ role, displayName, username }: Props) {
             Fitur
           </p>
           <ul className="space-y-1">
+            <NavItem href="/program" icon={<LayoutGrid className="h-4 w-4" />} label="Program RQ" active={isActive('/program')} />
             <NavItem href="/rapat" icon={<BookOpen className="h-4 w-4" />} label="Rapat & Notulen" active={isActive('/rapat')} />
             <NavItem href="/tasks" icon={<CheckSquare className="h-4 w-4" />} label="Task" active={isActive('/tasks')} />
             {canRequestToHumas(role) && (
