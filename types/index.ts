@@ -183,6 +183,15 @@ export interface KaldiEvent {
   [key: string]: any
 }
 
+export interface AboutRq {
+  id: number
+  vision: string
+  mission: string
+  history: string
+  updated_at: string
+  updated_by: string | null
+}
+
 export interface ProgramDetail {
   slug: string
   long_description: string

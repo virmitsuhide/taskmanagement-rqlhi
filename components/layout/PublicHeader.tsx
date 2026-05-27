@@ -7,7 +7,7 @@ const NAV = [
   { label: 'Tugas',      href: '#tugas'   },
   { label: 'News',       href: '/news'    },
   { label: 'Program',    href: '/program' },
-  { label: 'Tentang RQ', href: '#tentang' },
+  { label: 'Tentang RQ', href: '/tentang' },
 ]
 
 export function PublicHeader() {

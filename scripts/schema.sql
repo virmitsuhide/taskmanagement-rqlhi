@@ -153,6 +153,18 @@ create table news_articles (
   updated_at    timestamptz default now() not null
 );
 
+-- ABOUT RQ
+-- Single-row table (id=1) untuk konten halaman "Tentang RQ".
+create table about_rq (
+  id          smallint primary key default 1 check (id = 1),
+  vision      text default '' not null,
+  mission     text default '' not null,
+  history     text default '' not null,
+  updated_at  timestamptz default now() not null,
+  updated_by  uuid references users(id) on delete set null
+);
+insert into about_rq (id) values (1) on conflict (id) do nothing;
+
 -- PROGRAM DETAILS
 -- Konten editorial untuk setiap program. Slug cocok dengan PROGRAMS di app/program/_data.ts.
 create table program_details (
@@ -181,6 +193,7 @@ alter table content_requests enable row level security;
 alter table private_notes enable row level security;
 alter table news_articles enable row level security;
 alter table program_details enable row level security;
+alter table about_rq enable row level security;
 
 -- Updated_at trigger function
 create or replace function update_updated_at()
@@ -210,4 +223,7 @@ create trigger news_articles_updated_at before update on news_articles
   for each row execute function update_updated_at();
 
 create trigger program_details_updated_at before update on program_details
+  for each row execute function update_updated_at();
+
+create trigger about_rq_updated_at before update on about_rq
   for each row execute function update_updated_at();
