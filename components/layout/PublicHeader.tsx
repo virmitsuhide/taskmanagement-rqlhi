@@ -6,7 +6,7 @@ const NAV = [
   { label: 'Beranda',    href: '/'        },
   { label: 'Tugas',      href: '#tugas'   },
   { label: 'News',       href: '/news'    },
-  { label: 'Program',    href: '#program' },
+  { label: 'Program',    href: '/program' },
   { label: 'Tentang RQ', href: '#tentang' },
 ]
 
