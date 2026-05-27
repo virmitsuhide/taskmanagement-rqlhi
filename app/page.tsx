@@ -1,4 +1,3 @@
-import Link from 'next/link'
 import { Lora, Playfair_Display } from 'next/font/google'
 import { createServerClient } from '@/lib/supabase/server'
 import { getSession } from '@/lib/auth/session'
@@ -141,14 +140,6 @@ export default async function HomePage() {
             weekStartIso={weekStartIso}
             todayIso={todayIso}
           />
-
-          {/* CTA login */}
-          <Link
-            href="/login"
-            className="block w-full text-center py-2.5 bg-accent-warm-wash text-accent-warm border border-accent-warm/25 rounded-xl text-[13px] font-bold hover:bg-accent-warm/10 transition-colors"
-          >
-            masuk ke dashboard →
-          </Link>
 
         </div>
       </section>
