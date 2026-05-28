@@ -45,7 +45,7 @@ export default async function NewTahsinSetoranPage({ searchParams }: PageProps) 
   }))
 
   return (
-    <div className="min-h-screen" style={{ background: '#fafaf7' }}>
+    <div className="min-h-screen" style={{ background: 'var(--secondary)' }}>
       <TeacherHeader fullName={session.fullName} active="setoran" />
 
       <main className="max-w-4xl mx-auto px-4 md:px-6 py-6">

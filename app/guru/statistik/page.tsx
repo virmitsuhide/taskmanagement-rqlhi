@@ -26,7 +26,7 @@ export default async function GuruStatistikPage() {
   const maxDaily = Math.max(1, ...daily.map(d => d.tahsin + d.tahfidz))
 
   return (
-    <div className="min-h-screen" style={{ background: '#fafaf7' }}>
+    <div className="min-h-screen" style={{ background: 'var(--secondary)' }}>
       <TeacherHeader fullName={session.fullName} active="statistik" />
 
       <main className="max-w-4xl mx-auto px-4 md:px-6 py-6 space-y-6">
@@ -63,7 +63,7 @@ export default async function GuruStatistikPage() {
                       <div className="w-full rounded-t" style={{ height: `${tahfidzH}%`, background: '#15803d', minHeight: 3 }} title={`${d.tahfidz} tahfidz`} />
                     )}
                     {d.tahsin > 0 && (
-                      <div className="w-full rounded-t" style={{ height: `${tahsinH}%`, background: '#b8860b', minHeight: 3 }} title={`${d.tahsin} tahsin`} />
+                      <div className="w-full rounded-t" style={{ height: `${tahsinH}%`, background: 'var(--primary)', minHeight: 3 }} title={`${d.tahsin} tahsin`} />
                     )}
                   </div>
                   <span className="text-[10px] text-muted-foreground">{d.label}</span>
@@ -73,7 +73,7 @@ export default async function GuruStatistikPage() {
             })}
           </div>
           <div className="flex gap-4 mt-3 text-[11px] text-muted-foreground">
-            <span className="inline-flex items-center gap-1"><span className="w-3 h-3 rounded" style={{ background: '#b8860b' }} /> Tahsin</span>
+            <span className="inline-flex items-center gap-1"><span className="w-3 h-3 rounded" style={{ background: 'var(--primary)' }} /> Tahsin</span>
             <span className="inline-flex items-center gap-1"><span className="w-3 h-3 rounded" style={{ background: '#15803d' }} /> Tahfidz</span>
           </div>
         </section>
@@ -97,7 +97,7 @@ export default async function GuruStatistikPage() {
                       {h.studentCount} siswa · {h.setorTodayCount} setor hari ini ({pct}%)
                     </p>
                     <div className="h-1.5 rounded-full bg-muted overflow-hidden mt-2">
-                      <div className="h-full rounded-full" style={{ width: `${pct}%`, background: pct === 100 ? '#15803d' : '#b8860b' }} />
+                      <div className="h-full rounded-full" style={{ width: `${pct}%`, background: pct === 100 ? '#15803d' : 'var(--primary)' }} />
                     </div>
                   </div>
                 )
@@ -155,7 +155,7 @@ function BigStat({ num, label, sub, accent }: { num: number; label: string; sub:
     <div className="rounded-xl border bg-white p-4" style={accent && num > 0 ? { background: '#dcfce7', borderColor: '#bbf7d0' } : undefined}>
       <div
         className="text-3xl font-extrabold leading-none"
-        style={{ fontFamily: 'var(--font-playfair), serif', color: accent && num > 0 ? '#15803d' : '#1a1a1a' }}
+        style={{ fontFamily: 'var(--font-playfair), serif', color: accent && num > 0 ? '#15803d' : 'var(--foreground)' }}
       >
         {num}
       </div>

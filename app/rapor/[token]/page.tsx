@@ -44,7 +44,7 @@ export default async function PublicRaporPage({ params }: PageProps) {
   return (
     <div
       className={`${lora.variable} ${playfair.variable} min-h-screen py-8 px-4`}
-      style={{ background: '#fafaf7', fontFamily: 'var(--font-lora), Georgia, serif' }}
+      style={{ background: 'var(--secondary)', fontFamily: 'var(--font-lora), Georgia, serif' }}
     >
       <div className="max-w-3xl mx-auto">
         <RaporDocument data={data} />

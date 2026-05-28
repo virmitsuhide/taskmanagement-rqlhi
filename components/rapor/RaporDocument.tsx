@@ -6,7 +6,7 @@ function Stars({ value }: { value: number | null }) {
   if (value === null) return <span className="text-muted-foreground">—</span>
   const full = Math.round(value)
   return (
-    <span style={{ color: '#b8860b', letterSpacing: 1 }}>
+    <span style={{ color: 'var(--primary)', letterSpacing: 1 }}>
       {'★'.repeat(full)}{'☆'.repeat(5 - full)} <span className="text-muted-foreground text-xs">({value})</span>
     </span>
   )
@@ -21,16 +21,16 @@ export function RaporDocument({ data }: { data: RaporData }) {
 
   return (
     <div
-      className="mx-auto bg-white text-[#1a1a1a]"
+      className="mx-auto bg-white text-[var(--foreground)]"
       style={{ maxWidth: 720, fontFamily: "var(--font-lora), Georgia, serif" }}
     >
-      <div className="p-6 md:p-9 border rounded-xl print:border-0" style={{ borderColor: '#e7e3da' }}>
+      <div className="p-6 md:p-9 border rounded-xl print:border-0" style={{ borderColor: 'var(--border)' }}>
         {/* Header */}
-        <div className="flex items-start justify-between gap-4 pb-4" style={{ borderBottom: '2px solid #b8860b' }}>
+        <div className="flex items-start justify-between gap-4 pb-4" style={{ borderBottom: '2px solid var(--primary)' }}>
           <div className="flex items-center gap-3">
             <div
               className="w-12 h-12 rounded-xl flex items-center justify-center text-white font-extrabold"
-              style={{ background: '#b8860b', fontFamily: "var(--font-playfair), 'Playfair Display', Georgia, serif" }}
+              style={{ background: 'var(--primary)', fontFamily: "var(--font-playfair), 'Playfair Display', Georgia, serif" }}
             >
               RQ
             </div>
@@ -44,7 +44,7 @@ export function RaporDocument({ data }: { data: RaporData }) {
         </div>
 
         {/* Identitas */}
-        <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 text-sm mt-4 p-3 rounded-lg" style={{ background: '#fdf6e3' }}>
+        <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 text-sm mt-4 p-3 rounded-lg" style={{ background: 'var(--primary-wash)' }}>
           <Field k="Nama" v={student.full_name} />
           <Field k="NIS" v={student.nis ?? '—'} />
           <Field k="Jenjang/Kelas" v={`${JENJANG_LABELS[student.jenjang] ?? student.jenjang}${student.kelas ? ` · ${student.kelas}` : ''}`} />
@@ -126,7 +126,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
     <section className="mt-5">
       <h2
         className="text-sm font-bold pb-1.5 mb-2"
-        style={{ fontFamily: "var(--font-playfair), 'Playfair Display', Georgia, serif", color: '#b8860b', borderBottom: '1px solid #e7e3da' }}
+        style={{ fontFamily: "var(--font-playfair), 'Playfair Display', Georgia, serif", color: 'var(--primary)', borderBottom: '1px solid var(--border)' }}
       >
         {title}
       </h2>

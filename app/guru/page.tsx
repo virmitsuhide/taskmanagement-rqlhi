@@ -40,7 +40,7 @@ export default async function TeacherHomePage() {
   }).slice(0, 8)
 
   return (
-    <div className="min-h-screen" style={{ background: '#fafaf7' }}>
+    <div className="min-h-screen" style={{ background: 'var(--secondary)' }}>
       <TeacherHeader fullName={session.fullName} active="dashboard" />
 
       <main className="max-w-4xl mx-auto px-4 md:px-6 py-8">
@@ -51,7 +51,7 @@ export default async function TeacherHomePage() {
             style={{ fontFamily: 'var(--font-playfair), Georgia, serif' }}
           >
             Assalamu&apos;alaikum,{' '}
-            <span style={{ borderBottom: '3px solid #b8860b', paddingBottom: 2 }}>{session.fullName}</span>
+            <span style={{ borderBottom: '3px solid var(--accent-warm)', paddingBottom: 2 }}>{session.fullName}</span>
           </h1>
         </div>
 
@@ -107,7 +107,7 @@ export default async function TeacherHomePage() {
                       <Link
                         href={`/guru/setoran/tahsin/baru?student=${s.id}`}
                         className="text-xs px-3 py-1.5 rounded-md text-white shrink-0"
-                        style={{ background: '#b8860b' }}
+                        style={{ background: 'var(--primary)' }}
                       >
                         Setor
                       </Link>
@@ -148,7 +148,7 @@ export default async function TeacherHomePage() {
                           <span className="text-muted-foreground shrink-0 ml-2">{h.setorTodayCount}/{h.studentCount} setor</span>
                         </div>
                         <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-                          <div className="h-full rounded-full" style={{ width: `${pct}%`, background: pct === 100 ? '#15803d' : '#b8860b' }} />
+                          <div className="h-full rounded-full" style={{ width: `${pct}%`, background: pct === 100 ? '#15803d' : 'var(--primary)' }} />
                         </div>
                       </div>
                     )
@@ -166,9 +166,9 @@ export default async function TeacherHomePage() {
 
 function StatRow({ label, value, accent }: { label: string; value: number; accent?: boolean }) {
   return (
-    <div className="flex items-center justify-between py-1 border-b border-dashed last:border-0" style={{ borderColor: '#e7e3da' }}>
+    <div className="flex items-center justify-between py-1 border-b border-dashed last:border-0" style={{ borderColor: 'var(--border)' }}>
       <span className="text-xs text-muted-foreground">{label}</span>
-      <span className="text-sm font-semibold" style={{ color: accent ? '#15803d' : '#1a1a1a' }}>{value}</span>
+      <span className="text-sm font-semibold" style={{ color: accent ? '#15803d' : 'var(--foreground)' }}>{value}</span>
     </div>
   )
 }
@@ -176,9 +176,9 @@ function StatRow({ label, value, accent }: { label: string; value: number; accen
 function StatCard({ num, label, tone }: { num: number; label: string; tone?: 'ok' | 'warm' }) {
   const style =
     tone === 'ok' ? { background: '#dcfce7', borderColor: '#bbf7d0' }
-    : tone === 'warm' ? { background: '#fdf6e3', borderColor: '#f0e0a8' }
-    : { background: 'white', borderColor: '#e7e3da' }
-  const numColor = tone === 'ok' ? '#15803d' : tone === 'warm' ? '#b8860b' : '#1a1a1a'
+    : tone === 'warm' ? { background: 'var(--primary-wash)', borderColor: 'var(--border)' }
+    : { background: 'white', borderColor: 'var(--border)' }
+  const numColor = tone === 'ok' ? '#15803d' : tone === 'warm' ? 'var(--primary)' : 'var(--foreground)'
   return (
     <div className="rounded-xl border p-4" style={style}>
       <div className="text-3xl font-extrabold leading-none" style={{ fontFamily: 'var(--font-playfair), serif', color: numColor }}>
@@ -191,8 +191,8 @@ function StatCard({ num, label, tone }: { num: number; label: string; tone?: 'ok
 
 function QuickAction({ href, emoji, title, desc }: { href: string; emoji: string; title: string; desc: string }) {
   return (
-    <Link href={href} className="rounded-xl border bg-white p-4 hover:border-[#b8860b] transition-colors">
-      <div className="w-9 h-9 rounded-lg flex items-center justify-center mb-2" style={{ background: '#fdf6e3' }}>
+    <Link href={href} className="rounded-xl border bg-white p-4 hover:border-[var(--primary)] transition-colors">
+      <div className="w-9 h-9 rounded-lg flex items-center justify-center mb-2" style={{ background: 'var(--primary-wash)' }}>
         {emoji}
       </div>
       <p className="font-semibold text-sm">{title}</p>

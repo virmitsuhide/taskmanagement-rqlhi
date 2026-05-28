@@ -16,7 +16,7 @@ interface Props {
  * Menulis nilai ke hidden input `name` agar terbawa di FormData.
  * Klik bintang yang sama untuk reset ke 0 (tidak menilai).
  */
-export function StarRating({ name, defaultValue = 0, accent = '#b8860b' }: Props) {
+export function StarRating({ name, defaultValue = 0, accent = 'var(--primary)' }: Props) {
   const [value, setValue] = useState(defaultValue)
   return (
     <div>
@@ -30,7 +30,7 @@ export function StarRating({ name, defaultValue = 0, accent = '#b8860b' }: Props
             className="w-9 h-9 rounded-lg border flex items-center justify-center text-sm font-medium transition-colors"
             style={n <= value
               ? { background: accent, borderColor: accent, color: 'white' }
-              : { background: 'white', borderColor: '#e7e3da', color: '#6b6b6b' }}
+              : { background: 'white', borderColor: 'var(--border)', color: 'var(--muted-foreground)' }}
             aria-label={`${n} bintang`}
           >
             {n}

@@ -108,7 +108,7 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
   const tahfidzUrl = `/guru/setoran/tahfidz/baru?student=${id}`
 
   return (
-    <div className="min-h-screen" style={{ background: '#fafaf7' }}>
+    <div className="min-h-screen" style={{ background: 'var(--secondary)' }}>
       <TeacherHeader fullName={session.fullName} active="siswa" />
 
       <main className="max-w-4xl mx-auto px-4 md:px-6 py-6 space-y-5">
@@ -126,7 +126,7 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
           <div className="flex items-start gap-4 flex-wrap">
             <div
               className="w-14 h-14 rounded-xl flex items-center justify-center text-xl font-bold text-white shrink-0"
-              style={{ background: '#b8860b', fontFamily: 'var(--font-playfair), serif' }}
+              style={{ background: 'var(--primary)', fontFamily: 'var(--font-playfair), serif' }}
             >
               {initials}
             </div>
@@ -143,7 +143,7 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
                 {student.halaqoh?.name ? ` · ${student.halaqoh.name}` : ''}
               </p>
               <div className="mt-2 flex flex-wrap gap-2">
-                <span className="inline-flex items-center gap-1.5 text-sm px-2.5 py-1 rounded-lg" style={{ background: '#fdf6e3', color: '#b8860b' }}>
+                <span className="inline-flex items-center gap-1.5 text-sm px-2.5 py-1 rounded-lg" style={{ background: 'var(--primary-wash)', color: 'var(--primary)' }}>
                   <BookOpen className="h-4 w-4" />
                   {student.current_method?.name && student.current_jilid?.label
                     ? `${student.current_method.name} ${student.current_jilid.label} · hal. ${student.current_jilid_page ?? '—'}`
@@ -156,7 +156,7 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
               </div>
             </div>
             <div className="flex flex-col gap-2 shrink-0">
-              <Button asChild style={{ background: '#b8860b', borderColor: '#b8860b' }}>
+              <Button asChild style={{ background: 'var(--primary)', borderColor: 'var(--primary)' }}>
                 <Link href={setoranUrl}>+ Setor Tahsin</Link>
               </Button>
               <Button asChild variant="outline">
@@ -184,8 +184,8 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
                 const style =
                   mutqin ? { background: '#15803d', color: 'white', borderColor: '#15803d' }
                   : pct >= 100 ? { background: '#22c55e', color: 'white', borderColor: '#22c55e' }
-                  : pct > 0 ? { background: '#fdf6e3', color: '#b8860b', borderColor: '#b8860b' }
-                  : { background: '#f3f1ec', color: '#9ca3af', borderColor: '#e7e3da' }
+                  : pct > 0 ? { background: 'var(--primary-wash)', color: 'var(--primary)', borderColor: 'var(--primary)' }
+                  : { background: '#f3f1ec', color: '#9ca3af', borderColor: 'var(--border)' }
                 return (
                   <div
                     key={juz}
@@ -202,7 +202,7 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
             <div className="flex flex-wrap gap-3 mt-3 text-[11px] text-muted-foreground">
               <span className="inline-flex items-center gap-1"><span className="w-3 h-3 rounded" style={{ background: '#15803d' }} /> Mutqin</span>
               <span className="inline-flex items-center gap-1"><span className="w-3 h-3 rounded" style={{ background: '#22c55e' }} /> Selesai</span>
-              <span className="inline-flex items-center gap-1"><span className="w-3 h-3 rounded border" style={{ background: '#fdf6e3', borderColor: '#b8860b' }} /> Proses</span>
+              <span className="inline-flex items-center gap-1"><span className="w-3 h-3 rounded border" style={{ background: 'var(--primary-wash)', borderColor: 'var(--primary)' }} /> Proses</span>
               <span className="inline-flex items-center gap-1"><span className="w-3 h-3 rounded" style={{ background: '#f3f1ec' }} /> Belum</span>
             </div>
           </div>
@@ -301,7 +301,7 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
                       <span
                         className="text-[11px] px-2 py-0.5 rounded-full shrink-0"
                         style={log.kind === 'hafalan_baru'
-                          ? { background: '#fdf6e3', color: '#b8860b' }
+                          ? { background: 'var(--primary-wash)', color: 'var(--primary)' }
                           : { background: '#dbeafe', color: '#1d4ed8' }}
                       >
                         {log.kind === 'hafalan_baru' ? '✨ Hafalan Baru' : '🔁 Muroja’ah'}

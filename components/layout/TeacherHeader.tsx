@@ -19,7 +19,7 @@ export function TeacherHeader({ fullName, active }: Props) {
   return (
     <header
       className="flex items-center justify-between px-4 md:px-6 py-3 border-b sticky top-0 z-10"
-      style={{ background: 'white', borderColor: '#e7e3da' }}
+      style={{ background: 'white', borderColor: 'var(--border)' }}
     >
       <div className="flex items-center gap-4 min-w-0">
         <Link
@@ -27,11 +27,11 @@ export function TeacherHeader({ fullName, active }: Props) {
           className="font-extrabold text-base md:text-lg tracking-tight shrink-0"
           style={{ fontFamily: 'var(--font-playfair), Georgia, serif' }}
         >
-          RQ <span style={{ color: '#b8860b' }}>LHI</span>
+          RQ <span style={{ color: 'var(--primary)' }}>LHI</span>
         </Link>
         <span
           className="hidden sm:inline text-[11px] px-2 py-0.5 rounded-full border shrink-0"
-          style={{ borderColor: '#f0e0a8', background: '#fdf6e3', color: '#b8860b' }}
+          style={{ borderColor: 'var(--border)', background: 'var(--primary-wash)', color: 'var(--primary)' }}
         >
           Portal Guru
         </span>
@@ -43,8 +43,8 @@ export function TeacherHeader({ fullName, active }: Props) {
               className="px-3 py-1.5 rounded-md text-sm transition-colors"
               style={
                 active === item.key
-                  ? { background: '#f3f1ec', color: '#1a1a1a', fontWeight: 500 }
-                  : { color: '#6b6b6b' }
+                  ? { background: '#f3f1ec', color: 'var(--foreground)', fontWeight: 500 }
+                  : { color: 'var(--muted-foreground)' }
               }
             >
               {item.label}

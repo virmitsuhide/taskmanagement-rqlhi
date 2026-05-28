@@ -163,7 +163,7 @@ export function TahsinSetoranForm({ students, methods, jilidLevels, defaultStude
             className="rounded-lg border p-3 text-left transition-colors"
             style={status === 'lulus'
               ? { borderColor: '#15803d', background: '#dcfce7' }
-              : { borderColor: '#e7e3da', background: 'white' }}
+              : { borderColor: 'var(--border)', background: 'white' }}
           >
             <p className="font-medium text-sm">✅ Lulus</p>
             <p className="text-xs text-muted-foreground">Lanjut halaman berikutnya</p>
@@ -174,7 +174,7 @@ export function TahsinSetoranForm({ students, methods, jilidLevels, defaultStude
             className="rounded-lg border p-3 text-left transition-colors"
             style={status === 'ulang'
               ? { borderColor: '#a16207', background: '#fef9c3' }
-              : { borderColor: '#e7e3da', background: 'white' }}
+              : { borderColor: 'var(--border)', background: 'white' }}
           >
             <p className="font-medium text-sm">🔁 Ulang</p>
             <p className="text-xs text-muted-foreground">Belum tuntas, mengulang</p>
@@ -196,8 +196,8 @@ export function TahsinSetoranForm({ students, methods, jilidLevels, defaultStude
 
       {/* Naik jilid (hanya saat lulus) */}
       {status === 'lulus' && (
-        <label className="flex items-start gap-2.5 rounded-lg border p-3 cursor-pointer" style={{ background: '#fdf6e3', borderColor: '#f0e0a8' }}>
-          <input type="checkbox" name="naik_jilid" className="mt-0.5" style={{ accentColor: '#b8860b' }} disabled={isPending} />
+        <label className="flex items-start gap-2.5 rounded-lg border p-3 cursor-pointer" style={{ background: 'var(--primary-wash)', borderColor: 'var(--border)' }}>
+          <input type="checkbox" name="naik_jilid" className="mt-0.5" style={{ accentColor: 'var(--primary)' }} disabled={isPending} />
           <div>
             <p className="font-medium text-sm">🎉 Naik jilid setelah setoran ini</p>
             <p className="text-xs text-muted-foreground">
@@ -212,7 +212,7 @@ export function TahsinSetoranForm({ students, methods, jilidLevels, defaultStude
       )}
 
       <div className="flex gap-2 pt-2">
-        <Button type="submit" disabled={isPending || !studentId} style={{ background: '#b8860b', borderColor: '#b8860b' }}>
+        <Button type="submit" disabled={isPending || !studentId} style={{ background: 'var(--primary)', borderColor: 'var(--primary)' }}>
           {isPending ? 'Menyimpan...' : 'Simpan Setoran'}
         </Button>
         <Button type="button" variant="outline" onClick={() => router.back()} disabled={isPending}>

@@ -41,7 +41,7 @@ export default async function GuruSiswaPage() {
   }
 
   return (
-    <div className="min-h-screen" style={{ background: '#fafaf7' }}>
+    <div className="min-h-screen" style={{ background: 'var(--secondary)' }}>
       <TeacherHeader fullName={session.fullName} active="siswa" />
 
       <main className="max-w-4xl mx-auto px-4 md:px-6 py-6">
@@ -103,7 +103,7 @@ export default async function GuruSiswaPage() {
                             last.tone === 'ok' ? { background: '#dcfce7', color: '#15803d' }
                             : last.tone === 'warn' ? { background: '#fef9c3', color: '#a16207' }
                             : last.tone === 'danger' ? { background: '#fee2e2', color: '#b91c1c' }
-                            : { background: '#f3f1ec', color: '#6b6b6b' }
+                            : { background: '#f3f1ec', color: 'var(--muted-foreground)' }
                           }
                         >
                           {last.text}

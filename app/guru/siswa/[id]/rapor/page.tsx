@@ -60,7 +60,7 @@ export default async function GuruRaporPage({ params, searchParams }: PageProps)
   const raporUrl = `${baseUrl}/rapor/${token}`
 
   return (
-    <div className="min-h-screen" style={{ background: '#fafaf7' }}>
+    <div className="min-h-screen" style={{ background: 'var(--secondary)' }}>
       <div className="print:hidden">
         <TeacherHeader fullName={session.fullName} active="siswa" />
       </div>

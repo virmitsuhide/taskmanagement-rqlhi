@@ -100,8 +100,8 @@ export function TahfidzSetoranForm({ students, surat, defaultStudentId }: Props)
             onClick={() => setKind('hafalan_baru')}
             className="rounded-lg border p-3 text-left transition-colors"
             style={kind === 'hafalan_baru'
-              ? { borderColor: '#b8860b', background: '#fdf6e3' }
-              : { borderColor: '#e7e3da', background: 'white' }}
+              ? { borderColor: 'var(--primary)', background: 'var(--primary-wash)' }
+              : { borderColor: 'var(--border)', background: 'white' }}
           >
             <p className="font-medium text-sm">✨ Hafalan Baru</p>
             <p className="text-xs text-muted-foreground">Tambah hafalan, hitung ke progress juz</p>
@@ -112,7 +112,7 @@ export function TahfidzSetoranForm({ students, surat, defaultStudentId }: Props)
             className="rounded-lg border p-3 text-left transition-colors"
             style={kind === 'murojaah'
               ? { borderColor: '#1d4ed8', background: '#dbeafe' }
-              : { borderColor: '#e7e3da', background: 'white' }}
+              : { borderColor: 'var(--border)', background: 'white' }}
           >
             <p className="font-medium text-sm">🔁 Muroja&apos;ah</p>
             <p className="text-xs text-muted-foreground">Mengulang, tidak menambah progress</p>
@@ -172,7 +172,7 @@ export function TahfidzSetoranForm({ students, surat, defaultStudentId }: Props)
           </p>
         )}
         {ayatCount > 0 && !ayatOutOfRange && (
-          <div className="text-xs rounded-lg px-3 py-2" style={{ background: '#fdf6e3', color: '#8a6308' }}>
+          <div className="text-xs rounded-lg px-3 py-2" style={{ background: 'var(--primary-wash)', color: 'var(--primary)' }}>
             {ayatCount} ayat disetor
             {kind === 'hafalan_baru' && selectedSurat && ` · ditambahkan ke progress Juz ${selectedSurat.juz_start}`}
           </div>
@@ -212,8 +212,8 @@ export function TahfidzSetoranForm({ students, surat, defaultStudentId }: Props)
 
       {/* Naik juz (hanya hafalan baru) */}
       {kind === 'hafalan_baru' && (
-        <label className="flex items-start gap-2.5 rounded-lg border p-3 cursor-pointer" style={{ background: '#fdf6e3', borderColor: '#f0e0a8' }}>
-          <input type="checkbox" name="naik_juz" className="mt-0.5" style={{ accentColor: '#b8860b' }} disabled={isPending} />
+        <label className="flex items-start gap-2.5 rounded-lg border p-3 cursor-pointer" style={{ background: 'var(--primary-wash)', borderColor: 'var(--border)' }}>
+          <input type="checkbox" name="naik_juz" className="mt-0.5" style={{ accentColor: 'var(--primary)' }} disabled={isPending} />
           <div>
             <p className="font-medium text-sm">
               🎉 Tandai {selectedSurat ? `Juz ${selectedSurat.juz_start}` : 'juz ini'} selesai (mutqin)
@@ -230,7 +230,7 @@ export function TahfidzSetoranForm({ students, surat, defaultStudentId }: Props)
       )}
 
       <div className="flex gap-2 pt-2">
-        <Button type="submit" disabled={isPending || !studentId || ayatOutOfRange} style={{ background: '#b8860b', borderColor: '#b8860b' }}>
+        <Button type="submit" disabled={isPending || !studentId || ayatOutOfRange} style={{ background: 'var(--primary)', borderColor: 'var(--primary)' }}>
           {isPending ? 'Menyimpan...' : 'Simpan Setoran'}
         </Button>
         <Button type="button" variant="outline" onClick={() => router.back()} disabled={isPending}>

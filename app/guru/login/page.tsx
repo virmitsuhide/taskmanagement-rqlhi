@@ -14,12 +14,12 @@ export default function TeacherLoginPage() {
   return (
     <div
       className="min-h-screen flex flex-col items-center justify-center px-4"
-      style={{ background: 'linear-gradient(180deg, #fdf6e3 0%, #fafaf7 60%)' }}
+      style={{ background: 'linear-gradient(180deg, var(--primary-wash) 0%, var(--secondary) 60%)' }}
     >
       <div className="mb-6 text-center">
         <div
           className="inline-flex h-14 w-14 items-center justify-center rounded-xl text-white text-xl font-bold mb-3"
-          style={{ background: '#b8860b', fontFamily: "var(--font-playfair), Georgia, serif" }}
+          style={{ background: 'var(--primary)', fontFamily: "var(--font-playfair), Georgia, serif" }}
         >
           📖
         </div>
@@ -32,7 +32,7 @@ export default function TeacherLoginPage() {
         <p className="text-xs text-muted-foreground mt-1">Rumah Qur&apos;an LHI</p>
       </div>
 
-      <Card className="w-full max-w-sm border-[#f0e0a8] shadow-[0_8px_24px_-12px_rgba(184,134,11,0.2)]">
+      <Card className="w-full max-w-sm border-[var(--border)] shadow-[0_8px_24px_-12px_rgba(184,134,11,0.2)]">
         <CardHeader className="pb-4">
           <CardTitle className="text-xl">Masuk sebagai Guru</CardTitle>
           <CardDescription>
@@ -75,7 +75,7 @@ export default function TeacherLoginPage() {
               type="submit"
               className="w-full"
               disabled={isPending}
-              style={{ background: '#b8860b', borderColor: '#b8860b' }}
+              style={{ background: 'var(--primary)', borderColor: 'var(--primary)' }}
             >
               {isPending ? 'Memuat...' : 'Masuk'}
             </Button>
