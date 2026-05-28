@@ -13,7 +13,8 @@ export async function createHalaqohAction(_: unknown, formData: FormData) {
 
   const name = (formData.get('name') as string)?.trim()
   const jenjang = formData.get('jenjang') as Jenjang
-  const wali_teacher_id = (formData.get('wali_teacher_id') as string) || null
+  const waliRaw = (formData.get('wali_teacher_id') as string) || ''
+  const wali_teacher_id = (!waliRaw || waliRaw === 'none') ? null : waliRaw
   const schedule_note = (formData.get('schedule_note') as string)?.trim() || null
 
   if (!name || !jenjang) return { error: 'Nama dan jenjang wajib diisi.' }
@@ -41,7 +42,8 @@ export async function updateHalaqohAction(_: unknown, formData: FormData) {
   const id = formData.get('id') as string
   const name = (formData.get('name') as string)?.trim()
   const jenjang = formData.get('jenjang') as Jenjang
-  const wali_teacher_id = (formData.get('wali_teacher_id') as string) || null
+  const waliRaw = (formData.get('wali_teacher_id') as string) || ''
+  const wali_teacher_id = (!waliRaw || waliRaw === 'none') ? null : waliRaw
   const schedule_note = (formData.get('schedule_note') as string)?.trim() || null
   const is_active = formData.get('is_active') === 'on'
 

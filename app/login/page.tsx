@@ -17,13 +17,13 @@ export default function LoginPage() {
         <div className="inline-flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-primary-foreground text-lg font-bold mb-3">
           RQ
         </div>
-        <p className="text-sm text-muted-foreground">Rumah Qur'an LHI</p>
+        <p className="text-sm text-muted-foreground">Rumah Qur&apos;an LHI</p>
       </div>
 
       <Card className="w-full max-w-sm">
         <CardHeader className="pb-4">
           <CardTitle className="text-xl">Masuk</CardTitle>
-          <CardDescription>Masukkan username dan password Anda</CardDescription>
+          <CardDescription>Untuk pengurus &amp; guru — masukkan username dan password Anda</CardDescription>
         </CardHeader>
         <CardContent>
           <form action={action} className="space-y-4">

@@ -10,6 +10,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { JENJANG_LABELS } from '@/lib/auth/permissions'
 import type { Jenjang, Halaqoh, TahsinMethod, JilidLevel } from '@/types'
 
+// Radix Select melarang SelectItem value="". Pakai sentinel ini untuk opsi "kosong".
+// Server action mengubah 'none' kembali menjadi null.
+const NONE = 'none'
+
 interface Props {
   mode: 'create' | 'edit'
   allowedJenjang: Jenjang[]
@@ -44,14 +48,14 @@ export function StudentForm({
   const [state, formAction, isPending] = useActionState(action, null)
 
   const [jenjang, setJenjang] = useState<Jenjang>(initial?.jenjang ?? allowedJenjang[0] ?? 'sd')
-  const [methodId, setMethodId] = useState<string>(initial?.current_method_id ?? '')
+  const [methodId, setMethodId] = useState<string>(initial?.current_method_id ?? NONE)
 
   const halaqohOptions = useMemo(
     () => halaqohList.filter(h => h.jenjang === jenjang),
     [halaqohList, jenjang],
   )
   const jilidOptions = useMemo(
-    () => jilidLevels.filter(j => j.method_id === methodId).sort((a, b) => a.order_num - b.order_num),
+    () => (methodId === NONE ? [] : jilidLevels.filter(j => j.method_id === methodId).sort((a, b) => a.order_num - b.order_num)),
     [jilidLevels, methodId],
   )
 
@@ -77,10 +81,10 @@ export function StudentForm({
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           <div className="space-y-1.5">
             <Label htmlFor="gender">Jenis Kelamin</Label>
-            <Select name="gender" defaultValue={initial?.gender ?? ''}>
+            <Select name="gender" defaultValue={initial?.gender ?? NONE}>
               <SelectTrigger id="gender"><SelectValue placeholder="—" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="">—</SelectItem>
+                <SelectItem value={NONE}>—</SelectItem>
                 <SelectItem value="L">Laki-laki</SelectItem>
                 <SelectItem value="P">Perempuan</SelectItem>
               </SelectContent>
@@ -117,12 +121,12 @@ export function StudentForm({
 
         <div className="space-y-1.5">
           <Label htmlFor="halaqoh_id">Halaqoh</Label>
-          <Select name="halaqoh_id" defaultValue={initial?.halaqoh_id ?? defaultHalaqohId ?? ''}>
+          <Select name="halaqoh_id" defaultValue={initial?.halaqoh_id ?? defaultHalaqohId ?? NONE}>
             <SelectTrigger id="halaqoh_id">
               <SelectValue placeholder={halaqohOptions.length ? 'Pilih halaqoh' : 'Tidak ada halaqoh untuk jenjang ini'} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">— Belum ditentukan —</SelectItem>
+              <SelectItem value={NONE}>— Belum ditentukan —</SelectItem>
               {halaqohOptions.map(h => (
                 <SelectItem key={h.id} value={h.id}>{h.name}</SelectItem>
               ))}
@@ -144,7 +148,7 @@ export function StudentForm({
             <Select name="current_method_id" value={methodId} onValueChange={setMethodId}>
               <SelectTrigger id="current_method_id"><SelectValue placeholder="—" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="">—</SelectItem>
+                <SelectItem value={NONE}>—</SelectItem>
                 {methods.map(m => (
                   <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
                 ))}
@@ -155,12 +159,12 @@ export function StudentForm({
             <Label htmlFor="current_jilid_id">Jilid</Label>
             <Select
               name="current_jilid_id"
-              defaultValue={initial?.current_jilid_id ?? ''}
-              disabled={!methodId || jilidOptions.length === 0}
+              defaultValue={initial?.current_jilid_id ?? NONE}
+              disabled={methodId === NONE || jilidOptions.length === 0}
             >
               <SelectTrigger id="current_jilid_id"><SelectValue placeholder="—" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="">—</SelectItem>
+                <SelectItem value={NONE}>—</SelectItem>
                 {jilidOptions.map(j => (
                   <SelectItem key={j.id} value={j.id}>{j.label}</SelectItem>
                 ))}

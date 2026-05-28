@@ -60,10 +60,10 @@ export function HalaqohForm({ mode, allowedJenjang, teachers, initial }: Props) 
 
       <div className="space-y-1.5">
         <Label htmlFor="wali_teacher_id">Wali Halaqoh (Guru Utama)</Label>
-        <Select name="wali_teacher_id" defaultValue={initial?.wali_teacher_id ?? ''}>
+        <Select name="wali_teacher_id" defaultValue={initial?.wali_teacher_id ?? 'none'}>
           <SelectTrigger id="wali_teacher_id"><SelectValue placeholder="Pilih guru wali" /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="">— Belum ditentukan —</SelectItem>
+            <SelectItem value="none">— Belum ditentukan —</SelectItem>
             {teachers.map(t => (
               <SelectItem key={t.id} value={t.id}>{t.full_name}</SelectItem>
             ))}

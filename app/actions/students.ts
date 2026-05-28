@@ -7,20 +7,27 @@ import { getSession } from '@/lib/auth/session'
 import { canManageStudents } from '@/lib/auth/permissions'
 import type { Gender, Jenjang } from '@/types'
 
+/** Ubah string kosong atau sentinel 'none' (dari Radix Select) menjadi null. */
+function clean(v: FormDataEntryValue | null): string | null {
+  const s = (v as string | null)?.trim()
+  if (!s || s === 'none') return null
+  return s
+}
+
 function pickStudentFields(formData: FormData) {
   return {
-    nis: ((formData.get('nis') as string) || '').trim() || null,
+    nis: clean(formData.get('nis')),
     full_name: ((formData.get('full_name') as string) || '').trim(),
-    gender: ((formData.get('gender') as string) || null) as Gender | null,
-    birth_date: ((formData.get('birth_date') as string) || '') || null,
+    gender: clean(formData.get('gender')) as Gender | null,
+    birth_date: clean(formData.get('birth_date')),
     jenjang: formData.get('jenjang') as Jenjang,
-    kelas: ((formData.get('kelas') as string) || '').trim() || null,
-    halaqoh_id: ((formData.get('halaqoh_id') as string) || '') || null,
-    wali_name: ((formData.get('wali_name') as string) || '').trim() || null,
-    wali_phone: ((formData.get('wali_phone') as string) || '').trim() || null,
-    wali_email: ((formData.get('wali_email') as string) || '').trim() || null,
-    current_method_id: ((formData.get('current_method_id') as string) || '') || null,
-    current_jilid_id: ((formData.get('current_jilid_id') as string) || '') || null,
+    kelas: clean(formData.get('kelas')),
+    halaqoh_id: clean(formData.get('halaqoh_id')),
+    wali_name: clean(formData.get('wali_name')),
+    wali_phone: clean(formData.get('wali_phone')),
+    wali_email: clean(formData.get('wali_email')),
+    current_method_id: clean(formData.get('current_method_id')),
+    current_jilid_id: clean(formData.get('current_jilid_id')),
     current_jilid_page: formData.get('current_jilid_page')
       ? Number(formData.get('current_jilid_page')) || null
       : null,
