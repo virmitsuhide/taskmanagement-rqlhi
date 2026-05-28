@@ -99,6 +99,17 @@ create table task_history (
   created_at   timestamptz default now()
 );
 
+-- TASK COMMENTS (diskusi per task)
+create table task_comments (
+  id           uuid primary key default gen_random_uuid(),
+  task_id      uuid not null references tasks(id) on delete cascade,
+  author_id    uuid references users(id) on delete set null,
+  body         text not null,
+  mentions     uuid[],
+  created_at   timestamptz default now() not null
+);
+create index idx_task_comments_task on task_comments(task_id, created_at);
+
 -- PUBLIC POSTS
 create table public_posts (
   id           uuid primary key default gen_random_uuid(),
@@ -188,6 +199,7 @@ alter table meetings enable row level security;
 alter table agenda_items enable row level security;
 alter table tasks enable row level security;
 alter table task_history enable row level security;
+alter table task_comments enable row level security;
 alter table public_posts enable row level security;
 alter table content_requests enable row level security;
 alter table private_notes enable row level security;

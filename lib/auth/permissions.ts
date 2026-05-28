@@ -103,6 +103,25 @@ export function canAssignAnyTask(role: UserRole): boolean {
   return (TASK_ASSIGN_TO[role]?.length ?? 0) > 0
 }
 
+// Kanban board — divisi mana yang bisa user lihat di papan.
+// Divisi sebuah task = role penerima (assignee).
+const ALL_ROLES: UserRole[] = [
+  'kepala_rq', 'kumik', 'sdm', 'bendahara', 'koor_sd', 'koor_smp',
+  'koor_ekstra', 'humas', 'div_training', 'new_squad',
+]
+
+export function getBoardDivisions(role: UserRole): UserRole[] {
+  if (role === 'kepala_rq' || role === 'kumik' || role === 'sdm') return ALL_ROLES
+  if (role === 'koor_sd') return ['koor_sd']
+  if (role === 'koor_smp') return ['koor_smp']
+  if (role === 'koor_ekstra') return ['koor_ekstra', 'humas']
+  return []
+}
+
+export function canViewDivisiBoard(role: UserRole): boolean {
+  return getBoardDivisions(role).length > 0
+}
+
 // Task status change — who can perform which transitions
 export function canChangeTaskStatus(
   role: UserRole,

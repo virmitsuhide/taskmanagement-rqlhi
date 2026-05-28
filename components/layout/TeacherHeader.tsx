@@ -4,13 +4,15 @@ import { Button } from '@/components/ui/button'
 
 interface Props {
   fullName: string
-  active?: 'dashboard' | 'setoran' | 'siswa' | 'jadwal' | 'rapor'
+  active?: 'dashboard' | 'setoran' | 'tahfidz' | 'siswa' | 'statistik' | 'jadwal' | 'rapor'
 }
 
 const NAV: { key: Props['active']; label: string; href: string }[] = [
   { key: 'dashboard', label: 'Dashboard', href: '/guru' },
   { key: 'siswa', label: 'Siswa', href: '/guru/siswa' },
-  { key: 'setoran', label: 'Setoran', href: '/guru/setoran/tahsin/baru' },
+  { key: 'setoran', label: 'Setor Tahsin', href: '/guru/setoran/tahsin/baru' },
+  { key: 'tahfidz', label: 'Setor Tahfidz', href: '/guru/setoran/tahfidz/baru' },
+  { key: 'statistik', label: 'Statistik', href: '/guru/statistik' },
 ]
 
 export function TeacherHeader({ fullName, active }: Props) {

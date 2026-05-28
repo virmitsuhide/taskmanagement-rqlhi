@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { StarRating } from '@/components/StarRating'
 
 interface StudentOption {
   id: string
@@ -25,34 +26,6 @@ interface Props {
   methods: MethodOption[]
   jilidLevels: JilidOption[]
   defaultStudentId?: string
-}
-
-const RATING_LABELS = ['', 'Kurang', 'Cukup', 'Baik', 'Bagus', 'Sangat Bagus']
-
-function StarRating({ name, defaultValue = 0 }: { name: string; defaultValue?: number }) {
-  const [value, setValue] = useState(defaultValue)
-  return (
-    <div>
-      <input type="hidden" name={name} value={value || ''} />
-      <div className="flex gap-1.5">
-        {[1, 2, 3, 4, 5].map(n => (
-          <button
-            key={n}
-            type="button"
-            onClick={() => setValue(n === value ? 0 : n)}
-            className="w-9 h-9 rounded-lg border flex items-center justify-center text-sm font-medium transition-colors"
-            style={n <= value
-              ? { background: '#b8860b', borderColor: '#b8860b', color: 'white' }
-              : { background: 'white', borderColor: '#e7e3da', color: '#6b6b6b' }}
-            aria-label={`${n} bintang`}
-          >
-            {n}
-          </button>
-        ))}
-      </div>
-      <p className="text-[11px] text-muted-foreground mt-1 h-3.5">{RATING_LABELS[value]}</p>
-    </div>
-  )
 }
 
 export function TahsinSetoranForm({ students, methods, jilidLevels, defaultStudentId }: Props) {

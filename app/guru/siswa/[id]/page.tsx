@@ -5,7 +5,8 @@ import { canTeacherAccessStudent } from '@/lib/data/teacher'
 import { createServerClient } from '@/lib/supabase/server'
 import { TeacherHeader } from '@/components/layout/TeacherHeader'
 import { Button } from '@/components/ui/button'
-import { BookOpen, CheckCircle2 } from 'lucide-react'
+import { BookOpen, CheckCircle2, Sparkles } from 'lucide-react'
+import { AYAT_PER_JUZ } from '@/types'
 import type { Jenjang } from '@/types'
 
 interface PageProps {
@@ -69,8 +70,42 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
     .eq('student_id', id)
     .order('promotion_date', { ascending: false })
 
+  // ── Tahfidz ──
+  const [tahfidzRes, juzProgressRes, juzPromRes] = await Promise.all([
+    supabase
+      .from('tahfidz_logs')
+      .select('id, setoran_date, kind, ayat_dari, ayat_ke, nilai_makhraj, nilai_tajwid, nilai_kelancaran, catatan, surat:surat_master!tahfidz_logs_surat_id_fkey(name_latin, juz_start)')
+      .eq('student_id', id)
+      .order('setoran_date', { ascending: false })
+      .order('created_at', { ascending: false })
+      .limit(15),
+    supabase
+      .from('juz_progress')
+      .select('juz_number, ayat_hafal, mutqin')
+      .eq('student_id', id),
+    supabase
+      .from('juz_promotions')
+      .select('id, juz_number, promotion_date')
+      .eq('student_id', id)
+      .order('juz_number', { ascending: true }),
+  ])
+
+  const tahfidzLogs = (tahfidzRes.data ?? []) as unknown as Array<{
+    id: string; setoran_date: string; kind: string; ayat_dari: number; ayat_ke: number
+    nilai_makhraj: number | null; nilai_tajwid: number | null; nilai_kelancaran: number | null
+    catatan: string | null; surat: { name_latin: string; juz_start: number } | null
+  }>
+  const juzProgress = (juzProgressRes.data ?? []) as Array<{ juz_number: number; ayat_hafal: number; mutqin: boolean }>
+  const juzPromotions = (juzPromRes.data ?? []) as Array<{ id: string; juz_number: number; promotion_date: string }>
+
+  const juzMap = new Map<number, { ayat_hafal: number; mutqin: boolean }>()
+  for (const j of juzProgress) juzMap.set(j.juz_number, { ayat_hafal: j.ayat_hafal, mutqin: j.mutqin })
+  const totalAyatHafal = juzProgress.reduce((sum, j) => sum + j.ayat_hafal, 0)
+  const juzAktif = juzProgress.length > 0 ? Math.max(...juzProgress.map(j => j.juz_number)) : null
+
   const initials = student.full_name.split(' ').slice(0, 2).map((w: string) => w[0]).join('').toUpperCase()
   const setoranUrl = `/guru/setoran/tahsin/baru?student=${id}`
+  const tahfidzUrl = `/guru/setoran/tahfidz/baru?student=${id}`
 
   return (
     <div className="min-h-screen" style={{ background: '#fafaf7' }}>
@@ -79,10 +114,10 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
       <main className="max-w-4xl mx-auto px-4 md:px-6 py-6 space-y-5">
         <Link href="/guru/siswa" className="text-xs text-muted-foreground hover:underline">← Daftar Siswa</Link>
 
-        {setoran === 'ok' && (
+        {(setoran === 'ok' || setoran === 'tahfidz_ok') && (
           <div className="rounded-lg border-2 border-green-300 bg-green-50 px-4 py-3 flex items-center gap-2 text-sm text-green-800">
             <CheckCircle2 className="h-4 w-4" />
-            Setoran berhasil disimpan. Barakallahu fiik!
+            Setoran {setoran === 'tahfidz_ok' ? 'tahfidz' : 'tahsin'} berhasil disimpan. Barakallahu fiik!
           </div>
         )}
 
@@ -107,18 +142,71 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
                 {student.kelas ? ` · Kelas ${student.kelas}` : ''}
                 {student.halaqoh?.name ? ` · ${student.halaqoh.name}` : ''}
               </p>
-              <div className="mt-2 inline-flex items-center gap-1.5 text-sm px-2.5 py-1 rounded-lg" style={{ background: '#fdf6e3', color: '#b8860b' }}>
-                <BookOpen className="h-4 w-4" />
-                {student.current_method?.name && student.current_jilid?.label
-                  ? `${student.current_method.name} ${student.current_jilid.label} · hal. ${student.current_jilid_page ?? '—'}`
-                  : 'Belum ada data tahsin'}
+              <div className="mt-2 flex flex-wrap gap-2">
+                <span className="inline-flex items-center gap-1.5 text-sm px-2.5 py-1 rounded-lg" style={{ background: '#fdf6e3', color: '#b8860b' }}>
+                  <BookOpen className="h-4 w-4" />
+                  {student.current_method?.name && student.current_jilid?.label
+                    ? `${student.current_method.name} ${student.current_jilid.label} · hal. ${student.current_jilid_page ?? '—'}`
+                    : 'Belum ada data tahsin'}
+                </span>
+                <span className="inline-flex items-center gap-1.5 text-sm px-2.5 py-1 rounded-lg" style={{ background: '#dcfce7', color: '#15803d' }}>
+                  <Sparkles className="h-4 w-4" />
+                  {juzAktif ? `Tahfidz Juz ${juzAktif} · ${totalAyatHafal} ayat` : 'Belum ada hafalan'}
+                </span>
               </div>
             </div>
-            <Button asChild style={{ background: '#b8860b', borderColor: '#b8860b' }}>
-              <Link href={setoranUrl}>+ Setor Tahsin</Link>
-            </Button>
+            <div className="flex flex-col gap-2 shrink-0">
+              <Button asChild style={{ background: '#b8860b', borderColor: '#b8860b' }}>
+                <Link href={setoranUrl}>+ Setor Tahsin</Link>
+              </Button>
+              <Button asChild variant="outline">
+                <Link href={tahfidzUrl}>+ Setor Tahfidz</Link>
+              </Button>
+              <Button asChild variant="outline">
+                <Link href={`/guru/siswa/${id}/rapor`}>📄 Rapor &amp; Share</Link>
+              </Button>
+            </div>
           </div>
         </div>
+
+        {/* Peta 30 Juz */}
+        <section>
+          <h2 className="text-sm font-semibold mb-3 flex items-center gap-2">
+            <Sparkles className="h-4 w-4" /> Peta Hafalan (30 Juz)
+          </h2>
+          <div className="rounded-xl border bg-white p-4">
+            <div className="grid grid-cols-10 gap-1.5">
+              {Array.from({ length: 30 }, (_, i) => i + 1).map(juz => {
+                const prog = juzMap.get(juz)
+                const total = AYAT_PER_JUZ[juz] ?? 1
+                const pct = prog ? Math.min(100, Math.round((prog.ayat_hafal / total) * 100)) : 0
+                const mutqin = prog?.mutqin
+                const style =
+                  mutqin ? { background: '#15803d', color: 'white', borderColor: '#15803d' }
+                  : pct >= 100 ? { background: '#22c55e', color: 'white', borderColor: '#22c55e' }
+                  : pct > 0 ? { background: '#fdf6e3', color: '#b8860b', borderColor: '#b8860b' }
+                  : { background: '#f3f1ec', color: '#9ca3af', borderColor: '#e7e3da' }
+                return (
+                  <div
+                    key={juz}
+                    className="aspect-square rounded-md border flex items-center justify-center text-[11px] font-medium relative"
+                    style={style}
+                    title={prog ? `Juz ${juz}: ${prog.ayat_hafal}/${total} ayat (${pct}%)${mutqin ? ' · Mutqin' : ''}` : `Juz ${juz}: belum`}
+                  >
+                    {juz}
+                    {mutqin && <span className="absolute -top-1 -right-1 text-[8px]">✓</span>}
+                  </div>
+                )
+              })}
+            </div>
+            <div className="flex flex-wrap gap-3 mt-3 text-[11px] text-muted-foreground">
+              <span className="inline-flex items-center gap-1"><span className="w-3 h-3 rounded" style={{ background: '#15803d' }} /> Mutqin</span>
+              <span className="inline-flex items-center gap-1"><span className="w-3 h-3 rounded" style={{ background: '#22c55e' }} /> Selesai</span>
+              <span className="inline-flex items-center gap-1"><span className="w-3 h-3 rounded border" style={{ background: '#fdf6e3', borderColor: '#b8860b' }} /> Proses</span>
+              <span className="inline-flex items-center gap-1"><span className="w-3 h-3 rounded" style={{ background: '#f3f1ec' }} /> Belum</span>
+            </div>
+          </div>
+        </section>
 
         {/* Riwayat setoran */}
         <section>
@@ -184,6 +272,71 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
                   </div>
                 )
               })}
+            </div>
+          </section>
+        )}
+
+        {/* Riwayat setoran tahfidz */}
+        <section>
+          <h2 className="text-sm font-semibold mb-3">Riwayat Setoran Tahfidz</h2>
+          {tahfidzLogs.length === 0 ? (
+            <div className="rounded-xl border border-dashed bg-white py-8 text-center text-sm text-muted-foreground">
+              Belum ada setoran tahfidz.
+              <div className="mt-3">
+                <Button asChild size="sm" variant="outline">
+                  <Link href={tahfidzUrl}>Catat setoran tahfidz</Link>
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="rounded-xl border bg-white divide-y">
+              {tahfidzLogs.map(log => {
+                const suratName = log.surat?.name_latin ?? '—'
+                return (
+                  <div key={log.id} className="p-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-sm font-medium">
+                        {suratName} ayat {log.ayat_dari}–{log.ayat_ke}
+                      </p>
+                      <span
+                        className="text-[11px] px-2 py-0.5 rounded-full shrink-0"
+                        style={log.kind === 'hafalan_baru'
+                          ? { background: '#fdf6e3', color: '#b8860b' }
+                          : { background: '#dbeafe', color: '#1d4ed8' }}
+                      >
+                        {log.kind === 'hafalan_baru' ? '✨ Hafalan Baru' : '🔁 Muroja’ah'}
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {new Date(log.setoran_date).toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
+                      {log.surat ? ` · Juz ${log.surat.juz_start}` : ''}
+                      {' · '}⭐ {avg(log.nilai_makhraj, log.nilai_tajwid, log.nilai_kelancaran)}
+                    </p>
+                    {log.catatan && (
+                      <p className="text-xs italic text-muted-foreground mt-1">“{log.catatan}”</p>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </section>
+
+        {/* Riwayat kenaikan juz */}
+        {juzPromotions.length > 0 && (
+          <section>
+            <h2 className="text-sm font-semibold mb-3">🏆 Juz Selesai (Mutqin)</h2>
+            <div className="rounded-xl border bg-white p-4 flex flex-wrap gap-2">
+              {juzPromotions.map(p => (
+                <span
+                  key={p.id}
+                  className="text-xs px-2.5 py-1 rounded-full font-medium"
+                  style={{ background: '#dcfce7', color: '#15803d' }}
+                  title={new Date(p.promotion_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                >
+                  Juz {p.juz_number} ✓
+                </span>
+              ))}
             </div>
           </section>
         )}

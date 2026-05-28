@@ -6,13 +6,14 @@ import { createServerClient } from '@/lib/supabase/server'
 import { updateTaskStatusFromFormAction } from '@/app/actions/tasks'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { TaskStatusBadge, TaskPriorityBadge } from '@/components/tasks/TaskStatusBadge'
+import { TaskComments } from '@/components/tasks/TaskComments'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { ArrowLeft, Calendar, Clock } from 'lucide-react'
-import type { Task, TaskHistory, TaskStatus } from '@/types'
+import type { Task, TaskHistory, TaskStatus, TaskComment } from '@/types'
 
 function formatDateTime(dateStr: string) {
   return new Date(dateStr).toLocaleString('id-ID', {
@@ -65,10 +66,22 @@ export default async function TaskDetailPage({ params }: { params: Promise<{ id:
 
   const history = (historyData ?? []) as TaskHistory[]
 
+  const { data: commentData } = await supabase
+    .from('task_comments')
+    .select('*, author:users!task_comments_author_id_fkey(id, display_name, role)')
+    .eq('task_id', id)
+    .order('created_at', { ascending: true })
+  const comments = (commentData ?? []) as TaskComment[]
+
+  // Peserta untuk quick-mention (assignee + assigner, tanpa duplikat)
+  const participants = [task.assigner, task.assignee]
+    .filter((u): u is NonNullable<typeof u> => !!u)
+    .filter((u, i, arr) => arr.findIndex(x => x.id === u.id) === i)
+    .map(u => ({ id: u.id, name: u.display_name }))
+
   const allowedNextStatuses = STATUS_FLOW[task.status].filter(next =>
     canChangeTaskStatus(session.role, task.status, next, isAssignee, isAssigner)
   )
-  const needsReturnNotes = task.status === 'submitted'
 
   return (
     <div>
@@ -161,6 +174,17 @@ export default async function TaskDetailPage({ params }: { params: Promise<{ id:
             ))}
           </div>
         </div>
+
+        <Separator className="my-6" />
+
+        {/* Diskusi / Komentar */}
+        <TaskComments
+          taskId={id}
+          comments={comments}
+          currentUserId={session.userId}
+          isModerator={session.role === 'kepala_rq'}
+          participants={participants}
+        />
       </div>
     </div>
   )

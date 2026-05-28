@@ -6,7 +6,7 @@ import { createServerClient } from '@/lib/supabase/server'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { TaskCard } from '@/components/tasks/TaskCard'
 import { Button } from '@/components/ui/button'
-import { Plus, CheckSquare, Clock, AlertCircle, CheckCircle2 } from 'lucide-react'
+import { Plus, CheckSquare, Clock, AlertCircle, CheckCircle2, LayoutGrid } from 'lucide-react'
 import { SearchInput } from '@/components/ui/search-input'
 import { Pagination } from '@/components/ui/pagination'
 import type { Task, TaskStatus } from '@/types'
@@ -139,11 +139,16 @@ export default async function TasksPage({ searchParams }: PageProps) {
               Kelola tugas yang ditugaskan kepada Anda
             </p>
           </div>
-          {canAssignAnyTask(session.role) && (
-            <Button asChild size="sm">
-              <Link href="/tasks/baru"><Plus className="h-4 w-4 mr-1" />Buat Task</Link>
+          <div className="flex items-center gap-2">
+            <Button asChild size="sm" variant="outline">
+              <Link href="/tasks/board"><LayoutGrid className="h-4 w-4 mr-1" />Papan</Link>
             </Button>
-          )}
+            {canAssignAnyTask(session.role) && (
+              <Button asChild size="sm">
+                <Link href="/tasks/baru"><Plus className="h-4 w-4 mr-1" />Buat Task</Link>
+              </Button>
+            )}
+          </div>
         </div>
 
         {/* Stat cards */}

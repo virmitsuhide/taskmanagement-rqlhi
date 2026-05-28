@@ -100,6 +100,7 @@ export function MobileNav({ role, displayName, username }: Props) {
               <li><Link href="/program" onClick={() => setOpen(false)} className={navLinkClass('/program')}><LayoutGrid className="h-4 w-4" />Program RQ</Link></li>
               <li><Link href="/rapat" onClick={() => setOpen(false)} className={navLinkClass('/rapat')}><BookOpen className="h-4 w-4" />Rapat & Notulen</Link></li>
               <li><Link href="/tasks" onClick={() => setOpen(false)} className={navLinkClass('/tasks')}><CheckSquare className="h-4 w-4" />Task</Link></li>
+              <li><Link href="/tasks/board" onClick={() => setOpen(false)} className={navLinkClass('/tasks/board')}><LayoutGrid className="h-4 w-4" />Papan Task</Link></li>
               {canRequestToHumas(role) && (
                 <li><Link href="/humas-request" onClick={() => setOpen(false)} className={navLinkClass('/humas-request')}><ImageIcon className="h-4 w-4" />Request Humas</Link></li>
               )}

@@ -92,7 +92,8 @@ export function Sidebar({ role, displayName, username }: Props) {
           <ul className="space-y-1">
             <NavItem href="/program" icon={<LayoutGrid className="h-4 w-4" />} label="Program RQ" active={isActive('/program')} />
             <NavItem href="/rapat" icon={<BookOpen className="h-4 w-4" />} label="Rapat & Notulen" active={isActive('/rapat')} />
-            <NavItem href="/tasks" icon={<CheckSquare className="h-4 w-4" />} label="Task" active={isActive('/tasks')} />
+            <NavItem href="/tasks" icon={<CheckSquare className="h-4 w-4" />} label="Task" active={isActive('/tasks') && !pathname.startsWith('/tasks/board')} />
+            <NavItem href="/tasks/board" icon={<LayoutGrid className="h-4 w-4" />} label="Papan Task" active={pathname.startsWith('/tasks/board')} />
             {canRequestToHumas(role) && (
               <NavItem href="/humas-request" icon={<ImageIcon className="h-4 w-4" />} label="Request Humas" active={isActive('/humas-request')} />
             )}

@@ -100,6 +100,16 @@ export interface TaskHistory {
   changer?: User
 }
 
+export interface TaskComment {
+  id: string
+  task_id: string
+  author_id: string | null
+  body: string
+  mentions: string[] | null
+  created_at: string
+  author?: User
+}
+
 export interface PublicPost {
   id: string
   type: PublicPostType

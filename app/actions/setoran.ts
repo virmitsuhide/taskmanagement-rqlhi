@@ -5,7 +5,7 @@ import { redirect } from 'next/navigation'
 import { createServerClient } from '@/lib/supabase/server'
 import { getTeacherSession } from '@/lib/auth/teacher-session'
 import { canTeacherAccessStudent } from '@/lib/data/teacher'
-import type { TahsinStatus } from '@/types'
+import type { TahsinStatus, TahfidzKind } from '@/types'
 
 /**
  * KEBIJAKAN POSISI SISWA setelah setoran tahsin (ditetapkan RQ LHI).
@@ -146,4 +146,99 @@ export async function createTahsinLogAction(_: unknown, formData: FormData) {
   revalidatePath(`/guru/siswa/${studentId}`)
   revalidatePath('/guru')
   redirect(`/guru/siswa/${studentId}?setoran=ok`)
+}
+
+// ─── TAHFIDZ ────────────────────────────────────────────────────────
+export async function createTahfidzLogAction(_: unknown, formData: FormData) {
+  const session = await getTeacherSession()
+  if (!session) return { error: 'Sesi guru tidak valid.' }
+
+  const studentId = formData.get('student_id') as string
+  if (!studentId) return { error: 'Siswa belum dipilih.' }
+
+  const allowed = await canTeacherAccessStudent(session.teacherId, studentId)
+  if (!allowed) return { error: 'Anda tidak mengampu siswa ini.' }
+
+  const kind = ((formData.get('kind') as string) || 'hafalan_baru') as TahfidzKind
+  const suratId = formData.get('surat_id') ? Number(formData.get('surat_id')) : null
+  const ayatDari = formData.get('ayat_dari') ? Number(formData.get('ayat_dari')) : null
+  const ayatKe = formData.get('ayat_ke') ? Number(formData.get('ayat_ke')) : null
+  const nilaiMakhraj = formData.get('nilai_makhraj') ? Number(formData.get('nilai_makhraj')) : null
+  const nilaiTajwid = formData.get('nilai_tajwid') ? Number(formData.get('nilai_tajwid')) : null
+  const nilaiKelancaran = formData.get('nilai_kelancaran') ? Number(formData.get('nilai_kelancaran')) : null
+  const catatan = ((formData.get('catatan') as string) || '').trim() || null
+  const setoranDate = (formData.get('setoran_date') as string) || new Date().toISOString().slice(0, 10)
+  const naikJuz = formData.get('naik_juz') === 'on'
+
+  if (!suratId) return { error: 'Surat wajib dipilih.' }
+  if (!ayatDari || !ayatKe) return { error: 'Rentang ayat wajib diisi.' }
+  if (ayatKe < ayatDari) return { error: 'Ayat akhir tidak boleh lebih kecil dari ayat awal.' }
+
+  const supabase = createServerClient()
+
+  // Validasi rentang ayat terhadap data surat
+  const { data: surat } = await supabase
+    .from('surat_master')
+    .select('total_ayat, juz_start, name_latin')
+    .eq('id', suratId)
+    .maybeSingle()
+  if (!surat) return { error: 'Surat tidak ditemukan.' }
+  if (ayatKe > surat.total_ayat) {
+    return { error: `Surat ${surat.name_latin} hanya punya ${surat.total_ayat} ayat.` }
+  }
+
+  const { data: student } = await supabase
+    .from('students')
+    .select('halaqoh_id')
+    .eq('id', studentId)
+    .maybeSingle()
+  if (!student) return { error: 'Siswa tidak ditemukan.' }
+
+  // Insert log — trigger DB upsert_juz_progress otomatis menambah ayat_hafal
+  // ke juz_progress (hanya untuk kind='hafalan_baru')
+  const { error: logErr } = await supabase.from('tahfidz_logs').insert({
+    student_id: studentId,
+    teacher_id: session.teacherId,
+    halaqoh_id: student.halaqoh_id,
+    setoran_date: setoranDate,
+    kind,
+    surat_id: suratId,
+    ayat_dari: ayatDari,
+    ayat_ke: ayatKe,
+    nilai_makhraj: nilaiMakhraj,
+    nilai_tajwid: nilaiTajwid,
+    nilai_kelancaran: nilaiKelancaran,
+    catatan,
+  })
+  if (logErr) return { error: 'Gagal menyimpan setoran tahfidz.' }
+
+  // Naik juz: tandai juz surat ini sebagai selesai (mutqin) + catat riwayat
+  if (naikJuz) {
+    const juzNumber = surat.juz_start
+
+    // Tandai mutqin di juz_progress (upsert agar baris pasti ada)
+    await supabase.from('juz_progress').upsert(
+      { student_id: studentId, juz_number: juzNumber, mutqin: true, updated_at: new Date().toISOString() },
+      { onConflict: 'student_id,juz_number' },
+    )
+
+    // Catat promosi (unique student+juz; abaikan kalau sudah ada)
+    const { error: promErr } = await supabase.from('juz_promotions').insert({
+      student_id: studentId,
+      juz_number: juzNumber,
+      promoted_by: session.teacherId,
+      promotion_date: setoranDate,
+      catatan,
+    })
+    // 23505 = sudah pernah dipromosikan; bukan error fatal
+    if (promErr && promErr.code !== '23505') {
+      // log lain tetap tersimpan; cukup beri tahu sebagian gagal
+      return { error: 'Setoran tersimpan, tetapi gagal mencatat kenaikan juz.' }
+    }
+  }
+
+  revalidatePath('/guru/siswa')
+  revalidatePath(`/guru/siswa/${studentId}`)
+  revalidatePath('/guru')
+  redirect(`/guru/siswa/${studentId}?setoran=tahfidz_ok`)
 }
