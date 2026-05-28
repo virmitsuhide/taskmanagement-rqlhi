@@ -6,13 +6,13 @@ import { usePathname } from 'next/navigation'
 import {
   Menu, X, LayoutDashboard, CheckSquare, BookOpen,
   ImageIcon, Megaphone, FileText, User, LogOut, GraduationCap, Newspaper, LayoutGrid,
-  Users, UserCog, BookMarked,
+  Users, UserCog, BookMarked, BarChart3,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
   DASHBOARD_LABELS, getAccessibleDashboards, DEFAULT_DASHBOARD,
   canAccessNotes, canPostToHome, canRequestToHumas, canCreateNews,
-  canViewStudents, canViewHalaqoh, canViewTeachers,
+  canViewStudents, canViewHalaqoh, canViewTeachers, canViewAnalytics,
 } from '@/lib/auth/permissions'
 import type { UserRole } from '@/types'
 import { logoutAction } from '@/app/actions/auth'
@@ -91,6 +91,9 @@ export function MobileNav({ role, displayName, username }: Props) {
                   </Link>
                 </li>
               ))}
+              {canViewAnalytics(role) && (
+                <li><Link href="/dashboard/analitik" onClick={() => setOpen(false)} className={navLinkClass('/dashboard/analitik')}><BarChart3 className="h-4 w-4" />Analitik RQ</Link></li>
+              )}
             </ul>
           </div>
 

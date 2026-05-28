@@ -6,12 +6,12 @@ import { cn } from '@/lib/utils'
 import {
   LayoutDashboard, BookOpen, CheckSquare, ImageIcon,
   FileText, User, Megaphone, LogOut, ChevronRight, GraduationCap, Newspaper, LayoutGrid,
-  Users, UserCog, BookMarked,
+  Users, UserCog, BookMarked, BarChart3,
 } from 'lucide-react'
 import { DASHBOARD_LABELS, getAccessibleDashboards, ROLE_LABELS } from '@/lib/auth/permissions'
 import {
   canAccessNotes, canPostToHome, canRequestToHumas, canCreateNews,
-  canViewStudents, canViewHalaqoh, canViewTeachers,
+  canViewStudents, canViewHalaqoh, canViewTeachers, canViewAnalytics,
 } from '@/lib/auth/permissions'
 import type { UserRole } from '@/types'
 import { logoutAction } from '@/app/actions/auth'
@@ -81,6 +81,9 @@ export function Sidebar({ role, displayName, username }: Props) {
                 </Link>
               </li>
             ))}
+            {canViewAnalytics(role) && (
+              <NavItem href="/dashboard/analitik" icon={<BarChart3 className="h-4 w-4" />} label="Analitik RQ" active={isActive('/dashboard/analitik')} />
+            )}
           </ul>
         </div>
 

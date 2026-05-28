@@ -122,6 +122,11 @@ export function canViewDivisiBoard(role: UserRole): boolean {
   return getBoardDivisions(role).length > 0
 }
 
+// Analitik RQ — dashboard agregat lintas divisi/halaqoh (manajemen)
+export function canViewAnalytics(role: UserRole): boolean {
+  return role === 'kepala_rq' || role === 'kumik' || role === 'sdm'
+}
+
 // Task status change — who can perform which transitions
 export function canChangeTaskStatus(
   role: UserRole,
