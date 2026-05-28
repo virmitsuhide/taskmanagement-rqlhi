@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import Image from 'next/image'
+import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { ArrowLeft, Calendar, User as UserIcon } from 'lucide-react'
 import { Lora, Playfair_Display } from 'next/font/google'
@@ -94,6 +95,35 @@ function CategoryBadge({ category, type }: { category: NewsCategory | null; type
 
 interface PageProps {
   params: Promise<{ id: string }>
+}
+
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { id } = await params
+  const article = await getArticle(id)
+  if (!article) return { title: 'Berita tidak ditemukan — RQ LHI' }
+
+  const description =
+    article.excerpt?.trim() ||
+    article.content.replace(/[#*_>`\[\]]/g, '').replace(/\s+/g, ' ').trim().slice(0, 160)
+
+  const typeLabel = article.type === 'artikel' ? 'Artikel' : 'Berita'
+
+  return {
+    title: `${article.title} — RQ LHI`,
+    description,
+    openGraph: {
+      title: article.title,
+      description,
+      type: 'article',
+      publishedTime: article.created_at,
+      authors: article.author ? [article.author.display_name] : undefined,
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: `${article.title} — ${typeLabel} RQ LHI`,
+      description,
+    },
+  }
 }
 
 export default async function NewsDetailPage({ params }: PageProps) {

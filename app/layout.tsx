@@ -8,9 +8,17 @@ import { cn } from '@/lib/utils'
 const geist = Geist({ subsets: ['latin'], variable: '--font-sans' })
 const fontMono = Geist_Mono({ subsets: ['latin'], variable: '--font-mono' })
 
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
+
 export const metadata: Metadata = {
+  metadataBase: new URL(APP_URL),
   title: 'RQ LHI — Sistem Manajemen',
   description: 'Sistem operasional internal Rumah Qur\'an LHI',
+  openGraph: {
+    siteName: 'Rumah Qur\'an LHI',
+    locale: 'id_ID',
+    type: 'website',
+  },
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
