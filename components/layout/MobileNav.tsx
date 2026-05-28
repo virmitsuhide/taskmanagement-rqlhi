@@ -6,11 +6,13 @@ import { usePathname } from 'next/navigation'
 import {
   Menu, X, LayoutDashboard, CheckSquare, BookOpen,
   ImageIcon, Megaphone, FileText, User, LogOut, GraduationCap, Newspaper, LayoutGrid,
+  Users, UserCog, BookMarked,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
   DASHBOARD_LABELS, getAccessibleDashboards, DEFAULT_DASHBOARD,
   canAccessNotes, canPostToHome, canRequestToHumas, canCreateNews,
+  canViewStudents, canViewHalaqoh, canViewTeachers,
 } from '@/lib/auth/permissions'
 import type { UserRole } from '@/types'
 import { logoutAction } from '@/app/actions/auth'
@@ -112,6 +114,23 @@ export function MobileNav({ role, displayName, username }: Props) {
               )}
             </ul>
           </div>
+
+          {(canViewStudents(role) || canViewHalaqoh(role) || canViewTeachers(role)) && (
+            <div>
+              <p className="px-2 mb-2 text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/50">Tahsin &amp; Tahfidz</p>
+              <ul className="space-y-1">
+                {canViewHalaqoh(role) && (
+                  <li><Link href="/halaqoh" onClick={() => setOpen(false)} className={navLinkClass('/halaqoh')}><BookMarked className="h-4 w-4" />Halaqoh</Link></li>
+                )}
+                {canViewStudents(role) && (
+                  <li><Link href="/siswa" onClick={() => setOpen(false)} className={navLinkClass('/siswa')}><Users className="h-4 w-4" />Siswa</Link></li>
+                )}
+                {canViewTeachers(role) && (
+                  <li><Link href="/ustadz" onClick={() => setOpen(false)} className={navLinkClass('/ustadz')}><UserCog className="h-4 w-4" />Ustadz / Guru</Link></li>
+                )}
+              </ul>
+            </div>
+          )}
         </nav>
 
         <div className="border-t px-3 py-3 space-y-1">

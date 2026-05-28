@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dashboard Guru — RQ LHI</title>
+<link rel="stylesheet" href="_shared.css">
+<style>
+  .greeting-row { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; flex-wrap: wrap; margin-bottom: 24px; }
+  .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+  .stat { padding: 14px 16px; }
+  .stat .num { font-family: 'Playfair Display'; font-size: 30px; font-weight: 800; line-height: 1; }
+  .stat .lbl { font-size: 11px; letter-spacing: 0.6px; text-transform: uppercase; color: var(--muted); margin-top: 6px; }
+  .main-grid { display: grid; grid-template-columns: 1fr 360px; gap: 16px; align-items: start; margin-top: 16px; }
+  @media (max-width: 880px) { .main-grid { grid-template-columns: 1fr; } .stat-grid { grid-template-columns: repeat(2, 1fr); } }
+
+  .section-head { display:flex; justify-content: space-between; align-items: flex-end; margin-bottom: 12px; }
+  .siswa-item {
+    display: grid;
+    grid-template-columns: 36px 1fr auto;
+    gap: 12px;
+    padding: 12px 14px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: white;
+    align-items: center;
+    margin-bottom: 8px;
+    transition: all .15s;
+    text-decoration: none;
+    color: inherit;
+  }
+  .siswa-item:hover { border-color: var(--accent-warm); transform: translateX(2px); }
+  .siswa-name { font-weight: 600; font-size: 14px; }
+  .siswa-meta { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .siswa-action { display: flex; gap: 6px; }
+
+  .jadwal-row {
+    display: flex; align-items: center; gap: 12px; padding: 10px 12px;
+    border-radius: 10px;
+    background: var(--muted-bg);
+    margin-bottom: 8px;
+  }
+  .jadwal-time { font-family: 'Playfair Display'; font-weight: 700; font-size: 17px; }
+  .jadwal-title { font-size: 13px; font-weight: 500; }
+  .jadwal-sub { font-size: 11px; color: var(--muted); }
+
+  .quick-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .quick-action {
+    padding: 14px; border-radius: 12px; border: 1px solid var(--border); background: white;
+    text-decoration: none; color: inherit; cursor: pointer; transition: all .15s;
+  }
+  .quick-action:hover { border-color: var(--accent-warm); background: var(--accent-warm-soft); }
+  .quick-action .ic { width:34px;height:34px;border-radius:8px;background:var(--accent-warm-soft);color:var(--accent-warm);display:inline-flex;align-items:center;justify-content:center;margin-bottom:8px;}
+  .quick-action .ttl { font-weight: 600; font-size: 13px; }
+  .quick-action .sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div style="display:flex;align-items:center;gap:24px;">
+    <div class="brand">Rumah Qur&#39;an <span>LHI</span></div>
+    <nav class="nav">
+      <a href="guru-dashboard.html" class="active">Dashboard</a>
+      <a href="setoran-form.html">Setoran</a>
+      <a href="siswa-detail.html">Siswa</a>
+      <a href="#">Jadwal</a>
+      <a href="rapor-share.html">Rapor</a>
+    </nav>
+  </div>
+  <div style="display:flex;align-items:center;gap:10px;">
+    <span class="muted" style="font-size:13px;">Ustadz Ahmad</span>
+    <div class="avatar">AH</div>
+  </div>
+</header>
+
+<main class="container">
+
+  <div class="greeting-row">
+    <div>
+      <p class="eyebrow" style="margin: 0 0 6px;">Senin, 28 Mei 2026</p>
+      <h1 class="h1">Assalamu&#39;alaikum, <span style="border-bottom: 3px solid var(--accent-warm); padding-bottom: 2px;">Ustadz Ahmad</span></h1>
+      <p class="muted" style="margin: 8px 0 0; font-size: 14px;">3 halaqoh hari ini · 18 siswa menunggu setoran</p>
+    </div>
+    <div class="stat-grid" style="min-width: 420px;">
+      <div class="stat card"><div class="num">18</div><div class="lbl">Siswa Hari Ini</div></div>
+      <div class="stat card"><div class="num">7</div><div class="lbl">Sudah Setor</div></div>
+      <div class="stat card" style="background: var(--accent-warm-soft); border-color: #f0e0a8;"><div class="num" style="color: var(--accent-warm);">11</div><div class="lbl">Belum Setor</div></div>
+      <div class="stat card"><div class="num">3</div><div class="lbl">Naik Jilid/Juz</div></div>
+    </div>
+  </div>
+
+  <!-- Quick actions -->
+  <div class="quick-actions" style="margin-bottom: 6px;">
+    <a class="quick-action" href="setoran-form.html">
+      <div class="ic">📖</div>
+      <div class="ttl">Setor Tahsin Cepat</div>
+      <div class="sub">Catat bacaan jilid harian</div>
+    </a>
+    <a class="quick-action" href="setoran-form.html?type=tahfidz">
+      <div class="ic">✨</div>
+      <div class="ttl">Setor Tahfidz Cepat</div>
+      <div class="sub">Hafalan baru / muroja&#39;ah</div>
+    </a>
+  </div>
+
+  <div class="main-grid">
+    <!-- LEFT: Siswa hari ini -->
+    <section class="card" style="padding: 18px;">
+      <div class="section-head">
+        <div>
+          <h2 class="h2">Antrian Setoran Hari Ini</h2>
+          <p class="muted" style="margin:4px 0 0; font-size:12px;">Halaqoh Abu Bakr · 11 siswa belum setor</p>
+        </div>
+        <div style="display:flex;gap:6px;">
+          <span class="pill pill-info">Tahsin 7</span>
+          <span class="pill pill-warm">Tahfidz 4</span>
+        </div>
+      </div>
+
+      <a class="siswa-item" href="siswa-detail.html">
+        <div class="avatar" style="background:#fde7e9;color:#b91c1c;">MZ</div>
+        <div>
+          <div class="siswa-name">Muhammad Zaki <span class="pill pill-warm" style="margin-left:6px;">Tilawati Jilid 4</span></div>
+          <div class="siswa-meta">Halaman 18 · SD Kelas 4 · Terakhir setor 3 hari lalu</div>
+        </div>
+        <div class="siswa-action">
+          <a class="btn btn-sm btn-warm" href="setoran-form.html">Setor</a>
+        </div>
+      </a>
+
+      <a class="siswa-item" href="siswa-detail.html">
+        <div class="avatar" style="background:#dbeafe;color:#1d4ed8;">AR</div>
+        <div>
+          <div class="siswa-name">Aisyah Rahmah <span class="pill pill-success" style="margin-left:6px;">Tahfidz Juz 29</span></div>
+          <div class="siswa-meta">Surat Al-Mursalat · SD Kelas 5 · Terakhir setor kemarin</div>
+        </div>
+        <div class="siswa-action">
+          <a class="btn btn-sm btn-warm" href="setoran-form.html?type=tahfidz">Setor</a>
+        </div>
+      </a>
+
+      <a class="siswa-item" href="siswa-detail.html">
+        <div class="avatar">FM</div>
+        <div>
+          <div class="siswa-name">Fatimah Maryam <span class="pill pill-warm" style="margin-left:6px;">Tilawati Jilid 5</span></div>
+          <div class="siswa-meta">Halaman 12 · SD Kelas 5</div>
+        </div>
+        <div class="siswa-action">
+          <a class="btn btn-sm btn-warm" href="setoran-form.html">Setor</a>
+        </div>
+      </a>
+
+      <a class="siswa-item" href="siswa-detail.html">
+        <div class="avatar">UA</div>
+        <div>
+          <div class="siswa-name">Umar Abdullah <span class="pill pill-success" style="margin-left:6px;">Tahfidz Juz 30</span></div>
+          <div class="siswa-meta">Surat An-Naba · SD Kelas 4 · 🔥 4 hari berturut-turut</div>
+        </div>
+        <div class="siswa-action">
+          <a class="btn btn-sm btn-warm" href="setoran-form.html?type=tahfidz">Setor</a>
+        </div>
+      </a>
+
+      <a class="siswa-item" href="siswa-detail.html">
+        <div class="avatar">HN</div>
+        <div>
+          <div class="siswa-name">Hasan Nashir
+            <span class="pill" style="margin-left:6px;background:#fef3c7;color:#92400e;border-color:#fde68a;">⚠ Belum setor 5 hari</span>
+          </div>
+          <div class="siswa-meta">Tilawati Jilid 3 · Halaman 24 · SD Kelas 3</div>
+        </div>
+        <div class="siswa-action">
+          <a class="btn btn-sm btn-warm" href="setoran-form.html">Setor</a>
+        </div>
+      </a>
+
+      <div style="text-align:center; padding-top:8px;">
+        <a class="btn btn-sm" href="#">Lihat 6 siswa lainnya →</a>
+      </div>
+    </section>
+
+    <!-- RIGHT: Sidebar -->
+    <aside style="display:flex; flex-direction:column; gap:14px;">
+      <div class="card" style="padding:16px;">
+        <h2 class="h2" style="font-size:16px;">Jadwal Halaqoh</h2>
+        <p class="muted" style="margin:4px 0 12px; font-size:11px; text-transform:uppercase; letter-spacing:1px;">Hari Ini</p>
+
+        <div class="jadwal-row">
+          <div class="jadwal-time">07:30</div>
+          <div>
+            <div class="jadwal-title">Halaqoh Abu Bakr</div>
+            <div class="jadwal-sub">SD Kelas 3-5 · 11 siswa</div>
+          </div>
+        </div>
+        <div class="jadwal-row">
+          <div class="jadwal-time">10:00</div>
+          <div>
+            <div class="jadwal-title">Halaqoh Umar</div>
+            <div class="jadwal-sub">SMP Kelas 1-2 · 4 siswa</div>
+          </div>
+        </div>
+        <div class="jadwal-row">
+          <div class="jadwal-time">13:30</div>
+          <div>
+            <div class="jadwal-title">Halaqoh Khadijah</div>
+            <div class="jadwal-sub">SD Kelas 6 · 3 siswa</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="padding:16px;">
+        <h2 class="h2" style="font-size:16px;">📈 Aktivitas Pekan Ini</h2>
+        <div style="margin-top: 12px;">
+          <div style="display:flex; justify-content:space-between; padding: 6px 0; border-bottom: 1px dashed var(--border);">
+            <span class="muted" style="font-size:12px;">Setoran Tahsin</span>
+            <span style="font-weight:600;">47</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; padding: 6px 0; border-bottom: 1px dashed var(--border);">
+            <span class="muted" style="font-size:12px;">Setoran Tahfidz</span>
+            <span style="font-weight:600;">28</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; padding: 6px 0; border-bottom: 1px dashed var(--border);">
+            <span class="muted" style="font-size:12px;">Kenaikan Jilid</span>
+            <span style="font-weight:600; color: var(--success);">2 siswa</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; padding: 6px 0;">
+            <span class="muted" style="font-size:12px;">Kenaikan Juz</span>
+            <span style="font-weight:600; color: var(--success);">1 siswa</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="padding:16px; background: linear-gradient(135deg, var(--accent-warm-soft), white);">
+        <h2 class="h2" style="font-size:15px;">🏆 Siswa Berprogress</h2>
+        <p class="muted" style="margin:4px 0 10px; font-size:11px;">Pekan ini</p>
+        <div style="display:flex; align-items:center; gap:10px; padding: 6px 0;">
+          <div class="avatar">UA</div>
+          <div style="flex:1;">
+            <div style="font-weight:600; font-size:13px;">Umar Abdullah</div>
+            <div class="muted" style="font-size:11px;">7 hari beruntun setor</div>
+          </div>
+          <span class="pill pill-success">🔥 7</span>
+        </div>
+        <div style="display:flex; align-items:center; gap:10px; padding: 6px 0;">
+          <div class="avatar">AR</div>
+          <div style="flex:1;">
+            <div style="font-weight:600; font-size:13px;">Aisyah Rahmah</div>
+            <div class="muted" style="font-size:11px;">Naik Juz 30 → 29</div>
+          </div>
+          <span class="pill pill-warm">⬆ Juz</span>
+        </div>
+      </div>
+
+      <a href="index.html" class="btn">← Kembali ke list mockup</a>
+    </aside>
+  </div>
+
+</main>
+</body>
+</html>

@@ -12,7 +12,9 @@
     "typecheck": "tsc --noEmit",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx scripts/migrate.ts",
-    "seed": "tsx scripts/seed.ts"
+    "seed": "tsx scripts/seed.ts",
+    "seed:phase0": "tsx scripts/seed-phase0.ts",
+    "seed:teachers": "tsx scripts/seed-teachers.ts"
   },
   "dependencies": {
     "@auth/drizzle-adapter": "^1.11.2",

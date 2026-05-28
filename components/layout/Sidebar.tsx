@@ -6,9 +6,13 @@ import { cn } from '@/lib/utils'
 import {
   LayoutDashboard, BookOpen, CheckSquare, ImageIcon,
   FileText, User, Megaphone, LogOut, ChevronRight, GraduationCap, Newspaper, LayoutGrid,
+  Users, UserCog, BookMarked,
 } from 'lucide-react'
 import { DASHBOARD_LABELS, getAccessibleDashboards, ROLE_LABELS } from '@/lib/auth/permissions'
-import { canAccessNotes, canPostToHome, canRequestToHumas, canCreateNews } from '@/lib/auth/permissions'
+import {
+  canAccessNotes, canPostToHome, canRequestToHumas, canCreateNews,
+  canViewStudents, canViewHalaqoh, canViewTeachers,
+} from '@/lib/auth/permissions'
 import type { UserRole } from '@/types'
 import { logoutAction } from '@/app/actions/auth'
 
@@ -103,6 +107,26 @@ export function Sidebar({ role, displayName, username }: Props) {
             )}
           </ul>
         </div>
+
+        {/* Tahsin & Tahfidz section */}
+        {(canViewStudents(role) || canViewHalaqoh(role) || canViewTeachers(role)) && (
+          <div>
+            <p className="px-2 mb-2 text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/50">
+              Tahsin &amp; Tahfidz
+            </p>
+            <ul className="space-y-1">
+              {canViewHalaqoh(role) && (
+                <NavItem href="/halaqoh" icon={<BookMarked className="h-4 w-4" />} label="Halaqoh" active={isActive('/halaqoh')} />
+              )}
+              {canViewStudents(role) && (
+                <NavItem href="/siswa" icon={<Users className="h-4 w-4" />} label="Siswa" active={isActive('/siswa')} />
+              )}
+              {canViewTeachers(role) && (
+                <NavItem href="/ustadz" icon={<UserCog className="h-4 w-4" />} label="Ustadz / Guru" active={isActive('/ustadz')} />
+              )}
+            </ul>
+          </div>
+        )}
       </nav>
 
       {/* User section */}

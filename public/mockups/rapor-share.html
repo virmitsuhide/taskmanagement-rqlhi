@@ -1,0 +1,352 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rapor + Share WA — RQ LHI</title>
+<link rel="stylesheet" href="_shared.css">
+<style>
+  .layout { display: grid; grid-template-columns: 1fr 380px; gap: 20px; align-items: start; }
+  @media (max-width: 980px) { .layout { grid-template-columns: 1fr; } }
+
+  /* Rapor Card (A4-like) */
+  .rapor {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 32px;
+    aspect-ratio: 1 / 1.414;
+    position: relative;
+    overflow: hidden;
+  }
+  .rapor::before {
+    content: ""; position: absolute; inset: 0; pointer-events: none;
+    background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200"><text x="100" y="110" text-anchor="middle" font-family="Playfair Display" font-size="14" fill="%23b8860b" opacity="0.07">RQ LHI</text></svg>') center / 200px repeat;
+  }
+  .rapor-head {
+    display: flex; justify-content: space-between; align-items: flex-start; gap: 16px;
+    padding-bottom: 16px; border-bottom: 2px solid var(--accent-warm);
+  }
+  .rapor-logo {
+    width: 56px; height: 56px; border-radius: 12px;
+    background: var(--accent-warm); color: white;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-family: 'Playfair Display'; font-weight: 800; font-size: 18px;
+  }
+  .rapor-title {
+    font-family: 'Playfair Display'; font-size: 22px; font-weight: 800; line-height: 1.1; letter-spacing: -0.3px;
+  }
+  .rapor-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .rapor-meta { text-align: right; font-size: 11px; color: var(--muted); }
+
+  .siswa-card {
+    margin-top: 16px; padding: 12px 14px;
+    background: var(--accent-warm-soft); border-radius: 10px;
+    display: grid; grid-template-columns: 1fr 1fr; gap: 6px 16px;
+    font-size: 12px;
+  }
+  .siswa-card .k { color: var(--muted); }
+  .siswa-card .v { font-weight: 600; }
+
+  .section-title {
+    font-family: 'Playfair Display'; font-weight: 700; font-size: 14px;
+    margin: 20px 0 10px; padding-bottom: 6px; border-bottom: 1px solid var(--border);
+    color: var(--accent-warm);
+  }
+
+  .grade-row {
+    display: grid; grid-template-columns: 1fr auto auto auto;
+    gap: 10px; padding: 6px 0; font-size: 12px;
+    border-bottom: 1px dashed var(--border);
+  }
+  .grade-row .lbl { color: var(--muted); }
+  .grade-row .val { font-weight: 600; }
+  .stars { color: var(--accent-warm); letter-spacing: 1px; }
+
+  /* WA preview card */
+  .wa-preview {
+    background: #efeae2 url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='40' height='40' opacity='0.04'><text x='20' y='25' text-anchor='middle' font-size='30'>📿</text></svg>") repeat;
+    border-radius: 14px;
+    padding: 16px;
+  }
+  .wa-bubble {
+    background: #d9fdd3;
+    border-radius: 8px;
+    padding: 8px 10px;
+    max-width: 320px;
+    box-shadow: 0 1px 2px rgba(0,0,0,.13);
+    font-size: 13px;
+    line-height: 1.5;
+    position: relative;
+  }
+  .wa-bubble::before {
+    content: ""; position: absolute; top: 0; right: -8px;
+    width: 0; height: 0; border-left: 8px solid #d9fdd3; border-top: 0 solid transparent; border-bottom: 8px solid transparent;
+  }
+  .wa-img-card {
+    background: white; border-radius: 6px; padding: 6px; margin-bottom: 8px;
+    box-shadow: 0 1px 2px rgba(0,0,0,.06);
+  }
+  .wa-img {
+    aspect-ratio: 1200/630; background: linear-gradient(135deg, var(--accent-warm), #8a6308);
+    border-radius: 4px; position: relative; overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+    color: white; text-align: center; padding: 16px;
+  }
+  .wa-img .og-content {
+    font-family: 'Playfair Display'; font-weight: 800; line-height: 1.1;
+  }
+  .wa-img .og-eyebrow {
+    font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase; opacity: 0.9; margin-bottom: 4px;
+  }
+  .wa-img .og-name { font-size: 18px; }
+  .wa-img .og-stats { display: flex; gap: 16px; justify-content: center; margin-top: 8px; font-size: 11px; opacity: 0.95; }
+  .wa-meta {
+    background: white; border-radius: 4px; padding: 6px 8px; margin-top: -8px;
+    margin-bottom: 8px; font-size: 11px; color: var(--muted);
+    border-top: 1px solid #eee;
+  }
+  .wa-meta .ttl { color: var(--foreground); font-weight: 500; font-size: 12px; }
+  .wa-time { font-size: 10px; color: var(--muted); margin-top: 4px; text-align: right; }
+
+  .share-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
+  .share-actions .btn { justify-content: center; padding: 11px; font-size: 13px; }
+  .btn-wa { background: #25d366; color: white; border-color: #25d366; }
+  .btn-wa:hover { background: #1eb155; }
+
+  .toolbar {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 14px; gap: 10px; flex-wrap: wrap;
+  }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div style="display:flex;align-items:center;gap:24px;">
+    <div class="brand">Rumah Qur&#39;an <span>LHI</span></div>
+    <nav class="nav">
+      <a href="guru-dashboard.html">Dashboard</a>
+      <a href="setoran-form.html">Setoran</a>
+      <a href="siswa-detail.html">Siswa</a>
+      <a href="#">Jadwal</a>
+      <a href="rapor-share.html" class="active">Rapor</a>
+    </nav>
+  </div>
+  <div style="display:flex;align-items:center;gap:10px;">
+    <span class="muted" style="font-size:13px;">Ustadz Ahmad</span>
+    <div class="avatar">AH</div>
+  </div>
+</header>
+
+<main class="container">
+
+  <a href="siswa-detail.html" class="muted" style="font-size:12px; text-decoration:none;">← Detail Siswa</a>
+
+  <div class="toolbar" style="margin-top: 8px;">
+    <div>
+      <p class="eyebrow">Rapor &amp; Share</p>
+      <h1 class="h2 font-display" style="font-size: 28px;">Rapor Bulanan — Mei 2026</h1>
+      <p class="muted" style="margin: 4px 0 0; font-size: 13px;">Muhammad Zaki Abdullah · SD Kelas 4 · Halaqoh Abu Bakr</p>
+    </div>
+    <div style="display: flex; gap: 8px;">
+      <button class="btn">📥 Download PDF</button>
+      <button class="btn">🖨 Cetak</button>
+    </div>
+  </div>
+
+  <div class="layout">
+
+    <!-- LEFT: Rapor preview -->
+    <section class="rapor">
+
+      <div class="rapor-head" style="position:relative; z-index:1;">
+        <div style="display:flex;gap:14px;align-items:center;">
+          <div class="rapor-logo">RQ</div>
+          <div>
+            <div class="rapor-title">Rapor Tahsin &amp; Tahfidz</div>
+            <div class="rapor-sub">Rumah Qur&#39;an Lazuardi Husnul Ilmi · Periode Mei 2026</div>
+          </div>
+        </div>
+        <div class="rapor-meta">
+          No. RPT-2026-05-104<br>
+          Diterbitkan 28 Mei 2026
+        </div>
+      </div>
+
+      <div class="siswa-card" style="position:relative; z-index:1;">
+        <div><span class="k">Nama:</span> <span class="v">M. Zaki Abdullah</span></div>
+        <div><span class="k">NIS:</span> <span class="v">2024-104</span></div>
+        <div><span class="k">Kelas:</span> <span class="v">SD 4</span></div>
+        <div><span class="k">Halaqoh:</span> <span class="v">Abu Bakr</span></div>
+        <div><span class="k">Guru:</span> <span class="v">Ust. Ahmad Hidayat</span></div>
+        <div><span class="k">Kehadiran:</span> <span class="v" style="color:var(--success);">22/30 (73%)</span></div>
+      </div>
+
+      <h3 class="section-title">📖 Capaian Tahsin</h3>
+      <div style="position:relative; z-index:1;">
+        <div class="grade-row">
+          <span class="lbl">Metode &amp; Jilid</span>
+          <span class="val">Tilawati Jilid 4</span>
+          <span></span>
+          <span class="val" style="color:var(--success);">+1 Jilid</span>
+        </div>
+        <div class="grade-row">
+          <span class="lbl">Halaman Tercapai</span>
+          <span class="val">Hal. 18</span>
+          <span class="muted">dari 44</span>
+          <span class="val">41%</span>
+        </div>
+        <div class="grade-row">
+          <span class="lbl">Penilaian Makhraj</span>
+          <span class="val">3.9 / 5</span>
+          <span></span>
+          <span class="stars">★★★★☆</span>
+        </div>
+        <div class="grade-row">
+          <span class="lbl">Penilaian Tajwid</span>
+          <span class="val">3.2 / 5</span>
+          <span></span>
+          <span class="stars">★★★☆☆</span>
+        </div>
+        <div class="grade-row">
+          <span class="lbl">Kelancaran</span>
+          <span class="val">4.3 / 5</span>
+          <span></span>
+          <span class="stars">★★★★☆</span>
+        </div>
+      </div>
+
+      <h3 class="section-title">✨ Capaian Tahfidz</h3>
+      <div style="position:relative; z-index:1;">
+        <div class="grade-row">
+          <span class="lbl">Hafalan Saat Ini</span>
+          <span class="val">Juz 30 · An-Naba</span>
+          <span></span>
+          <span class="val">60%</span>
+        </div>
+        <div class="grade-row">
+          <span class="lbl">Hafalan Baru Mei</span>
+          <span class="val">25 ayat</span>
+          <span></span>
+          <span></span>
+        </div>
+        <div class="grade-row">
+          <span class="lbl">Muroja&#39;ah</span>
+          <span class="val">Juz 30 (rutin)</span>
+          <span></span>
+          <span class="stars">★★★★★</span>
+        </div>
+      </div>
+
+      <h3 class="section-title">💬 Catatan Guru</h3>
+      <p style="font-size: 12px; line-height: 1.6; position:relative; z-index:1; font-style: italic;">
+        Zaki menunjukkan peningkatan signifikan pada bacaan dan kelancaran. Perlu fokus pada penguasaan tajwid (ikhfa &amp; idgham) sebelum naik ke jilid 5. Semangat mengikuti halaqoh patut diapresiasi. Mohon dukungan wali untuk muroja&#39;ah di rumah.
+      </p>
+
+      <div style="display: flex; justify-content: space-between; margin-top: 24px; font-size: 11px; position:relative; z-index:1;">
+        <div>
+          <div class="muted">Mengetahui,</div>
+          <div style="margin-top: 36px;">Kepala RQ LHI</div>
+        </div>
+        <div style="text-align: right;">
+          <div class="muted">Yogyakarta, 28 Mei 2026</div>
+          <div style="margin-top: 36px;">Ust. Ahmad Hidayat</div>
+          <div class="muted" style="font-size: 10px;">Wali Halaqoh Abu Bakr</div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- RIGHT: Share WA + actions -->
+    <aside style="display: flex; flex-direction: column; gap: 14px;">
+
+      <div class="card" style="padding: 18px;">
+        <h2 class="h2" style="font-size: 16px;">💬 Share ke WhatsApp</h2>
+        <p class="muted" style="font-size: 12px; margin: 4px 0 14px;">Kirim ringkasan rapor langsung ke wali murid.</p>
+
+        <div class="wa-preview">
+          <div class="wa-bubble">
+            <div class="wa-img-card">
+              <div class="wa-img">
+                <div class="og-content">
+                  <div class="og-eyebrow">Rapor Tahsin &amp; Tahfidz</div>
+                  <div class="og-name">M. Zaki Abdullah</div>
+                  <div class="og-stats">
+                    <span>📖 Tilawati 4</span>
+                    <span>✨ Juz 30 (60%)</span>
+                  </div>
+                </div>
+              </div>
+              <div class="wa-meta">
+                <div class="ttl">Rapor M. Zaki — Mei 2026</div>
+                <div>rumahquranlhi.id/rapor/zaki-mei-2026</div>
+              </div>
+            </div>
+            Assalamu&#39;alaikum Bpk Abdullah,<br>
+            Berikut rapor tahsin &amp; tahfidz <strong>Ananda M. Zaki</strong> bulan Mei 2026 di RQ LHI. 🌙<br>
+            ✅ Naik Jilid 3 → 4<br>
+            ✨ Juz 30: 60% (25 ayat baru)<br>
+            Mohon dukungan muroja&#39;ah di rumah. Jazakallahu khairan.<br>
+            <em class="muted">— Ust. Ahmad Hidayat</em>
+            <div class="wa-time">07:30 ✓✓</div>
+          </div>
+        </div>
+
+        <div class="share-actions">
+          <button class="btn btn-wa">📱 Kirim ke Wali (0812-3456...)</button>
+          <button class="btn">🔗 Salin Link</button>
+        </div>
+        <p class="muted" style="font-size: 11px; margin-top: 8px;">💡 Link rapor bersifat tokenized (siapa pun yang punya link bisa lihat, tanpa login).</p>
+      </div>
+
+      <div class="card" style="padding: 16px;">
+        <h2 class="h2" style="font-size: 15px;">⚙ Opsi Rapor</h2>
+        <div style="margin-top: 12px; display: flex; flex-direction: column; gap: 10px;">
+          <label style="display:flex; gap: 8px; align-items: flex-start; font-size: 12px;">
+            <input type="checkbox" checked style="accent-color: var(--accent-warm); margin-top:2px;">
+            <div>
+              <div style="font-weight:500;">Sertakan grafik progress</div>
+              <div class="muted" style="font-size:11px;">Tampilkan chart capaian Mei</div>
+            </div>
+          </label>
+          <label style="display:flex; gap: 8px; align-items: flex-start; font-size: 12px;">
+            <input type="checkbox" checked style="accent-color: var(--accent-warm); margin-top:2px;">
+            <div>
+              <div style="font-weight:500;">Sertakan timeline setoran</div>
+              <div class="muted" style="font-size:11px;">Detail per hari</div>
+            </div>
+          </label>
+          <label style="display:flex; gap: 8px; align-items: flex-start; font-size: 12px;">
+            <input type="checkbox" style="accent-color: var(--accent-warm); margin-top:2px;">
+            <div>
+              <div style="font-weight:500;">Sertakan perbandingan halaqoh</div>
+              <div class="muted" style="font-size:11px;">Posisi relatif terhadap teman</div>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <div class="card" style="padding: 16px; background: var(--accent-warm-soft); border-color: #f0e0a8;">
+        <h2 class="h2" style="font-size: 14px;">🌐 Share Berita Kegiatan</h2>
+        <p class="muted" style="font-size: 11px; margin: 4px 0 10px;">Modul terkait — share artikel/berita ke WA</p>
+        <div style="background: white; border-radius: 8px; padding: 10px; font-size: 12px;">
+          <div style="font-weight:600;">Ramadhan Ceria di RQ LHI</div>
+          <div class="muted" style="font-size:11px; margin-top: 2px;">Diterbitkan 26 Mei · oleh Humas</div>
+          <div style="display: flex; gap: 4px; margin-top: 8px;">
+            <button class="btn btn-sm btn-wa" style="flex:1; justify-content:center;">WA</button>
+            <button class="btn btn-sm">FB</button>
+            <button class="btn btn-sm">IG Story</button>
+          </div>
+        </div>
+      </div>
+
+      <a href="index.html" class="btn">← Kembali ke list mockup</a>
+
+    </aside>
+
+  </div>
+
+</main>
+</body>
+</html>

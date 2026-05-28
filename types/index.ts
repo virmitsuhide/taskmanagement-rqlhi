@@ -215,3 +215,198 @@ export interface KaldiApiResponse {
     source: string
   }
 }
+
+// ─── PHASE 0 — Tahsin & Tahfidz ─────────────────────────────────────
+export type Gender = 'L' | 'P'
+export type Jenjang = 'paud' | 'sd' | 'smp' | 'sma'
+export type TahsinStatus = 'lulus' | 'ulang'
+export type TahfidzKind = 'hafalan_baru' | 'murojaah'
+
+export interface TahsinMethod {
+  id: string
+  name: string
+  description: string | null
+  is_active: boolean
+  created_at: string
+}
+
+export interface JilidLevel {
+  id: string
+  method_id: string
+  label: string
+  order_num: number
+  total_pages: number | null
+  is_quran: boolean
+  created_at: string
+  method?: TahsinMethod
+}
+
+export interface SuratMaster {
+  id: number
+  name_arabic: string
+  name_latin: string
+  name_id: string
+  total_ayat: number
+  juz_start: number
+  juz_end: number
+  is_makkiyah: boolean
+}
+
+export interface Teacher {
+  id: string
+  username: string
+  full_name: string
+  nip: string | null
+  email: string | null
+  phone: string | null
+  photo_url: string | null
+  is_active: boolean
+  can_change_password: boolean
+  joined_at: string
+  linked_user_id: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface Halaqoh {
+  id: string
+  name: string
+  jenjang: Jenjang
+  wali_teacher_id: string | null
+  schedule_note: string | null
+  is_active: boolean
+  created_at: string
+  updated_at: string
+  wali_teacher?: Teacher
+}
+
+export interface HalaqohTeacher {
+  halaqoh_id: string
+  teacher_id: string
+  role: string
+  created_at: string
+  teacher?: Teacher
+  halaqoh?: Halaqoh
+}
+
+export interface Student {
+  id: string
+  nis: string | null
+  full_name: string
+  gender: Gender | null
+  birth_date: string | null
+  photo_url: string | null
+  jenjang: Jenjang
+  kelas: string | null
+  halaqoh_id: string | null
+  wali_name: string | null
+  wali_phone: string | null
+  wali_email: string | null
+  current_method_id: string | null
+  current_jilid_id: string | null
+  current_jilid_page: number | null
+  is_active: boolean
+  enrolled_at: string
+  created_at: string
+  updated_at: string
+  halaqoh?: Halaqoh
+  current_method?: TahsinMethod
+  current_jilid?: JilidLevel
+}
+
+export interface TahsinLog {
+  id: string
+  student_id: string
+  teacher_id: string
+  halaqoh_id: string | null
+  setoran_date: string
+  method_id: string | null
+  jilid_id: string | null
+  halaman: number | null
+  baris_dari: number | null
+  baris_ke: number | null
+  nilai_makhraj: number | null
+  nilai_tajwid: number | null
+  nilai_kelancaran: number | null
+  status: TahsinStatus
+  catatan: string | null
+  created_at: string
+  student?: Student
+  teacher?: Teacher
+  method?: TahsinMethod
+  jilid?: JilidLevel
+}
+
+export interface JilidPromotion {
+  id: string
+  student_id: string
+  from_jilid_id: string | null
+  to_jilid_id: string
+  promoted_by: string | null
+  promotion_date: string
+  exam_score: number | null
+  catatan: string | null
+  created_at: string
+  from_jilid?: JilidLevel
+  to_jilid?: JilidLevel
+  promoter?: Teacher
+}
+
+export interface TahfidzLog {
+  id: string
+  student_id: string
+  teacher_id: string
+  halaqoh_id: string | null
+  setoran_date: string
+  kind: TahfidzKind
+  surat_id: number
+  ayat_dari: number
+  ayat_ke: number
+  nilai_makhraj: number | null
+  nilai_tajwid: number | null
+  nilai_kelancaran: number | null
+  catatan: string | null
+  created_at: string
+  student?: Student
+  teacher?: Teacher
+  surat?: SuratMaster
+}
+
+export interface JuzProgress {
+  student_id: string
+  juz_number: number
+  ayat_hafal: number
+  last_setoran_at: string | null
+  mutqin: boolean
+  updated_at: string
+}
+
+export interface JuzPromotion {
+  id: string
+  student_id: string
+  juz_number: number
+  promoted_by: string | null
+  promotion_date: string
+  exam_score: number | null
+  catatan: string | null
+  created_at: string
+  promoter?: Teacher
+}
+
+// Teacher session (terpisah dari admin user session)
+export interface TeacherSessionData {
+  teacherId: string
+  username: string
+  fullName: string
+  isLoggedIn: boolean
+  type: 'teacher'
+}
+
+// Total ayat per juz — referensi cepat untuk hitung progress
+export const AYAT_PER_JUZ: Record<number, number> = {
+  1: 148,  2: 111,  3: 125,  4: 132,  5: 124,  6: 110,  7: 149,  8: 142,
+  9: 159, 10: 127, 11: 151, 12: 170, 13: 154, 14: 227, 15: 185, 16: 269,
+ 17: 190, 18: 202, 19: 339, 20: 171, 21: 178, 22: 169, 23: 357, 24: 175,
+ 25: 246, 26: 195, 27: 399, 28: 137, 29: 431, 30: 564,
+}
+

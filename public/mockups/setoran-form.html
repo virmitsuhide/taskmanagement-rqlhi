@@ -1,0 +1,338 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Setor Tahsin/Tahfidz — RQ LHI</title>
+<link rel="stylesheet" href="_shared.css">
+<style>
+  .form-grid { display: grid; grid-template-columns: 1fr 360px; gap: 20px; align-items: start; }
+  @media (max-width: 880px) { .form-grid { grid-template-columns: 1fr; } }
+
+  .tabs { display: flex; gap: 4px; padding: 4px; background: var(--muted-bg); border-radius: 10px; margin-bottom: 18px; }
+  .tab { flex: 1; padding: 9px 14px; border-radius: 8px; text-align: center; font-size: 13px; font-weight: 500; cursor: pointer; color: var(--muted); }
+  .tab.active { background: white; color: var(--foreground); box-shadow: 0 1px 3px rgba(0,0,0,.06); }
+
+  .field { margin-bottom: 16px; }
+  .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .field-row-3 { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 12px; }
+
+  .siswa-pick {
+    display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+    border: 1px solid var(--border); border-radius: 10px; background: white; cursor: pointer;
+  }
+  .siswa-pick:hover { border-color: var(--accent-warm); }
+  .siswa-pick.selected { border-color: var(--accent-warm); background: var(--accent-warm-soft); }
+
+  /* Star rating */
+  .rate { display: flex; gap: 6px; }
+  .rate .star {
+    width: 32px; height: 32px;
+    border: 1px solid var(--border); border-radius: 8px;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 15px; color: var(--muted); cursor: pointer; background: white;
+  }
+  .rate .star.active { background: var(--accent-warm); border-color: var(--accent-warm); color: white; }
+  .rate-label { font-size: 11px; color: var(--muted); margin-top: 4px; }
+
+  .preview-box {
+    background: var(--muted-bg); border-radius: 12px; padding: 16px;
+    border: 1px dashed var(--border);
+  }
+  .preview-line { display: flex; justify-content: space-between; padding: 6px 0; font-size: 13px; border-bottom: 1px dashed var(--border); }
+  .preview-line:last-child { border-bottom: none; }
+  .preview-line .v { font-weight: 600; }
+
+  .help { font-size: 11px; color: var(--muted); margin-top: 4px; }
+
+  .surat-picker {
+    display: flex; gap: 8px; align-items: center;
+  }
+  .ayat-range { display: flex; gap: 6px; align-items: center; }
+  .ayat-range .input { width: 70px; text-align: center; }
+
+  .check-row {
+    display: flex; gap: 10px; padding: 10px; border: 1px solid var(--border); border-radius: 10px;
+    align-items: center; background: white; cursor: pointer;
+  }
+  .check-row input { margin: 0; transform: scale(1.2); accent-color: var(--accent-warm); }
+  .check-row.checked { border-color: var(--success); background: var(--success-soft); }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div style="display:flex;align-items:center;gap:24px;">
+    <div class="brand">Rumah Qur&#39;an <span>LHI</span></div>
+    <nav class="nav">
+      <a href="guru-dashboard.html">Dashboard</a>
+      <a href="setoran-form.html" class="active">Setoran</a>
+      <a href="siswa-detail.html">Siswa</a>
+      <a href="#">Jadwal</a>
+      <a href="rapor-share.html">Rapor</a>
+    </nav>
+  </div>
+  <div style="display:flex;align-items:center;gap:10px;">
+    <span class="muted" style="font-size:13px;">Ustadz Ahmad</span>
+    <div class="avatar">AH</div>
+  </div>
+</header>
+
+<main class="container" style="max-width: 1080px;">
+
+  <a href="guru-dashboard.html" class="muted" style="font-size:12px; text-decoration:none;">← Dashboard</a>
+
+  <div style="margin: 8px 0 20px;">
+    <p class="eyebrow">Setoran Harian</p>
+    <h1 class="h2 font-display" style="font-size: 28px;">Catat Setoran Siswa</h1>
+    <p class="muted" style="margin: 4px 0 0; font-size: 13px;">Senin, 28 Mei 2026 · Halaqoh Abu Bakr</p>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active">📖 Tahsin</div>
+    <div class="tab">✨ Tahfidz Hafalan Baru</div>
+    <div class="tab">🔁 Muroja&#39;ah</div>
+  </div>
+
+  <form class="form-grid">
+
+    <!-- LEFT: Form fields -->
+    <section class="card" style="padding: 20px;">
+
+      <!-- Siswa picker -->
+      <div class="field">
+        <label class="label">Siswa</label>
+        <div class="siswa-pick selected">
+          <div class="avatar" style="background:#fde7e9;color:#b91c1c;">MZ</div>
+          <div style="flex:1;">
+            <div style="font-weight:600;">Muhammad Zaki</div>
+            <div class="muted" style="font-size:11px;">SD Kelas 4 · Tilawati Jilid 4 hal. 18 · Halaqoh Abu Bakr</div>
+          </div>
+          <a class="btn btn-sm" href="#">Ganti</a>
+        </div>
+      </div>
+
+      <hr style="border:none; border-top:1px solid var(--border); margin: 18px 0;">
+
+      <!-- Tahsin fields -->
+      <div class="field-row-3">
+        <div class="field">
+          <label class="label">Metode</label>
+          <select class="select">
+            <option>Tilawati</option>
+            <option>Ummi</option>
+            <option>Iqro</option>
+          </select>
+        </div>
+        <div class="field">
+          <label class="label">Jilid</label>
+          <select class="select">
+            <option>Jilid 1</option><option>Jilid 2</option><option>Jilid 3</option>
+            <option selected>Jilid 4</option><option>Jilid 5</option><option>Jilid 6</option>
+            <option>Al-Qur&#39;an</option>
+          </select>
+        </div>
+        <div class="field">
+          <label class="label">Halaman</label>
+          <input class="input" type="number" value="18">
+        </div>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label class="label">Baris Mulai</label>
+          <input class="input" type="number" value="1">
+        </div>
+        <div class="field">
+          <label class="label">Baris Akhir</label>
+          <input class="input" type="number" value="4">
+        </div>
+      </div>
+
+      <!-- Penilaian -->
+      <div class="field" style="margin-top: 8px;">
+        <label class="label">Penilaian</label>
+        <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; padding: 14px; background: var(--muted-bg); border-radius: 10px;">
+          <div>
+            <div style="font-size:12px; font-weight:500;">Makhraj</div>
+            <div class="rate">
+              <div class="star active">1</div><div class="star active">2</div>
+              <div class="star active">3</div><div class="star active">4</div><div class="star">5</div>
+            </div>
+            <div class="rate-label">Baik</div>
+          </div>
+          <div>
+            <div style="font-size:12px; font-weight:500;">Tajwid</div>
+            <div class="rate">
+              <div class="star active">1</div><div class="star active">2</div>
+              <div class="star active">3</div><div class="star">4</div><div class="star">5</div>
+            </div>
+            <div class="rate-label">Cukup</div>
+          </div>
+          <div>
+            <div style="font-size:12px; font-weight:500;">Kelancaran</div>
+            <div class="rate">
+              <div class="star active">1</div><div class="star active">2</div>
+              <div class="star active">3</div><div class="star active">4</div><div class="star active">5</div>
+            </div>
+            <div class="rate-label">Sangat Lancar</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Status -->
+      <div class="field">
+        <label class="label">Status Halaman</label>
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+          <label class="check-row checked">
+            <input type="radio" name="status" checked>
+            <div>
+              <div style="font-weight:600; font-size:13px;">✅ Lulus Halaman</div>
+              <div class="muted" style="font-size:11px;">Lanjut ke halaman berikutnya</div>
+            </div>
+          </label>
+          <label class="check-row">
+            <input type="radio" name="status">
+            <div>
+              <div style="font-weight:600; font-size:13px;">🔁 Ulang</div>
+              <div class="muted" style="font-size:11px;">Belum tuntas, perlu mengulang</div>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <!-- Catatan -->
+      <div class="field">
+        <label class="label">Catatan Guru (opsional)</label>
+        <textarea class="textarea" rows="3" placeholder="Misal: perhatikan panjang madd, latih sukun..."></textarea>
+      </div>
+
+      <!-- Naik jilid checkbox -->
+      <div class="field">
+        <label class="check-row" style="cursor:pointer;">
+          <input type="checkbox">
+          <div>
+            <div style="font-weight:600; font-size:13px;">🎉 Naik Jilid setelah setoran ini</div>
+            <div class="muted" style="font-size:11px;">Centang jika siswa lulus seluruh jilid 4 dan naik ke jilid 5</div>
+          </div>
+        </label>
+      </div>
+
+      <div style="display:flex; gap:10px; justify-content: flex-end; margin-top: 24px;">
+        <button type="button" class="btn">Batal</button>
+        <button type="button" class="btn btn-warm">Simpan Setoran</button>
+      </div>
+    </section>
+
+    <!-- RIGHT: Preview & history -->
+    <aside style="display:flex; flex-direction: column; gap: 14px;">
+      <div class="card" style="padding: 16px;">
+        <h2 class="h2" style="font-size: 15px;">📋 Preview Setoran</h2>
+        <p class="muted" style="font-size:11px; margin: 4px 0 12px;">Yang akan disimpan</p>
+        <div class="preview-box">
+          <div class="preview-line"><span class="muted">Siswa</span><span class="v">M. Zaki</span></div>
+          <div class="preview-line"><span class="muted">Tanggal</span><span class="v">28 Mei 2026</span></div>
+          <div class="preview-line"><span class="muted">Jenis</span><span class="v">📖 Tahsin</span></div>
+          <div class="preview-line"><span class="muted">Materi</span><span class="v">Tilawati 4 hal. 18</span></div>
+          <div class="preview-line"><span class="muted">Baris</span><span class="v">1 – 4</span></div>
+          <div class="preview-line"><span class="muted">Penilaian</span><span class="v">⭐ 4.0 / 5</span></div>
+          <div class="preview-line"><span class="muted">Status</span><span class="v" style="color: var(--success);">Lulus</span></div>
+        </div>
+      </div>
+
+      <div class="card" style="padding: 16px;">
+        <h2 class="h2" style="font-size: 15px;">🕓 Riwayat 5 Setoran Terakhir</h2>
+        <div style="margin-top: 10px;">
+          <div style="padding: 10px 0; border-bottom: 1px dashed var(--border);">
+            <div style="font-size:12px;"><strong>25 Mei</strong> · Tilawati 4 hal. 17 · ⭐ 3.7 <span class="pill pill-success" style="margin-left:6px;">Lulus</span></div>
+          </div>
+          <div style="padding: 10px 0; border-bottom: 1px dashed var(--border);">
+            <div style="font-size:12px;"><strong>23 Mei</strong> · Tilawati 4 hal. 16 · ⭐ 3.3 <span class="pill" style="margin-left:6px;background:#fef3c7;color:#92400e;">Ulang</span></div>
+          </div>
+          <div style="padding: 10px 0; border-bottom: 1px dashed var(--border);">
+            <div style="font-size:12px;"><strong>22 Mei</strong> · Tilawati 4 hal. 16 · ⭐ 3.0 <span class="pill" style="margin-left:6px;background:#fef3c7;color:#92400e;">Ulang</span></div>
+          </div>
+          <div style="padding: 10px 0; border-bottom: 1px dashed var(--border);">
+            <div style="font-size:12px;"><strong>20 Mei</strong> · Tilawati 4 hal. 15 · ⭐ 4.0 <span class="pill pill-success" style="margin-left:6px;">Lulus</span></div>
+          </div>
+          <div style="padding: 10px 0;">
+            <div style="font-size:12px;"><strong>18 Mei</strong> · Tilawati 4 hal. 14 · ⭐ 4.3 <span class="pill pill-success" style="margin-left:6px;">Lulus</span></div>
+          </div>
+        </div>
+        <a href="siswa-detail.html" class="btn btn-sm" style="width:100%; justify-content:center; margin-top:10px;">Lihat detail siswa →</a>
+      </div>
+
+      <a href="index.html" class="btn">← Kembali ke list mockup</a>
+    </aside>
+
+  </form>
+
+  <!-- Variant: TAHFIDZ tab preview -->
+  <section style="margin-top: 60px;">
+    <div style="background:#fdf6e3; border-left: 4px solid var(--accent-warm); padding: 12px 16px; border-radius: 8px; margin-bottom: 16px;">
+      <p style="margin:0; font-size:12px;"><strong>💡 Mode Tahfidz:</strong> Jika tab "Tahfidz Hafalan Baru" dipilih, form berubah jadi seperti di bawah. Bidang jilid/halaman diganti dengan surat + ayat.</p>
+    </div>
+
+    <div class="card" style="padding: 20px; max-width: 700px;">
+      <h2 class="h2" style="font-size: 18px;">Form Setoran Tahfidz</h2>
+      <p class="muted" style="font-size:12px; margin: 2px 0 18px;">Hafalan baru untuk M. Zaki</p>
+
+      <div class="field-row">
+        <div class="field">
+          <label class="label">Surat</label>
+          <select class="select">
+            <option>78. An-Naba (40 ayat)</option>
+            <option>77. Al-Mursalat (50 ayat)</option>
+            <option selected>76. Al-Insan (31 ayat)</option>
+            <option>75. Al-Qiyamah (40 ayat)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label class="label">Juz</label>
+          <input class="input" value="Juz 29" disabled style="background: var(--muted-bg);">
+          <div class="help">Otomatis dari surat terpilih</div>
+        </div>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label class="label">Ayat Mulai</label>
+          <input class="input" type="number" value="1">
+        </div>
+        <div class="field">
+          <label class="label">Ayat Akhir</label>
+          <input class="input" type="number" value="10">
+        </div>
+      </div>
+
+      <div class="field" style="background: var(--accent-warm-soft); border-radius: 10px; padding: 12px 14px;">
+        <div style="display:flex; justify-content:space-between; font-size:12px;">
+          <span class="muted">Total ayat disetor</span>
+          <span style="font-weight:600;">10 ayat</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; font-size:12px; margin-top: 4px;">
+          <span class="muted">Progress Juz 29</span>
+          <span style="font-weight:600;">10/431 ayat (2.3%)</span>
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="check-row">
+          <input type="checkbox">
+          <div>
+            <div style="font-weight:600; font-size:13px;">🎉 Naik Juz setelah setoran ini</div>
+            <div class="muted" style="font-size:11px;">Centang jika siswa khatam juz ini & lulus ujian</div>
+          </div>
+        </label>
+      </div>
+
+      <div style="display:flex; gap:10px; justify-content: flex-end;">
+        <button type="button" class="btn">Batal</button>
+        <button type="button" class="btn btn-warm">Simpan Setoran Tahfidz</button>
+      </div>
+    </div>
+  </section>
+
+</main>
+</body>
+</html>

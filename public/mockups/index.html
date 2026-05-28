@@ -1,0 +1,323 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup RQ LHI v2 — Index</title>
+<link rel="stylesheet" href="_shared.css">
+<style>
+  .hero {
+    padding: 60px 24px 30px;
+    text-align: center;
+    background: linear-gradient(180deg, var(--accent-warm-soft) 0%, var(--background) 100%);
+    border-bottom: 1px solid var(--border);
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 18px;
+  }
+  .mockup-card {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+    text-decoration: none;
+    color: inherit;
+    transition: all .2s;
+    display: flex;
+    flex-direction: column;
+  }
+  .mockup-card:hover {
+    border-color: var(--accent-warm);
+    transform: translateY(-3px);
+    box-shadow: 0 12px 24px -10px rgba(184, 134, 11, 0.25);
+  }
+  .preview {
+    aspect-ratio: 16 / 10;
+    background: linear-gradient(135deg, var(--muted-bg), white);
+    position: relative;
+    overflow: hidden;
+    border-bottom: 1px solid var(--border);
+  }
+  .preview-content {
+    position: absolute;
+    inset: 12px;
+    background: white;
+    border-radius: 6px;
+    padding: 10px;
+    font-size: 8px;
+    line-height: 1.3;
+    overflow: hidden;
+    transform: scale(1);
+    transform-origin: top left;
+  }
+  .mockup-meta { padding: 16px 18px; flex: 1; display: flex; flex-direction: column; }
+  .mockup-num { font-family: 'Playfair Display'; font-weight: 700; font-size: 12px; color: var(--accent-warm); letter-spacing: 1.5px; text-transform: uppercase; }
+  .mockup-title { font-family: 'Playfair Display'; font-size: 18px; font-weight: 700; margin: 4px 0 6px; line-height: 1.2; }
+  .mockup-desc { font-size: 12px; color: var(--muted); flex: 1; }
+  .mockup-cta { margin-top: 12px; font-size: 12px; color: var(--accent-warm); font-weight: 600; }
+
+  /* Mini sketches */
+  .sk { background: var(--muted-bg); border-radius: 3px; }
+  .sk-line { height: 5px; }
+  .sk-block { padding: 4px; border: 1px solid var(--border); border-radius: 4px; background: white; }
+
+  .legend {
+    background: white; border: 1px solid var(--border); border-radius: 14px;
+    padding: 20px; margin-top: 30px;
+  }
+  .legend h2 { font-family: 'Playfair Display'; font-size: 18px; margin: 0 0 12px; }
+  .legend ul { margin: 0; padding-left: 20px; font-size: 13px; line-height: 1.7; }
+</style>
+</head>
+<body>
+
+<section class="hero">
+  <p class="eyebrow">RQ LHI v2 — Visual Mockup</p>
+  <h1 class="h1 font-display" style="font-size: 38px; margin-top: 8px;">Preview Desain</h1>
+  <p class="muted" style="max-width: 620px; margin: 14px auto 0; font-size: 14px;">
+    5 halaman kunci untuk fitur baru: monitoring tahsin/tahfidz harian, kanban task board per divisi, dan share rapor ke WhatsApp wali murid. Semua mockup statis — fokus pada visual &amp; alur, belum diintegrasikan ke database.
+  </p>
+</section>
+
+<main class="container">
+
+  <div class="grid">
+
+    <!-- 1. Dashboard Guru -->
+    <a href="guru-dashboard.html" class="mockup-card">
+      <div class="preview">
+        <div class="preview-content">
+          <div style="display:flex; gap:4px; padding-bottom:5px; border-bottom:1px solid var(--border);">
+            <div style="flex:1;"><strong style="color:var(--accent-warm);">RQ LHI</strong></div>
+            <div class="muted">Dashboard · Setoran · Siswa</div>
+          </div>
+          <div style="font-family:'Playfair Display'; font-weight:700; font-size:11px; margin-top:6px;">Assalamu&#39;alaikum, Ust. Ahmad</div>
+          <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:3px; margin-top:5px;">
+            <div class="sk-block"><div style="font-weight:700;">18</div><div style="font-size:6px;color:var(--muted);">Siswa</div></div>
+            <div class="sk-block"><div style="font-weight:700;">7</div><div style="font-size:6px;color:var(--muted);">Setor</div></div>
+            <div class="sk-block" style="background:var(--accent-warm-soft);"><div style="font-weight:700;color:var(--accent-warm);">11</div><div style="font-size:6px;color:var(--muted);">Belum</div></div>
+            <div class="sk-block"><div style="font-weight:700;">3</div><div style="font-size:6px;color:var(--muted);">Naik</div></div>
+          </div>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:3px; margin-top:4px;">
+            <div class="sk-block" style="background:var(--accent-warm-soft);">📖 Setor Tahsin</div>
+            <div class="sk-block" style="background:var(--accent-warm-soft);">✨ Setor Tahfidz</div>
+          </div>
+          <div style="display:grid; grid-template-columns:2fr 1fr; gap:4px; margin-top:5px;">
+            <div>
+              <div class="sk-block" style="margin-bottom:3px;">M. Zaki · Tilawati 4 hal.18</div>
+              <div class="sk-block" style="margin-bottom:3px;">Aisyah · Juz 29</div>
+              <div class="sk-block" style="margin-bottom:3px;">Fatimah · Tilawati 5</div>
+            </div>
+            <div>
+              <div class="sk-block" style="margin-bottom:3px;">07:30 Abu Bakr</div>
+              <div class="sk-block" style="margin-bottom:3px;">10:00 Umar</div>
+              <div class="sk-block">13:30 Khadijah</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="mockup-meta">
+        <div class="mockup-num">01 · Guru</div>
+        <div class="mockup-title">Dashboard Guru</div>
+        <div class="mockup-desc">Antrian setoran hari ini, jadwal halaqoh, quick action setor tahsin/tahfidz.</div>
+        <div class="mockup-cta">Lihat mockup →</div>
+      </div>
+    </a>
+
+    <!-- 2. Form Setoran -->
+    <a href="setoran-form.html" class="mockup-card">
+      <div class="preview">
+        <div class="preview-content">
+          <div style="display:flex; gap:3px; padding:3px; background:var(--muted-bg); border-radius:4px;">
+            <div style="flex:1; background:white; padding:3px; border-radius:3px; text-align:center; font-weight:600;">📖 Tahsin</div>
+            <div style="flex:1; padding:3px; text-align:center; color:var(--muted);">✨ Tahfidz Baru</div>
+            <div style="flex:1; padding:3px; text-align:center; color:var(--muted);">🔁 Muroja&#39;ah</div>
+          </div>
+          <div class="sk-block" style="margin-top:5px; background:var(--accent-warm-soft); border-color:var(--accent-warm);">👤 M. Zaki · Tilawati 4 hal.18</div>
+          <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:3px; margin-top:4px;">
+            <div class="sk-block">Tilawati</div>
+            <div class="sk-block">Jilid 4</div>
+            <div class="sk-block">Hal. 18</div>
+          </div>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:3px; margin-top:3px;">
+            <div class="sk-block">Baris 1</div>
+            <div class="sk-block">Baris 4</div>
+          </div>
+          <div class="sk-block" style="margin-top:4px; background:var(--muted-bg);">
+            <div style="font-size:6px;">Makhraj ★★★★☆ &nbsp; Tajwid ★★★☆☆ &nbsp; Lancar ★★★★★</div>
+          </div>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:3px; margin-top:4px;">
+            <div class="sk-block" style="background:var(--success-soft); border-color:var(--success); color:var(--success);">✅ Lulus</div>
+            <div class="sk-block">🔁 Ulang</div>
+          </div>
+          <div style="text-align:right; margin-top:5px;">
+            <span class="sk-block" style="display:inline-block; background:var(--accent-warm); color:white; border-color:var(--accent-warm); padding:3px 8px;">Simpan</span>
+          </div>
+        </div>
+      </div>
+      <div class="mockup-meta">
+        <div class="mockup-num">02 · Setoran</div>
+        <div class="mockup-title">Form Setoran Harian</div>
+        <div class="mockup-desc">Input tahsin (metode+jilid+halaman) atau tahfidz (surat+ayat). Penilaian + kenaikan jilid/juz.</div>
+        <div class="mockup-cta">Lihat mockup →</div>
+      </div>
+    </a>
+
+    <!-- 3. Detail Siswa -->
+    <a href="siswa-detail.html" class="mockup-card">
+      <div class="preview">
+        <div class="preview-content">
+          <div style="display:flex; gap:4px; padding:6px; background:linear-gradient(135deg, var(--accent-warm-soft), white); border-radius:4px;">
+            <div style="width:18px;height:18px;background:var(--accent-warm);border-radius:3px;color:white;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:7px;">MZ</div>
+            <div style="flex:1;">
+              <div style="font-family:'Playfair Display'; font-weight:700;">M. Zaki Abdullah</div>
+              <div class="muted" style="font-size:6px;">SD 4 · Halaqoh Abu Bakr</div>
+              <div style="margin-top:2px;">
+                <span style="display:inline-block; padding:1px 4px; background:var(--accent-warm-soft); border-radius:6px; font-size:6px;">📖 Tilawati 4</span>
+                <span style="display:inline-block; padding:1px 4px; background:var(--success-soft); border-radius:6px; font-size:6px;">✨ Juz 30</span>
+              </div>
+            </div>
+          </div>
+          <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:3px; margin-top:5px;">
+            <div class="sk-block">
+              <div style="font-size:6px;">Tahsin</div>
+              <div style="font-weight:600; font-size:8px;">Jilid 4</div>
+              <div style="height:3px; background:var(--muted-bg); border-radius:99px;"><div style="width:41%; height:3px; background:var(--accent-warm); border-radius:99px;"></div></div>
+            </div>
+            <div class="sk-block">
+              <div style="font-size:6px;">Tahfidz</div>
+              <div style="font-weight:600; font-size:8px;">Juz 30</div>
+              <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:1px;margin-top:2px;">
+                <div style="height:4px; background:var(--muted-bg);"></div>
+                <div style="height:4px; background:var(--muted-bg);"></div>
+                <div style="height:4px; background:var(--muted-bg);"></div>
+                <div style="height:4px; background:var(--muted-bg);"></div>
+                <div style="height:4px; background:var(--muted-bg);"></div>
+                <div style="height:4px; background:var(--accent-warm);"></div>
+              </div>
+            </div>
+            <div class="sk-block">
+              <div style="font-size:6px;">30 Hari</div>
+              <div style="font-weight:600; font-size:8px;">22 setor</div>
+            </div>
+          </div>
+          <div style="margin-top:5px; padding-left:4px; border-left:2px solid var(--border);">
+            <div style="font-size:6px;">25 Mei · 📖 Tilawati 4 hal.17</div>
+            <div style="font-size:6px;">25 Mei · ✨ An-Naba 16-25</div>
+            <div style="font-size:6px; color:var(--success);">18 Mei · 🎉 Naik Jilid 3→4</div>
+          </div>
+        </div>
+      </div>
+      <div class="mockup-meta">
+        <div class="mockup-num">03 · Siswa</div>
+        <div class="mockup-title">Detail Siswa + Progress</div>
+        <div class="mockup-desc">Profil siswa, progress jilid, peta 30 juz, timeline setoran, riwayat kenaikan.</div>
+        <div class="mockup-cta">Lihat mockup →</div>
+      </div>
+    </a>
+
+    <!-- 4. Kanban -->
+    <a href="task-kanban.html" class="mockup-card">
+      <div class="preview" style="background: #f5f3ee;">
+        <div class="preview-content" style="background: transparent;">
+          <div style="font-family:'Playfair Display'; font-weight:700;">Papan Kanban</div>
+          <div style="display:flex; gap:2px; margin-top:3px; flex-wrap:wrap;">
+            <span style="font-size:6px; padding:1px 4px; background:var(--foreground); color:white; border-radius:99px;">Semua</span>
+            <span style="font-size:6px; padding:1px 4px; border-radius:99px; background:var(--muted-bg);">Koor SD</span>
+            <span style="font-size:6px; padding:1px 4px; border-radius:99px; background:var(--muted-bg);">SMP</span>
+            <span style="font-size:6px; padding:1px 4px; border-radius:99px; background:var(--muted-bg);">Humas</span>
+          </div>
+          <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:3px; margin-top:5px;">
+            <div style="background:white; border-radius:4px; padding:3px; min-height:90px;">
+              <div style="font-size:6px; font-weight:600;">● To Do <span class="muted">7</span></div>
+              <div class="sk-block" style="font-size:6px; margin-top:2px;">Jadwal Ramadhan</div>
+              <div class="sk-block" style="font-size:6px; margin-top:2px;">Flyer kegiatan</div>
+              <div class="sk-block" style="font-size:6px; margin-top:2px;">Evaluasi kurik.</div>
+            </div>
+            <div style="background:white; border-radius:4px; padding:3px;">
+              <div style="font-size:6px; font-weight:600;">● Doing <span class="muted">5</span></div>
+              <div class="sk-block" style="font-size:6px; margin-top:2px; background:var(--accent-warm-soft); border-color:var(--accent-warm);">Rekap nilai SMP</div>
+              <div class="sk-block" style="font-size:6px; margin-top:2px;">Training guru</div>
+            </div>
+            <div style="background:white; border-radius:4px; padding:3px;">
+              <div style="font-size:6px; font-weight:600;">● Review <span class="muted">3</span></div>
+              <div class="sk-block" style="font-size:6px; margin-top:2px;">Konten IG</div>
+              <div class="sk-block" style="font-size:6px; margin-top:2px;">Laporan April</div>
+            </div>
+            <div style="background:white; border-radius:4px; padding:3px;">
+              <div style="font-size:6px; font-weight:600;">● Done <span class="muted">9</span></div>
+              <div class="sk-block" style="font-size:6px; margin-top:2px; opacity:0.6; text-decoration:line-through;">Notulen rapat</div>
+              <div class="sk-block" style="font-size:6px; margin-top:2px; opacity:0.6; text-decoration:line-through;">Presensi guru</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="mockup-meta">
+        <div class="mockup-num">04 · Task</div>
+        <div class="mockup-title">Kanban Task Board</div>
+        <div class="mockup-desc">4 kolom drag-drop (To Do / Doing / Review / Done). Filter per divisi, personal toggle, thread komentar realtime.</div>
+        <div class="mockup-cta">Lihat mockup →</div>
+      </div>
+    </a>
+
+    <!-- 5. Rapor + WA -->
+    <a href="rapor-share.html" class="mockup-card">
+      <div class="preview">
+        <div class="preview-content">
+          <div style="display:grid; grid-template-columns: 2fr 1fr; gap:6px;">
+            <div style="background:white; border:1px solid var(--border); border-radius:4px; padding:6px;">
+              <div style="display:flex; gap:4px; align-items:center; border-bottom:1px solid var(--accent-warm); padding-bottom:3px;">
+                <div style="width:10px;height:10px;background:var(--accent-warm); border-radius:2px;"></div>
+                <div style="font-family:'Playfair Display'; font-weight:700;">Rapor Tahsin &amp; Tahfidz</div>
+              </div>
+              <div class="sk-block" style="background:var(--accent-warm-soft); margin-top:3px; font-size:6px;">M. Zaki · SD 4 · Halaqoh Abu Bakr</div>
+              <div style="font-size:6px; font-weight:600; color:var(--accent-warm); margin-top:4px;">📖 Capaian Tahsin</div>
+              <div style="font-size:6px;">Tilawati 4 · ★★★★☆</div>
+              <div style="font-size:6px; font-weight:600; color:var(--accent-warm); margin-top:3px;">✨ Capaian Tahfidz</div>
+              <div style="font-size:6px;">Juz 30 (60%) · ★★★★★</div>
+              <div class="sk-line sk" style="margin-top:3px;"></div>
+              <div class="sk-line sk" style="margin-top:2px; width:80%;"></div>
+            </div>
+            <div style="background:#efeae2; border-radius:4px; padding:4px;">
+              <div style="background:#d9fdd3; padding:3px; border-radius:3px; font-size:6px;">
+                <div style="background:linear-gradient(135deg,var(--accent-warm),#8a6308); aspect-ratio:1.9; border-radius:2px; color:white; padding:2px; text-align:center;">
+                  <div style="font-size:4px;">RAPOR</div>
+                  <div style="font-family:'Playfair Display'; font-weight:700; font-size:6px;">M. Zaki</div>
+                </div>
+                Assalamu&#39;alaikum...
+              </div>
+              <div class="sk-block" style="margin-top:3px; background:#25d366; color:white; border-color:#25d366; font-size:6px; text-align:center;">📱 Kirim ke Wali</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="mockup-meta">
+        <div class="mockup-num">05 · Rapor</div>
+        <div class="mockup-title">Rapor + Share WA</div>
+        <div class="mockup-desc">Rapor bulanan A4-ready dengan preview pesan WA + OG image card untuk share ke wali murid.</div>
+        <div class="mockup-cta">Lihat mockup →</div>
+      </div>
+    </a>
+
+  </div>
+
+  <!-- Legend -->
+  <div class="legend">
+    <h2>📝 Catatan untuk Diskusi</h2>
+    <ul>
+      <li><strong>Visual style</strong> mengikuti homepage RQ LHI saat ini: tipografi editorial (Playfair + Lora), aksen gold, layout tenang.</li>
+      <li><strong>Mockup statis</strong> — semua data hardcoded untuk preview. Belum ada interaktivitas drag-drop atau koneksi DB.</li>
+      <li><strong>Yang belum di-mockup</strong> (bisa ditambah jika perlu): halaman login guru, daftar siswa per halaqoh, halaman admin manage halaqoh, dashboard kepala_rq dengan agregat tahfidz semua divisi.</li>
+      <li><strong>Setelah desain disepakati</strong>: kita bikin dokumen skema SQL + roadmap eksekusi, lalu mulai Fase 0 (foundation DB) → Fase 1 (auth guru) → Fase 2 (tahsin/tahfidz harian).</li>
+    </ul>
+  </div>
+
+  <div style="text-align: center; margin: 40px 0 20px;">
+    <p class="muted" style="font-size: 12px;">Rumah Qur&#39;an LHI — Visual Mockup v0.1 · 28 Mei 2026</p>
+  </div>
+
+</main>
+</body>
+</html>

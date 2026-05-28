@@ -1,0 +1,180 @@
+/* Shared design tokens — match the existing RQ LHI editorial style */
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=Lora:ital,wght@0,400;0,500;0,600;1,400&display=swap');
+
+:root {
+  --background: #fafaf7;
+  --card: #ffffff;
+  --border: #e7e3da;
+  --foreground: #1a1a1a;
+  --muted: #6b6b6b;
+  --muted-bg: #f3f1ec;
+  --accent-warm: #b8860b;   /* gold-ish, matches PublicHeader */
+  --accent-warm-soft: #fdf6e3;
+  --primary: #1a1a1a;
+  --success: #15803d;
+  --success-soft: #dcfce7;
+  --warning: #ca8a04;
+  --warning-soft: #fef9c3;
+  --danger: #b91c1c;
+  --danger-soft: #fee2e2;
+  --info: #1d4ed8;
+  --info-soft: #dbeafe;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: 'Lora', Georgia, serif;
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+.font-display { font-family: 'Playfair Display', Georgia, serif; }
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--foreground);
+  cursor: pointer;
+  transition: all .15s;
+  text-decoration: none;
+}
+.btn:hover { background: var(--muted-bg); }
+.btn-primary { background: var(--primary); color: white; border-color: var(--primary); }
+.btn-primary:hover { background: #333; }
+.btn-warm { background: var(--accent-warm); color: white; border-color: var(--accent-warm); }
+.btn-warm:hover { background: #8a6308; }
+.btn-success { background: var(--success); color: white; border-color: var(--success); }
+.btn-success:hover { background: #166534; }
+.btn-sm { padding: 5px 10px; font-size: 12px; }
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 500;
+  background: var(--muted-bg);
+  color: var(--muted);
+  border: 1px solid var(--border);
+}
+.pill-warm { background: var(--accent-warm-soft); color: var(--accent-warm); border-color: #f0e0a8; }
+.pill-success { background: var(--success-soft); color: var(--success); border-color: #bbf7d0; }
+.pill-warning { background: var(--warning-soft); color: var(--warning); border-color: #fef08a; }
+.pill-danger { background: var(--danger-soft); color: var(--danger); border-color: #fecaca; }
+.pill-info { background: var(--info-soft); color: var(--info); border-color: #bfdbfe; }
+
+.muted { color: var(--muted); }
+
+.input, .select, .textarea {
+  width: 100%;
+  padding: 9px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: white;
+  font-family: inherit;
+  font-size: 14px;
+  color: var(--foreground);
+}
+.input:focus, .select:focus, .textarea:focus {
+  outline: 2px solid var(--accent-warm);
+  outline-offset: -1px;
+  border-color: var(--accent-warm);
+}
+.label {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted);
+  margin-bottom: 6px;
+  letter-spacing: 0.2px;
+}
+
+/* Topbar */
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 24px;
+  border-bottom: 1px solid var(--border);
+  background: var(--card);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+.topbar .brand {
+  font-family: 'Playfair Display', serif;
+  font-weight: 800;
+  font-size: 18px;
+  letter-spacing: -0.3px;
+}
+.topbar .brand span { color: var(--accent-warm); }
+.topbar .nav { display: flex; gap: 4px; }
+.topbar .nav a {
+  padding: 8px 12px;
+  border-radius: 8px;
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 13px;
+}
+.topbar .nav a.active { color: var(--foreground); background: var(--muted-bg); }
+.topbar .nav a:hover { color: var(--foreground); }
+
+.container {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.h1 {
+  font-family: 'Playfair Display', serif;
+  font-weight: 800;
+  font-size: clamp(24px, 4vw, 34px);
+  letter-spacing: -0.5px;
+  line-height: 1.15;
+  margin: 0;
+}
+.h2 {
+  font-family: 'Playfair Display', serif;
+  font-weight: 700;
+  font-size: 20px;
+  margin: 0;
+  letter-spacing: -0.2px;
+}
+.eyebrow {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1.8px;
+  color: var(--muted);
+}
+
+.avatar {
+  width: 36px; height: 36px;
+  border-radius: 999px;
+  background: var(--accent-warm-soft);
+  color: var(--accent-warm);
+  display: inline-flex; align-items: center; justify-content: center;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+a { color: inherit; }

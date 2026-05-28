@@ -227,3 +227,253 @@ create trigger program_details_updated_at before update on program_details
 
 create trigger about_rq_updated_at before update on about_rq
   for each row execute function update_updated_at();
+
+-- ============================================================
+-- PHASE 0 — Tahsin & Tahfidz Monitoring
+-- ============================================================
+
+-- ENUMS
+create type gender as enum ('L','P');
+create type jenjang as enum ('paud','sd','smp','sma');
+create type tahsin_status as enum ('lulus','ulang');
+create type tahfidz_kind as enum ('hafalan_baru','murojaah');
+
+-- TAHSIN METHODS
+create table tahsin_methods (
+  id           uuid primary key default gen_random_uuid(),
+  name         text unique not null,
+  description  text,
+  is_active    boolean default true not null,
+  created_at   timestamptz default now() not null
+);
+
+-- JILID LEVELS
+create table jilid_levels (
+  id           uuid primary key default gen_random_uuid(),
+  method_id    uuid not null references tahsin_methods(id) on delete cascade,
+  label        text not null,
+  order_num    int  not null,
+  total_pages  int,
+  is_quran     boolean default false not null,
+  created_at   timestamptz default now() not null,
+  unique (method_id, order_num)
+);
+create index idx_jilid_levels_method on jilid_levels(method_id);
+
+-- SURAT MASTER (114 surat Al-Qur'an)
+create table surat_master (
+  id           int primary key,
+  name_arabic  text not null,
+  name_latin   text not null,
+  name_id      text not null,
+  total_ayat   int  not null,
+  juz_start    int  not null,
+  juz_end      int  not null,
+  is_makkiyah  boolean not null
+);
+
+-- TEACHERS (entity terpisah dari users)
+create table teachers (
+  id                  uuid primary key default gen_random_uuid(),
+  username            text unique not null,
+  password_hash       text not null,
+  full_name           text not null,
+  nip                 text,
+  email               text,
+  phone               text,
+  photo_url           text,
+  is_active           boolean default true not null,
+  can_change_password boolean default true not null,
+  joined_at           date default current_date not null,
+  linked_user_id      uuid references users(id) on delete set null,
+  created_at          timestamptz default now() not null,
+  updated_at          timestamptz default now() not null
+);
+create index idx_teachers_username on teachers(username);
+create index idx_teachers_linked_user on teachers(linked_user_id);
+
+-- HALAQOH
+create table halaqoh (
+  id              uuid primary key default gen_random_uuid(),
+  name            text not null,
+  jenjang         jenjang not null,
+  wali_teacher_id uuid references teachers(id) on delete set null,
+  schedule_note   text,
+  is_active       boolean default true not null,
+  created_at      timestamptz default now() not null,
+  updated_at      timestamptz default now() not null
+);
+create index idx_halaqoh_wali on halaqoh(wali_teacher_id);
+
+-- HALAQOH ↔ TEACHERS (many-to-many)
+create table halaqoh_teachers (
+  halaqoh_id  uuid not null references halaqoh(id) on delete cascade,
+  teacher_id  uuid not null references teachers(id) on delete cascade,
+  role        text default 'pengampu' not null,
+  created_at  timestamptz default now() not null,
+  primary key (halaqoh_id, teacher_id)
+);
+
+-- STUDENTS
+create table students (
+  id                  uuid primary key default gen_random_uuid(),
+  nis                 text unique,
+  full_name           text not null,
+  gender              gender,
+  birth_date          date,
+  photo_url           text,
+  jenjang             jenjang not null,
+  kelas               text,
+  halaqoh_id          uuid references halaqoh(id) on delete set null,
+  wali_name           text,
+  wali_phone          text,
+  wali_email          text,
+  current_method_id   uuid references tahsin_methods(id) on delete set null,
+  current_jilid_id    uuid references jilid_levels(id) on delete set null,
+  current_jilid_page  int,
+  is_active           boolean default true not null,
+  enrolled_at         date default current_date not null,
+  created_at          timestamptz default now() not null,
+  updated_at          timestamptz default now() not null
+);
+create index idx_students_halaqoh on students(halaqoh_id);
+create index idx_students_jenjang on students(jenjang);
+create index idx_students_active on students(is_active);
+
+-- TAHSIN LOGS
+create table tahsin_logs (
+  id                uuid primary key default gen_random_uuid(),
+  student_id        uuid not null references students(id) on delete cascade,
+  teacher_id        uuid not null references teachers(id) on delete restrict,
+  halaqoh_id        uuid references halaqoh(id) on delete set null,
+  setoran_date      date default current_date not null,
+  method_id         uuid references tahsin_methods(id) on delete set null,
+  jilid_id          uuid references jilid_levels(id) on delete set null,
+  halaman           int,
+  baris_dari        int,
+  baris_ke          int,
+  nilai_makhraj     smallint check (nilai_makhraj between 1 and 5),
+  nilai_tajwid      smallint check (nilai_tajwid  between 1 and 5),
+  nilai_kelancaran  smallint check (nilai_kelancaran between 1 and 5),
+  status            tahsin_status default 'lulus' not null,
+  catatan           text,
+  created_at        timestamptz default now() not null
+);
+create index idx_tahsin_logs_student      on tahsin_logs(student_id, setoran_date desc);
+create index idx_tahsin_logs_teacher_date on tahsin_logs(teacher_id, setoran_date desc);
+create index idx_tahsin_logs_date         on tahsin_logs(setoran_date desc);
+
+-- JILID PROMOTIONS
+create table jilid_promotions (
+  id              uuid primary key default gen_random_uuid(),
+  student_id      uuid not null references students(id) on delete cascade,
+  from_jilid_id   uuid references jilid_levels(id) on delete set null,
+  to_jilid_id     uuid not null references jilid_levels(id) on delete restrict,
+  promoted_by     uuid references teachers(id) on delete set null,
+  promotion_date  date default current_date not null,
+  exam_score      numeric(5,2),
+  catatan         text,
+  created_at      timestamptz default now() not null
+);
+create index idx_jilid_prom_student on jilid_promotions(student_id, promotion_date desc);
+
+-- TAHFIDZ LOGS
+create table tahfidz_logs (
+  id                uuid primary key default gen_random_uuid(),
+  student_id        uuid not null references students(id) on delete cascade,
+  teacher_id        uuid not null references teachers(id) on delete restrict,
+  halaqoh_id        uuid references halaqoh(id) on delete set null,
+  setoran_date      date default current_date not null,
+  kind              tahfidz_kind default 'hafalan_baru' not null,
+  surat_id          int  not null references surat_master(id) on delete restrict,
+  ayat_dari         int  not null,
+  ayat_ke           int  not null,
+  nilai_makhraj     smallint check (nilai_makhraj between 1 and 5),
+  nilai_tajwid      smallint check (nilai_tajwid  between 1 and 5),
+  nilai_kelancaran  smallint check (nilai_kelancaran between 1 and 5),
+  catatan           text,
+  created_at        timestamptz default now() not null,
+  check (ayat_ke >= ayat_dari)
+);
+create index idx_tahfidz_logs_student      on tahfidz_logs(student_id, setoran_date desc);
+create index idx_tahfidz_logs_teacher_date on tahfidz_logs(teacher_id, setoran_date desc);
+create index idx_tahfidz_logs_surat        on tahfidz_logs(surat_id);
+
+-- JUZ PROGRESS (aggregate per siswa & juz)
+create table juz_progress (
+  student_id        uuid not null references students(id) on delete cascade,
+  juz_number        int  not null check (juz_number between 1 and 30),
+  ayat_hafal        int  default 0 not null,
+  last_setoran_at   timestamptz,
+  mutqin            boolean default false not null,
+  updated_at        timestamptz default now() not null,
+  primary key (student_id, juz_number)
+);
+
+-- JUZ PROMOTIONS
+create table juz_promotions (
+  id              uuid primary key default gen_random_uuid(),
+  student_id      uuid not null references students(id) on delete cascade,
+  juz_number      int  not null check (juz_number between 1 and 30),
+  promoted_by     uuid references teachers(id) on delete set null,
+  promotion_date  date default current_date not null,
+  exam_score      numeric(5,2),
+  catatan         text,
+  created_at      timestamptz default now() not null,
+  unique (student_id, juz_number)
+);
+create index idx_juz_prom_student on juz_promotions(student_id);
+
+-- Aggregate trigger: tahfidz_logs insert → juz_progress ayat_hafal
+create or replace function upsert_juz_progress_from_tahfidz()
+returns trigger as $$
+declare
+  v_juz_start int;
+  v_ayat_count int;
+begin
+  if new.kind <> 'hafalan_baru' then
+    return new;
+  end if;
+
+  select juz_start into v_juz_start from surat_master where id = new.surat_id;
+  v_ayat_count := new.ayat_ke - new.ayat_dari + 1;
+
+  insert into juz_progress (student_id, juz_number, ayat_hafal, last_setoran_at, updated_at)
+  values (new.student_id, v_juz_start, v_ayat_count, now(), now())
+  on conflict (student_id, juz_number)
+  do update set
+    ayat_hafal       = juz_progress.ayat_hafal + excluded.ayat_hafal,
+    last_setoran_at  = excluded.last_setoran_at,
+    updated_at       = now();
+
+  return new;
+end;
+$$ language plpgsql;
+
+create trigger tahfidz_logs_aggregate
+  after insert on tahfidz_logs
+  for each row execute function upsert_juz_progress_from_tahfidz();
+
+-- Updated_at triggers
+create trigger teachers_updated_at     before update on teachers
+  for each row execute function update_updated_at();
+create trigger halaqoh_updated_at      before update on halaqoh
+  for each row execute function update_updated_at();
+create trigger students_updated_at     before update on students
+  for each row execute function update_updated_at();
+create trigger juz_progress_updated_at before update on juz_progress
+  for each row execute function update_updated_at();
+
+-- RLS
+alter table teachers         enable row level security;
+alter table halaqoh          enable row level security;
+alter table halaqoh_teachers enable row level security;
+alter table students         enable row level security;
+alter table tahsin_methods   enable row level security;
+alter table jilid_levels     enable row level security;
+alter table surat_master     enable row level security;
+alter table tahsin_logs      enable row level security;
+alter table tahfidz_logs     enable row level security;
+alter table jilid_promotions enable row level security;
+alter table juz_promotions   enable row level security;
+alter table juz_progress     enable row level security;

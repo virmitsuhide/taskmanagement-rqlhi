@@ -1,0 +1,391 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kanban Task Board — RQ LHI</title>
+<link rel="stylesheet" href="_shared.css">
+<style>
+  body { background: #f5f3ee; }
+
+  .board-head {
+    display: flex; justify-content: space-between; align-items: flex-end;
+    gap: 16px; flex-wrap: wrap; margin-bottom: 18px;
+  }
+
+  .filter-pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 12px; border-radius: 999px; border: 1px solid var(--border);
+    font-size: 12px; cursor: pointer; background: white; color: var(--muted);
+  }
+  .filter-pill.active { background: var(--foreground); color: white; border-color: var(--foreground); }
+  .filter-pill .ct { font-size:10px; padding: 1px 6px; border-radius: 999px; background: rgba(255,255,255,0.2); }
+  .filter-pill:not(.active) .ct { background: var(--muted-bg); color: var(--muted); }
+
+  .scope-toggle {
+    display: inline-flex; padding: 4px; background: var(--muted-bg); border-radius: 10px;
+  }
+  .scope-toggle button {
+    padding: 6px 14px; border: none; background: transparent; border-radius: 8px;
+    font-size: 12px; font-weight: 500; cursor: pointer; color: var(--muted);
+    font-family: inherit;
+  }
+  .scope-toggle button.active { background: white; color: var(--foreground); box-shadow: 0 1px 3px rgba(0,0,0,.06); }
+
+  .board { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; align-items: start; }
+  @media (max-width: 1100px) { .board { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 640px) { .board { grid-template-columns: 1fr; } }
+
+  .column {
+    background: white; border: 1px solid var(--border); border-radius: 14px;
+    padding: 14px; min-height: 400px;
+  }
+  .col-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding-bottom: 12px; margin-bottom: 10px; border-bottom: 1px solid var(--border);
+  }
+  .col-title { font-weight: 600; font-size: 13px; display: flex; align-items: center; gap: 8px; }
+  .col-title .dot { width: 8px; height: 8px; border-radius: 999px; }
+  .col-count { font-size: 11px; color: var(--muted); background: var(--muted-bg); padding: 2px 8px; border-radius: 999px; }
+
+  .task {
+    background: white; border: 1px solid var(--border); border-radius: 10px;
+    padding: 12px; margin-bottom: 8px; cursor: grab;
+    box-shadow: 0 1px 2px rgba(0,0,0,.03);
+    transition: all .15s;
+  }
+  .task:hover { border-color: var(--accent-warm); transform: translateY(-1px); box-shadow: 0 4px 8px rgba(0,0,0,.06); }
+  .task.dragging { opacity: 0.6; transform: rotate(2deg); }
+  .task-title { font-weight: 600; font-size: 13px; line-height: 1.4; margin-bottom: 6px; }
+  .task-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
+  .task-tag { font-size: 10px; padding: 1px 7px; border-radius: 999px; background: var(--muted-bg); color: var(--muted); }
+  .task-tag.mendesak { background: #fee2e2; color: #b91c1c; }
+  .task-tag.normal { background: #dbeafe; color: #1d4ed8; }
+  .task-tag.panjang { background: #fef3c7; color: #92400e; }
+  .task-tag.divisi { background: var(--accent-warm-soft); color: var(--accent-warm); font-weight: 600; }
+  .task-foot { display: flex; align-items: center; justify-content: space-between; margin-top: 8px; }
+  .task-foot .left { display: flex; align-items: center; gap: 10px; font-size: 11px; color: var(--muted); }
+  .task-meta-ic { display: inline-flex; align-items: center; gap: 3px; }
+
+  .col-todo .dot { background: #94a3b8; }
+  .col-doing .dot { background: #2563eb; }
+  .col-review .dot { background: #d97706; }
+  .col-done .dot { background: #16a34a; }
+
+  .placeholder {
+    border: 2px dashed var(--border); border-radius: 10px;
+    padding: 12px; text-align: center; font-size: 12px; color: var(--muted);
+    background: var(--muted-bg);
+  }
+
+  /* ghost drop preview */
+  .drop-ghost {
+    background: var(--accent-warm-soft);
+    border: 2px dashed var(--accent-warm);
+    border-radius: 10px;
+    padding: 18px;
+    margin-bottom: 8px;
+    text-align: center; font-size: 12px; color: var(--accent-warm); font-weight: 500;
+  }
+
+  .add-task-btn {
+    width: 100%; padding: 10px; background: transparent;
+    border: 1px dashed var(--border); border-radius: 10px;
+    color: var(--muted); font-size: 12px; cursor: pointer;
+    font-family: inherit;
+  }
+  .add-task-btn:hover { color: var(--foreground); border-color: var(--foreground); background: var(--muted-bg); }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div style="display:flex;align-items:center;gap:24px;">
+    <div class="brand">Rumah Qur&#39;an <span>LHI</span></div>
+    <nav class="nav">
+      <a href="#">Dashboard</a>
+      <a href="#" class="active">Task</a>
+      <a href="#">Rapat</a>
+      <a href="rapor-share.html">Berita</a>
+    </nav>
+  </div>
+  <div style="display:flex;align-items:center;gap:10px;">
+    <span class="muted" style="font-size:13px;">Kumik · Ust. Yusuf</span>
+    <div class="avatar" style="background:#dbeafe; color:#1d4ed8;">YS</div>
+  </div>
+</header>
+
+<main class="container" style="max-width: 1480px;">
+
+  <div class="board-head">
+    <div>
+      <p class="eyebrow">Task Board</p>
+      <h1 class="h2 font-display" style="font-size: 28px;">Papan Kanban</h1>
+      <p class="muted" style="margin: 4px 0 0; font-size: 13px;">Drag &amp; drop kartu antar kolom untuk update status.</p>
+    </div>
+
+    <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+      <div class="scope-toggle">
+        <button>Personal</button>
+        <button class="active">Divisi</button>
+        <button>Semua</button>
+      </div>
+      <a href="#" class="btn btn-primary">+ Buat Task</a>
+    </div>
+  </div>
+
+  <!-- Filter divisi -->
+  <div style="display: flex; gap: 6px; margin-bottom: 18px; flex-wrap: wrap; padding: 10px 0; border-bottom: 1px solid var(--border);">
+    <span class="muted" style="font-size: 12px; margin-right: 4px; align-self: center;">Divisi:</span>
+    <button class="filter-pill active">Semua <span class="ct">24</span></button>
+    <button class="filter-pill">Manajemen <span class="ct">3</span></button>
+    <button class="filter-pill">Koor SD <span class="ct">6</span></button>
+    <button class="filter-pill">Koor SMP <span class="ct">4</span></button>
+    <button class="filter-pill">Koor Ekstra <span class="ct">2</span></button>
+    <button class="filter-pill">Humas <span class="ct">5</span></button>
+    <button class="filter-pill">Div Training <span class="ct">2</span></button>
+    <button class="filter-pill">SDM <span class="ct">2</span></button>
+    <span style="margin-left: auto; display: flex; gap: 6px;">
+      <input class="input" placeholder="🔍 Cari task..." style="width: 220px; padding: 5px 10px; font-size: 12px;">
+      <button class="btn btn-sm">Filter ⚙</button>
+    </span>
+  </div>
+
+  <!-- BOARD -->
+  <div class="board">
+
+    <!-- COLUMN: TO DO -->
+    <div class="column col-todo">
+      <div class="col-head">
+        <div class="col-title"><span class="dot"></span> To Do</div>
+        <span class="col-count">7</span>
+      </div>
+
+      <div class="task">
+        <div class="task-tags">
+          <span class="task-tag divisi">Koor SD</span>
+          <span class="task-tag mendesak">Mendesak</span>
+        </div>
+        <div class="task-title">Susun jadwal halaqoh Ramadhan 2026</div>
+        <div class="task-foot">
+          <div class="left">
+            <span class="task-meta-ic">📎 2</span>
+            <span class="task-meta-ic">💬 3</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:6px;">
+            <span class="task-meta-ic muted" style="font-size:11px;">🗓 30 Mei</span>
+            <div class="avatar" style="width:24px;height:24px;font-size:10px;">AH</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="task">
+        <div class="task-tags">
+          <span class="task-tag divisi">Humas</span>
+          <span class="task-tag normal">Normal</span>
+        </div>
+        <div class="task-title">Desain flyer kegiatan Ramadhan</div>
+        <div class="task-foot">
+          <div class="left">
+            <span class="task-meta-ic">💬 1</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:6px;">
+            <span class="task-meta-ic muted" style="font-size:11px;">🗓 2 Jun</span>
+            <div class="avatar" style="width:24px;height:24px;font-size:10px;background:#fde7e9;color:#b91c1c;">SF</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="task">
+        <div class="task-tags">
+          <span class="task-tag divisi">Manajemen</span>
+          <span class="task-tag panjang">Jangka Panjang</span>
+        </div>
+        <div class="task-title">Evaluasi kurikulum tahfidz semester</div>
+        <div class="task-foot">
+          <div class="left">
+            <span class="task-meta-ic">📎 5</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:6px;">
+            <span class="task-meta-ic muted" style="font-size:11px;">🗓 30 Jun</span>
+            <div class="avatar" style="width:24px;height:24px;font-size:10px;">KR</div>
+          </div>
+        </div>
+      </div>
+
+      <button class="add-task-btn">+ Tambah Task</button>
+    </div>
+
+    <!-- COLUMN: DOING -->
+    <div class="column col-doing">
+      <div class="col-head">
+        <div class="col-title"><span class="dot"></span> Sedang Dikerjakan</div>
+        <span class="col-count">5</span>
+      </div>
+
+      <div class="task dragging">
+        <div class="task-tags">
+          <span class="task-tag divisi">Koor SMP</span>
+          <span class="task-tag mendesak">Mendesak</span>
+        </div>
+        <div class="task-title">Rekap nilai mid semester semua siswa SMP</div>
+        <div class="task-foot">
+          <div class="left">
+            <span class="task-meta-ic">📎 1</span>
+            <span class="task-meta-ic">💬 8</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:6px;">
+            <span class="task-meta-ic" style="font-size:11px; color: var(--danger); font-weight:600;">⚠ Hari ini</span>
+            <div class="avatar" style="width:24px;height:24px;font-size:10px;background:#dbeafe;color:#1d4ed8;">UM</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="drop-ghost">⤵ Lepas di sini untuk pindah ke "Sedang Dikerjakan"</div>
+
+      <div class="task">
+        <div class="task-tags">
+          <span class="task-tag divisi">Div Training</span>
+          <span class="task-tag normal">Normal</span>
+        </div>
+        <div class="task-title">Persiapan materi training guru baru</div>
+        <div class="task-foot">
+          <div class="left">
+            <span class="task-meta-ic">💬 4</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:6px;">
+            <span class="task-meta-ic muted" style="font-size:11px;">🗓 5 Jun</span>
+            <div class="avatar" style="width:24px;height:24px;font-size:10px;">DT</div>
+          </div>
+        </div>
+      </div>
+
+      <button class="add-task-btn">+ Tambah Task</button>
+    </div>
+
+    <!-- COLUMN: REVIEW -->
+    <div class="column col-review">
+      <div class="col-head">
+        <div class="col-title"><span class="dot"></span> Menunggu Review</div>
+        <span class="col-count">3</span>
+      </div>
+
+      <div class="task">
+        <div class="task-tags">
+          <span class="task-tag divisi">Humas</span>
+          <span class="task-tag normal">Normal</span>
+        </div>
+        <div class="task-title">Konten Instagram pekan ini (3 post)</div>
+        <div class="task-foot">
+          <div class="left">
+            <span class="task-meta-ic">📎 3</span>
+            <span class="task-meta-ic">💬 12</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:6px;">
+            <span class="task-meta-ic muted" style="font-size:11px;">🗓 28 Mei</span>
+            <div class="avatar" style="width:24px;height:24px;font-size:10px;background:#fde7e9;color:#b91c1c;">SF</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="task">
+        <div class="task-tags">
+          <span class="task-tag divisi">Koor Ekstra</span>
+        </div>
+        <div class="task-title">Laporan kegiatan ekstrakurikuler April</div>
+        <div class="task-foot">
+          <div class="left">
+            <span class="task-meta-ic">📎 2</span>
+            <span class="task-meta-ic">💬 2</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:6px;">
+            <span class="task-meta-ic muted" style="font-size:11px;">🗓 25 Mei</span>
+            <div class="avatar" style="width:24px;height:24px;font-size:10px;background:#dcfce7;color:#15803d;">KE</div>
+          </div>
+        </div>
+      </div>
+
+      <button class="add-task-btn">+ Tambah Task</button>
+    </div>
+
+    <!-- COLUMN: DONE -->
+    <div class="column col-done">
+      <div class="col-head">
+        <div class="col-title"><span class="dot"></span> Selesai</div>
+        <span class="col-count">9</span>
+      </div>
+
+      <div class="task" style="opacity: 0.75;">
+        <div class="task-tags">
+          <span class="task-tag divisi">Manajemen</span>
+        </div>
+        <div class="task-title" style="text-decoration: line-through; color: var(--muted);">Notulensi rapat manajemen 20 Mei</div>
+        <div class="task-foot">
+          <div class="left">
+            <span class="task-meta-ic" style="color: var(--success);">✓ 21 Mei</span>
+          </div>
+          <div class="avatar" style="width:24px;height:24px;font-size:10px;">KR</div>
+        </div>
+      </div>
+
+      <div class="task" style="opacity: 0.75;">
+        <div class="task-tags">
+          <span class="task-tag divisi">SDM</span>
+        </div>
+        <div class="task-title" style="text-decoration: line-through; color: var(--muted);">Rekap presensi guru pekan ini</div>
+        <div class="task-foot">
+          <div class="left">
+            <span class="task-meta-ic" style="color: var(--success);">✓ 24 Mei</span>
+          </div>
+          <div class="avatar" style="width:24px;height:24px;font-size:10px;">SD</div>
+        </div>
+      </div>
+
+      <div class="task" style="opacity: 0.75;">
+        <div class="task-tags">
+          <span class="task-tag divisi">Koor SD</span>
+        </div>
+        <div class="task-title" style="text-decoration: line-through; color: var(--muted);">Update jadwal halaqoh April</div>
+        <div class="task-foot">
+          <div class="left">
+            <span class="task-meta-ic" style="color: var(--success);">✓ 18 Mei</span>
+          </div>
+          <div class="avatar" style="width:24px;height:24px;font-size:10px;">AH</div>
+        </div>
+      </div>
+
+      <button class="add-task-btn" style="opacity: 0.5;">+ Tambah Task</button>
+    </div>
+
+  </div>
+
+  <!-- Modal preview hint -->
+  <div style="margin-top: 32px; padding: 16px 20px; background: white; border: 1px dashed var(--border); border-radius: 14px;">
+    <p style="margin: 0 0 8px; font-weight: 600; font-size: 13px;">💡 Saat user klik kartu task — buka detail dengan tab Komentar (Slack-style):</p>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 12px;">
+      <div style="padding: 14px; background: var(--muted-bg); border-radius: 10px;">
+        <div style="font-size: 11px; color: var(--muted); margin-bottom: 6px;">Header task detail</div>
+        <div style="font-weight: 600; font-size: 14px;">Rekap nilai mid semester semua siswa SMP</div>
+        <div class="task-tags" style="margin-top: 8px;">
+          <span class="task-tag divisi">Koor SMP</span>
+          <span class="task-tag mendesak">Mendesak</span>
+          <span class="task-tag" style="background:#dbeafe;color:#1d4ed8;">Doing</span>
+        </div>
+      </div>
+      <div style="padding: 14px; background: var(--muted-bg); border-radius: 10px;">
+        <div style="font-size: 11px; color: var(--muted); margin-bottom: 6px;">Thread komentar (realtime)</div>
+        <div style="font-size: 12px; line-height: 1.6;">
+          <div><strong>Ust. Yusuf</strong> · 2j lalu: &ldquo;@umar tolong rekap kelas 1 dulu&rdquo;</div>
+          <div style="margin-top: 4px;"><strong>Ust. Umar</strong> · 1j lalu: &ldquo;Siap, sudah 80%&rdquo;</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="margin-top: 30px; text-align:center;">
+    <a href="index.html" class="btn">← Kembali ke list mockup</a>
+  </div>
+
+</main>
+</body>
+</html>

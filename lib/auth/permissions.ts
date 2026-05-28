@@ -1,4 +1,4 @@
-import type { UserRole, MeetingType, TaskStatus, PublicTarget } from '@/types'
+import type { UserRole, MeetingType, TaskStatus, PublicTarget, Jenjang } from '@/types'
 
 // Dashboard access matrix
 const DASHBOARD_ACCESS: Record<string, UserRole[]> = {
@@ -171,6 +171,82 @@ export function canEditProgram(role: UserRole): boolean {
 
 export function canEditAbout(role: UserRole): boolean {
   return role === 'kepala_rq' || role === 'humas'
+}
+
+// ─── PHASE 1B — Manajemen siswa, halaqoh, ustadz ────────────────────
+
+/**
+ * Bisa manage siswa untuk jenjang tertentu (atau semua jika jenjang null).
+ * - kepala_rq: semua jenjang
+ * - koor_sd:   hanya jenjang 'sd' atau 'paud'
+ * - koor_smp:  hanya jenjang 'smp' atau 'sma'
+ */
+export function canManageStudents(role: UserRole, jenjang?: Jenjang | null): boolean {
+  if (role === 'kepala_rq') return true
+  if (role === 'koor_sd')  return !jenjang || jenjang === 'sd'  || jenjang === 'paud'
+  if (role === 'koor_smp') return !jenjang || jenjang === 'smp' || jenjang === 'sma'
+  return false
+}
+
+/**
+ * Bisa lihat list siswa (read-only). Lebih luas dari manage.
+ * - kepala_rq, kumik, sdm, bendahara: lihat semua
+ * - koor_sd/smp: lihat jenjang masing-masing
+ */
+export function canViewStudents(role: UserRole, jenjang?: Jenjang | null): boolean {
+  if (['kepala_rq', 'kumik', 'sdm', 'bendahara'].includes(role)) return true
+  return canManageStudents(role, jenjang)
+}
+
+/**
+ * Bisa manage halaqoh untuk jenjang tertentu.
+ * Pattern sama dengan students.
+ */
+export function canManageHalaqoh(role: UserRole, jenjang?: Jenjang | null): boolean {
+  if (role === 'kepala_rq') return true
+  if (role === 'koor_sd')  return !jenjang || jenjang === 'sd'  || jenjang === 'paud'
+  if (role === 'koor_smp') return !jenjang || jenjang === 'smp' || jenjang === 'sma'
+  return false
+}
+
+export function canViewHalaqoh(role: UserRole, jenjang?: Jenjang | null): boolean {
+  if (['kepala_rq', 'kumik', 'sdm', 'bendahara'].includes(role)) return true
+  return canManageHalaqoh(role, jenjang)
+}
+
+/**
+ * Manage akun guru: bikin akun, reset password, deaktivasi.
+ * - kepala_rq: full
+ * - sdm:       full (sumber daya manusia)
+ */
+export function canManageTeachers(role: UserRole): boolean {
+  return role === 'kepala_rq' || role === 'sdm'
+}
+
+/**
+ * View list guru (read-only). Lebih luas: kumik & koor juga butuh lihat
+ * untuk assign ke halaqoh.
+ */
+export function canViewTeachers(role: UserRole): boolean {
+  return ['kepala_rq', 'sdm', 'kumik', 'koor_sd', 'koor_smp'].includes(role)
+}
+
+/**
+ * Jenjang mana yang bisa di-manage user.
+ * Untuk filter UI: koor_sd cuma lihat ['sd','paud'], dst.
+ */
+export function getManageableJenjang(role: UserRole): Jenjang[] {
+  if (role === 'kepala_rq') return ['paud', 'sd', 'smp', 'sma']
+  if (role === 'koor_sd')   return ['paud', 'sd']
+  if (role === 'koor_smp')  return ['smp', 'sma']
+  return []
+}
+
+export const JENJANG_LABELS: Record<Jenjang, string> = {
+  paud: 'PAUD',
+  sd:   'SD',
+  smp:  'SMP',
+  sma:  'SMA',
 }
 
 // Display labels
