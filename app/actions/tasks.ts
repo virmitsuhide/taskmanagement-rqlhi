@@ -26,7 +26,9 @@ export async function createTaskAction(_: unknown, formData: FormData) {
     .single()
 
   if (!assignee) return { error: 'Penerima task tidak ditemukan.' }
-  if (!canAssignTask(session.role, assignee.role)) {
+  // Self-assign (tugas pribadi) selalu diperbolehkan.
+  // Delegasi ke orang lain dicek lewat canAssignTask.
+  if (assignedToId !== session.userId && !canAssignTask(session.role, assignee.role)) {
     return { error: 'Anda tidak memiliki izin untuk menugaskan ke role tersebut.' }
   }
 

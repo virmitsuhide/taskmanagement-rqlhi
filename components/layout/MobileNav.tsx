@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation'
 import {
   Menu, X, LayoutDashboard, CheckSquare, BookOpen,
   ImageIcon, Megaphone, FileText, User, LogOut, GraduationCap, Newspaper, LayoutGrid,
-  Users, UserCog, BookMarked, BarChart3,
+  Users, UserCog, BookMarked, BarChart3, Table2,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
@@ -102,8 +102,11 @@ export function MobileNav({ role, displayName, username }: Props) {
             <ul className="space-y-1">
               <li><Link href="/program" onClick={() => setOpen(false)} className={navLinkClass('/program')}><LayoutGrid className="h-4 w-4" />Program RQ</Link></li>
               <li><Link href="/rapat" onClick={() => setOpen(false)} className={navLinkClass('/rapat')}><BookOpen className="h-4 w-4" />Rapat & Notulen</Link></li>
-              <li><Link href="/tasks" onClick={() => setOpen(false)} className={navLinkClass('/tasks')}><CheckSquare className="h-4 w-4" />Task</Link></li>
-              <li><Link href="/tasks/board" onClick={() => setOpen(false)} className={navLinkClass('/tasks/board')}><LayoutGrid className="h-4 w-4" />Papan Task</Link></li>
+              <li><Link href="/tasks" onClick={() => setOpen(false)} className={navLinkClass('/tasks')}><CheckSquare className="h-4 w-4" />Tugas</Link></li>
+              <li><Link href="/tasks/board" onClick={() => setOpen(false)} className={navLinkClass('/tasks/board')}><LayoutGrid className="h-4 w-4" />Papan Tugas</Link></li>
+              {canViewAnalytics(role) && (
+                <li><Link href="/tasks/matrix" onClick={() => setOpen(false)} className={navLinkClass('/tasks/matrix')}><Table2 className="h-4 w-4" />PR Manajemen</Link></li>
+              )}
               {canRequestToHumas(role) && (
                 <li><Link href="/humas-request" onClick={() => setOpen(false)} className={navLinkClass('/humas-request')}><ImageIcon className="h-4 w-4" />Request Humas</Link></li>
               )}

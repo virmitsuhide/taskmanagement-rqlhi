@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils'
 import {
   LayoutDashboard, BookOpen, CheckSquare, ImageIcon,
   FileText, User, Megaphone, LogOut, ChevronRight, GraduationCap, Newspaper, LayoutGrid,
-  Users, UserCog, BookMarked, BarChart3,
+  Users, UserCog, BookMarked, BarChart3, Table2,
 } from 'lucide-react'
 import { DASHBOARD_LABELS, getAccessibleDashboards, ROLE_LABELS } from '@/lib/auth/permissions'
 import {
@@ -95,8 +95,11 @@ export function Sidebar({ role, displayName, username }: Props) {
           <ul className="space-y-1">
             <NavItem href="/program" icon={<LayoutGrid className="h-4 w-4" />} label="Program RQ" active={isActive('/program')} />
             <NavItem href="/rapat" icon={<BookOpen className="h-4 w-4" />} label="Rapat & Notulen" active={isActive('/rapat')} />
-            <NavItem href="/tasks" icon={<CheckSquare className="h-4 w-4" />} label="Task" active={isActive('/tasks') && !pathname.startsWith('/tasks/board')} />
-            <NavItem href="/tasks/board" icon={<LayoutGrid className="h-4 w-4" />} label="Papan Task" active={pathname.startsWith('/tasks/board')} />
+            <NavItem href="/tasks" icon={<CheckSquare className="h-4 w-4" />} label="Tugas" active={isActive('/tasks') && !pathname.startsWith('/tasks/board') && !pathname.startsWith('/tasks/matrix')} />
+            <NavItem href="/tasks/board" icon={<LayoutGrid className="h-4 w-4" />} label="Papan Tugas" active={pathname.startsWith('/tasks/board')} />
+            {canViewAnalytics(role) && (
+              <NavItem href="/tasks/matrix" icon={<Table2 className="h-4 w-4" />} label="PR Manajemen" active={pathname.startsWith('/tasks/matrix')} />
+            )}
             {canRequestToHumas(role) && (
               <NavItem href="/humas-request" icon={<ImageIcon className="h-4 w-4" />} label="Request Humas" active={isActive('/humas-request')} />
             )}

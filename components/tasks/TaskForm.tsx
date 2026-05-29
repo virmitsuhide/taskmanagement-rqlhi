@@ -17,6 +17,8 @@ interface Props {
     meetingId?: string
     agendaId?: string
   }
+  /** Mode tugas pribadi: assignee = creator, tidak ada dropdown penerima. */
+  personalMode?: { selfUserId: string; selfName: string; lockPriority?: 'normal' | 'jangka_panjang' }
 }
 
 const PRIORITY_OPTIONS = [
@@ -25,11 +27,19 @@ const PRIORITY_OPTIONS = [
   { value: 'jangka_panjang', label: 'Jangka Panjang' },
 ]
 
-export function TaskForm({ assignableUsers, defaults }: Props) {
+export function TaskForm({ assignableUsers, defaults, personalMode }: Props) {
   const [state, action, isPending] = useActionState(createTaskAction, null)
 
   return (
     <form action={action} className="space-y-5">
+      {personalMode && (
+        <>
+          <input type="hidden" name="assigned_to" value={personalMode.selfUserId} />
+          {personalMode.lockPriority && (
+            <input type="hidden" name="priority" value={personalMode.lockPriority} />
+          )}
+        </>
+      )}
       {defaults?.meetingId && (
         <>
           <input type="hidden" name="source_type" value="rapat" />
@@ -64,35 +74,50 @@ export function TaskForm({ assignableUsers, defaults }: Props) {
         />
       </div>
 
-      <div className="space-y-1.5">
-        <Label htmlFor="assigned_to">Ditugaskan Kepada</Label>
-        <Select name="assigned_to" required>
-          <SelectTrigger>
-            <SelectValue placeholder="Pilih penerima task" />
-          </SelectTrigger>
-          <SelectContent>
-            {assignableUsers.map(user => (
-              <SelectItem key={user.id} value={user.id}>
-                {user.display_name} <span className="text-muted-foreground">({ROLE_LABELS[user.role]})</span>
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+      {personalMode ? (
+        <div className="space-y-1.5">
+          <Label>Untuk</Label>
+          <div className="px-3 py-2 rounded-md bg-muted text-sm">
+            👤 Diri sendiri ({personalMode.selfName})
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-1.5">
+          <Label htmlFor="assigned_to">Didelegasikan Kepada</Label>
+          <Select name="assigned_to" required>
+            <SelectTrigger>
+              <SelectValue placeholder="Pilih penerima tugas" />
+            </SelectTrigger>
+            <SelectContent>
+              {assignableUsers.map(user => (
+                <SelectItem key={user.id} value={user.id}>
+                  {user.display_name} <span className="text-muted-foreground">({ROLE_LABELS[user.role]})</span>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1.5">
           <Label htmlFor="priority">Prioritas</Label>
-          <Select name="priority" defaultValue="normal">
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {PRIORITY_OPTIONS.map(opt => (
-                <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          {personalMode?.lockPriority ? (
+            <div className="px-3 py-2 rounded-md bg-muted text-sm">
+              {personalMode.lockPriority === 'jangka_panjang' ? '🎯 Jangka Panjang' : '⚡ Jangka Pendek'}
+            </div>
+          ) : (
+            <Select name="priority" defaultValue="normal">
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {PRIORITY_OPTIONS.map(opt => (
+                  <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="due_date">Deadline (opsional)</Label>
@@ -107,7 +132,7 @@ export function TaskForm({ assignableUsers, defaults }: Props) {
       )}
 
       <Button type="submit" disabled={isPending} className="w-full">
-        {isPending ? 'Menyimpan...' : 'Buat Task'}
+        {isPending ? 'Menyimpan...' : (personalMode ? 'Buat Tugas Pribadi' : 'Delegasikan Tugas')}
       </Button>
     </form>
   )
