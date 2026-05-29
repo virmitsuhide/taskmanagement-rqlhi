@@ -33,7 +33,7 @@ async function getNews(): Promise<NewsArticle[]> {
 async function getKaldiEvents(): Promise<KaldiEvent[]> {
   try {
     const res = await fetch('https://kaldikrqlhi.vercel.app/api/upcoming?days=14', {
-      next: { revalidate: 3600 },
+      next: { revalidate: 300 }, // 5 menit
     })
     if (!res.ok) return []
     const data = await res.json()

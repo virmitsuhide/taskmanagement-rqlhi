@@ -50,8 +50,8 @@ export const PROGRAMS: ProgramDef[] = [
   },
   {
     slug: 'pembinaan-guru',
-    title: 'Pembinaan Guru',
-    description: 'Program pembinaan dan pengembangan kompetensi tenaga pengajar Rumah Qur\'an LHI',
+    title: 'Pembinaan Guru SIT LHI',
+    description: 'Program pembinaan dan pengembangan kompetensi tenaga pengajar SIT LHI',
     icon: Users,
     accent: 'bg-amber-500',
     iconColor: 'text-amber-600 dark:text-amber-400',
@@ -59,8 +59,8 @@ export const PROGRAMS: ProgramDef[] = [
   },
   {
     slug: 'karyawan',
-    title: 'Karyawan',
-    description: "Program pengembangan dan pemberdayaan karyawan Rumah Qur'an LHI",
+    title: 'Pembinaan Karyawan SIT LHI',
+    description: 'Program pengembangan dan pemberdayaan karyawan SIT LHI',
     icon: Briefcase,
     accent: 'bg-sky-500',
     iconColor: 'text-sky-600 dark:text-sky-400',
@@ -68,7 +68,7 @@ export const PROGRAMS: ProgramDef[] = [
   },
   {
     slug: 'guru-quran',
-    title: "Guru Qur'an",
+    title: "Pembinaan Guru Qur'an",
     description: "Program khusus peningkatan kualitas dan kapasitas Guru Qur'an Rumah Qur'an LHI",
     icon: Star,
     accent: 'bg-rose-500',
