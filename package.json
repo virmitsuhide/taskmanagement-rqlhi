@@ -15,7 +15,8 @@
     "seed": "tsx scripts/seed.ts",
     "seed:phase0": "tsx scripts/seed-phase0.ts",
     "seed:teachers": "tsx scripts/seed-teachers.ts",
-    "seed:demo": "tsx scripts/seed-demo.ts"
+    "seed:demo": "tsx scripts/seed-demo.ts",
+    "seed:demo:content": "tsx scripts/seed-demo-content.ts"
   },
   "dependencies": {
     "@auth/drizzle-adapter": "^1.11.2",
