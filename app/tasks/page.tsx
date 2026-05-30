@@ -47,7 +47,7 @@ export default async function TasksPage({ searchParams }: PageProps) {
   if (activeTab === 'active') {
     let q = supabase
       .from('tasks')
-      .select('*, assigner:users!tasks_assigned_by_fkey(id, display_name, role)')
+      .select('*, assigner:users!assigned_by(id, display_name, role)')
       .eq('assigned_to', session.userId)
       .in('status', ACTIVE_STATUSES)
       .order('priority', { ascending: false })
@@ -66,7 +66,7 @@ export default async function TasksPage({ searchParams }: PageProps) {
     if (activeTab === 'delegated') {
       listQuery = supabase
         .from('tasks')
-        .select('*, assignee:users!tasks_assigned_to_fkey(id, display_name, role)')
+        .select('*, assignee:users!assigned_to(id, display_name, role)')
         .eq('assigned_by', session.userId)
         .neq('assigned_to', session.userId)
         .order('created_at', { ascending: false })
@@ -75,7 +75,7 @@ export default async function TasksPage({ searchParams }: PageProps) {
     } else {
       listQuery = supabase
         .from('tasks')
-        .select('*, assigner:users!tasks_assigned_by_fkey(id, display_name, role)')
+        .select('*, assigner:users!assigned_by(id, display_name, role)')
         .eq('assigned_to', session.userId)
         .eq('status', 'done')
         .order('updated_at', { ascending: false })

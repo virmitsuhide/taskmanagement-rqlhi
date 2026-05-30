@@ -30,7 +30,7 @@ interface GetBoardOpts {
 
 export async function getBoardTasks({ session, scope, divisi }: GetBoardOpts): Promise<BoardColumn[]> {
   const supabase = createServerClient()
-  const selectCols = '*, assignee:users!tasks_assigned_to_fkey(id, display_name, role), assigner:users!tasks_assigned_by_fkey(id, display_name, role)'
+  const selectCols = '*, assignee:users!assigned_to(id, display_name, role), assigner:users!assigned_by(id, display_name, role)'
 
   let tasks: Task[] = []
 

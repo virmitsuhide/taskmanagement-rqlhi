@@ -37,7 +37,7 @@ export default async function PrMatrixPage() {
   // Ambil semua task dengan assignee+assigner
   const { data: taskRows } = await supabase
     .from('tasks')
-    .select('*, assignee:users!tasks_assigned_to_fkey(id, display_name, role), assigner:users!tasks_assigned_by_fkey(id, display_name, role)')
+    .select('*, assignee:users!assigned_to(id, display_name, role), assigner:users!assigned_by(id, display_name, role)')
     .order('priority', { ascending: false })
     .order('created_at', { ascending: false })
   const tasks = (taskRows ?? []) as Task[]

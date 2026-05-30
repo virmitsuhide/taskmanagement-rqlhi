@@ -38,7 +38,7 @@ export async function getMyActiveTasks(userId: string) {
   const supabase = createServerClient()
   const { data } = await supabase
     .from('tasks')
-    .select('*, assigner:users!tasks_assigned_by_fkey(id, display_name, role)')
+    .select('*, assigner:users!assigned_by(id, display_name, role)')
     .eq('assigned_to', userId)
     .not('status', 'in', '("done")')
     .order('priority', { ascending: false })
@@ -62,7 +62,7 @@ export async function getPendingVerifications(userId: string) {
   const supabase = createServerClient()
   const { data } = await supabase
     .from('tasks')
-    .select('*, assignee:users!tasks_assigned_to_fkey(id, display_name, role)')
+    .select('*, assignee:users!assigned_to(id, display_name, role)')
     .eq('assigned_by', userId)
     .eq('status', 'submitted')
     .order('updated_at', { ascending: false })

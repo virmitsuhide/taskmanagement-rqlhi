@@ -45,8 +45,8 @@ export default async function TaskDetailPage({ params }: { params: Promise<{ id:
     .from('tasks')
     .select(`
       *,
-      assignee:users!tasks_assigned_to_fkey(id, display_name, role),
-      assigner:users!tasks_assigned_by_fkey(id, display_name, role)
+      assignee:users!assigned_to(id, display_name, role),
+      assigner:users!assigned_by(id, display_name, role)
     `)
     .eq('id', id)
     .single()

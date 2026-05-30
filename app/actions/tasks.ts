@@ -96,7 +96,7 @@ export async function updateTaskStatusAction(
   const supabase = createServerClient()
   const { data: task } = await supabase
     .from('tasks')
-    .select('status, assigned_by, assigned_to, title, users!tasks_assigned_by_fkey(email, display_name), assignee:users!tasks_assigned_to_fkey(email, display_name)')
+    .select('status, assigned_by, assigned_to, title, users!assigned_by(email, display_name), assignee:users!assigned_to(email, display_name)')
     .eq('id', taskId)
     .single()
 
