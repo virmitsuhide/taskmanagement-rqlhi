@@ -32,7 +32,7 @@ export interface RqAnalytics {
   tasks: { byStatus: Record<TaskStatus, number>; total: number }
 }
 
-const JENJANG_ORDER: Jenjang[] = ['paud', 'sd', 'smp', 'sma']
+const JENJANG_ORDER: Jenjang[] = ['paud', 'sd', 'sd_juara', 'smp', 'sma']
 
 export async function getRqAnalytics(): Promise<RqAnalytics> {
   const supabase = createServerClient()
@@ -165,5 +165,132 @@ export async function getRqAnalytics(): Promise<RqAnalytics> {
     halaqohLeaderboard,
     attention,
     tasks: { byStatus, total: totalTasks },
+  }
+}
+
+// ─── Analitik khusus Tahsin & Tahfidz (manajemen) ───────────────────
+type Avg3 = { fashohah: number | null; tajwid: number | null; kelancaran: number | null }
+
+export interface TahsinTahfidzAnalytics {
+  monthLabel: string
+  totals: { activeStudents: number; lulusTahsin: number; totalAyatHafal: number; juzMutqin: number }
+  byJenjang: { jenjang: Jenjang; count: number }[]
+  byMethod: { method: string; count: number }[]
+  levelDistribution: {
+    method: string
+    levels: { label: string; order_num: number; count: number; isTerminal: boolean; isQuran: boolean }[]
+  }[]
+  tahsinMonth: { setoran: number; lulus: number; ulang: number; avg: Avg3 }
+  tahfidzMonth: { ziyadah: number; murojaahBaru: number; murojaahLama: number; tasmi: number; avg: Avg3 }
+  juzHistogram: { juz: number; students: number }[]
+}
+
+// Rata-rata nilai (coerce Number — numeric Postgres bisa string), bulat 0.5.
+function avgOf(vals: (number | string | null | undefined)[]): number | null {
+  const n = vals.map(Number).filter(v => !Number.isNaN(v))
+  if (n.length === 0) return null
+  return Math.round((n.reduce((a, b) => a + b, 0) / n.length) * 2) / 2
+}
+
+export async function getTahsinTahfidzAnalytics(): Promise<TahsinTahfidzAnalytics> {
+  const supabase = createServerClient()
+  const now = new Date()
+  const monthStartIso = isoDate(new Date(now.getFullYear(), now.getMonth(), 1))
+  const monthEndIso = isoDate(new Date(now.getFullYear(), now.getMonth() + 1, 0))
+
+  const [
+    studentsRes, methodsRes, levelsRes, juzProgressRes,
+    tahsinMonthRes, tahfidzMonthRes, tasmiMonthRes,
+  ] = await Promise.all([
+    supabase.from('students').select('jenjang, current_method_id, current_jilid_id').eq('is_active', true),
+    supabase.from('tahsin_methods').select('id, name').eq('is_active', true),
+    supabase.from('jilid_levels').select('id, method_id, label, order_num, is_terminal, is_quran'),
+    supabase.from('juz_progress').select('student_id, juz_number, ayat_hafal, mutqin'),
+    supabase.from('tahsin_logs').select('status, nilai_fashohah, nilai_tajwid, nilai_kelancaran').gte('setoran_date', monthStartIso).lte('setoran_date', monthEndIso),
+    supabase.from('tahfidz_logs').select('kind, nilai_fashohah, nilai_tajwid, nilai_kelancaran').gte('setoran_date', monthStartIso).lte('setoran_date', monthEndIso),
+    supabase.from('tasmi_logs').select('nilai_fashohah, nilai_tajwid, nilai_kelancaran').gte('setoran_date', monthStartIso).lte('setoran_date', monthEndIso),
+  ])
+
+  const students = (studentsRes.data ?? []) as { jenjang: Jenjang; current_method_id: string | null; current_jilid_id: string | null }[]
+  const methods = (methodsRes.data ?? []) as { id: string; name: string }[]
+  const levels = (levelsRes.data ?? []) as { id: string; method_id: string; label: string; order_num: number; is_terminal: boolean; is_quran: boolean }[]
+  const levelById = new Map(levels.map(l => [l.id, l]))
+
+  // Distribusi jenjang & metode
+  const jenjangMap = new Map<Jenjang, number>()
+  const methodMap = new Map<string, number>()
+  let lulusTahsin = 0
+  const levelCount = new Map<string, number>() // level_id → count
+  for (const s of students) {
+    jenjangMap.set(s.jenjang, (jenjangMap.get(s.jenjang) ?? 0) + 1)
+    if (s.current_method_id) methodMap.set(s.current_method_id, (methodMap.get(s.current_method_id) ?? 0) + 1)
+    if (s.current_jilid_id) {
+      levelCount.set(s.current_jilid_id, (levelCount.get(s.current_jilid_id) ?? 0) + 1)
+      if (levelById.get(s.current_jilid_id)?.is_terminal) lulusTahsin++
+    }
+  }
+  const byJenjang = JENJANG_ORDER.map(j => ({ jenjang: j, count: jenjangMap.get(j) ?? 0 })).filter(x => x.count > 0)
+  const byMethod = methods.map(m => ({ method: m.name, count: methodMap.get(m.id) ?? 0 })).filter(x => x.count > 0)
+
+  // Distribusi level per metode (semua level, termasuk yang kosong → terlihat cakupannya)
+  const levelDistribution = methods.map(m => ({
+    method: m.name,
+    levels: levels
+      .filter(l => l.method_id === m.id)
+      .sort((a, b) => a.order_num - b.order_num)
+      .map(l => ({ label: l.label, order_num: l.order_num, count: levelCount.get(l.id) ?? 0, isTerminal: l.is_terminal, isQuran: l.is_quran })),
+  })).filter(m => m.levels.length > 0)
+
+  // Juz
+  const juzProgress = (juzProgressRes.data ?? []) as { student_id: string; juz_number: number; ayat_hafal: number; mutqin: boolean }[]
+  const totalAyatHafal = juzProgress.reduce((sum, j) => sum + (j.ayat_hafal ?? 0), 0)
+  const juzMutqin = juzProgress.filter(j => j.mutqin).length
+  // Histogram: juz tertinggi yang dicapai tiap siswa
+  const maxJuzByStudent = new Map<string, number>()
+  for (const j of juzProgress) {
+    maxJuzByStudent.set(j.student_id, Math.max(maxJuzByStudent.get(j.student_id) ?? 0, j.juz_number))
+  }
+  const juzHistMap = new Map<number, number>()
+  for (const juz of maxJuzByStudent.values()) juzHistMap.set(juz, (juzHistMap.get(juz) ?? 0) + 1)
+  const juzHistogram = [...juzHistMap.entries()].map(([juz, students]) => ({ juz, students })).sort((a, b) => a.juz - b.juz)
+
+  // Tahsin bulan ini
+  const tahsinLogs = (tahsinMonthRes.data ?? []) as { status: string; nilai_fashohah: number | string | null; nilai_tajwid: number | string | null; nilai_kelancaran: number | string | null }[]
+  const tahsinMonth = {
+    setoran: tahsinLogs.length,
+    lulus: tahsinLogs.filter(l => l.status === 'lulus').length,
+    ulang: tahsinLogs.filter(l => l.status === 'ulang').length,
+    avg: {
+      fashohah: avgOf(tahsinLogs.map(l => l.nilai_fashohah)),
+      tajwid: avgOf(tahsinLogs.map(l => l.nilai_tajwid)),
+      kelancaran: avgOf(tahsinLogs.map(l => l.nilai_kelancaran)),
+    },
+  }
+
+  // Tahfidz bulan ini
+  const tahfidzLogs = (tahfidzMonthRes.data ?? []) as { kind: string; nilai_fashohah: number | string | null; nilai_tajwid: number | string | null; nilai_kelancaran: number | string | null }[]
+  const normKind = (k: string) => (k === 'hafalan_baru' ? 'ziyadah' : k === 'murojaah' ? 'murojaah_baru' : k)
+  const tasmiLogs = (tasmiMonthRes.data ?? []) as { nilai_fashohah: number | string | null; nilai_tajwid: number | string | null; nilai_kelancaran: number | string | null }[]
+  const tahfidzMonth = {
+    ziyadah: tahfidzLogs.filter(l => normKind(l.kind) === 'ziyadah').length,
+    murojaahBaru: tahfidzLogs.filter(l => normKind(l.kind) === 'murojaah_baru').length,
+    murojaahLama: tahfidzLogs.filter(l => normKind(l.kind) === 'murojaah_lama').length,
+    tasmi: tasmiLogs.length,
+    avg: {
+      fashohah: avgOf([...tahfidzLogs, ...tasmiLogs].map(l => l.nilai_fashohah)),
+      tajwid: avgOf([...tahfidzLogs, ...tasmiLogs].map(l => l.nilai_tajwid)),
+      kelancaran: avgOf([...tahfidzLogs, ...tasmiLogs].map(l => l.nilai_kelancaran)),
+    },
+  }
+
+  return {
+    monthLabel: `${MONTH_ID[now.getMonth()]} ${now.getFullYear()}`,
+    totals: { activeStudents: students.length, lulusTahsin, totalAyatHafal, juzMutqin },
+    byJenjang,
+    byMethod,
+    levelDistribution,
+    tahsinMonth,
+    tahfidzMonth,
+    juzHistogram,
   }
 }

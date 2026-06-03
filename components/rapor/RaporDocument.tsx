@@ -1,15 +1,11 @@
 import type { RaporData } from '@/lib/data/rapor'
+import { StarValue } from '@/components/StarValue'
 
 const JENJANG_LABELS: Record<string, string> = { paud: 'PAUD', sd: 'SD', sd_juara: 'SD Juara', smp: 'SMP', sma: 'SMA' }
 
-function Stars({ value }: { value: number | null }) {
-  if (value === null) return <span className="text-muted-foreground">—</span>
-  const full = Math.round(value)
-  return (
-    <span style={{ color: 'var(--primary)', letterSpacing: 1 }}>
-      {'★'.repeat(full)}{'☆'.repeat(5 - full)} <span className="text-muted-foreground text-xs">({value})</span>
-    </span>
-  )
+function Stars({ value }: { value: number | string | null }) {
+  if (value === null || value === undefined) return <span className="text-muted-foreground">—</span>
+  return <StarValue value={value} size={14} />
 }
 
 /**
@@ -57,7 +53,7 @@ export function RaporDocument({ data }: { data: RaporData }) {
         <Section title="📖 Capaian Tahsin">
           <Row k="Posisi Saat Ini" v={tahsin.currentMethod && tahsin.currentJilid ? `${tahsin.currentMethod} ${tahsin.currentJilid} · hal. ${tahsin.currentPage ?? '—'}` : 'Belum ada data'} />
           <Row k="Setoran Bulan Ini" v={`${tahsin.setoranCount}x (${tahsin.lulusCount} lulus)`} />
-          <Row k="Makhraj" v={<Stars value={tahsin.avgMakhraj} />} />
+          <Row k="Fashohah" v={<Stars value={tahsin.avgFashohah} />} />
           <Row k="Tajwid" v={<Stars value={tahsin.avgTajwid} />} />
           <Row k="Kelancaran" v={<Stars value={tahsin.avgKelancaran} />} />
           {tahsin.promotions.length > 0 && (

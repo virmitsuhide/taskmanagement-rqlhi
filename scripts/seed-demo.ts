@@ -155,7 +155,7 @@ async function main() {
           setoran_date: dateStr,
           method_id: tilawati.id, jilid_id: s.jilid.id, halaman: s.page ?? int(1, 30),
           baris_dari: 1, baris_ke: int(3, 5),
-          nilai_makhraj: int(3, 5), nilai_tajwid: int(3, 5), nilai_kelancaran: int(3, 5),
+          nilai_fashohah: int(3, 5), nilai_tajwid: int(3, 5), nilai_kelancaran: int(3, 5),
           status: chance(0.85) ? 'lulus' : 'ulang',
           catatan: chance(0.3) ? rand(['Bagus, lanjutkan!', 'Perhatikan madd thabi\'i', 'Latih lagi makharijul huruf', 'Alhamdulillah lancar']) : null,
         })
@@ -170,7 +170,7 @@ async function main() {
             setoran_date: dateStr,
             kind: chance(0.6) ? 'hafalan_baru' : 'murojaah',
             surat_id: surat.id, ayat_dari: ayatDari, ayat_ke: ayatKe,
-            nilai_makhraj: int(3, 5), nilai_tajwid: int(3, 5), nilai_kelancaran: int(3, 5),
+            nilai_fashohah: int(3, 5), nilai_tajwid: int(3, 5), nilai_kelancaran: int(3, 5),
           })
         }
       }

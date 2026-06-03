@@ -346,7 +346,7 @@ export interface TahsinLog {
   halaman: number | null
   baris_dari: number | null
   baris_ke: number | null
-  nilai_makhraj: number | null
+  nilai_fashohah: number | null
   nilai_tajwid: number | null
   nilai_kelancaran: number | null
   status: TahsinStatus
@@ -383,7 +383,7 @@ export interface TahfidzLog {
   surat_id: number
   ayat_dari: number
   ayat_ke: number
-  nilai_makhraj: number | null
+  nilai_fashohah: number | null
   nilai_tajwid: number | null
   nilai_kelancaran: number | null
   catatan: string | null
@@ -424,7 +424,7 @@ export interface TasmiLog {
   scope_juz: TasmiScope          // 3 atau 5
   juz_from: number               // juz awal (1-30)
   juz_to: number                 // juz akhir (1-30)
-  nilai_makhraj: number | null
+  nilai_fashohah: number | null
   nilai_tajwid: number | null
   nilai_kelancaran: number | null
   status: TahsinStatus           // lulus | ulang

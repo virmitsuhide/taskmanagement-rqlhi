@@ -55,7 +55,7 @@ export async function createTahsinLogAction(_: unknown, formData: FormData) {
   const halaman = formData.get('halaman') ? Number(formData.get('halaman')) : null
   const barisDari = formData.get('baris_dari') ? Number(formData.get('baris_dari')) : null
   const barisKe = formData.get('baris_ke') ? Number(formData.get('baris_ke')) : null
-  const nilaiMakhraj = formData.get('nilai_makhraj') ? Number(formData.get('nilai_makhraj')) : null
+  const nilaiFashohah = formData.get('nilai_fashohah') ? Number(formData.get('nilai_fashohah')) : null
   const nilaiTajwid = formData.get('nilai_tajwid') ? Number(formData.get('nilai_tajwid')) : null
   const nilaiKelancaran = formData.get('nilai_kelancaran') ? Number(formData.get('nilai_kelancaran')) : null
   const status = ((formData.get('status') as string) || 'lulus') as TahsinStatus
@@ -86,7 +86,7 @@ export async function createTahsinLogAction(_: unknown, formData: FormData) {
     halaman: halaman,
     baris_dari: barisDari,
     baris_ke: barisKe,
-    nilai_makhraj: nilaiMakhraj,
+    nilai_fashohah: nilaiFashohah,
     nilai_tajwid: nilaiTajwid,
     nilai_kelancaran: nilaiKelancaran,
     status,
@@ -163,7 +163,7 @@ export async function createTahfidzLogAction(_: unknown, formData: FormData) {
   const suratId = formData.get('surat_id') ? Number(formData.get('surat_id')) : null
   const ayatDari = formData.get('ayat_dari') ? Number(formData.get('ayat_dari')) : null
   const ayatKe = formData.get('ayat_ke') ? Number(formData.get('ayat_ke')) : null
-  const nilaiMakhraj = formData.get('nilai_makhraj') ? Number(formData.get('nilai_makhraj')) : null
+  const nilaiFashohah = formData.get('nilai_fashohah') ? Number(formData.get('nilai_fashohah')) : null
   const nilaiTajwid = formData.get('nilai_tajwid') ? Number(formData.get('nilai_tajwid')) : null
   const nilaiKelancaran = formData.get('nilai_kelancaran') ? Number(formData.get('nilai_kelancaran')) : null
   const catatan = ((formData.get('catatan') as string) || '').trim() || null
@@ -205,7 +205,7 @@ export async function createTahfidzLogAction(_: unknown, formData: FormData) {
     surat_id: suratId,
     ayat_dari: ayatDari,
     ayat_ke: ayatKe,
-    nilai_makhraj: nilaiMakhraj,
+    nilai_fashohah: nilaiFashohah,
     nilai_tajwid: nilaiTajwid,
     nilai_kelancaran: nilaiKelancaran,
     catatan,
@@ -258,7 +258,7 @@ export async function createTasmiLogAction(_: unknown, formData: FormData) {
   const scopeJuz = formData.get('scope_juz') ? Number(formData.get('scope_juz')) : null
   const juzFrom = formData.get('juz_from') ? Number(formData.get('juz_from')) : null
   const juzTo = formData.get('juz_to') ? Number(formData.get('juz_to')) : null
-  const nilaiMakhraj = formData.get('nilai_makhraj') ? Number(formData.get('nilai_makhraj')) : null
+  const nilaiFashohah = formData.get('nilai_fashohah') ? Number(formData.get('nilai_fashohah')) : null
   const nilaiTajwid = formData.get('nilai_tajwid') ? Number(formData.get('nilai_tajwid')) : null
   const nilaiKelancaran = formData.get('nilai_kelancaran') ? Number(formData.get('nilai_kelancaran')) : null
   const status = ((formData.get('status') as string) || 'lulus') as TahsinStatus
@@ -288,7 +288,7 @@ export async function createTasmiLogAction(_: unknown, formData: FormData) {
     scope_juz: scopeJuz,
     juz_from: juzFrom,
     juz_to: juzTo,
-    nilai_makhraj: nilaiMakhraj,
+    nilai_fashohah: nilaiFashohah,
     nilai_tajwid: nilaiTajwid,
     nilai_kelancaran: nilaiKelancaran,
     status,

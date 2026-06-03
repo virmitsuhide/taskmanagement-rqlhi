@@ -33,6 +33,21 @@ export default async function AnalitikPage() {
           <p className="text-sm text-muted-foreground mt-0.5">Agregat lintas divisi &amp; halaqoh · {a.monthLabel}</p>
         </div>
 
+        <Link
+          href="/dashboard/analitik/tahsin-tahfidz"
+          className="flex items-center justify-between rounded-xl border bg-card p-4 hover:bg-muted/40 transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            <span className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'var(--primary-wash)', color: 'var(--primary)' }}>
+              <Sparkles className="h-4 w-4" />
+            </span>
+            <div>
+              <p className="text-sm font-semibold">Analitik Tahsin &amp; Tahfidz →</p>
+              <p className="text-xs text-muted-foreground">Sebaran metode, tahap, nilai (bintang) &amp; hafalan per juz</p>
+            </div>
+          </div>
+        </Link>
+
         {/* KPI utama */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           <Kpi icon={<Users className="h-4 w-4" />} label="Siswa Aktif" value={a.overview.activeStudents} />

@@ -8,7 +8,8 @@
  *    baru & lama / tasmi 3 & 5 juz).
  *
  * Prasyarat:
- *   - migrasi 0006 + `npx tsx scripts/seed-phase0.ts` (metode UMMI/KIBAR/Syajaroh)
+ *   - migrasi 0006 + 0007 (nilai numeric utk setengah bintang) sudah diterapkan
+ *   - `npx tsx scripts/seed-phase0.ts` (metode UMMI/KIBAR/Syajaroh)
  *   - guru demo: `npm run seed:teachers` (ust_ahmad, ust_fatimah, ust_yusuf)
  *
  * Idempotent: reset di awal membuat skrip aman dijalankan berulang.
@@ -33,6 +34,8 @@ const daysAgo = (n: number) => { const d = new Date(); d.setDate(d.getDate() - n
 const int = (min: number, max: number) => Math.floor(Math.random() * (max - min + 1)) + min
 const pick = <T,>(a: T[]): T => a[Math.floor(Math.random() * a.length)]
 const chance = (p: number) => Math.random() < p
+// nilai setengah-bintang acak [min..5] kelipatan 0.5 (mis. 3, 3.5, 4, 4.5, 5)
+const score = (min = 3): number => { const o: number[] = []; for (let v = min; v <= 5; v += 0.5) o.push(v); return pick(o) }
 
 // Metode → jenjang/unit representatif untuk demo (sesuai kebijakan RQ LHI)
 const METHOD_JENJANG: Record<string, string> = { UMMI: 'sd', KIBAR: 'sd_juara', Syajaroh: 'smp' }
@@ -83,6 +86,7 @@ async function ensureHalaqoh(walis: Record<string, string>) {
       if (error || !data) { console.error(`  ✗ halaqoh ${h.name}: ${error?.message}`); continue }
       id = data.id
     }
+    if (!id) continue
     map[h.method] = { id, wali: h.wali }
   }
   console.log(`  ✓ ${Object.keys(map).length} halaqoh siap`)
@@ -155,7 +159,7 @@ async function seedTahsinLogs(created: Created[]) {
         halaman: c.level.is_quran ? null : (c.level.total_pages ? int(1, c.level.total_pages) : null),
         baris_dari: c.level.is_quran ? null : 1,
         baris_ke: c.level.is_quran ? null : int(3, 5),
-        nilai_makhraj: int(3, 5), nilai_tajwid: int(3, 5), nilai_kelancaran: int(3, 5),
+        nilai_fashohah: score(3), nilai_tajwid: score(3), nilai_kelancaran: score(3),
         status: chance(0.85) ? 'lulus' : 'ulang',
         catatan: chance(0.3) ? pick(CATATAN) : null,
       })
@@ -193,7 +197,7 @@ async function seedTahfidz(created: Created[]) {
         student_id: c.studentId, teacher_id: c.teacherId, halaqoh_id: c.halaqohId,
         setoran_date: isoDate(daysAgo(int(1, 20))), kind: 'ziyadah',
         surat_id: sr.id, ayat_dari: dari, ayat_ke: Math.min(sr.total_ayat, dari + int(2, 4)),
-        nilai_makhraj: int(3, 5), nilai_tajwid: int(3, 5), nilai_kelancaran: int(3, 5),
+        nilai_fashohah: score(3), nilai_tajwid: score(3), nilai_kelancaran: score(3),
       })
     }
     // Muroja'ah baru di juz 29 (juz berjalan)
@@ -204,7 +208,7 @@ async function seedTahfidz(created: Created[]) {
         student_id: c.studentId, teacher_id: c.teacherId, halaqoh_id: c.halaqohId,
         setoran_date: isoDate(daysAgo(int(1, 14))), kind: 'murojaah_baru',
         surat_id: sr.id, ayat_dari: dari, ayat_ke: Math.min(sr.total_ayat, dari + int(1, 3)),
-        nilai_makhraj: int(3, 5), nilai_tajwid: int(3, 5), nilai_kelancaran: int(3, 5),
+        nilai_fashohah: score(3), nilai_tajwid: score(3), nilai_kelancaran: score(3),
       })
     }
     // Dua siswa pertama: juz 30 sudah diujikan (mutqin) + muroja'ah lama
@@ -215,7 +219,7 @@ async function seedTahfidz(created: Created[]) {
         student_id: c.studentId, teacher_id: c.teacherId, halaqoh_id: c.halaqohId,
         setoran_date: isoDate(daysAgo(int(1, 10))), kind: 'murojaah_lama',
         surat_id: sr.id, ayat_dari: dari, ayat_ke: Math.min(sr.total_ayat, dari + int(1, 3)),
-        nilai_makhraj: int(4, 5), nilai_tajwid: int(4, 5), nilai_kelancaran: int(4, 5),
+        nilai_fashohah: score(4), nilai_tajwid: score(4), nilai_kelancaran: score(4),
       })
     }
   })
@@ -240,8 +244,8 @@ async function seedTahfidz(created: Created[]) {
   }
 
   // Tasmi': 1 siswa 3 juz (1–3), 1 siswa 5 juz (1–5)
-  if (advanced[0]) tasmi.push({ student_id: advanced[0].studentId, teacher_id: advanced[0].teacherId, halaqoh_id: advanced[0].halaqohId, setoran_date: isoDate(daysAgo(7)), scope_juz: 3, juz_from: 1, juz_to: 3, nilai_makhraj: int(4, 5), nilai_tajwid: int(4, 5), nilai_kelancaran: int(4, 5), status: 'lulus', catatan: 'Tasmi 3 juz lancar' })
-  if (advanced[1]) tasmi.push({ student_id: advanced[1].studentId, teacher_id: advanced[1].teacherId, halaqoh_id: advanced[1].halaqohId, setoran_date: isoDate(daysAgo(4)), scope_juz: 5, juz_from: 1, juz_to: 5, nilai_makhraj: int(3, 5), nilai_tajwid: int(3, 5), nilai_kelancaran: int(3, 5), status: chance(0.5) ? 'lulus' : 'ulang', catatan: 'Tasmi 5 juz' })
+  if (advanced[0]) tasmi.push({ student_id: advanced[0].studentId, teacher_id: advanced[0].teacherId, halaqoh_id: advanced[0].halaqohId, setoran_date: isoDate(daysAgo(7)), scope_juz: 3, juz_from: 1, juz_to: 3, nilai_fashohah: score(4), nilai_tajwid: score(4), nilai_kelancaran: score(4), status: 'lulus', catatan: 'Tasmi 3 juz lancar' })
+  if (advanced[1]) tasmi.push({ student_id: advanced[1].studentId, teacher_id: advanced[1].teacherId, halaqoh_id: advanced[1].halaqohId, setoran_date: isoDate(daysAgo(4)), scope_juz: 5, juz_from: 1, juz_to: 5, nilai_fashohah: score(3), nilai_tajwid: score(3), nilai_kelancaran: score(3), status: chance(0.5) ? 'lulus' : 'ulang', catatan: 'Tasmi 5 juz' })
 
   if (tasmi.length) {
     const { error } = await supabase.from('tasmi_logs').insert(tasmi)

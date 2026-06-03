@@ -6,10 +6,11 @@ const MONTH_ID = [
   'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
 ]
 
-function avg(nums: (number | null)[]): number | null {
-  const valid = nums.filter((n): n is number => typeof n === 'number')
+// Coerce Number: numeric(2,1) Postgres bisa datang sebagai string lewat PostgREST.
+function avg(nums: (number | string | null)[]): number | null {
+  const valid = nums.map(Number).filter(n => !Number.isNaN(n))
   if (valid.length === 0) return null
-  return Math.round((valid.reduce((a, b) => a + b, 0) / valid.length) * 10) / 10
+  return Math.round((valid.reduce((a, b) => a + b, 0) / valid.length) * 2) / 2
 }
 
 export interface RaporData {
@@ -29,7 +30,7 @@ export interface RaporData {
   tahsin: {
     setoranCount: number
     lulusCount: number
-    avgMakhraj: number | null
+    avgFashohah: number | null
     avgTajwid: number | null
     avgKelancaran: number | null
     currentMethod: string | null
@@ -92,7 +93,7 @@ export async function getStudentRaporData(
   const [tahsinRes, tahfidzRes, jilidPromRes, juzPromRes, juzProgRes] = await Promise.all([
     supabase
       .from('tahsin_logs')
-      .select('setoran_date, nilai_makhraj, nilai_tajwid, nilai_kelancaran, status, catatan')
+      .select('setoran_date, nilai_fashohah, nilai_tajwid, nilai_kelancaran, status, catatan')
       .eq('student_id', studentId).gte('setoran_date', startIso).lte('setoran_date', endIso)
       .order('setoran_date', { ascending: false }),
     supabase
@@ -156,7 +157,7 @@ export async function getStudentRaporData(
     tahsin: {
       setoranCount: tahsinLogs.length,
       lulusCount: tahsinLogs.filter(l => l.status === 'lulus').length,
-      avgMakhraj: avg(tahsinLogs.map(l => l.nilai_makhraj)),
+      avgFashohah: avg(tahsinLogs.map(l => l.nilai_fashohah)),
       avgTajwid: avg(tahsinLogs.map(l => l.nilai_tajwid)),
       avgKelancaran: avg(tahsinLogs.map(l => l.nilai_kelancaran)),
       currentMethod: s.current_method?.name ?? null,

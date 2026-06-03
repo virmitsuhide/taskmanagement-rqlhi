@@ -147,8 +147,8 @@ export function TahsinSetoranForm({ students, methods, jilidLevels, defaultStude
         <legend className="text-sm font-semibold mb-3">Penilaian</legend>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 bg-muted/30 rounded-lg p-4">
           <div>
-            <p className="text-xs font-medium mb-1.5">Makhraj</p>
-            <StarRating name="nilai_makhraj" />
+            <p className="text-xs font-medium mb-1.5">Fashohah</p>
+            <StarRating name="nilai_fashohah" />
           </div>
           <div>
             <p className="text-xs font-medium mb-1.5">Tajwid</p>
