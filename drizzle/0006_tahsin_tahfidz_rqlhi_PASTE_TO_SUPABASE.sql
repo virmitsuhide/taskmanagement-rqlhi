@@ -1,22 +1,16 @@
 -- ============================================================
--- PHASE 7 — Tahsin & Tahfidz sesuai metodologi RQ LHI
+-- PHASE 7 — Tahsin & Tahfidz RQ LHI — STEP 2 dari 2 (OBJEK + BACKFILL)
 -- ============================================================
 -- 📋 CARA PAKAI:
---    1. Supabase Dashboard → SQL Editor → New query
---    2. Copy SELURUH isi file ini, paste, lalu Run
---    3. SQL Editor jalan autocommit (per-statement) → urutan di bawah aman.
+--    1. WAJIB jalankan STEP 1 dulu: 0006a_enums_PASTE_TO_SUPABASE.sql
+--       (sampai sukses — nilai enum baru harus commit dulu).
+--    2. Baru paste & Run file ini.
 --
--- ⚠️ Jika muncul error "unsafe use of new value ... tahfidz_kind" pada bagian
---    BACKFILL: berarti editor membungkus dalam 1 transaksi. Solusi: blok &
---    Run dulu bagian "ENUM" (5 statement ALTER TYPE) sendirian, baru Run sisanya.
+--    Pemisahan ini wajib karena SQL Editor membungkus skrip dalam 1 transaksi,
+--    sedangkan nilai enum baru (mis. 'ziyadah') tak boleh dipakai di transaksi
+--    yang sama saat ia ditambahkan → error 55P04. STEP 1 meng-commit enum,
+--    STEP 2 (transaksi baru) aman memakainya di UPDATE backfill.
 -- ============================================================
-
--- ENUM: unit baru SD Juara + jenis setoran tahfidz baru
-ALTER TYPE "jenjang"       ADD VALUE IF NOT EXISTS 'sd_juara';
-ALTER TYPE "tahfidz_kind"  ADD VALUE IF NOT EXISTS 'ziyadah';
-ALTER TYPE "tahfidz_kind"  ADD VALUE IF NOT EXISTS 'murojaah_baru';
-ALTER TYPE "tahfidz_kind"  ADD VALUE IF NOT EXISTS 'murojaah_lama';
-ALTER TYPE "tahfidz_kind"  ADD VALUE IF NOT EXISTS 'tasmi';
 
 -- jilid_levels: tahap terakhir = "Lulus Tahsin"
 ALTER TABLE "jilid_levels"
@@ -72,7 +66,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- BACKFILL istilah lama → baru (aman di autocommit; lihat catatan ⚠️ di atas)
+-- BACKFILL istilah lama → baru (aman: nilai enum sudah di-commit di STEP 1)
 UPDATE "tahfidz_logs" SET "kind" = 'ziyadah'       WHERE "kind" = 'hafalan_baru';
 UPDATE "tahfidz_logs" SET "kind" = 'murojaah_baru' WHERE "kind" = 'murojaah';
 
