@@ -9,7 +9,7 @@ const playfair = Playfair_Display({ subsets: ['latin'], variable: '--font-playfa
 export default function TeacherLayout({ children }: { children: ReactNode }) {
   return (
     <div
-      className={`${lora.variable} ${playfair.variable}`}
+      className={`theme-light ${lora.variable} ${playfair.variable} bg-background text-foreground`}
       style={{ fontFamily: 'var(--font-lora), Georgia, serif' }}
     >
       {children}

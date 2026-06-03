@@ -70,7 +70,7 @@ export default async function TeacherDetailPage({ params, searchParams }: PagePr
             <div className="flex-1 min-w-[200px]">
               <div className="flex items-center gap-2 flex-wrap">
                 <h1 className="text-2xl font-bold leading-tight">{teacher.full_name}</h1>
-                {!teacher.is_active && <span className="text-xs text-amber-600">⚠ Nonaktif</span>}
+                {!teacher.is_active && <span className="text-xs text-warning">⚠ Nonaktif</span>}
               </div>
               <code className="text-xs bg-muted px-2 py-0.5 rounded">@{teacher.username}</code>
               <div className="flex flex-wrap gap-3 mt-3 text-sm text-muted-foreground">
@@ -132,7 +132,7 @@ export default async function TeacherDetailPage({ params, searchParams }: PagePr
                     </span>
                   </div>
                   {!h.is_active && (
-                    <p className="text-xs text-amber-600 mt-1">⚠ Halaqoh nonaktif</p>
+                    <p className="text-xs text-warning mt-1">⚠ Halaqoh nonaktif</p>
                   )}
                 </Link>
               ))}

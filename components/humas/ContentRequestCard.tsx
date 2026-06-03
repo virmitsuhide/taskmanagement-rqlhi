@@ -14,16 +14,18 @@ const TYPE_LABELS: Record<string, string> = {
   lain_lain: 'Lain-lain',
 }
 
-const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
-  requested: { label: 'Diminta', className: 'bg-yellow-50 text-yellow-700 border-yellow-200' },
-  on_process: { label: 'Diproses', className: 'bg-blue-50 text-blue-700 border-blue-200' },
-  finish: { label: 'Selesai', className: 'bg-green-50 text-green-700 border-green-200' },
+type BadgeVariant = React.ComponentProps<typeof Badge>['variant']
+
+const STATUS_CONFIG: Record<string, { label: string; variant: BadgeVariant }> = {
+  requested: { label: 'Diminta', variant: 'warning' },
+  on_process: { label: 'Diproses', variant: 'info' },
+  finish: { label: 'Selesai', variant: 'success' },
 }
 
-const PRIORITY_CONFIG: Record<string, { label: string; className: string }> = {
-  low: { label: 'Rendah', className: 'bg-gray-50 text-gray-600 border-gray-200' },
-  medium: { label: 'Sedang', className: 'bg-amber-50 text-amber-700 border-amber-200' },
-  high: { label: 'Tinggi', className: 'bg-red-50 text-red-700 border-red-200' },
+const PRIORITY_CONFIG: Record<string, { label: string; variant: BadgeVariant }> = {
+  low: { label: 'Rendah', variant: 'secondary' },
+  medium: { label: 'Sedang', variant: 'warning' },
+  high: { label: 'Tinggi', variant: 'destructive' },
 }
 
 function formatDate(dateStr: string) {
@@ -49,11 +51,11 @@ export function ContentRequestCard({ request }: Props) {
             </p>
           </div>
           <div className="flex flex-col gap-1 items-end shrink-0">
-            <Badge variant="outline" className={`text-xs ${statusConfig.className}`}>
+            <Badge variant={statusConfig.variant} className="text-xs">
               {statusConfig.label}
             </Badge>
             {priorityConfig && (
-              <Badge variant="outline" className={`text-xs ${priorityConfig.className}`}>
+              <Badge variant={priorityConfig.variant} className="text-xs">
                 {priorityConfig.label}
               </Badge>
             )}

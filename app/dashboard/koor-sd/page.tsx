@@ -30,7 +30,7 @@ export default async function KoorSdDashboardPage() {
 
         {pendingVerif.length > 0 && (
           <section>
-            <h2 className="text-sm font-semibold mb-3 text-amber-600">Perlu Verifikasi ({pendingVerif.length})</h2>
+            <h2 className="text-sm font-semibold mb-3 text-warning">Perlu Verifikasi ({pendingVerif.length})</h2>
             <div className="space-y-2">
               {pendingVerif.map(task => <TaskCard key={task.id} task={task} showAssignee />)}
             </div>

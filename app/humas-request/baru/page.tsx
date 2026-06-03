@@ -19,6 +19,7 @@ export default async function BuatHumasRequestPage() {
         role={session.role}
         title="Request Konten ke Humas"
         breadcrumbs={[{ label: 'Request Humas', href: '/humas-request' }, { label: 'Request Baru' }]}
+        ownH1
       />
       <div className="p-4 md:p-6 max-w-2xl mx-auto">
         <Button asChild variant="ghost" size="sm" className="mb-4">

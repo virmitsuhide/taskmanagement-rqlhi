@@ -46,6 +46,7 @@ export default async function EditNewsPage({ params }: PageProps) {
           { label: article.title, href: `/news/${id}` },
           { label: 'Edit' },
         ]}
+        ownH1
       />
       <div className="max-w-2xl mx-auto px-4 md:px-6 py-6 md:py-10">
         <Button asChild variant="ghost" size="sm" className="mb-6 -ml-2">

@@ -74,6 +74,7 @@ export default async function PrMatrixPage() {
         role={session.role}
         title="PR Manajemen"
         breadcrumbs={[{ label: 'Tugas', href: '/tasks' }, { label: 'PR Manajemen' }]}
+        ownH1
       />
       <div className="p-4 md:p-6 max-w-[1400px] mx-auto">
         <div className="flex items-end justify-between gap-3 flex-wrap mb-4">

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef, useEffect, type ReactNode } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
@@ -34,22 +34,84 @@ interface Props {
   username: string
 }
 
+const navLinkClass = (active: boolean) => cn(
+  'flex items-center gap-2.5 rounded-md px-2 py-2 text-sm transition-colors',
+  active
+    ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium'
+    : 'text-sidebar-foreground hover:bg-sidebar-accent/50'
+)
+
+function DrawerLink({ href, icon, label, active, onNavigate }: {
+  href: string
+  icon: ReactNode
+  label: string
+  active: boolean
+  onNavigate: () => void
+}) {
+  return (
+    <li>
+      <Link
+        href={href}
+        onClick={onNavigate}
+        aria-current={active ? 'page' : undefined}
+        className={navLinkClass(active)}
+      >
+        {icon}
+        {label}
+      </Link>
+    </li>
+  )
+}
+
 export function MobileNav({ role, displayName, username }: Props) {
   const [open, setOpen] = useState(false)
   const pathname = usePathname()
   const dashboards = getAccessibleDashboards(role)
   const defaultDashboard = DEFAULT_DASHBOARD[role]
 
+  const drawerRef = useRef<HTMLDivElement>(null)
+  const closeBtnRef = useRef<HTMLButtonElement>(null)
+  const menuBtnRef = useRef<HTMLButtonElement>(null)
+
   function isActive(href: string) {
     return pathname === href || (href !== '/dashboard' && pathname.startsWith(href))
   }
+  const close = () => setOpen(false)
 
-  const navLinkClass = (href: string) => cn(
-    'flex items-center gap-2.5 rounded-md px-2 py-2 text-sm transition-colors',
-    isActive(href)
-      ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium'
-      : 'text-sidebar-foreground hover:bg-sidebar-accent/50'
-  )
+  // Accessible-dialog behaviour: focus into the drawer on open, trap Tab,
+  // close on Escape, and restore focus to the trigger on close.
+  useEffect(() => {
+    if (!open) return
+    const trigger = menuBtnRef.current
+    closeBtnRef.current?.focus()
+
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        setOpen(false)
+        return
+      }
+      if (e.key !== 'Tab') return
+      const focusables = drawerRef.current?.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled])'
+      )
+      if (!focusables || focusables.length === 0) return
+      const first = focusables[0]
+      const last = focusables[focusables.length - 1]
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault()
+        last.focus()
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault()
+        first.focus()
+      }
+    }
+
+    document.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.removeEventListener('keydown', onKeyDown)
+      trigger?.focus()
+    }
+  }, [open])
 
   return (
     <>
@@ -57,15 +119,25 @@ export function MobileNav({ role, displayName, username }: Props) {
       {open && (
         <div
           className="fixed inset-0 z-40 bg-black/50 md:hidden"
-          onClick={() => setOpen(false)}
+          onClick={close}
+          aria-hidden
         />
       )}
 
       {/* Slide-in drawer */}
-      <div className={cn(
-        'fixed top-0 left-0 z-50 flex h-full w-72 flex-col bg-sidebar text-sidebar-foreground transition-transform duration-200 md:hidden',
-        open ? 'translate-x-0' : '-translate-x-full'
-      )}>
+      <div
+        ref={drawerRef}
+        id="mobile-drawer"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Menu navigasi"
+        aria-hidden={!open}
+        inert={!open}
+        className={cn(
+          'fixed top-0 left-0 z-50 flex h-full w-72 flex-col bg-sidebar text-sidebar-foreground transition-transform duration-200 md:hidden',
+          open ? 'translate-x-0' : '-translate-x-full'
+        )}
+      >
         <div className="flex items-center justify-between border-b px-4 py-4">
           <div className="flex items-center gap-2">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground text-sm font-bold">RQ</div>
@@ -74,25 +146,20 @@ export function MobileNav({ role, displayName, username }: Props) {
               <p className="text-xs text-sidebar-foreground/60 mt-0.5">Sistem Manajemen</p>
             </div>
           </div>
-          <button onClick={() => setOpen(false)} className="rounded-md p-1 hover:bg-sidebar-accent transition-colors">
+          <button ref={closeBtnRef} onClick={close} aria-label="Tutup menu" className="rounded-md p-1 hover:bg-sidebar-accent transition-colors">
             <X className="h-5 w-5" />
           </button>
         </div>
 
-        <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-6">
+        <nav aria-label="Navigasi utama" className="flex-1 overflow-y-auto px-3 py-4 space-y-6">
           <div>
             <p className="px-2 mb-2 text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/50">Dashboard</p>
             <ul className="space-y-1">
               {dashboards.map(slug => (
-                <li key={slug}>
-                  <Link href={`/dashboard/${slug}`} onClick={() => setOpen(false)} className={navLinkClass(`/dashboard/${slug}`)}>
-                    {DASHBOARD_ICONS[slug]}
-                    {DASHBOARD_LABELS[slug]}
-                  </Link>
-                </li>
+                <DrawerLink key={slug} href={`/dashboard/${slug}`} icon={DASHBOARD_ICONS[slug]} label={DASHBOARD_LABELS[slug]} active={isActive(`/dashboard/${slug}`)} onNavigate={close} />
               ))}
               {canViewAnalytics(role) && (
-                <li><Link href="/dashboard/analitik" onClick={() => setOpen(false)} className={navLinkClass('/dashboard/analitik')}><BarChart3 className="h-4 w-4" />Analitik RQ</Link></li>
+                <DrawerLink href="/dashboard/analitik" icon={<BarChart3 className="h-4 w-4" />} label="Analitik RQ" active={isActive('/dashboard/analitik')} onNavigate={close} />
               )}
             </ul>
           </div>
@@ -100,24 +167,24 @@ export function MobileNav({ role, displayName, username }: Props) {
           <div>
             <p className="px-2 mb-2 text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/50">Fitur</p>
             <ul className="space-y-1">
-              <li><Link href="/program" onClick={() => setOpen(false)} className={navLinkClass('/program')}><LayoutGrid className="h-4 w-4" />Program RQ</Link></li>
-              <li><Link href="/rapat" onClick={() => setOpen(false)} className={navLinkClass('/rapat')}><BookOpen className="h-4 w-4" />Rapat & Notulen</Link></li>
-              <li><Link href="/tasks" onClick={() => setOpen(false)} className={navLinkClass('/tasks')}><CheckSquare className="h-4 w-4" />Tugas</Link></li>
-              <li><Link href="/tasks/board" onClick={() => setOpen(false)} className={navLinkClass('/tasks/board')}><LayoutGrid className="h-4 w-4" />Papan Tugas</Link></li>
+              <DrawerLink href="/program" icon={<LayoutGrid className="h-4 w-4" />} label="Program RQ" active={isActive('/program')} onNavigate={close} />
+              <DrawerLink href="/rapat" icon={<BookOpen className="h-4 w-4" />} label="Rapat & Notulen" active={isActive('/rapat')} onNavigate={close} />
+              <DrawerLink href="/tasks" icon={<CheckSquare className="h-4 w-4" />} label="Tugas" active={isActive('/tasks')} onNavigate={close} />
+              <DrawerLink href="/tasks/board" icon={<LayoutGrid className="h-4 w-4" />} label="Papan Tugas" active={isActive('/tasks/board')} onNavigate={close} />
               {canViewAnalytics(role) && (
-                <li><Link href="/tasks/matrix" onClick={() => setOpen(false)} className={navLinkClass('/tasks/matrix')}><Table2 className="h-4 w-4" />PR Manajemen</Link></li>
+                <DrawerLink href="/tasks/matrix" icon={<Table2 className="h-4 w-4" />} label="PR Manajemen" active={isActive('/tasks/matrix')} onNavigate={close} />
               )}
               {canRequestToHumas(role) && (
-                <li><Link href="/humas-request" onClick={() => setOpen(false)} className={navLinkClass('/humas-request')}><ImageIcon className="h-4 w-4" />Request Humas</Link></li>
+                <DrawerLink href="/humas-request" icon={<ImageIcon className="h-4 w-4" />} label="Request Humas" active={isActive('/humas-request')} onNavigate={close} />
               )}
               {canPostToHome(role) && (
-                <li><Link href="/home-post" onClick={() => setOpen(false)} className={navLinkClass('/home-post')}><Megaphone className="h-4 w-4" />Home Publik</Link></li>
+                <DrawerLink href="/home-post" icon={<Megaphone className="h-4 w-4" />} label="Home Publik" active={isActive('/home-post')} onNavigate={close} />
               )}
               {canCreateNews(role) && (
-                <li><Link href="/news" onClick={() => setOpen(false)} className={navLinkClass('/news')}><Newspaper className="h-4 w-4" />Berita</Link></li>
+                <DrawerLink href="/news" icon={<Newspaper className="h-4 w-4" />} label="Berita" active={isActive('/news')} onNavigate={close} />
               )}
               {canAccessNotes(role) && (
-                <li><Link href="/notes" onClick={() => setOpen(false)} className={navLinkClass('/notes')}><FileText className="h-4 w-4" />Catatan Pribadi</Link></li>
+                <DrawerLink href="/notes" icon={<FileText className="h-4 w-4" />} label="Catatan Pribadi" active={isActive('/notes')} onNavigate={close} />
               )}
             </ul>
           </div>
@@ -127,13 +194,13 @@ export function MobileNav({ role, displayName, username }: Props) {
               <p className="px-2 mb-2 text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/50">Tahsin &amp; Tahfidz</p>
               <ul className="space-y-1">
                 {canViewHalaqoh(role) && (
-                  <li><Link href="/halaqoh" onClick={() => setOpen(false)} className={navLinkClass('/halaqoh')}><BookMarked className="h-4 w-4" />Halaqoh</Link></li>
+                  <DrawerLink href="/halaqoh" icon={<BookMarked className="h-4 w-4" />} label="Halaqoh" active={isActive('/halaqoh')} onNavigate={close} />
                 )}
                 {canViewStudents(role) && (
-                  <li><Link href="/siswa" onClick={() => setOpen(false)} className={navLinkClass('/siswa')}><Users className="h-4 w-4" />Siswa</Link></li>
+                  <DrawerLink href="/siswa" icon={<Users className="h-4 w-4" />} label="Siswa" active={isActive('/siswa')} onNavigate={close} />
                 )}
                 {canViewTeachers(role) && (
-                  <li><Link href="/ustadz" onClick={() => setOpen(false)} className={navLinkClass('/ustadz')}><UserCog className="h-4 w-4" />Ustadz / Guru</Link></li>
+                  <DrawerLink href="/ustadz" icon={<UserCog className="h-4 w-4" />} label="Ustadz / Guru" active={isActive('/ustadz')} onNavigate={close} />
                 )}
               </ul>
             </div>
@@ -141,7 +208,12 @@ export function MobileNav({ role, displayName, username }: Props) {
         </nav>
 
         <div className="border-t px-3 py-3 space-y-1">
-          <Link href="/profil" onClick={() => setOpen(false)} className={navLinkClass('/profil')}>
+          <Link
+            href="/profil"
+            onClick={close}
+            aria-current={isActive('/profil') ? 'page' : undefined}
+            className={navLinkClass(isActive('/profil'))}
+          >
             <User className="h-4 w-4" />
             <div className="flex-1 min-w-0">
               <p className="truncate font-medium">{displayName}</p>
@@ -158,9 +230,10 @@ export function MobileNav({ role, displayName, username }: Props) {
       </div>
 
       {/* Bottom tab bar */}
-      <div className="fixed bottom-0 left-0 right-0 z-30 flex h-16 items-center justify-around border-t bg-background px-2 md:hidden">
+      <nav aria-label="Navigasi bawah" className="fixed bottom-0 left-0 right-0 z-30 flex h-16 items-center justify-around border-t bg-background px-2 md:hidden">
         <Link
           href={`/dashboard/${defaultDashboard}`}
+          aria-current={isActive(`/dashboard/${defaultDashboard}`) ? 'page' : undefined}
           className={cn('flex flex-col items-center gap-0.5 px-3 py-1 rounded-lg text-xs transition-colors', isActive(`/dashboard/${defaultDashboard}`) ? 'text-primary' : 'text-muted-foreground')}
         >
           <LayoutDashboard className="h-5 w-5" />
@@ -168,6 +241,7 @@ export function MobileNav({ role, displayName, username }: Props) {
         </Link>
         <Link
           href="/tasks"
+          aria-current={isActive('/tasks') ? 'page' : undefined}
           className={cn('flex flex-col items-center gap-0.5 px-3 py-1 rounded-lg text-xs transition-colors', isActive('/tasks') ? 'text-primary' : 'text-muted-foreground')}
         >
           <CheckSquare className="h-5 w-5" />
@@ -175,19 +249,24 @@ export function MobileNav({ role, displayName, username }: Props) {
         </Link>
         <Link
           href="/rapat"
+          aria-current={isActive('/rapat') ? 'page' : undefined}
           className={cn('flex flex-col items-center gap-0.5 px-3 py-1 rounded-lg text-xs transition-colors', isActive('/rapat') ? 'text-primary' : 'text-muted-foreground')}
         >
           <BookOpen className="h-5 w-5" />
           Rapat
         </Link>
         <button
+          ref={menuBtnRef}
           onClick={() => setOpen(true)}
+          aria-expanded={open}
+          aria-controls="mobile-drawer"
+          aria-haspopup="dialog"
           className="flex flex-col items-center gap-0.5 px-3 py-1 rounded-lg text-xs text-muted-foreground transition-colors"
         >
           <Menu className="h-5 w-5" />
           Menu
         </button>
-      </div>
+      </nav>
     </>
   )
 }

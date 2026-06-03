@@ -72,7 +72,7 @@ export default async function SiswaListPage({ searchParams }: PageProps) {
 
   return (
     <div>
-      <DashboardHeader displayName={session.displayName} role={session.role} title="Siswa" showBack />
+      <DashboardHeader displayName={session.displayName} role={session.role} title="Siswa" showBack ownH1 />
       <div className="p-4 md:p-6 max-w-5xl mx-auto">
         <div className="flex items-end justify-between gap-3 flex-wrap mb-5">
           <div>
@@ -144,7 +144,7 @@ export default async function SiswaListPage({ searchParams }: PageProps) {
                     </div>
                   </div>
                   {!s.is_active && (
-                    <p className="text-[10px] text-amber-600 mt-2">⚠ Nonaktif</p>
+                    <p className="text-[10px] text-warning mt-2">⚠ Nonaktif</p>
                   )}
                 </Link>
               ))}

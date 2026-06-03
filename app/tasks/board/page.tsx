@@ -40,7 +40,7 @@ export default async function TaskBoardPage({ searchParams }: PageProps) {
 
   return (
     <div>
-      <DashboardHeader displayName={session.displayName} role={session.role} title="Papan Task" showBack />
+      <DashboardHeader displayName={session.displayName} role={session.role} title="Papan Task" showBack ownH1 />
       <div className="p-4 md:p-6 max-w-[1400px] mx-auto">
         <div className="flex items-end justify-between gap-3 flex-wrap mb-4">
           <div>

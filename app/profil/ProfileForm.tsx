@@ -33,7 +33,7 @@ export function ProfileForm({ user }: { user: User }) {
             <p className="text-sm text-destructive bg-destructive/10 px-3 py-2 rounded-md">{emailState.error}</p>
           )}
           {emailState?.success && (
-            <p className="text-sm text-green-600 bg-green-50 px-3 py-2 rounded-md">{emailState.message}</p>
+            <p className="text-sm text-success bg-success-wash px-3 py-2 rounded-md">{emailState.message}</p>
           )}
           <Button type="submit" size="sm" disabled={isEmailPending}>
             {isEmailPending ? 'Menyimpan...' : 'Simpan Email'}
@@ -63,7 +63,7 @@ export function ProfileForm({ user }: { user: User }) {
                 <p className="text-sm text-destructive bg-destructive/10 px-3 py-2 rounded-md">{pwState.error}</p>
               )}
               {pwState?.success && (
-                <p className="text-sm text-green-600 bg-green-50 px-3 py-2 rounded-md">{pwState.message}</p>
+                <p className="text-sm text-success bg-success-wash px-3 py-2 rounded-md">{pwState.message}</p>
               )}
               <Button type="submit" size="sm" disabled={isPwPending}>
                 {isPwPending ? 'Menyimpan...' : 'Ganti Password'}

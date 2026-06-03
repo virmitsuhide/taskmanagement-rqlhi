@@ -21,7 +21,7 @@ export function RaporDocument({ data }: { data: RaporData }) {
 
   return (
     <div
-      className="mx-auto bg-white text-[var(--foreground)]"
+      className="theme-light mx-auto bg-white text-[var(--foreground)]"
       style={{ maxWidth: 720, fontFamily: "var(--font-lora), Georgia, serif" }}
     >
       <div className="p-6 md:p-9 border rounded-xl print:border-0" style={{ borderColor: 'var(--border)' }}>

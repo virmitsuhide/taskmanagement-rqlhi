@@ -66,6 +66,7 @@ export default async function TentangPage({ searchParams }: PageProps) {
           displayName={session.displayName}
           role={session.role}
           title="Tentang RQ"
+          ownH1
         />
       ) : (
         <PublicHeader />

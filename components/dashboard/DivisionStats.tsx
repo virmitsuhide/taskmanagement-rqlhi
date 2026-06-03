@@ -19,19 +19,19 @@ export function DivisionStats({ urgentCount, dueSoonCount, pendingVerifCount, in
     {
       label: 'Deadline Dekat',
       value: dueSoonCount,
-      icon: <Clock className="h-4 w-4 text-amber-500" />,
+      icon: <Clock className="h-4 w-4 text-warning" />,
       highlight: dueSoonCount > 0,
     },
     {
       label: 'Perlu Verifikasi',
       value: pendingVerifCount,
-      icon: <CheckCircle2 className="h-4 w-4 text-blue-500" />,
+      icon: <CheckCircle2 className="h-4 w-4 text-info" />,
       highlight: pendingVerifCount > 0,
     },
     {
       label: 'Sedang Dikerjakan',
       value: inProgressCount,
-      icon: <TrendingUp className="h-4 w-4 text-green-500" />,
+      icon: <TrendingUp className="h-4 w-4 text-success" />,
       highlight: false,
     },
   ]

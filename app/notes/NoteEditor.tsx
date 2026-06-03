@@ -55,7 +55,7 @@ export function NoteEditor({ notes }: { notes: PrivateNote[] }) {
                 <p className="text-sm text-destructive">{createState.error}</p>
               )}
               {createState?.success && (
-                <p className="text-sm text-green-600">Catatan disimpan.</p>
+                <p className="text-sm text-success">Catatan disimpan.</p>
               )}
               <div className="flex gap-2">
                 <Button type="submit" size="sm" disabled={isCreating}>

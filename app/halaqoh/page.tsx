@@ -67,7 +67,7 @@ export default async function HalaqohListPage({ searchParams }: PageProps) {
 
   return (
     <div>
-      <DashboardHeader displayName={session.displayName} role={session.role} title="Halaqoh" showBack />
+      <DashboardHeader displayName={session.displayName} role={session.role} title="Halaqoh" showBack ownH1 />
       <div className="p-4 md:p-6 max-w-5xl mx-auto">
         <div className="flex items-end justify-between gap-3 flex-wrap mb-5">
           <div>
@@ -128,7 +128,7 @@ export default async function HalaqohListPage({ searchParams }: PageProps) {
                     </span>
                   )}
                   {!h.is_active && (
-                    <span className="text-amber-600">⚠ Nonaktif</span>
+                    <span className="text-warning">⚠ Nonaktif</span>
                   )}
                 </div>
               </Link>

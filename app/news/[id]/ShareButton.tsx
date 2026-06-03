@@ -56,7 +56,7 @@ export function ShareButton({ title }: { title: string }) {
         title="Bagikan"
       >
         {copied ? (
-          <><Check className="h-3 w-3 text-emerald-600" /><span className="text-emerald-600 font-medium">URL tersalin</span></>
+          <><Check className="h-3 w-3 text-success" /><span className="text-success font-medium">URL tersalin</span></>
         ) : (
           <><Share2 className="h-3 w-3" /><span>Bagikan</span></>
         )}

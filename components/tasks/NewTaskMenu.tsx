@@ -31,7 +31,7 @@ export function NewTaskMenu({ canDelegate }: { canDelegate: boolean }) {
             onClick={() => setOpen(false)}
             className="flex items-start gap-2.5 px-3 py-2 rounded-md hover:bg-accent transition-colors"
           >
-            <Zap className="h-4 w-4 mt-0.5 text-blue-600" />
+            <Zap className="h-4 w-4 mt-0.5 text-info" />
             <div>
               <div className="font-medium">Tugas Pribadi · Jangka Pendek</div>
               <div className="text-[11px] text-muted-foreground">Untuk diri sendiri, deadline dekat</div>
@@ -42,7 +42,7 @@ export function NewTaskMenu({ canDelegate }: { canDelegate: boolean }) {
             onClick={() => setOpen(false)}
             className="flex items-start gap-2.5 px-3 py-2 rounded-md hover:bg-accent transition-colors"
           >
-            <Target className="h-4 w-4 mt-0.5 text-amber-600" />
+            <Target className="h-4 w-4 mt-0.5 text-warning" />
             <div>
               <div className="font-medium">Tugas Pribadi · Jangka Panjang</div>
               <div className="text-[11px] text-muted-foreground">Target jangka panjang Anda sendiri</div>
@@ -54,7 +54,7 @@ export function NewTaskMenu({ canDelegate }: { canDelegate: boolean }) {
               onClick={() => setOpen(false)}
               className="flex items-start gap-2.5 px-3 py-2 rounded-md hover:bg-accent transition-colors border-t mt-1 pt-2.5"
             >
-              <UserPlus className="h-4 w-4 mt-0.5 text-emerald-600" />
+              <UserPlus className="h-4 w-4 mt-0.5 text-success" />
               <div>
                 <div className="font-medium">Delegasikan Tugas</div>
                 <div className="text-[11px] text-muted-foreground">Berikan tugas ke bawahan/rekan</div>

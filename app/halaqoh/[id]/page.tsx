@@ -58,7 +58,7 @@ export default async function HalaqohDetailPage({ params }: PageProps) {
                   {JENJANG_LABELS[halaqoh.jenjang as Jenjang]}
                 </span>
                 {!halaqoh.is_active && (
-                  <span className="text-xs text-amber-600">⚠ Nonaktif</span>
+                  <span className="text-xs text-warning">⚠ Nonaktif</span>
                 )}
               </div>
               <div className="flex flex-wrap gap-4 mt-3 text-sm text-muted-foreground">

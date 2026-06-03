@@ -55,7 +55,7 @@ export function Sidebar({ role, displayName, username }: Props) {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-6">
+      <nav aria-label="Navigasi utama" className="flex-1 overflow-y-auto px-3 py-4 space-y-6">
         {/* Dashboard section */}
         <div>
           <p className="px-2 mb-2 text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/50">
@@ -66,6 +66,7 @@ export function Sidebar({ role, displayName, username }: Props) {
               <li key={slug}>
                 <Link
                   href={`/dashboard/${slug}`}
+                  aria-current={isActive(`/dashboard/${slug}`) ? 'page' : undefined}
                   className={cn(
                     'flex items-center gap-2.5 rounded-md px-2 py-2 text-sm transition-colors',
                     isActive(`/dashboard/${slug}`)
@@ -140,6 +141,7 @@ export function Sidebar({ role, displayName, username }: Props) {
       <div className="border-t px-3 py-3 space-y-1">
         <Link
           href="/profil"
+          aria-current={isActive('/profil') ? 'page' : undefined}
           className={cn(
             'flex items-center gap-2.5 rounded-md px-2 py-2 text-sm transition-colors',
             isActive('/profil')
@@ -179,6 +181,7 @@ function NavItem({
     <li>
       <Link
         href={href}
+        aria-current={active ? 'page' : undefined}
         className={cn(
           'flex items-center gap-2.5 rounded-md px-2 py-2 text-sm transition-colors',
           active

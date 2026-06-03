@@ -25,7 +25,7 @@ export default async function AnalitikPage() {
 
   return (
     <div>
-      <DashboardHeader displayName={session.displayName} role={session.role} title="Analitik RQ" showBack />
+      <DashboardHeader displayName={session.displayName} role={session.role} title="Analitik RQ" showBack ownH1 />
       <div className="p-4 md:p-6 max-w-5xl mx-auto space-y-6">
         <div>
           <p className="text-[11px] uppercase tracking-[1.8px] text-muted-foreground">Ringkasan Seluruh RQ</p>
@@ -146,7 +146,7 @@ export default async function AnalitikPage() {
         {/* Siswa perlu perhatian */}
         <section className="rounded-xl border bg-card p-5">
           <h2 className="text-sm font-semibold mb-3 flex items-center gap-2">
-            <AlertTriangle className="h-4 w-4 text-amber-600" />
+            <AlertTriangle className="h-4 w-4 text-warning" />
             Siswa Perlu Perhatian
             <span className="text-xs font-normal text-muted-foreground">(belum setor ≥ 7 hari, se-RQ)</span>
           </h2>

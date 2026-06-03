@@ -90,6 +90,7 @@ export default async function TaskDetailPage({ params }: { params: Promise<{ id:
         role={session.role}
         title={task.title}
         breadcrumbs={[{ label: 'Task', href: '/tasks' }, { label: task.title }]}
+        ownH1
       />
       <div className="p-4 md:p-6 max-w-3xl">
         <Button asChild variant="ghost" size="sm" className="mb-4">

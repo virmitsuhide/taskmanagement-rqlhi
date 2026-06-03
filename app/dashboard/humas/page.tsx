@@ -41,7 +41,7 @@ export default async function HumasDashboardPage() {
         {pendingRequests.length > 0 && (
           <section>
             <div className="flex items-center justify-between mb-3">
-              <h2 className="text-sm font-semibold text-amber-600">Request Masuk ({pendingRequests.length})</h2>
+              <h2 className="text-sm font-semibold text-warning">Request Masuk ({pendingRequests.length})</h2>
               <Link href="/humas-request" className="text-xs text-primary hover:underline">Lihat semua →</Link>
             </div>
             <div className="space-y-2">
@@ -52,7 +52,7 @@ export default async function HumasDashboardPage() {
 
         {pendingVerif.length > 0 && (
           <section>
-            <h2 className="text-sm font-semibold mb-3 text-amber-600">Perlu Verifikasi ({pendingVerif.length})</h2>
+            <h2 className="text-sm font-semibold mb-3 text-warning">Perlu Verifikasi ({pendingVerif.length})</h2>
             <div className="space-y-2">
               {pendingVerif.map(task => <TaskCard key={task.id} task={task} showAssignee />)}
             </div>

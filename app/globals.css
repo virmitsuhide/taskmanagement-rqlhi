@@ -24,6 +24,16 @@
     --color-input: var(--input);
     --color-border: var(--border);
     --color-destructive: var(--destructive);
+    --color-destructive-foreground: var(--destructive-foreground);
+    --color-success: var(--success);
+    --color-success-foreground: var(--success-foreground);
+    --color-success-wash: var(--success-wash);
+    --color-warning: var(--warning);
+    --color-warning-foreground: var(--warning-foreground);
+    --color-warning-wash: var(--warning-wash);
+    --color-info: var(--info);
+    --color-info-foreground: var(--info-foreground);
+    --color-info-wash: var(--info-wash);
     --color-accent-foreground: var(--accent-foreground);
     --color-accent: var(--accent);
     --color-muted-foreground: var(--muted-foreground);
@@ -63,6 +73,16 @@
     --accent: oklch(0.95 0.04 160);
     --accent-foreground: oklch(0.32 0.10 163);
     --destructive: oklch(0.577 0.245 27.325);
+    --destructive-foreground: oklch(0.985 0 0);
+    --success: oklch(0.52 0.13 152);
+    --success-foreground: oklch(0.985 0 0);
+    --success-wash: oklch(0.95 0.04 152);
+    --warning: oklch(0.55 0.12 70);
+    --warning-foreground: oklch(0.99 0 0);
+    --warning-wash: oklch(0.95 0.06 85);
+    --info: oklch(0.52 0.13 248);
+    --info-foreground: oklch(0.985 0 0);
+    --info-wash: oklch(0.95 0.04 248);
     --border: oklch(0.91 0.01 160);
     --input: oklch(0.91 0.01 160);
     --ring: oklch(0.62 0.14 163);
@@ -101,6 +121,16 @@
     --accent: oklch(0.30 0.05 162);
     --accent-foreground: oklch(0.985 0 0);
     --destructive: oklch(0.704 0.191 22.216);
+    --destructive-foreground: oklch(0.985 0 0);
+    --success: oklch(0.75 0.14 152);
+    --success-foreground: oklch(0.18 0.04 152);
+    --success-wash: oklch(0.32 0.06 152);
+    --warning: oklch(0.82 0.12 82);
+    --warning-foreground: oklch(0.20 0.04 80);
+    --warning-wash: oklch(0.34 0.06 80);
+    --info: oklch(0.74 0.12 248);
+    --info-foreground: oklch(0.18 0.04 248);
+    --info-wash: oklch(0.32 0.06 248);
     --border: oklch(1 0 0 / 10%);
     --input: oklch(1 0 0 / 15%);
     --ring: oklch(0.62 0.14 163);
@@ -120,6 +150,41 @@
     --sidebar-accent-foreground: oklch(0.985 0 0);
     --sidebar-border: oklch(1 0 0 / 10%);
     --sidebar-ring: oklch(0.62 0.14 163);
+}
+
+/*
+ * Forced-light scope for the public-facing teacher portal (/guru/*), which uses
+ * a deliberate light "paper" aesthetic with some hardcoded light surfaces. Without
+ * this, a global `.dark` on <html> would flip the theme-aware text tokens to white
+ * while those surfaces stay light → unreadable. Re-declaring the light palette on
+ * the subtree keeps text and surfaces in sync regardless of the global theme.
+ */
+.theme-light {
+    --background: oklch(1 0 0);
+    --foreground: oklch(0.18 0.01 160);
+    --card: oklch(1 0 0);
+    --card-foreground: oklch(0.18 0.01 160);
+    --popover: oklch(1 0 0);
+    --popover-foreground: oklch(0.18 0.01 160);
+    --primary: oklch(0.48 0.13 163);
+    --primary-foreground: oklch(0.985 0 0);
+    --secondary: oklch(0.97 0.01 160);
+    --secondary-foreground: oklch(0.32 0.06 163);
+    --muted: oklch(0.97 0.01 160);
+    --muted-foreground: oklch(0.50 0.02 160);
+    --accent: oklch(0.95 0.04 160);
+    --accent-foreground: oklch(0.32 0.10 163);
+    --destructive: oklch(0.577 0.245 27.325);
+    --destructive-foreground: oklch(0.985 0 0);
+    --success: oklch(0.52 0.13 152);
+    --warning: oklch(0.55 0.12 70);
+    --info: oklch(0.52 0.13 248);
+    --border: oklch(0.91 0.01 160);
+    --input: oklch(0.91 0.01 160);
+    --ring: oklch(0.62 0.14 163);
+    --primary-wash: oklch(0.96 0.04 162);
+    --accent-warm: oklch(0.72 0.15 60);
+    --accent-warm-wash: oklch(0.96 0.05 80);
 }
 
 @layer base {

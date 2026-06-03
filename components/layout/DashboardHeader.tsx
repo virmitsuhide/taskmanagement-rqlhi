@@ -16,9 +16,14 @@ interface Props {
   title?: string
   showBack?: boolean
   breadcrumbs?: Crumb[]
+  /**
+   * Set when the page renders its own <h1> in the body. The header title is then
+   * shown as a non-heading label to avoid two <h1> elements on one page.
+   */
+  ownH1?: boolean
 }
 
-export function DashboardHeader({ displayName, role, title, showBack, breadcrumbs }: Props) {
+export function DashboardHeader({ displayName, role, title, showBack, breadcrumbs, ownH1 }: Props) {
   const dashboardHref = `/dashboard/${DEFAULT_DASHBOARD[role]}`
 
   // Explicit breadcrumbs take priority; fall back to single crumb from title
@@ -39,7 +44,11 @@ export function DashboardHeader({ displayName, role, title, showBack, breadcrumb
           {showBack && <BackButton />}
         </div>
         <div className="flex-1 min-w-0 px-1">
-          {title && <h1 className="text-base font-semibold truncate">{title}</h1>}
+          {title && (
+            ownH1
+              ? <p className="text-base font-semibold truncate">{title}</p>
+              : <h1 className="text-base font-semibold truncate">{title}</h1>
+          )}
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
           <ThemeToggle />
@@ -59,7 +68,7 @@ export function DashboardHeader({ displayName, role, title, showBack, breadcrumb
 
       {/* Breadcrumb row */}
       {crumbs && (
-        <div className="flex items-center gap-0.5 px-4 md:px-6 py-1.5 bg-muted/30 text-xs text-muted-foreground overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <nav aria-label="Breadcrumb" className="flex items-center gap-0.5 px-4 md:px-6 py-1.5 bg-muted/30 text-xs text-muted-foreground overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <Link
             href={dashboardHref}
             className="flex items-center gap-1 hover:text-foreground transition-colors shrink-0"
@@ -78,13 +87,13 @@ export function DashboardHeader({ displayName, role, title, showBack, breadcrumb
                   {crumb.label}
                 </Link>
               ) : (
-                <span className="text-foreground font-medium truncate max-w-[240px] shrink-0">
+                <span aria-current="page" className="text-foreground font-medium truncate max-w-[240px] shrink-0">
                   {crumb.label}
                 </span>
               )}
             </span>
           ))}
-        </div>
+        </nav>
       )}
     </header>
   )

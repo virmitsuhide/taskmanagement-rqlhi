@@ -25,9 +25,9 @@ function daysUntil(dueDate: string | null): number | null {
 
 const STATUS_BAR: Record<string, string> = {
   todo: 'bg-muted-foreground/30',
-  in_progress: 'bg-blue-500',
-  submitted: 'bg-amber-500',
-  done: 'bg-green-500',
+  in_progress: 'bg-info',
+  submitted: 'bg-warning',
+  done: 'bg-success',
   returned: 'bg-destructive',
 }
 
@@ -64,7 +64,7 @@ export function TaskCard({ task, showAssignee = true, showAssigner = false }: Pr
         {task.due_date && (
           <span
             className={`flex items-center gap-1 ${
-              overdue ? 'text-destructive font-medium' : dueSoon ? 'text-amber-600 dark:text-amber-400 font-medium' : ''
+              overdue ? 'text-destructive font-medium' : dueSoon ? 'text-warning font-medium' : ''
             }`}
           >
             {overdue ? <AlertCircle className="h-3 w-3" /> : <Calendar className="h-3 w-3" />}

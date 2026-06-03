@@ -160,9 +160,9 @@ export default async function TasksPage({ searchParams }: PageProps) {
         {/* Stat cards */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-5">
           <StatCard icon={<CheckSquare className="h-4 w-4" />} label="Total" value={totalActive + totalDone} />
-          <StatCard icon={<Clock className="h-4 w-4 text-blue-500" />} label="Aktif" value={totalActive} />
+          <StatCard icon={<Clock className="h-4 w-4 text-info" />} label="Aktif" value={totalActive} />
           <StatCard icon={<AlertCircle className="h-4 w-4 text-destructive" />} label="Terlambat" value={overdueCount} tone={overdueCount > 0 ? 'danger' : undefined} />
-          <StatCard icon={<CheckCircle2 className="h-4 w-4 text-green-600" />} label="Selesai" value={totalDone} />
+          <StatCard icon={<CheckCircle2 className="h-4 w-4 text-success" />} label="Selesai" value={totalDone} />
         </div>
 
         <div className="mb-4">
@@ -190,36 +190,36 @@ export default async function TasksPage({ searchParams }: PageProps) {
           ) : (
             <div className="space-y-6">
               {inProgressCount > 0 && (
-                <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm flex items-center justify-between">
-                  <span className="text-blue-700">
+                <div className="rounded-lg border border-info/30 bg-info-wash px-4 py-2.5 text-sm flex items-center justify-between">
+                  <span className="text-info">
                     <Clock className="h-4 w-4 inline mr-1.5" />
                     Anda sedang mengerjakan <strong>{inProgressCount} tugas</strong>.
                   </span>
                 </div>
               )}
               <BucketSection
-                icon={<Zap className="h-4 w-4 text-blue-600" />}
+                icon={<Zap className="h-4 w-4 text-info" />}
                 title="Tugas Pribadi · Jangka Pendek"
                 emptyHint="Belum ada. Buat lewat menu '+ Buat Tugas' di atas."
                 tasks={buckets.pribadi_pendek}
                 showAssigner={false}
               />
               <BucketSection
-                icon={<Target className="h-4 w-4 text-amber-600" />}
+                icon={<Target className="h-4 w-4 text-warning" />}
                 title="Tugas Pribadi · Jangka Panjang"
                 emptyHint="Belum ada target jangka panjang."
                 tasks={buckets.pribadi_panjang}
                 showAssigner={false}
               />
               <BucketSection
-                icon={<ClipboardList className="h-4 w-4 text-violet-600" />}
+                icon={<ClipboardList className="h-4 w-4 text-info" />}
                 title="Dari Follow Up Rapat"
                 emptyHint="Tidak ada tindak lanjut dari rapat."
                 tasks={buckets.follow_up}
                 showAssigner
               />
               <BucketSection
-                icon={<Users className="h-4 w-4 text-emerald-600" />}
+                icon={<Users className="h-4 w-4 text-success" />}
                 title="Dari Penugasan Atasan/Rekan"
                 emptyHint="Tidak ada penugasan dari orang lain."
                 tasks={buckets.penugasan}
