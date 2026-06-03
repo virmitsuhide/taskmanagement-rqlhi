@@ -41,6 +41,19 @@ export default async function NewTahfidzSetoranPage({ searchParams }: PageProps)
     halaqoh_name: s.halaqoh?.name ?? null,
   }))
 
+  // Juz yang sudah diujikan per siswa — untuk hint muroja'ah lama
+  const completedJuzByStudent: Record<string, number[]> = {}
+  const studentIds = students.map(s => s.id)
+  if (studentIds.length > 0) {
+    const { data: proms } = await supabase
+      .from('juz_promotions')
+      .select('student_id, juz_number')
+      .in('student_id', studentIds)
+    for (const p of (proms ?? []) as Array<{ student_id: string; juz_number: number }>) {
+      ;(completedJuzByStudent[p.student_id] ??= []).push(p.juz_number)
+    }
+  }
+
   return (
     <div className="min-h-screen" style={{ background: 'var(--secondary)' }}>
       <TeacherHeader fullName={session.fullName} active="tahfidz" />
@@ -64,6 +77,7 @@ export default async function NewTahfidzSetoranPage({ searchParams }: PageProps)
           <TahfidzSetoranForm
             students={students}
             surat={suratRes.data ?? []}
+            completedJuzByStudent={completedJuzByStudent}
             defaultStudentId={defaultStudentId}
           />
         )}

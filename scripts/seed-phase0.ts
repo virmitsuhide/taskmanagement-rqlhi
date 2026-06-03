@@ -1,8 +1,11 @@
 /**
- * Seed Fase 0 — data referensi tahsin/tahfidz
- *  - tahsin_methods: Tilawati (default), Ummi, Iqro
- *  - jilid_levels: per metode
+ * Seed Fase 0 — data referensi tahsin/tahfidz (metodologi RQ LHI)
+ *  - tahsin_methods: UMMI, KIBAR, Syajaroh (metode lama dinonaktifkan)
+ *  - jilid_levels: tahapan per metode (termasuk tahap "Lulus Tahsin")
  *  - surat_master: 114 surat Al-Qur'an + juz_start
+ *
+ * Prasyarat: migrasi drizzle/0006_tahsin_tahfidz_rqlhi sudah diterapkan
+ * (kolom jilid_levels.is_terminal harus sudah ada).
  *
  * Idempotent: aman dijalankan berulang (upsert on conflict).
  * Jalankan: npx tsx scripts/seed-phase0.ts
@@ -20,20 +23,15 @@ const supabase = createClient(
   { auth: { persistSession: false } },
 )
 
-// ─── METODE TAHSIN ───────────────────────────────────────────────
-const METHODS = [
-  { name: 'Tilawati', description: 'Metode 6 jilid + Al-Qur’an, populer di Jawa Timur',
-    levels: [
-      { label: 'Jilid 1', order_num: 1, total_pages: 44, is_quran: false },
-      { label: 'Jilid 2', order_num: 2, total_pages: 44, is_quran: false },
-      { label: 'Jilid 3', order_num: 3, total_pages: 44, is_quran: false },
-      { label: 'Jilid 4', order_num: 4, total_pages: 44, is_quran: false },
-      { label: 'Jilid 5', order_num: 5, total_pages: 44, is_quran: false },
-      { label: 'Jilid 6', order_num: 6, total_pages: 44, is_quran: false },
-      { label: 'Al-Qur’an', order_num: 7, total_pages: null, is_quran: true },
-    ],
-  },
-  { name: 'Ummi', description: '6 jilid + Ghoroibul Qur’an + Tajwid Dasar',
+// ─── METODE TAHSIN (sesuai metodologi RQ LHI) ────────────────────
+// Tahap terakhir tiap metode = "Lulus Tahsin" (is_terminal: true).
+// is_quran: true menandai tahap membaca mushaf (tanpa total halaman tetap).
+type LevelSeed = { label: string; order_num: number; total_pages: number | null; is_quran: boolean; is_terminal?: boolean }
+type MethodSeed = { name: string; description: string; levels: LevelSeed[] }
+
+const METHODS: MethodSeed[] = [
+  // UMMI — 6 jilid (40 hal) → Al-Qur'an T1/T2/T3 → Talaqqi Mandiri → Gharib → Tajwid → Lulus
+  { name: 'UMMI', description: '6 jilid (40 hal) → Al-Qur’an T1–T3 → Talaqqi Mandiri → Gharib → Tajwid',
     levels: [
       { label: 'Jilid 1', order_num: 1, total_pages: 40, is_quran: false },
       { label: 'Jilid 2', order_num: 2, total_pages: 40, is_quran: false },
@@ -41,20 +39,35 @@ const METHODS = [
       { label: 'Jilid 4', order_num: 4, total_pages: 40, is_quran: false },
       { label: 'Jilid 5', order_num: 5, total_pages: 40, is_quran: false },
       { label: 'Jilid 6', order_num: 6, total_pages: 40, is_quran: false },
-      { label: 'Ghoroibul Qur’an', order_num: 7, total_pages: 40, is_quran: false },
-      { label: 'Tajwid Dasar', order_num: 8, total_pages: 40, is_quran: false },
-      { label: 'Al-Qur’an', order_num: 9, total_pages: null, is_quran: true },
+      { label: 'Al-Qur’an T1', order_num: 7,  total_pages: null, is_quran: true },
+      { label: 'Al-Qur’an T2', order_num: 8,  total_pages: null, is_quran: true },
+      { label: 'Al-Qur’an T3', order_num: 9,  total_pages: null, is_quran: true },
+      { label: 'Talaqqi Mandiri', order_num: 10, total_pages: null, is_quran: true },
+      { label: 'Gharib', order_num: 11, total_pages: 28, is_quran: false },
+      { label: 'Tajwid', order_num: 12, total_pages: 28, is_quran: false },
+      { label: 'Lulus Tahsin', order_num: 13, total_pages: null, is_quran: false, is_terminal: true },
     ],
   },
-  { name: 'Iqro', description: 'Metode klasik 6 jilid karya KH. As’ad Humam',
+  // KIBAR — 3 jilid (38 hal) → Talaqqi Al-Qur'an → Lulus
+  { name: 'KIBAR', description: '3 jilid (38 hal) → Talaqqi Al-Qur’an',
     levels: [
-      { label: 'Jilid 1', order_num: 1, total_pages: 32, is_quran: false },
-      { label: 'Jilid 2', order_num: 2, total_pages: 32, is_quran: false },
-      { label: 'Jilid 3', order_num: 3, total_pages: 32, is_quran: false },
-      { label: 'Jilid 4', order_num: 4, total_pages: 32, is_quran: false },
-      { label: 'Jilid 5', order_num: 5, total_pages: 32, is_quran: false },
-      { label: 'Jilid 6', order_num: 6, total_pages: 32, is_quran: false },
-      { label: 'Al-Qur’an', order_num: 7, total_pages: null, is_quran: true },
+      { label: 'Jilid 1', order_num: 1, total_pages: 38, is_quran: false },
+      { label: 'Jilid 2', order_num: 2, total_pages: 38, is_quran: false },
+      { label: 'Jilid 3', order_num: 3, total_pages: 38, is_quran: false },
+      { label: 'Talaqqi Al-Qur’an', order_num: 4, total_pages: null, is_quran: true },
+      { label: 'Lulus Tahsin', order_num: 5, total_pages: null, is_quran: false, is_terminal: true },
+    ],
+  },
+  // Syajaroh — 5 jilid (36 hal) → Talaqqi Al-Qur'an → Lulus
+  { name: 'Syajaroh', description: '5 jilid (36 hal) → Talaqqi Al-Qur’an',
+    levels: [
+      { label: 'Jilid 1', order_num: 1, total_pages: 36, is_quran: false },
+      { label: 'Jilid 2', order_num: 2, total_pages: 36, is_quran: false },
+      { label: 'Jilid 3', order_num: 3, total_pages: 36, is_quran: false },
+      { label: 'Jilid 4', order_num: 4, total_pages: 36, is_quran: false },
+      { label: 'Jilid 5', order_num: 5, total_pages: 36, is_quran: false },
+      { label: 'Talaqqi Al-Qur’an', order_num: 6, total_pages: null, is_quran: true },
+      { label: 'Lulus Tahsin', order_num: 7, total_pages: null, is_quran: false, is_terminal: true },
     ],
   },
 ]
@@ -197,21 +210,30 @@ async function seedMethods() {
     if (!methodId) {
       const { data, error } = await supabase
         .from('tahsin_methods')
-        .insert({ name: m.name, description: m.description })
+        .insert({ name: m.name, description: m.description, is_active: true })
         .select('id')
         .single()
       if (error) { console.error(`  ✗ method ${m.name}: ${error.message}`); continue }
       methodId = data.id
       console.log(`  ✓ method ${m.name} created`)
     } else {
-      console.log(`  · method ${m.name} exists`)
+      // Pastikan metode aktif & deskripsi terbaru
+      await supabase
+        .from('tahsin_methods')
+        .update({ description: m.description, is_active: true })
+        .eq('id', methodId)
+      console.log(`  · method ${m.name} exists (diperbarui)`)
     }
 
     for (const lvl of m.levels) {
       const { error } = await supabase
         .from('jilid_levels')
         .upsert(
-          { method_id: methodId, label: lvl.label, order_num: lvl.order_num, total_pages: lvl.total_pages, is_quran: lvl.is_quran },
+          {
+            method_id: methodId, label: lvl.label, order_num: lvl.order_num,
+            total_pages: lvl.total_pages, is_quran: lvl.is_quran,
+            is_terminal: lvl.is_terminal ?? false,
+          },
           { onConflict: 'method_id,order_num' },
         )
       if (error) console.error(`    ✗ ${m.name}/${lvl.label}: ${error.message}`)
@@ -232,8 +254,23 @@ async function seedSurat() {
   console.log(`  ✓ ${SURAT.length} surat upserted`)
 }
 
+/** Nonaktifkan metode lama (Tilawati/Iqro/Ummi placeholder) agar tak muncul di dropdown. */
+async function deactivateOldMethods() {
+  const keep = METHODS.map(m => `"${m.name}"`).join(',')
+  const { data, error } = await supabase
+    .from('tahsin_methods')
+    .update({ is_active: false })
+    .not('name', 'in', `(${keep})`)
+    .select('name')
+  if (error) { console.error(`  ✗ nonaktifkan metode lama: ${error.message}`); return }
+  if (data && data.length > 0) {
+    console.log(`  · ${data.length} metode lama dinonaktifkan: ${data.map(d => d.name).join(', ')}`)
+  }
+}
+
 async function main() {
   await seedMethods()
+  await deactivateOldMethods()
   await seedSurat()
   console.log('\nDone.')
 }

@@ -65,7 +65,7 @@ export default async function TeacherHomePage() {
         {/* Quick action */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-8">
           <QuickAction href="/guru/setoran/tahsin/baru" emoji="📖" title="Setor Tahsin" desc="Catat bacaan jilid harian" />
-          <QuickAction href="/guru/setoran/tahfidz/baru" emoji="✨" title="Setor Tahfidz" desc="Hafalan baru / muroja'ah" />
+          <QuickAction href="/guru/setoran/tahfidz/baru" emoji="✨" title="Setor Tahfidz" desc="Ziyadah / muroja'ah / tasmi'" />
           <QuickAction href="/guru/siswa" emoji="👥" title="Siswa Saya" desc="Lihat semua siswa & progress" />
         </div>
 

@@ -126,7 +126,7 @@ export async function getStudentRaporData(
   let ayatBaru = 0
   let murojaahCount = 0
   for (const l of tahfidzLogs) {
-    if (l.kind === 'hafalan_baru') ayatBaru += (l.ayat_ke - l.ayat_dari + 1)
+    if (l.kind === 'ziyadah' || l.kind === 'hafalan_baru') ayatBaru += (l.ayat_ke - l.ayat_dari + 1)
     else murojaahCount += 1
   }
 

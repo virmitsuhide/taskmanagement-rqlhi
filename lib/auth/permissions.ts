@@ -207,7 +207,7 @@ export function canEditAbout(role: UserRole): boolean {
  */
 export function canManageStudents(role: UserRole, jenjang?: Jenjang | null): boolean {
   if (role === 'kepala_rq') return true
-  if (role === 'koor_sd')  return !jenjang || jenjang === 'sd'  || jenjang === 'paud'
+  if (role === 'koor_sd')  return !jenjang || jenjang === 'sd'  || jenjang === 'sd_juara' || jenjang === 'paud'
   if (role === 'koor_smp') return !jenjang || jenjang === 'smp' || jenjang === 'sma'
   return false
 }
@@ -228,7 +228,7 @@ export function canViewStudents(role: UserRole, jenjang?: Jenjang | null): boole
  */
 export function canManageHalaqoh(role: UserRole, jenjang?: Jenjang | null): boolean {
   if (role === 'kepala_rq') return true
-  if (role === 'koor_sd')  return !jenjang || jenjang === 'sd'  || jenjang === 'paud'
+  if (role === 'koor_sd')  return !jenjang || jenjang === 'sd'  || jenjang === 'sd_juara' || jenjang === 'paud'
   if (role === 'koor_smp') return !jenjang || jenjang === 'smp' || jenjang === 'sma'
   return false
 }
@@ -260,17 +260,18 @@ export function canViewTeachers(role: UserRole): boolean {
  * Untuk filter UI: koor_sd cuma lihat ['sd','paud'], dst.
  */
 export function getManageableJenjang(role: UserRole): Jenjang[] {
-  if (role === 'kepala_rq') return ['paud', 'sd', 'smp', 'sma']
-  if (role === 'koor_sd')   return ['paud', 'sd']
+  if (role === 'kepala_rq') return ['paud', 'sd', 'sd_juara', 'smp', 'sma']
+  if (role === 'koor_sd')   return ['paud', 'sd', 'sd_juara']
   if (role === 'koor_smp')  return ['smp', 'sma']
   return []
 }
 
 export const JENJANG_LABELS: Record<Jenjang, string> = {
-  paud: 'PAUD',
-  sd:   'SD',
-  smp:  'SMP',
-  sma:  'SMA',
+  paud:     'PAUD',
+  sd:       'SD',
+  sd_juara: 'SD Juara',
+  smp:      'SMP',
+  sma:      'SMA',
 }
 
 // Display labels

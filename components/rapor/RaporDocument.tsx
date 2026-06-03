@@ -1,6 +1,6 @@
 import type { RaporData } from '@/lib/data/rapor'
 
-const JENJANG_LABELS: Record<string, string> = { paud: 'PAUD', sd: 'SD', smp: 'SMP', sma: 'SMA' }
+const JENJANG_LABELS: Record<string, string> = { paud: 'PAUD', sd: 'SD', sd_juara: 'SD Juara', smp: 'SMP', sma: 'SMA' }
 
 function Stars({ value }: { value: number | null }) {
   if (value === null) return <span className="text-muted-foreground">—</span>

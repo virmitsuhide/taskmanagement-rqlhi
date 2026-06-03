@@ -10,7 +10,7 @@ import {
 import { TeacherHeader } from '@/components/layout/TeacherHeader'
 import { AlertTriangle } from 'lucide-react'
 
-const JENJANG_LABELS: Record<string, string> = { paud: 'PAUD', sd: 'SD', smp: 'SMP', sma: 'SMA' }
+const JENJANG_LABELS: Record<string, string> = { paud: 'PAUD', sd: 'SD', sd_juara: 'SD Juara', smp: 'SMP', sma: 'SMA' }
 
 export default async function GuruStatistikPage() {
   const session = await getTeacherSession()

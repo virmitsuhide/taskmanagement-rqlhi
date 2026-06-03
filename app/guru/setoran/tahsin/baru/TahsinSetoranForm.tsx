@@ -9,10 +9,13 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { StarRating } from '@/components/StarRating'
+import { methodsForJenjang } from '@/lib/tahsin'
+import type { Jenjang } from '@/types'
 
 interface StudentOption {
   id: string
   full_name: string
+  jenjang: string
   halaqoh_name: string | null
   current_method_id: string | null
   current_jilid_id: string | null
@@ -38,6 +41,12 @@ export function TahsinSetoranForm({ students, methods, jilidLevels, defaultStude
   const [status, setStatus] = useState<'lulus' | 'ulang'>('lulus')
 
   const selectedStudent = students.find(s => s.id === studentId) ?? null
+
+  // Metode yang berlaku untuk jenjang siswa terpilih (semua metode bila belum pilih siswa)
+  const availableMethods = useMemo(
+    () => methodsForJenjang(selectedStudent?.jenjang as Jenjang | undefined, methods),
+    [selectedStudent, methods],
+  )
 
   const jilidOptions = useMemo(
     () => jilidLevels.filter(j => j.method_id === methodId).sort((a, b) => a.order_num - b.order_num),
@@ -98,7 +107,7 @@ export function TahsinSetoranForm({ students, methods, jilidLevels, defaultStude
             <Select name="method_id" value={methodId} onValueChange={setMethodId} required>
               <SelectTrigger id="method_id"><SelectValue placeholder="Metode" /></SelectTrigger>
               <SelectContent>
-                {methods.map(m => <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>)}
+                {availableMethods.map(m => <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>

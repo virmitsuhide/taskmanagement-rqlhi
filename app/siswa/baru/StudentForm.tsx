@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { JENJANG_LABELS } from '@/lib/auth/permissions'
+import { methodsForJenjang } from '@/lib/tahsin'
 import type { Jenjang, Halaqoh, TahsinMethod, JilidLevel } from '@/types'
 
 // Radix Select melarang SelectItem value="". Pakai sentinel ini untuk opsi "kosong".
@@ -54,10 +55,23 @@ export function StudentForm({
     () => halaqohList.filter(h => h.jenjang === jenjang),
     [halaqohList, jenjang],
   )
+  // Metode tahsin yang berlaku untuk jenjang/unit terpilih (kebijakan RQ LHI)
+  const availableMethods = useMemo(
+    () => methodsForJenjang(jenjang, methods),
+    [jenjang, methods],
+  )
   const jilidOptions = useMemo(
     () => (methodId === NONE ? [] : jilidLevels.filter(j => j.method_id === methodId).sort((a, b) => a.order_num - b.order_num)),
     [jilidLevels, methodId],
   )
+
+  // Ganti jenjang → reset metode bila tak berlaku untuk jenjang baru
+  function onJenjangChange(v: Jenjang) {
+    setJenjang(v)
+    if (methodId !== NONE && !methodsForJenjang(v, methods).some(m => m.id === methodId)) {
+      setMethodId(NONE)
+    }
+  }
 
   return (
     <form action={formAction} className="space-y-5 max-w-2xl">
@@ -104,7 +118,7 @@ export function StudentForm({
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
             <Label htmlFor="jenjang">Jenjang *</Label>
-            <Select name="jenjang" value={jenjang} onValueChange={v => setJenjang(v as Jenjang)}>
+            <Select name="jenjang" value={jenjang} onValueChange={v => onJenjangChange(v as Jenjang)}>
               <SelectTrigger id="jenjang"><SelectValue /></SelectTrigger>
               <SelectContent>
                 {allowedJenjang.map(j => (
@@ -149,7 +163,7 @@ export function StudentForm({
               <SelectTrigger id="current_method_id"><SelectValue placeholder="—" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value={NONE}>—</SelectItem>
-                {methods.map(m => (
+                {availableMethods.map(m => (
                   <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
                 ))}
               </SelectContent>

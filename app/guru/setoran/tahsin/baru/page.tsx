@@ -22,7 +22,7 @@ export default async function NewTahsinSetoranPage({ searchParams }: PageProps) 
     halaqohIds.length > 0
       ? supabase
           .from('students')
-          .select('id, full_name, current_method_id, current_jilid_id, current_jilid_page, halaqoh:halaqoh(name)')
+          .select('id, full_name, jenjang, current_method_id, current_jilid_id, current_jilid_page, halaqoh:halaqoh(name)')
           .in('halaqoh_id', halaqohIds)
           .eq('is_active', true)
           .order('full_name')
@@ -32,12 +32,13 @@ export default async function NewTahsinSetoranPage({ searchParams }: PageProps) 
   ])
 
   const students = ((studentsRes.data ?? []) as unknown as Array<{
-    id: string; full_name: string; current_method_id: string | null
+    id: string; full_name: string; jenjang: string; current_method_id: string | null
     current_jilid_id: string | null; current_jilid_page: number | null
     halaqoh: { name: string } | null
   }>).map(s => ({
     id: s.id,
     full_name: s.full_name,
+    jenjang: s.jenjang,
     halaqoh_name: s.halaqoh?.name ?? null,
     current_method_id: s.current_method_id,
     current_jilid_id: s.current_jilid_id,

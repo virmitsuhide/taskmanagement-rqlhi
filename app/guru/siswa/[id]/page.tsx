@@ -7,14 +7,15 @@ import { TeacherHeader } from '@/components/layout/TeacherHeader'
 import { Button } from '@/components/ui/button'
 import { BookOpen, CheckCircle2, Sparkles } from 'lucide-react'
 import { AYAT_PER_JUZ } from '@/types'
-import type { Jenjang } from '@/types'
+import type { Jenjang, TahfidzKind } from '@/types'
+import { TAHFIDZ_KIND_META } from '@/lib/tahsin'
 
 interface PageProps {
   params: Promise<{ id: string }>
   searchParams: Promise<{ setoran?: string }>
 }
 
-const JENJANG_LABELS: Record<string, string> = { paud: 'PAUD', sd: 'SD', smp: 'SMP', sma: 'SMA' }
+const JENJANG_LABELS: Record<string, string> = { paud: 'PAUD', sd: 'SD', sd_juara: 'SD Juara', smp: 'SMP', sma: 'SMA' }
 
 function avg(...vals: (number | null)[]): string {
   const nums = vals.filter((v): v is number => typeof v === 'number')
@@ -39,7 +40,7 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
       id, full_name, nis, gender, kelas, jenjang, current_jilid_page,
       halaqoh:halaqoh(id, name),
       current_method:tahsin_methods!students_current_method_id_fkey(id, name),
-      current_jilid:jilid_levels!students_current_jilid_id_fkey(id, label)
+      current_jilid:jilid_levels!students_current_jilid_id_fkey(id, label, is_terminal, is_quran)
     `)
     .eq('id', id)
     .maybeSingle()
@@ -51,7 +52,7 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
     kelas: string | null; jenjang: string; current_jilid_page: number | null
     halaqoh: { id: string; name: string } | null
     current_method: { id: string; name: string } | null
-    current_jilid: { id: string; label: string } | null
+    current_jilid: { id: string; label: string; is_terminal: boolean; is_quran: boolean } | null
   }
 
   // Riwayat 15 setoran tahsin terakhir
@@ -71,7 +72,7 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
     .order('promotion_date', { ascending: false })
 
   // ── Tahfidz ──
-  const [tahfidzRes, juzProgressRes, juzPromRes] = await Promise.all([
+  const [tahfidzRes, juzProgressRes, juzPromRes, tasmiRes] = await Promise.all([
     supabase
       .from('tahfidz_logs')
       .select('id, setoran_date, kind, ayat_dari, ayat_ke, nilai_makhraj, nilai_tajwid, nilai_kelancaran, catatan, surat:surat_master!tahfidz_logs_surat_id_fkey(name_latin, juz_start)')
@@ -88,12 +89,28 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
       .select('id, juz_number, promotion_date')
       .eq('student_id', id)
       .order('juz_number', { ascending: true }),
+    supabase
+      .from('tasmi_logs')
+      .select('id, setoran_date, scope_juz, juz_from, juz_to, nilai_makhraj, nilai_tajwid, nilai_kelancaran, status, catatan')
+      .eq('student_id', id)
+      .order('setoran_date', { ascending: false })
+      .order('created_at', { ascending: false })
+      .limit(10),
   ])
+
+  // Normalisasi istilah lama (sebelum backfill) → istilah baru
+  const normalizeKind = (k: string): TahfidzKind =>
+    k === 'hafalan_baru' ? 'ziyadah' : k === 'murojaah' ? 'murojaah_baru' : (k as TahfidzKind)
 
   const tahfidzLogs = (tahfidzRes.data ?? []) as unknown as Array<{
     id: string; setoran_date: string; kind: string; ayat_dari: number; ayat_ke: number
     nilai_makhraj: number | null; nilai_tajwid: number | null; nilai_kelancaran: number | null
     catatan: string | null; surat: { name_latin: string; juz_start: number } | null
+  }>
+  const tasmiLogs = (tasmiRes.data ?? []) as Array<{
+    id: string; setoran_date: string; scope_juz: number; juz_from: number; juz_to: number
+    nilai_makhraj: number | null; nilai_tajwid: number | null; nilai_kelancaran: number | null
+    status: string; catatan: string | null
   }>
   const juzProgress = (juzProgressRes.data ?? []) as Array<{ juz_number: number; ayat_hafal: number; mutqin: boolean }>
   const juzPromotions = (juzPromRes.data ?? []) as Array<{ id: string; juz_number: number; promotion_date: string }>
@@ -114,10 +131,10 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
       <main className="max-w-4xl mx-auto px-4 md:px-6 py-6 space-y-5">
         <Link href="/guru/siswa" className="text-xs text-muted-foreground hover:underline">← Daftar Siswa</Link>
 
-        {(setoran === 'ok' || setoran === 'tahfidz_ok') && (
+        {(setoran === 'ok' || setoran === 'tahfidz_ok' || setoran === 'tasmi_ok') && (
           <div className="rounded-lg border-2 border-green-300 bg-green-50 px-4 py-3 flex items-center gap-2 text-sm text-green-800">
             <CheckCircle2 className="h-4 w-4" />
-            Setoran {setoran === 'tahfidz_ok' ? 'tahfidz' : 'tahsin'} berhasil disimpan. Barakallahu fiik!
+            Setoran {setoran === 'tahfidz_ok' ? 'tahfidz' : setoran === 'tasmi_ok' ? "tasmi'" : 'tahsin'} berhasil disimpan. Barakallahu fiik!
           </div>
         )}
 
@@ -143,12 +160,18 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
                 {student.halaqoh?.name ? ` · ${student.halaqoh.name}` : ''}
               </p>
               <div className="mt-2 flex flex-wrap gap-2">
-                <span className="inline-flex items-center gap-1.5 text-sm px-2.5 py-1 rounded-lg" style={{ background: 'var(--primary-wash)', color: 'var(--primary)' }}>
-                  <BookOpen className="h-4 w-4" />
-                  {student.current_method?.name && student.current_jilid?.label
-                    ? `${student.current_method.name} ${student.current_jilid.label} · hal. ${student.current_jilid_page ?? '—'}`
-                    : 'Belum ada data tahsin'}
-                </span>
+                {student.current_jilid?.is_terminal ? (
+                  <span className="inline-flex items-center gap-1.5 text-sm px-2.5 py-1 rounded-lg" style={{ background: '#dcfce7', color: '#15803d' }}>
+                    🎓 Lulus Tahsin{student.current_method?.name ? ` · ${student.current_method.name}` : ''}
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 text-sm px-2.5 py-1 rounded-lg" style={{ background: 'var(--primary-wash)', color: 'var(--primary)' }}>
+                    <BookOpen className="h-4 w-4" />
+                    {student.current_method?.name && student.current_jilid?.label
+                      ? `${student.current_method.name} ${student.current_jilid.label}${student.current_jilid.is_quran ? '' : ` · hal. ${student.current_jilid_page ?? '—'}`}`
+                      : 'Belum ada data tahsin'}
+                  </span>
+                )}
                 <span className="inline-flex items-center gap-1.5 text-sm px-2.5 py-1 rounded-lg" style={{ background: '#dcfce7', color: '#15803d' }}>
                   <Sparkles className="h-4 w-4" />
                   {juzAktif ? `Tahfidz Juz ${juzAktif} · ${totalAyatHafal} ayat` : 'Belum ada hafalan'}
@@ -298,14 +321,14 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
                       <p className="text-sm font-medium">
                         {suratName} ayat {log.ayat_dari}–{log.ayat_ke}
                       </p>
-                      <span
-                        className="text-[11px] px-2 py-0.5 rounded-full shrink-0"
-                        style={log.kind === 'hafalan_baru'
-                          ? { background: 'var(--primary-wash)', color: 'var(--primary)' }
-                          : { background: '#dbeafe', color: '#1d4ed8' }}
-                      >
-                        {log.kind === 'hafalan_baru' ? '✨ Hafalan Baru' : '🔁 Muroja’ah'}
-                      </span>
+                      {(() => {
+                        const meta = TAHFIDZ_KIND_META[normalizeKind(log.kind)]
+                        return (
+                          <span className="text-[11px] px-2 py-0.5 rounded-full shrink-0" style={{ background: meta.bg, color: meta.fg }}>
+                            {meta.emoji} {meta.label}
+                          </span>
+                        )
+                      })()}
                     </div>
                     <p className="text-xs text-muted-foreground mt-1">
                       {new Date(log.setoran_date).toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
@@ -321,6 +344,39 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
             </div>
           )}
         </section>
+
+        {/* Riwayat tasmi' */}
+        {tasmiLogs.length > 0 && (
+          <section>
+            <h2 className="text-sm font-semibold mb-3">🎤 Riwayat Tasmi&apos;</h2>
+            <div className="rounded-xl border bg-white divide-y">
+              {tasmiLogs.map(log => (
+                <div key={log.id} className="p-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-sm font-medium">
+                      Tasmi&apos; {log.scope_juz} Juz · Juz {log.juz_from}–{log.juz_to}
+                    </p>
+                    <span
+                      className="text-[11px] px-2 py-0.5 rounded-full shrink-0"
+                      style={log.status === 'lulus'
+                        ? { background: '#dcfce7', color: '#15803d' }
+                        : { background: '#fef9c3', color: '#a16207' }}
+                    >
+                      {log.status === 'lulus' ? 'Lulus' : 'Ulang'}
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {new Date(log.setoran_date).toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
+                    {' · '}⭐ {avg(log.nilai_makhraj, log.nilai_tajwid, log.nilai_kelancaran)}
+                  </p>
+                  {log.catatan && (
+                    <p className="text-xs italic text-muted-foreground mt-1">“{log.catatan}”</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* Riwayat kenaikan juz */}
         {juzPromotions.length > 0 && (

@@ -228,9 +228,17 @@ export interface KaldiApiResponse {
 
 // ─── PHASE 0 — Tahsin & Tahfidz ─────────────────────────────────────
 export type Gender = 'L' | 'P'
-export type Jenjang = 'paud' | 'sd' | 'smp' | 'sma'
+// Jenjang berfungsi sebagai "unit" RQ LHI. 'sd_juara' = SD LHI Juara (metode KIBAR).
+export type Jenjang = 'paud' | 'sd' | 'sd_juara' | 'smp' | 'sma'
 export type TahsinStatus = 'lulus' | 'ulang'
-export type TahfidzKind = 'hafalan_baru' | 'murojaah'
+// Jenis setoran tahfidz (semantik RQ LHI):
+//  - ziyadah        : menambah hafalan baru (dihitung ke progress juz)
+//  - murojaah_baru  : mengulang hafalan di juz yang sedang berjalan
+//  - murojaah_lama  : mengulang hafalan di juz yang sudah diujikan (dijuz'iyahkan)
+//  - tasmi          : menyetorkan beberapa juz sekaligus (lihat TasmiLog) — disimpan di tabel tasmi_logs
+export type TahfidzKind = 'ziyadah' | 'murojaah_baru' | 'murojaah_lama' | 'tasmi'
+// Cakupan tasmi: 3 juz atau 5 juz
+export type TasmiScope = 3 | 5
 
 export interface TahsinMethod {
   id: string
@@ -247,6 +255,9 @@ export interface JilidLevel {
   order_num: number
   total_pages: number | null
   is_quran: boolean
+  // Tahap terakhir metode = "Lulus Tahsin". Saat siswa naik ke level ini,
+  // ia dianggap lulus tahsin untuk metode tersebut.
+  is_terminal: boolean
   created_at: string
   method?: TahsinMethod
 }
@@ -401,6 +412,26 @@ export interface JuzPromotion {
   catatan: string | null
   created_at: string
   promoter?: Teacher
+}
+
+// Setoran tasmi' — menyetorkan beberapa juz sekaligus (3 atau 5 juz)
+export interface TasmiLog {
+  id: string
+  student_id: string
+  teacher_id: string
+  halaqoh_id: string | null
+  setoran_date: string
+  scope_juz: TasmiScope          // 3 atau 5
+  juz_from: number               // juz awal (1-30)
+  juz_to: number                 // juz akhir (1-30)
+  nilai_makhraj: number | null
+  nilai_tajwid: number | null
+  nilai_kelancaran: number | null
+  status: TahsinStatus           // lulus | ulang
+  catatan: string | null
+  created_at: string
+  student?: Student
+  teacher?: Teacher
 }
 
 // Teacher session (terpisah dari admin user session)
