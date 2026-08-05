@@ -35,3 +35,6 @@ pnpm-debug.log*
 *.tsbuildinfo
 next-env.d.ts
 .vercel
+
+# vendored tooling (own git repo, not part of this project)
+/agent-skills

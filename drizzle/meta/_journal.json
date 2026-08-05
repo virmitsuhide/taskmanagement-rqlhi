@@ -5,22 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1779334382262,
-      "tag": "0000_nebulous_agent_zero",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1779334500000,
-      "tag": "0001_add_news_table",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1779334600000,
-      "tag": "0002_add_news_excerpt_thumbnail",
+      "when": 1785938558202,
+      "tag": "0008_baseline_full_schema",
       "breakpoints": true
     }
   ]

@@ -1,6 +1,6 @@
 import {
   pgTable, pgEnum, text, uuid, boolean,
-  timestamp, integer, date, time,
+  timestamp, integer, date, time, numeric, smallint, primaryKey,
 } from 'drizzle-orm/pg-core'
 import { relations } from 'drizzle-orm'
 
@@ -192,3 +192,225 @@ export const privateNotesRelations = relations(privateNotes, ({ one }) => ({
 export const newsArticlesRelations = relations(newsArticles, ({ one }) => ({
   author: one(users, { fields: [newsArticles.author_id], references: [users.id] }),
 }))
+
+// ─── task_comments (migration 0005) ──────────────────────────────────────────
+export const taskComments = pgTable('task_comments', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  task_id: uuid('task_id').notNull().references(() => tasks.id, { onDelete: 'cascade' }),
+  author_id: uuid('author_id').references(() => users.id, { onDelete: 'set null' }),
+  body: text('body').notNull(),
+  mentions: uuid('mentions').array(),
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
+})
+
+export const taskCommentsRelations = relations(taskComments, ({ one }) => ({
+  task: one(tasks, { fields: [taskComments.task_id], references: [tasks.id] }),
+  author: one(users, { fields: [taskComments.author_id], references: [users.id] }),
+}))
+
+// ─── Domain guru / tahsin-tahfidz (migrations 0004, 0006, 0006a, 0007) ───────
+// Sebelumnya hanya diakses lewat raw Supabase client (lib/supabase/server.ts),
+// tanpa lapisan tipe Drizzle. Ditambahkan di sini murni untuk mencocokkan
+// lib/db/schema.ts dengan kondisi live DB — kode aplikasi yang sudah ada
+// (app/actions/teachers.ts, students.ts, halaqoh.ts, setoran.ts) TETAP pakai
+// Supabase client, tidak diubah. Kolom & FK diverifikasi lewat introspeksi
+// OpenAPI Supabase + isi asli file migrasi 0004/0006/0007.
+export const genderEnum = pgEnum('gender', ['L', 'P'])
+export const jenjangEnum = pgEnum('jenjang', ['paud', 'sd', 'smp', 'sma', 'sd_juara'])
+export const tahsinStatusEnum = pgEnum('tahsin_status', ['lulus', 'ulang'])
+export const tahfidzKindEnum = pgEnum('tahfidz_kind', [
+  'hafalan_baru', 'murojaah', 'ziyadah', 'murojaah_baru', 'murojaah_lama', 'tasmi',
+])
+
+export const teachers = pgTable('teachers', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  username: text('username').notNull(),
+  password_hash: text('password_hash').notNull(),
+  full_name: text('full_name').notNull(),
+  nip: text('nip'),
+  email: text('email'),
+  phone: text('phone'),
+  photo_url: text('photo_url'),
+  is_active: boolean('is_active').default(true),
+  can_change_password: boolean('can_change_password').default(true),
+  joined_at: date('joined_at').defaultNow(),
+  linked_user_id: uuid('linked_user_id').references(() => users.id, { onDelete: 'set null' }),
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+})
+
+export const halaqoh = pgTable('halaqoh', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  name: text('name').notNull(),
+  jenjang: jenjangEnum('jenjang').notNull(),
+  wali_teacher_id: uuid('wali_teacher_id').references(() => teachers.id, { onDelete: 'set null' }),
+  schedule_note: text('schedule_note'),
+  is_active: boolean('is_active').default(true),
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+})
+
+export const halaqohTeachers = pgTable('halaqoh_teachers', {
+  halaqoh_id: uuid('halaqoh_id').notNull().references(() => halaqoh.id, { onDelete: 'cascade' }),
+  teacher_id: uuid('teacher_id').notNull().references(() => teachers.id, { onDelete: 'cascade' }),
+  role: text('role').default('pengampu'),
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
+}, (t) => [primaryKey({ columns: [t.halaqoh_id, t.teacher_id] })])
+
+export const tahsinMethods = pgTable('tahsin_methods', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  name: text('name').notNull(),
+  description: text('description'),
+  is_active: boolean('is_active').default(true),
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
+})
+
+export const jilidLevels = pgTable('jilid_levels', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  method_id: uuid('method_id').notNull().references(() => tahsinMethods.id, { onDelete: 'cascade' }),
+  label: text('label').notNull(),
+  order_num: integer('order_num').notNull(),
+  total_pages: integer('total_pages'),
+  is_quran: boolean('is_quran').default(false),
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  is_terminal: boolean('is_terminal').default(false).notNull(),
+})
+
+export const suratMaster = pgTable('surat_master', {
+  id: integer('id').primaryKey(),
+  name_arabic: text('name_arabic').notNull(),
+  name_latin: text('name_latin').notNull(),
+  name_id: text('name_id').notNull(),
+  total_ayat: integer('total_ayat').notNull(),
+  juz_start: integer('juz_start').notNull(),
+  juz_end: integer('juz_end').notNull(),
+  is_makkiyah: boolean('is_makkiyah').notNull(),
+})
+
+export const students = pgTable('students', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  nis: text('nis'),
+  full_name: text('full_name').notNull(),
+  gender: genderEnum('gender'),
+  birth_date: date('birth_date'),
+  photo_url: text('photo_url'),
+  jenjang: jenjangEnum('jenjang').notNull(),
+  kelas: text('kelas'),
+  halaqoh_id: uuid('halaqoh_id').references(() => halaqoh.id, { onDelete: 'set null' }),
+  wali_name: text('wali_name'),
+  wali_phone: text('wali_phone'),
+  wali_email: text('wali_email'),
+  current_method_id: uuid('current_method_id').references(() => tahsinMethods.id, { onDelete: 'set null' }),
+  current_jilid_id: uuid('current_jilid_id').references(() => jilidLevels.id, { onDelete: 'set null' }),
+  current_jilid_page: integer('current_jilid_page'),
+  is_active: boolean('is_active').default(true),
+  enrolled_at: date('enrolled_at').defaultNow(),
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+})
+
+export const tahsinLogs = pgTable('tahsin_logs', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  student_id: uuid('student_id').notNull().references(() => students.id, { onDelete: 'cascade' }),
+  teacher_id: uuid('teacher_id').notNull().references(() => teachers.id, { onDelete: 'restrict' }),
+  halaqoh_id: uuid('halaqoh_id').references(() => halaqoh.id, { onDelete: 'set null' }),
+  setoran_date: date('setoran_date').defaultNow(),
+  method_id: uuid('method_id').references(() => tahsinMethods.id, { onDelete: 'set null' }),
+  jilid_id: uuid('jilid_id').references(() => jilidLevels.id, { onDelete: 'set null' }),
+  halaman: integer('halaman'),
+  baris_dari: integer('baris_dari'),
+  baris_ke: integer('baris_ke'),
+  nilai_fashohah: numeric('nilai_fashohah', { precision: 2, scale: 1 }),
+  nilai_tajwid: numeric('nilai_tajwid', { precision: 2, scale: 1 }),
+  nilai_kelancaran: numeric('nilai_kelancaran', { precision: 2, scale: 1 }),
+  status: tahsinStatusEnum('status').default('lulus'),
+  catatan: text('catatan'),
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
+})
+
+export const tahfidzLogs = pgTable('tahfidz_logs', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  student_id: uuid('student_id').notNull().references(() => students.id, { onDelete: 'cascade' }),
+  teacher_id: uuid('teacher_id').notNull().references(() => teachers.id, { onDelete: 'restrict' }),
+  halaqoh_id: uuid('halaqoh_id').references(() => halaqoh.id, { onDelete: 'set null' }),
+  setoran_date: date('setoran_date').defaultNow(),
+  kind: tahfidzKindEnum('kind').default('hafalan_baru').notNull(),
+  surat_id: integer('surat_id').notNull().references(() => suratMaster.id, { onDelete: 'restrict' }),
+  ayat_dari: integer('ayat_dari'),
+  ayat_ke: integer('ayat_ke'),
+  nilai_fashohah: numeric('nilai_fashohah', { precision: 2, scale: 1 }),
+  nilai_tajwid: numeric('nilai_tajwid', { precision: 2, scale: 1 }),
+  nilai_kelancaran: numeric('nilai_kelancaran', { precision: 2, scale: 1 }),
+  catatan: text('catatan'),
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
+})
+
+export const tasmiLogs = pgTable('tasmi_logs', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  student_id: uuid('student_id').notNull().references(() => students.id, { onDelete: 'cascade' }),
+  teacher_id: uuid('teacher_id').notNull().references(() => teachers.id, { onDelete: 'restrict' }),
+  halaqoh_id: uuid('halaqoh_id').references(() => halaqoh.id, { onDelete: 'set null' }),
+  setoran_date: date('setoran_date').defaultNow(),
+  scope_juz: smallint('scope_juz').notNull(),
+  juz_from: integer('juz_from').notNull(),
+  juz_to: integer('juz_to').notNull(),
+  nilai_fashohah: numeric('nilai_fashohah', { precision: 2, scale: 1 }),
+  nilai_tajwid: numeric('nilai_tajwid', { precision: 2, scale: 1 }),
+  nilai_kelancaran: numeric('nilai_kelancaran', { precision: 2, scale: 1 }),
+  status: tahsinStatusEnum('status').default('lulus'),
+  catatan: text('catatan'),
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
+})
+
+export const juzProgress = pgTable('juz_progress', {
+  student_id: uuid('student_id').notNull().references(() => students.id, { onDelete: 'cascade' }),
+  juz_number: integer('juz_number').notNull(),
+  ayat_hafal: integer('ayat_hafal').default(0).notNull(),
+  last_setoran_at: timestamp('last_setoran_at', { withTimezone: true }),
+  mutqin: boolean('mutqin').default(false).notNull(),
+  updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+}, (t) => [primaryKey({ columns: [t.student_id, t.juz_number] })])
+
+export const jilidPromotions = pgTable('jilid_promotions', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  student_id: uuid('student_id').notNull().references(() => students.id, { onDelete: 'cascade' }),
+  from_jilid_id: uuid('from_jilid_id').references(() => jilidLevels.id, { onDelete: 'set null' }),
+  to_jilid_id: uuid('to_jilid_id').notNull().references(() => jilidLevels.id, { onDelete: 'restrict' }),
+  promoted_by: uuid('promoted_by').references(() => teachers.id, { onDelete: 'set null' }),
+  promotion_date: date('promotion_date').defaultNow(),
+  exam_score: numeric('exam_score'),
+  catatan: text('catatan'),
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
+})
+
+export const juzPromotions = pgTable('juz_promotions', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  student_id: uuid('student_id').notNull().references(() => students.id, { onDelete: 'cascade' }),
+  juz_number: integer('juz_number').notNull(),
+  promoted_by: uuid('promoted_by').references(() => teachers.id, { onDelete: 'set null' }),
+  promotion_date: date('promotion_date').defaultNow(),
+  exam_score: numeric('exam_score'),
+  catatan: text('catatan'),
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
+})
+
+// ─── Halaman publik (Program & Tentang RQ) ───────────────────────────────────
+export const programDetails = pgTable('program_details', {
+  slug: text('slug').primaryKey(),
+  long_description: text('long_description').default(''),
+  curriculum: text('curriculum').default(''),
+  schedule: text('schedule').default(''),
+  target_audience: text('target_audience').default(''),
+  contact_info: text('contact_info').default(''),
+  updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+  updated_by: uuid('updated_by').references(() => users.id),
+})
+
+export const aboutRq = pgTable('about_rq', {
+  id: integer('id').primaryKey().default(1),
+  vision: text('vision').default(''),
+  mission: text('mission').default(''),
+  history: text('history').default(''),
+  updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+  updated_by: uuid('updated_by').references(() => users.id),
+})
