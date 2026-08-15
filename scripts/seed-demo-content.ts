@@ -176,7 +176,7 @@ async function main() {
       .from('agenda_items').select('id').eq('meeting_id', meetingId).limit(1)
     if (!existingAgenda || existingAgenda.length === 0) {
       const { data: agenda } = await supabase.from('agenda_items').insert([
-        { meeting_id: meetingId, order_num: 1, tag: 'hasil_diskusi', discussion: 'Evaluasi capaian tahfidz semester 1 — target 80% terlampaui.', follow_up: null },
+        { meeting_id: meetingId, order_num: 1, tag: 'perlu_diskusi', discussion: 'Evaluasi capaian tahfidz semester 1 — target 80% terlampaui.', follow_up: null },
         { meeting_id: meetingId, order_num: 2, tag: 'tindak_lanjut', discussion: 'Perlu sinkronisasi jadwal ujian akhir antar koor.', follow_up: 'Susun draft jadwal terpadu' },
         { meeting_id: meetingId, order_num: 3, tag: 'keputusan', discussion: 'Anggaran ekstrakurikuler ditambah 15%.', follow_up: 'Bendahara siapkan revisi RAB' },
       ]).select('id, order_num')
@@ -271,7 +271,7 @@ async function main() {
   console.log('\n✅ Seed konten demo selesai.')
   console.log('Coba:')
   console.log('  • Beranda (logout dulu): muncul berita & tugas guru SD/SMP')
-  console.log('  • Login kepala_rq → /tasks → semua bucket terisi, /tasks/matrix penuh')
+  console.log('  • Login kepala_rq → /tasks → semua bucket terisi')
   console.log('  • Login kepala_rq → /rapat → muncul rapat manajemen + agenda')
   console.log('  • Login humas → /humas-request → ada 3 request')
   console.log('  • Login bendahara → /notes → ada 1 catatan kas')

@@ -60,7 +60,7 @@ export default async function TaskDetailPage({ params }: { params: Promise<{ id:
 
   const { data: historyData } = await supabase
     .from('task_history')
-    .select('*, changer:users!task_history_changed_by_fkey(id, display_name)')
+    .select('*, changer:users!changed_by(id, display_name)')
     .eq('task_id', id)
     .order('created_at', { ascending: false })
 
@@ -181,6 +181,7 @@ export default async function TaskDetailPage({ params }: { params: Promise<{ id:
         {/* Diskusi / Komentar */}
         <TaskComments
           taskId={id}
+          taskTitle={task.title}
           comments={comments}
           currentUserId={session.userId}
           isModerator={session.role === 'kepala_rq'}

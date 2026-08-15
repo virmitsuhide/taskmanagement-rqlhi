@@ -22,6 +22,7 @@ function pickStudentFields(formData: FormData) {
     birth_date: clean(formData.get('birth_date')),
     jenjang: formData.get('jenjang') as Jenjang,
     kelas: clean(formData.get('kelas')),
+    program: clean(formData.get('program')),
     halaqoh_id: clean(formData.get('halaqoh_id')),
     wali_name: clean(formData.get('wali_name')),
     wali_phone: clean(formData.get('wali_phone')),

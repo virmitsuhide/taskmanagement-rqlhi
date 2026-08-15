@@ -28,7 +28,7 @@ export default async function HomePostPage() {
   const supabase = createServerClient()
   const { data } = await supabase
     .from('public_posts')
-    .select('*, creator:users!public_posts_created_by_fkey(id, display_name)')
+    .select('*, creator:users!created_by(id, display_name)')
     .order('created_at', { ascending: false })
 
   // Filter: kepala_rq sees all, others see only their own

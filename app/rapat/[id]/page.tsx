@@ -1,7 +1,7 @@
 import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
 import { getSession } from '@/lib/auth/session'
-import { canEditMeeting, canDeleteMeeting, canViewMeeting, MEETING_TYPE_LABELS } from '@/lib/auth/permissions'
+import { canEditMeeting, canDeleteMeeting, canViewMeeting, MEETING_TYPE_LABELS, AGENDA_TAG_LABELS } from '@/lib/auth/permissions'
 import { createServerClient } from '@/lib/supabase/server'
 import { deleteMeetingAction } from '@/app/actions/meetings'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
@@ -10,14 +10,17 @@ import { Button } from '@/components/ui/button'
 import { Markdown } from '@/components/ui/markdown'
 import { PrintButton } from '@/components/rapat/PrintButton'
 import { ArrowLeft, Calendar, Clock, Edit, MapPin, Trash2, Users, ExternalLink, FileText } from 'lucide-react'
-import type { Meeting, AgendaItem } from '@/types'
+import type { Meeting, AgendaItem, AgendaTag } from '@/types'
 
-const TAG_CONFIG = {
-  keputusan:     { label: 'Keputusan',     badge: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-900',       bar: 'bg-blue-500' },
-  informasi:     { label: 'Informasi',     badge: 'bg-green-50 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-900', bar: 'bg-green-500' },
-  hasil_diskusi: { label: 'Hasil Diskusi', badge: 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950 dark:text-purple-300 dark:border-purple-900', bar: 'bg-purple-500' },
-  tindak_lanjut: { label: 'Tindak Lanjut', badge: 'bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-950 dark:text-orange-300 dark:border-orange-900', bar: 'bg-orange-500' },
+const TAG_CONFIG: Record<AgendaTag, { label: string; badge: string; bar: string }> = {
+  keputusan:     { label: AGENDA_TAG_LABELS.keputusan,     badge: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-900',       bar: 'bg-blue-500' },
+  informasi:     { label: AGENDA_TAG_LABELS.informasi,     badge: 'bg-green-50 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-900', bar: 'bg-green-500' },
+  perlu_diskusi: { label: AGENDA_TAG_LABELS.perlu_diskusi, badge: 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950 dark:text-purple-300 dark:border-purple-900', bar: 'bg-purple-500' },
+  tindak_lanjut: { label: AGENDA_TAG_LABELS.tindak_lanjut, badge: 'bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-950 dark:text-orange-300 dark:border-orange-900', bar: 'bg-orange-500' },
+  approval:      { label: AGENDA_TAG_LABELS.approval,      badge: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-900', bar: 'bg-amber-500' },
 }
+
+const TAG_FALLBACK = { label: 'Lainnya', badge: 'bg-muted text-muted-foreground border-border', bar: 'bg-muted-foreground' }
 
 function formatDate(dateStr: string) {
   return new Date(dateStr).toLocaleDateString('id-ID', {
@@ -33,7 +36,7 @@ export default async function RapatDetailPage({ params }: { params: Promise<{ id
   const supabase = createServerClient()
   const { data: meeting } = await supabase
     .from('meetings')
-    .select('*, creator:users!meetings_created_by_fkey(id, display_name)')
+    .select('*, creator:users!created_by(id, display_name)')
     .eq('id', id)
     .single()
 
@@ -139,7 +142,7 @@ export default async function RapatDetailPage({ params }: { params: Promise<{ id
           ) : (
             <div className="space-y-3">
               {items.map((item, idx) => {
-                const cfg = TAG_CONFIG[item.tag]
+                const cfg = TAG_CONFIG[item.tag] ?? TAG_FALLBACK
                 return (
                   <div key={item.id} className="relative rounded-xl border bg-card p-4 pl-5 overflow-hidden">
                     <span className={`absolute left-0 top-0 bottom-0 w-1 ${cfg.bar}`} aria-hidden />

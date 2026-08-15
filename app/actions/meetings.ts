@@ -158,3 +158,27 @@ export async function deleteMeetingAction(meetingId: string) {
   revalidatePath('/rapat')
   redirect('/rapat')
 }
+
+/** Hapus dari tabel /rapat tanpa redirect — dipakai tombol aksi di daftar. */
+export async function deleteMeetingFromListAction(meetingId: string) {
+  const session = await getSession()
+  if (!session) return { error: 'Sesi tidak valid.' }
+
+  const supabase = createServerClient()
+  const { data: meeting } = await supabase
+    .from('meetings')
+    .select('type')
+    .eq('id', meetingId)
+    .single()
+
+  if (!meeting) return { error: 'Rapat tidak ditemukan.' }
+  if (!canDeleteMeeting(session.role, meeting.type)) {
+    return { error: 'Anda tidak memiliki izin untuk menghapus rapat ini.' }
+  }
+
+  const { error } = await supabase.from('meetings').delete().eq('id', meetingId)
+  if (error) return { error: 'Gagal menghapus rapat.' }
+
+  revalidatePath('/rapat')
+  return { success: true }
+}

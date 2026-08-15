@@ -179,3 +179,30 @@ export async function deleteTaskAction(taskId: string) {
   revalidatePath('/tasks')
   redirect('/tasks')
 }
+
+/**
+ * Hapus tugas yang sudah selesai dari riwayat (khusus kepala_rq).
+ * FK task_history & task_comments ON DELETE CASCADE — ikut terhapus.
+ * Tidak redirect: dipakai dari dashboard, cukup revalidate.
+ */
+export async function deleteCompletedTaskAction(taskId: string) {
+  const session = await getSession()
+  if (!session || session.role !== 'kepala_rq') {
+    return { error: 'Tidak memiliki izin.' }
+  }
+
+  const supabase = createServerClient()
+  const { data: task } = await supabase
+    .from('tasks')
+    .select('status')
+    .eq('id', taskId)
+    .maybeSingle()
+  if (!task) return { error: 'Tugas tidak ditemukan.' }
+  if (task.status !== 'done') return { error: 'Hanya tugas yang sudah selesai yang bisa dihapus dari riwayat.' }
+
+  const { error } = await supabase.from('tasks').delete().eq('id', taskId)
+  if (error) return { error: 'Gagal menghapus tugas.' }
+
+  revalidatePath('/dashboard/manajemen')
+  return { success: true }
+}

@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation'
 import {
   Menu, X, LayoutDashboard, CheckSquare, BookOpen,
   ImageIcon, Megaphone, FileText, User, LogOut, GraduationCap, Newspaper, LayoutGrid,
-  Users, UserCog, BookMarked, BarChart3, Table2,
+  Users, UserCog, BookMarked, BarChart3,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
@@ -26,6 +26,7 @@ const DASHBOARD_ICONS: Record<string, React.ReactNode> = {
   'koor-ekstra': <GraduationCap className="h-4 w-4" />,
   humas: <Megaphone className="h-4 w-4" />,
   'div-training': <BookOpen className="h-4 w-4" />,
+  pribadi: <LayoutDashboard className="h-4 w-4" />,
 }
 
 interface Props {
@@ -170,9 +171,8 @@ export function MobileNav({ role, displayName, username }: Props) {
               <DrawerLink href="/program" icon={<LayoutGrid className="h-4 w-4" />} label="Program RQ" active={isActive('/program')} onNavigate={close} />
               <DrawerLink href="/rapat" icon={<BookOpen className="h-4 w-4" />} label="Rapat & Notulen" active={isActive('/rapat')} onNavigate={close} />
               <DrawerLink href="/tasks" icon={<CheckSquare className="h-4 w-4" />} label="Tugas" active={isActive('/tasks')} onNavigate={close} />
-              <DrawerLink href="/tasks/board" icon={<LayoutGrid className="h-4 w-4" />} label="Papan Tugas" active={isActive('/tasks/board')} onNavigate={close} />
-              {canViewAnalytics(role) && (
-                <DrawerLink href="/tasks/matrix" icon={<Table2 className="h-4 w-4" />} label="PR Manajemen" active={isActive('/tasks/matrix')} onNavigate={close} />
+              {role !== 'kepala_rq' && (
+                <DrawerLink href="/tasks/board" icon={<LayoutGrid className="h-4 w-4" />} label="Papan Tugas" active={isActive('/tasks/board')} onNavigate={close} />
               )}
               {canRequestToHumas(role) && (
                 <DrawerLink href="/humas-request" icon={<ImageIcon className="h-4 w-4" />} label="Request Humas" active={isActive('/humas-request')} onNavigate={close} />

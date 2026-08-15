@@ -48,7 +48,7 @@ async function getPosts() {
     const supabase = createServerClient()
     const { data } = await supabase
       .from('public_posts')
-      .select('*, creator:users!public_posts_created_by_fkey(id, display_name, role)')
+      .select('*, creator:users!created_by(id, display_name, role)')
       .eq('is_active', true)
       .order('created_at', { ascending: false })
     return (data ?? []) as PublicPost[]

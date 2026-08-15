@@ -14,7 +14,7 @@ export const meetingTypeEnum = pgEnum('meeting_type', [
   'manajemen', 'kumik', 'new_squad', 'koor_sd', 'koor_smp',
 ])
 export const agendaTagEnum = pgEnum('agenda_tag', [
-  'keputusan', 'informasi', 'hasil_diskusi', 'tindak_lanjut',
+  'keputusan', 'informasi', 'perlu_diskusi', 'tindak_lanjut', 'approval',
 ])
 export const taskPriorityEnum = pgEnum('task_priority', ['normal', 'mendesak', 'jangka_panjang'])
 export const taskStatusEnum = pgEnum('task_status', ['todo', 'in_progress', 'submitted', 'done', 'returned'])
@@ -296,6 +296,7 @@ export const students = pgTable('students', {
   photo_url: text('photo_url'),
   jenjang: jenjangEnum('jenjang').notNull(),
   kelas: text('kelas'),
+  program: text('program'),
   halaqoh_id: uuid('halaqoh_id').references(() => halaqoh.id, { onDelete: 'set null' }),
   wali_name: text('wali_name'),
   wali_phone: text('wali_phone'),

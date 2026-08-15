@@ -1,13 +1,13 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { getSession } from '@/lib/auth/session'
-import { canAssignAnyTask, canViewAnalytics } from '@/lib/auth/permissions'
+import { canAssignAnyTask } from '@/lib/auth/permissions'
 import { createServerClient } from '@/lib/supabase/server'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { TaskCard } from '@/components/tasks/TaskCard'
 import { NewTaskMenu } from '@/components/tasks/NewTaskMenu'
 import { Button } from '@/components/ui/button'
-import { CheckSquare, Clock, AlertCircle, CheckCircle2, LayoutGrid, Zap, Target, Users, ClipboardList, Table2 } from 'lucide-react'
+import { CheckSquare, Clock, AlertCircle, CheckCircle2, LayoutGrid, Zap, Target, Users, ClipboardList } from 'lucide-react'
 import { SearchInput } from '@/components/ui/search-input'
 import { Pagination } from '@/components/ui/pagination'
 import type { Task, TaskStatus, TaskSource, TaskPriority } from '@/types'
@@ -111,7 +111,6 @@ export default async function TasksPage({ searchParams }: PageProps) {
   const totalDelegated = delegatedCountRes.count ?? 0
   const overdueCount = overdueRes.count ?? 0
   const showDelegated = canAssignAnyTask(session.role)
-  const showMatrix = canViewAnalytics(session.role)
 
   // ── Bagi tugas aktif ke bucket ─────────────────────────────────
   const buckets = {
@@ -145,11 +144,6 @@ export default async function TasksPage({ searchParams }: PageProps) {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            {showMatrix && (
-              <Button asChild size="sm" variant="outline">
-                <Link href="/tasks/matrix"><Table2 className="h-4 w-4 mr-1" />PR Manajemen</Link>
-              </Button>
-            )}
             <Button asChild size="sm" variant="outline">
               <Link href="/tasks/board"><LayoutGrid className="h-4 w-4 mr-1" />Papan</Link>
             </Button>

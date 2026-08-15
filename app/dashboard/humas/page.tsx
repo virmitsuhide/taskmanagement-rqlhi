@@ -24,7 +24,7 @@ export default async function HumasDashboardPage() {
     getPendingVerifications(session.userId),
     supabase
       .from('content_requests')
-      .select('*, requester:users!content_requests_requested_by_fkey(id, display_name)')
+      .select('*, requester:users!requested_by(id, display_name)')
       .in('status', ['requested', 'on_process'])
       .order('created_at', { ascending: false })
       .limit(5),

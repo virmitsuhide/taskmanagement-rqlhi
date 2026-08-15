@@ -18,7 +18,7 @@ export default async function EditStudentPage({ params }: PageProps) {
   const supabase = createServerClient()
   const { data: student } = await supabase
     .from('students')
-    .select('id, nis, full_name, gender, birth_date, jenjang, kelas, halaqoh_id, wali_name, wali_phone, wali_email, current_method_id, current_jilid_id, current_jilid_page, is_active')
+    .select('id, nis, full_name, gender, birth_date, jenjang, kelas, program, halaqoh_id, wali_name, wali_phone, wali_email, current_method_id, current_jilid_id, current_jilid_page, is_active')
     .eq('id', id)
     .maybeSingle()
 
@@ -60,6 +60,7 @@ export default async function EditStudentPage({ params }: PageProps) {
             birth_date: student.birth_date,
             jenjang: student.jenjang as Jenjang,
             kelas: student.kelas,
+            program: student.program,
             halaqoh_id: student.halaqoh_id,
             wali_name: student.wali_name,
             wali_phone: student.wali_phone,

@@ -1,15 +1,19 @@
-import type { UserRole, MeetingType, TaskStatus, PublicTarget, Jenjang } from '@/types'
+import type { UserRole, MeetingType, AgendaTag, TaskStatus, PublicTarget, Jenjang } from '@/types'
 
-// Dashboard access matrix
+// Dashboard access matrix.
+// Isolasi penuh: tiap role hanya boleh membuka dashboard-nya sendiri.
+// Kepala RQ punya dashboard manajemen khusus (berisi task lintas divisi timnya).
+// Bendahara & New Squad memakai dashboard "pribadi" ringkas.
 const DASHBOARD_ACCESS: Record<string, UserRole[]> = {
-  manajemen: ['kepala_rq', 'kumik', 'sdm', 'bendahara'],
-  kumik: ['kepala_rq', 'kumik', 'sdm', 'bendahara', 'koor_sd', 'koor_smp', 'koor_ekstra'],
-  sdm: ['kepala_rq', 'kumik', 'sdm', 'bendahara', 'koor_sd', 'koor_smp', 'koor_ekstra', 'humas', 'div_training', 'new_squad'],
-  'koor-sd': ['kepala_rq', 'kumik', 'sdm', 'bendahara', 'koor_sd'],
-  'koor-smp': ['kepala_rq', 'kumik', 'sdm', 'bendahara', 'koor_smp'],
-  'koor-ekstra': ['kepala_rq', 'kumik', 'sdm', 'bendahara', 'koor_ekstra'],
-  humas: ['kepala_rq', 'kumik', 'sdm', 'bendahara', 'koor_sd', 'koor_smp', 'koor_ekstra', 'humas'],
-  'div-training': ['kepala_rq', 'kumik', 'sdm', 'bendahara', 'div_training'],
+  manajemen: ['kepala_rq'],
+  kumik: ['kumik'],
+  sdm: ['sdm'],
+  'koor-sd': ['koor_sd'],
+  'koor-smp': ['koor_smp'],
+  'koor-ekstra': ['koor_ekstra'],
+  humas: ['humas'],
+  'div-training': ['div_training'],
+  pribadi: ['bendahara', 'new_squad'],
 }
 
 export function canViewDashboard(role: UserRole, dashboardSlug: string): boolean {
@@ -60,10 +64,12 @@ export function canCreateMeeting(role: UserRole, type: MeetingType): boolean {
 }
 
 export function canEditMeeting(role: UserRole, type: MeetingType): boolean {
+  if (role === 'kepala_rq') return true // Kepala RQ: kelola semua rapat
   return MEETING_EDIT[type]?.includes(role) ?? false
 }
 
 export function canDeleteMeeting(role: UserRole, type: MeetingType): boolean {
+  if (role === 'kepala_rq') return true // Kepala RQ: kelola semua rapat
   return MEETING_DELETE[type]?.includes(role) ?? false
 }
 
@@ -288,6 +294,14 @@ export const ROLE_LABELS: Record<UserRole, string> = {
   new_squad: 'New Squad',
 }
 
+export const AGENDA_TAG_LABELS: Record<AgendaTag, string> = {
+  keputusan:     'Keputusan',
+  informasi:     'Informasi',
+  perlu_diskusi: 'Perlu Diskusi Lanjut',
+  tindak_lanjut: 'Tindak Lanjut',
+  approval:      'Approval',
+}
+
 export const MEETING_TYPE_LABELS: Record<MeetingType, string> = {
   manajemen: 'Rapat Manajemen',
   kumik: 'Rapat Kumik',
@@ -305,17 +319,18 @@ export const DASHBOARD_LABELS: Record<string, string> = {
   'koor-ekstra': 'Koor Ekstra',
   humas: 'Humas',
   'div-training': 'Div Training',
+  pribadi: 'Dashboard Saya',
 }
 
 export const DEFAULT_DASHBOARD: Record<UserRole, string> = {
   kepala_rq: 'manajemen',
   kumik: 'kumik',
   sdm: 'sdm',
-  bendahara: 'manajemen',
+  bendahara: 'pribadi',
   koor_sd: 'koor-sd',
   koor_smp: 'koor-smp',
   koor_ekstra: 'koor-ekstra',
   humas: 'humas',
   div_training: 'div-training',
-  new_squad: 'sdm',
+  new_squad: 'pribadi',
 }

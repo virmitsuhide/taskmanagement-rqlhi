@@ -18,7 +18,7 @@ export default async function HumasRequestPage() {
   const supabase = createServerClient()
   const query = supabase
     .from('content_requests')
-    .select('*, requester:users!content_requests_requested_by_fkey(id, display_name, role)')
+    .select('*, requester:users!requested_by(id, display_name, role)')
     .order('created_at', { ascending: false })
 
   // Humas sees all; others see only their own

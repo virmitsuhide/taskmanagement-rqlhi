@@ -12,7 +12,7 @@ export type UserRole =
 
 export type MeetingType = 'manajemen' | 'kumik' | 'new_squad' | 'koor_sd' | 'koor_smp'
 
-export type AgendaTag = 'keputusan' | 'informasi' | 'hasil_diskusi' | 'tindak_lanjut'
+export type AgendaTag = 'keputusan' | 'informasi' | 'perlu_diskusi' | 'tindak_lanjut' | 'approval'
 
 export type TaskPriority = 'normal' | 'mendesak' | 'jangka_panjang'
 
@@ -108,6 +108,21 @@ export interface TaskComment {
   mentions: string[] | null
   created_at: string
   author?: User
+}
+
+// Ringkasan riwayat penyelesaian satu tugas (untuk dashboard Kepala RQ).
+export interface CompletedTaskEntry {
+  task: Task
+  startedAt: string | null   // waktu mulai dikerjakan (entri in_progress pertama)
+  completedAt: string        // waktu penyelesaian (verified_at / entri done)
+  durationMs: number | null  // lama pengerjaan (completedAt - startedAt)
+  comments: TaskComment[]    // history diskusi tugas
+}
+
+// Riwayat penyelesaian dikelompokkan per pengurus (assignee).
+export interface MemberCompletion {
+  user: Pick<User, 'id' | 'display_name' | 'role'>
+  tasks: CompletedTaskEntry[]
 }
 
 export interface PublicPost {
@@ -319,6 +334,7 @@ export interface Student {
   photo_url: string | null
   jenjang: Jenjang
   kelas: string | null
+  program: string | null
   halaqoh_id: string | null
   wali_name: string | null
   wali_phone: string | null

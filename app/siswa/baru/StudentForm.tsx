@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { JENJANG_LABELS } from '@/lib/auth/permissions'
 import { methodsForJenjang } from '@/lib/tahsin'
+import { getProgramsForJenjang } from '@/lib/rq/programs'
 import type { Jenjang, Halaqoh, TahsinMethod, JilidLevel } from '@/types'
 
 // Radix Select melarang SelectItem value="". Pakai sentinel ini untuk opsi "kosong".
@@ -29,6 +30,7 @@ interface Props {
     birth_date: string | null
     jenjang: Jenjang
     kelas: string | null
+    program: string | null
     halaqoh_id: string | null
     wali_name: string | null
     wali_phone: string | null
@@ -50,6 +52,9 @@ export function StudentForm({
 
   const [jenjang, setJenjang] = useState<Jenjang>(initial?.jenjang ?? allowedJenjang[0] ?? 'sd')
   const [methodId, setMethodId] = useState<string>(initial?.current_method_id ?? NONE)
+  const [program, setProgram] = useState<string>(initial?.program ?? NONE)
+
+  const programOptions = useMemo(() => getProgramsForJenjang(jenjang), [jenjang])
 
   const halaqohOptions = useMemo(
     () => halaqohList.filter(h => h.jenjang === jenjang),
@@ -70,6 +75,10 @@ export function StudentForm({
     setJenjang(v)
     if (methodId !== NONE && !methodsForJenjang(v, methods).some(m => m.id === methodId)) {
       setMethodId(NONE)
+    }
+    // Reset program bila tak berlaku untuk unit baru.
+    if (program !== NONE && !getProgramsForJenjang(v).some(p => p.code === program)) {
+      setProgram(NONE)
     }
   }
 
@@ -132,6 +141,21 @@ export function StudentForm({
             <Input id="kelas" name="kelas" placeholder="contoh: 4A" defaultValue={initial?.kelas ?? ''} disabled={isPending} />
           </div>
         </div>
+
+        {programOptions.length > 0 && (
+          <div className="space-y-1.5">
+            <Label htmlFor="program">Program</Label>
+            <Select name="program" value={program} onValueChange={setProgram}>
+              <SelectTrigger id="program"><SelectValue placeholder="— Belum ditandai —" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NONE}>— Belum ditandai —</SelectItem>
+                {programOptions.map(p => (
+                  <SelectItem key={p.code} value={p.code}>{p.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
 
         <div className="space-y-1.5">
           <Label htmlFor="halaqoh_id">Halaqoh</Label>

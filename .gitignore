@@ -38,3 +38,6 @@ next-env.d.ts
 
 # vendored tooling (own git repo, not part of this project)
 /agent-skills
+
+# Claude Code: setting per-mesin + skill vendor
+/.claude

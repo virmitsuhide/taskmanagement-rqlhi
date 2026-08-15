@@ -7,6 +7,8 @@ interface Props {
   task: Task
   showAssignee?: boolean
   showAssigner?: boolean
+  /** Anchor opsional yang ditambahkan ke href, mis. 'diskusi' → /tasks/{id}#diskusi */
+  hash?: string
 }
 
 function formatDate(dateStr: string | null) {
@@ -31,14 +33,14 @@ const STATUS_BAR: Record<string, string> = {
   returned: 'bg-destructive',
 }
 
-export function TaskCard({ task, showAssignee = true, showAssigner = false }: Props) {
+export function TaskCard({ task, showAssignee = true, showAssigner = false, hash }: Props) {
   const days = daysUntil(task.due_date)
   const overdue = days !== null && days < 0 && task.status !== 'done'
   const dueSoon = days !== null && days >= 0 && days <= 2 && task.status !== 'done'
 
   return (
     <Link
-      href={`/tasks/${task.id}`}
+      href={hash ? `/tasks/${task.id}#${hash}` : `/tasks/${task.id}`}
       className="group relative block rounded-xl border bg-card p-4 transition hover:border-foreground/20 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
       <span

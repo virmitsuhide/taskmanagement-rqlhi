@@ -6,15 +6,26 @@ import { toast } from 'sonner'
 import { createTaskCommentAction, deleteTaskCommentAction } from '@/app/actions/task-comments'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
-import { Trash2, Send, MessageSquare } from 'lucide-react'
+import { Trash2, Send, MessageSquare, Download } from 'lucide-react'
 import type { TaskComment } from '@/types'
 
 interface Props {
   taskId: string
+  taskTitle: string
   comments: TaskComment[]
   currentUserId: string
   isModerator: boolean
   participants: { id: string; name: string }[]
+}
+
+function formatFull(dateStr: string): string {
+  return new Date(dateStr).toLocaleString('id-ID', {
+    day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
+  })
+}
+
+function slugify(text: string): string {
+  return text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 50) || 'tugas'
 }
 
 function initials(name: string) {
@@ -43,7 +54,7 @@ function renderBody(body: string) {
   )
 }
 
-export function TaskComments({ taskId, comments, currentUserId, isModerator, participants }: Props) {
+export function TaskComments({ taskId, taskTitle, comments, currentUserId, isModerator, participants }: Props) {
   const router = useRouter()
   const [state, formAction, isPending] = useActionState(createTaskCommentAction, null)
   const formRef = useRef<HTMLFormElement>(null)
@@ -76,13 +87,45 @@ export function TaskComments({ taskId, comments, currentUserId, isModerator, par
     else { toast.success('Komentar dihapus'); router.refresh() }
   }
 
+  function downloadLog() {
+    const header = [
+      `LOG DISKUSI TUGAS`,
+      `Judul   : ${taskTitle}`,
+      `Diunduh : ${formatFull(new Date().toISOString())}`,
+      `Pesan   : ${comments.length}`,
+      '='.repeat(60),
+      '',
+    ]
+    const body = comments.map(c => {
+      const who = c.author?.display_name ?? 'Pengguna'
+      return `[${formatFull(c.created_at)}] ${who}:\n${c.body}\n`
+    })
+    const blob = new Blob([[...header, ...body].join('\n')], { type: 'text/plain;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `diskusi-${slugify(taskTitle)}.txt`
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    URL.revokeObjectURL(url)
+  }
+
   return (
-    <div>
-      <h2 className="font-semibold mb-4 flex items-center gap-2">
-        <MessageSquare className="h-4 w-4" />
-        Diskusi
-        <span className="text-xs font-normal text-muted-foreground">({comments.length})</span>
-      </h2>
+    <div id="diskusi" className="scroll-mt-20">
+      <div className="flex items-center justify-between gap-2 mb-4">
+        <h2 className="font-semibold flex items-center gap-2">
+          <MessageSquare className="h-4 w-4" />
+          Diskusi
+          <span className="text-xs font-normal text-muted-foreground">({comments.length})</span>
+        </h2>
+        {comments.length > 0 && (
+          <Button type="button" variant="outline" size="sm" onClick={downloadLog}>
+            <Download className="h-3.5 w-3.5 mr-1.5" />
+            Unduh log (.txt)
+          </Button>
+        )}
+      </div>
 
       {/* Daftar komentar */}
       <div className="space-y-4 mb-5">

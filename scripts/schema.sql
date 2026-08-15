@@ -16,7 +16,7 @@ create type meeting_type as enum (
   'manajemen','kumik','new_squad','koor_sd','koor_smp'
 );
 create type agenda_tag as enum (
-  'keputusan','informasi','hasil_diskusi','tindak_lanjut'
+  'keputusan','informasi','perlu_diskusi','tindak_lanjut','approval'
 );
 create type task_priority as enum ('normal','mendesak','jangka_panjang');
 create type task_status as enum ('todo','in_progress','submitted','done','returned');

@@ -10,14 +10,20 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator'
 import { RichTextEditor } from '@/components/ui/rich-text-editor'
 import { Plus, Trash2 } from 'lucide-react'
-import { MEETING_TYPE_LABELS } from '@/lib/auth/permissions'
+import { MEETING_TYPE_LABELS, AGENDA_TAG_LABELS } from '@/lib/auth/permissions'
 import type { MeetingType, AgendaTag, Meeting, AgendaItem } from '@/types'
 
-const AGENDA_TAG_LABELS: Record<AgendaTag, string> = {
-  keputusan: 'Keputusan',
-  informasi: 'Informasi',
-  hasil_diskusi: 'Hasil Diskusi',
-  tindak_lanjut: 'Tindak Lanjut',
+// Tag yang memunculkan kolom "Tindak Lanjut" — isinya bisa dijadikan task
+// lewat tombol "Buat Task" di halaman detail rapat.
+const TAGS_WITH_FOLLOW_UP: AgendaTag[] = ['tindak_lanjut']
+
+// Placeholder isi diskusi disesuaikan tag — approval butuh detail objek yang disetujui.
+const DISCUSSION_PLACEHOLDER: Record<AgendaTag, string> = {
+  keputusan:     'Keputusan yang diambil dalam rapat...',
+  informasi:     'Informasi yang disampaikan...',
+  perlu_diskusi: 'Poin yang belum tuntas dan perlu dibahas di rapat berikutnya...',
+  tindak_lanjut: 'Latar belakang tindak lanjut...',
+  approval:      'Approval penggunaan anggaran / alokasi SDM / request pengurus — sebutkan nominal, pihak, dan hasil persetujuan...',
 }
 
 interface Props {
@@ -168,12 +174,12 @@ export function MeetingForm({ allowedTypes, action, defaultValues, submitLabel =
                   onChange={v => update(i, 'discussion', v)}
                   name={`agenda_${i}_discussion`}
                   rows={3}
-                  placeholder="Isi diskusi, keputusan, atau catatan... Gunakan **tebal**, *miring*, atau emoji 😊"
+                  placeholder={`${DISCUSSION_PLACEHOLDER[item.tag as AgendaTag] ?? 'Isi diskusi, keputusan, atau catatan...'} Gunakan **tebal**, *miring*, atau emoji 😊`}
                   required
                 />
               </div>
 
-              {item.tag === 'tindak_lanjut' && (
+              {TAGS_WITH_FOLLOW_UP.includes(item.tag as AgendaTag) && (
                 <div className="space-y-1.5">
                   <Label>Tindak Lanjut</Label>
                   <Input

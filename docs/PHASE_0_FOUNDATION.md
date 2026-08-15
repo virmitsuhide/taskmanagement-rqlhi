@@ -1,7 +1,16 @@
 # Fase 0 — Foundation Tahsin & Tahfidz
 
-> Status: **DB schema siap. Belum diapply ke Supabase.**
-> Setelah ini selesai, lanjut ke Fase 1A (auth guru terpisah).
+> Status: **✅ Selesai & sudah lama live di production.** Dokumen ini dibiarkan
+> sebagai arsip historis (ERD, keputusan desain, cara apply migration awal
+> masih akurat dan berguna). Untuk kondisi produk saat ini secara keseluruhan
+> (semua modul, bukan cuma tahsin/tahfidz) dan arah pengembangan berikutnya,
+> lihat **[docs/PRD.md](./PRD.md)** — itu sumber kebenaran yang aktif dipakai
+> sekarang, dokumen ini tidak di-update lagi kecuali untuk koreksi historis.
+>
+> _Update Agustus 2026: seluruh item di bagian "Yang Belum Dibuat" di bawah_
+> _sudah dibangun sejak lama (Fase 1A-8, tidak pernah didokumentasikan formal_
+> _saat itu). Section itu dibiarkan apa adanya sebagai jejak sejarah, dengan_
+> _catatan status terbaru di sebelah masing-masing item._
 
 ## Yang Sudah Disiapkan
 
@@ -135,26 +144,23 @@ Denormalisasi sengaja — kita simpan "posisi tahsin sekarang" di tabel siswa su
 ### 5. Surat `id` pakai integer 1-114 (bukan UUID)
 Standar industri (semua API Quran pakai number 1-114), lebih ringan di FK, dan stabil — tidak akan ada surat baru.
 
-## Yang Belum Dibuat di Fase 0 (Sesuai Rencana)
+## Yang Belum Dibuat di Fase 0 (Sesuai Rencana — status Mei 2026)
 
-- ❌ Halaman `/guru/login` (Fase 1A)
-- ❌ Middleware `/guru/*` (Fase 1A)
-- ❌ Admin CRUD untuk siswa & halaqoh (Fase 1B)
-- ❌ Form setoran fungsional (Fase 2)
-- ❌ `lib/auth/teacher-session.ts` (Fase 1A)
+- ✅ ~~Halaman `/guru/login` (Fase 1A)~~ — dibangun, lihat `app/guru/login/page.tsx`.
+- ✅ ~~Middleware `/guru/*` (Fase 1A)~~ — dibangun, lihat `middleware.ts`.
+- ✅ ~~Admin CRUD untuk siswa & halaqoh (Fase 1B)~~ — dibangun, lihat `app/siswa/*`, `app/halaqoh/*`.
+- ✅ ~~Form setoran fungsional (Fase 2)~~ — dibangun, lihat `app/guru/setoran/*` + `app/actions/setoran.ts`.
+- ✅ ~~`lib/auth/teacher-session.ts` (Fase 1A)~~ — dibangun.
+
+Sejak itu produk juga berkembang jauh melampaui rencana awal dokumen ini:
+rapor share via link token, analitik tahsin/tahfidz, tasmi, nilai fashohah
+dengan setengah bintang, task board/matrix, dst. Detail lengkap ada di
+[docs/PRD.md](./PRD.md).
 
 ## Next Step
 
-```
-Fase 1A — Auth Guru Terpisah
-├── lib/auth/teacher-session.ts (JWT terpisah, cookie nama beda)
-├── app/guru/login/page.tsx
-├── app/guru/layout.tsx (guard)
-├── app/actions/teacher-auth.ts
-└── middleware.ts (split /guru/* validation)
-```
-
-Estimasi: 1 hari kerja.
+Lihat [docs/PRD.md](./PRD.md) bagian "Rencana Pengembangan" untuk arah
+berikutnya — dokumen ini tidak lagi jadi acuan roadmap aktif.
 
 ## Catatan Verifikasi
 
