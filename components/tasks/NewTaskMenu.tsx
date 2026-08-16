@@ -27,7 +27,7 @@ export function NewTaskMenu({ canDelegate }: { canDelegate: boolean }) {
       {open && (
         <div className="absolute right-0 z-20 mt-1.5 w-64 rounded-lg border bg-popover shadow-lg p-1 text-sm">
           <Link
-            href="/tasks/baru?personal=1&priority=normal"
+            href="/tasks/baru?personal=1&horizon=pendek"
             onClick={() => setOpen(false)}
             className="flex items-start gap-2.5 px-3 py-2 rounded-md hover:bg-accent transition-colors"
           >
@@ -38,7 +38,7 @@ export function NewTaskMenu({ canDelegate }: { canDelegate: boolean }) {
             </div>
           </Link>
           <Link
-            href="/tasks/baru?personal=1&priority=jangka_panjang"
+            href="/tasks/baru?personal=1&horizon=panjang"
             onClick={() => setOpen(false)}
             className="flex items-start gap-2.5 px-3 py-2 rounded-md hover:bg-accent transition-colors"
           >

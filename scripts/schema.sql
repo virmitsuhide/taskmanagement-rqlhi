@@ -18,8 +18,11 @@ create type meeting_type as enum (
 create type agenda_tag as enum (
   'keputusan','informasi','perlu_diskusi','tindak_lanjut','approval'
 );
-create type task_priority as enum ('normal','mendesak','jangka_panjang');
-create type task_status as enum ('todo','in_progress','submitted','done','returned');
+create type task_priority as enum ('low','middle','high');
+create type task_weight as enum ('easy','medium','hard');
+create type task_horizon as enum ('pendek','panjang');
+create type task_status as enum ('todo','in_progress','problem','submitted','done','returned');
+create type task_problem_type as enum ('bottleneck','blocked','wip_limit','others');
 create type task_source as enum ('rapat','mandiri','home_publik');
 create type content_request_type as enum ('flyer_ujian','flyer_lain','video','lain_lain');
 create type content_priority as enum ('low','medium','high');
@@ -78,8 +81,12 @@ create table tasks (
   assigned_by          uuid references users(id),
   assigned_to          uuid references users(id),
   public_target        public_target,
-  priority             task_priority default 'normal',
+  priority             task_priority default 'middle',
+  weight               task_weight default 'medium',
+  horizon              task_horizon default 'pendek',
   status               task_status default 'todo',
+  problem_type         task_problem_type,
+  problem_notes        text,
   due_date             date,
   return_notes         text,
   verified_by          uuid references users(id),

@@ -13,16 +13,13 @@ import type { BoardColumn } from '@/lib/data/board'
 interface Props {
   tasks: Task[]
   currentUserId: string
+  currentRole: UserRole
   boardColumns: BoardColumn[]
+  /** Divisi yang boleh dilihat — berasal dari getBoardDivisions(), sama dengan /tasks/board. */
+  divisions: UserRole[]
 }
 
 type DivisionTab = UserRole | 'all'
-
-// Tab papan kanban per divisi (sesuai permintaan Kepala RQ).
-const DIVISION_TABS: DivisionTab[] = [
-  'all', 'kepala_rq', 'kumik', 'sdm', 'bendahara',
-  'koor_sd', 'koor_smp', 'koor_ekstra', 'humas', 'new_squad',
-]
 
 /** Filter kolom papan berdasar divisi (= role assignee). */
 function filterColumns(columns: BoardColumn[], division: DivisionTab): BoardColumn[] {
@@ -33,15 +30,28 @@ function filterColumns(columns: BoardColumn[], division: DivisionTab): BoardColu
   }))
 }
 
+/** Filter daftar tugas tim dengan aturan yang sama seperti papan. */
+function filterTasks(tasks: Task[], division: DivisionTab): Task[] {
+  if (division === 'all') return tasks
+  return tasks.filter(t => t.assignee?.role === division)
+}
+
 /**
  * Ruang "Tugas Tim yang Sedang Berjalan" yang bisa ditukar antara:
  * - daftar pengurus (default), dan
- * - papan kanban (Papan Tugas) dengan tab per divisi, muncul in-place tanpa pindah halaman.
+ * - papan kanban (Papan Tugas), muncul in-place tanpa pindah halaman.
+ *
+ * Tab divisi berlaku untuk KEDUA tampilan, dan daftar divisinya berasal dari
+ * sumber yang sama dengan halaman /tasks/board — sebelumnya keduanya punya
+ * daftar sendiri sehingga isinya bisa berbeda untuk orang yang sama.
  */
-export function TeamTasksSwitcher({ tasks, currentUserId, boardColumns }: Props) {
+export function TeamTasksSwitcher({ tasks, currentUserId, currentRole, boardColumns, divisions }: Props) {
   const [view, setView] = useState<'list' | 'board'>('list')
   const [division, setDivision] = useState<DivisionTab>('all')
   const isBoard = view === 'board'
+
+  const tabs: DivisionTab[] = ['all', ...divisions]
+  const visibleTasks = filterTasks(tasks, division)
 
   return (
     <section>
@@ -63,36 +73,40 @@ export function TeamTasksSwitcher({ tasks, currentUserId, boardColumns }: Props)
         )}
       </div>
 
-      {isBoard ? (
-        <div>
-          {/* Tab per divisi */}
-          <div className="flex gap-1.5 mb-3 flex-wrap">
-            {DIVISION_TABS.map(d => {
-              const active = division === d
-              return (
-                <button
-                  key={d}
-                  type="button"
-                  onClick={() => setDivision(d)}
-                  aria-pressed={active}
-                  className={cn(
-                    'px-3 py-1 rounded-full text-xs font-medium border transition-colors',
-                    active
-                      ? 'bg-primary text-primary-foreground border-primary'
-                      : 'bg-card text-muted-foreground hover:text-foreground border-border',
-                  )}
-                >
-                  {d === 'all' ? 'Semua' : ROLE_LABELS[d]}
-                </button>
-              )
-            })}
-          </div>
-
-          {/* key=division → remount board dengan kolom terfilter */}
-          <KanbanBoard key={division} columns={filterColumns(boardColumns, division)} />
+      {/* Tab divisi — berlaku untuk daftar pengurus maupun papan kanban */}
+      {tabs.length > 1 && (
+        <div className="flex gap-1.5 mb-3 flex-wrap">
+          {tabs.map(d => {
+            const active = division === d
+            return (
+              <button
+                key={d}
+                type="button"
+                onClick={() => setDivision(d)}
+                aria-pressed={active}
+                className={cn(
+                  'px-3 py-1 rounded-full text-xs font-medium border transition-colors',
+                  active
+                    ? 'bg-primary text-primary-foreground border-primary'
+                    : 'bg-card text-muted-foreground hover:text-foreground border-border',
+                )}
+              >
+                {d === 'all' ? 'Semua' : ROLE_LABELS[d]}
+              </button>
+            )
+          })}
         </div>
+      )}
+
+      {isBoard ? (
+        <KanbanBoard
+          key={division}
+          columns={filterColumns(boardColumns, division)}
+          currentUserId={currentUserId}
+          currentRole={currentRole}
+        />
       ) : (
-        <TeamMembersActivity tasks={tasks} currentUserId={currentUserId} />
+        <TeamMembersActivity tasks={visibleTasks} currentUserId={currentUserId} />
       )}
     </section>
   )

@@ -187,13 +187,13 @@ async function main() {
         {
           title: 'Susun draft jadwal ujian akhir terpadu', source_type: 'rapat',
           source_meeting_id: meetingId, source_agenda_id: agenda?.[1]?.id,
-          assigned_by: kepala, assigned_to: kumik, priority: 'mendesak', status: 'in_progress',
+          assigned_by: kepala, assigned_to: kumik, priority: 'high', status: 'in_progress',
           due_date: isoDate(daysAhead(7)),
         },
         {
           title: 'Revisi RAB ekstrakurikuler (+15%)', source_type: 'rapat',
           source_meeting_id: meetingId, source_agenda_id: agenda?.[2]?.id,
-          assigned_by: kepala, assigned_to: bendahara, priority: 'normal', status: 'todo',
+          assigned_by: kepala, assigned_to: bendahara, priority: 'middle', status: 'todo',
           due_date: isoDate(daysAhead(14)),
         },
       ]
@@ -211,20 +211,20 @@ async function main() {
   const taskTitles = await existingTitles('tasks')
   const moreTasks: Record<string, unknown>[] = [
     // Pribadi panjang
-    { title: 'Petakan ulang struktur kurikulum tahfidz 3 tahun', source_type: 'mandiri', priority: 'jangka_panjang', assigned_by: kumik, assigned_to: kumik, status: 'in_progress' },
-    { title: 'Rencana rekrutmen guru baru tahun ajaran depan',  source_type: 'mandiri', priority: 'jangka_panjang', assigned_by: sdm,   assigned_to: sdm,   status: 'todo' },
-    { title: 'Rencana ekstrakurikuler semester baru',           source_type: 'mandiri', priority: 'jangka_panjang', assigned_by: koorEkstra!, assigned_to: koorEkstra!, status: 'todo' },
+    { title: 'Petakan ulang struktur kurikulum tahfidz 3 tahun', source_type: 'mandiri', priority: 'low', horizon: 'panjang', assigned_by: kumik, assigned_to: kumik, status: 'in_progress' },
+    { title: 'Rencana rekrutmen guru baru tahun ajaran depan',  source_type: 'mandiri', priority: 'low', horizon: 'panjang', assigned_by: sdm,   assigned_to: sdm,   status: 'todo' },
+    { title: 'Rencana ekstrakurikuler semester baru',           source_type: 'mandiri', priority: 'low', horizon: 'panjang', assigned_by: koorEkstra!, assigned_to: koorEkstra!, status: 'todo' },
     // Pribadi pendek
-    { title: 'Buat surat resmi ke yayasan', source_type: 'mandiri', priority: 'normal', assigned_by: kepala, assigned_to: kepala, status: 'in_progress' },
-    { title: 'Approve jadwal halaqoh Koor SD pekan ini', source_type: 'mandiri', priority: 'normal', assigned_by: kumik, assigned_to: kumik, status: 'todo' },
-    { title: 'Update database guru (kontak & status aktif)', source_type: 'mandiri', priority: 'normal', assigned_by: sdm, assigned_to: sdm, status: 'in_progress' },
+    { title: 'Buat surat resmi ke yayasan', source_type: 'mandiri', priority: 'middle', assigned_by: kepala, assigned_to: kepala, status: 'in_progress' },
+    { title: 'Approve jadwal halaqoh Koor SD pekan ini', source_type: 'mandiri', priority: 'middle', assigned_by: kumik, assigned_to: kumik, status: 'todo' },
+    { title: 'Update database guru (kontak & status aktif)', source_type: 'mandiri', priority: 'middle', assigned_by: sdm, assigned_to: sdm, status: 'in_progress' },
     // Delegasi (penugasan atasan)
-    { title: 'Susun proposal pelatihan guru kuartal 3',     source_type: 'mandiri', priority: 'mendesak', assigned_by: kepala, assigned_to: kumik, status: 'in_progress', due_date: isoDate(daysAhead(5)) },
-    { title: 'Audit kepegawaian tahun berjalan',            source_type: 'mandiri', priority: 'normal',   assigned_by: kepala, assigned_to: sdm,    status: 'todo',         due_date: isoDate(daysAhead(21)) },
-    { title: 'Laporan capaian tahfidz SD bulan ini',        source_type: 'mandiri', priority: 'normal',   assigned_by: kumik,  assigned_to: koorSd, status: 'submitted',    due_date: isoDate(daysAgo(2)) },
-    { title: 'Susun jadwal mock-ujian SMP',                 source_type: 'mandiri', priority: 'mendesak', assigned_by: kumik,  assigned_to: koorSmp, status: 'in_progress', due_date: isoDate(daysAhead(7)) },
-    { title: 'Buat poster acara wisuda tahfidz',            source_type: 'mandiri', priority: 'normal',   assigned_by: koorEkstra!, assigned_to: humas, status: 'in_progress', due_date: isoDate(daysAhead(10)) },
-    { title: 'Rekap pengeluaran operasional bulan ini',     source_type: 'mandiri', priority: 'normal',   assigned_by: kepala, assigned_to: bendahara, status: 'done',     verified_by: kepala, verified_at: new Date().toISOString() },
+    { title: 'Susun proposal pelatihan guru kuartal 3',     source_type: 'mandiri', priority: 'high', assigned_by: kepala, assigned_to: kumik, status: 'in_progress', due_date: isoDate(daysAhead(5)) },
+    { title: 'Audit kepegawaian tahun berjalan',            source_type: 'mandiri', priority: 'middle',   assigned_by: kepala, assigned_to: sdm,    status: 'todo',         due_date: isoDate(daysAhead(21)) },
+    { title: 'Laporan capaian tahfidz SD bulan ini',        source_type: 'mandiri', priority: 'middle',   assigned_by: kumik,  assigned_to: koorSd, status: 'submitted',    due_date: isoDate(daysAgo(2)) },
+    { title: 'Susun jadwal mock-ujian SMP',                 source_type: 'mandiri', priority: 'high', assigned_by: kumik,  assigned_to: koorSmp, status: 'in_progress', due_date: isoDate(daysAhead(7)) },
+    { title: 'Buat poster acara wisuda tahfidz',            source_type: 'mandiri', priority: 'middle',   assigned_by: koorEkstra!, assigned_to: humas, status: 'in_progress', due_date: isoDate(daysAhead(10)) },
+    { title: 'Rekap pengeluaran operasional bulan ini',     source_type: 'mandiri', priority: 'middle',   assigned_by: kepala, assigned_to: bendahara, status: 'done',     verified_by: kepala, verified_at: new Date().toISOString() },
   ]
   const newTasks = moreTasks.filter(t => !taskTitles.has(t.title as string))
   let inserted = 0

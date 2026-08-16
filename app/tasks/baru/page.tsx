@@ -7,14 +7,14 @@ import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { TaskForm } from '@/components/tasks/TaskForm'
 import { Button } from '@/components/ui/button'
 import { ArrowLeft } from 'lucide-react'
-import type { User } from '@/types'
+import type { User, TaskHorizon } from '@/types'
 
 interface SearchParams {
   meeting_id?: string
   agenda_id?: string
   title?: string
   personal?: string
-  priority?: string  // 'normal' | 'jangka_panjang'
+  horizon?: string  // 'pendek' | 'panjang'
 }
 
 export default async function BuatTaskPage({
@@ -42,13 +42,12 @@ export default async function BuatTaskPage({
     assignableUsers = (data ?? []) as User[]
   }
 
-  const lockPriority: 'normal' | 'jangka_panjang' | undefined =
-    isPersonal && (sp.priority === 'jangka_panjang' || sp.priority === 'normal')
-      ? (sp.priority as 'normal' | 'jangka_panjang')
-      : undefined
+  const horizon: TaskHorizon | undefined = isPersonal
+    ? (sp.horizon === 'panjang' ? 'panjang' : 'pendek')
+    : undefined
 
   const title = isPersonal
-    ? (lockPriority === 'jangka_panjang' ? 'Tugas Pribadi — Jangka Panjang' : 'Tugas Pribadi — Jangka Pendek')
+    ? (horizon === 'panjang' ? 'Tugas Pribadi — Jangka Panjang' : 'Tugas Pribadi — Jangka Pendek')
     : 'Delegasikan Tugas'
 
   return (
@@ -82,7 +81,7 @@ export default async function BuatTaskPage({
           personalMode={isPersonal ? {
             selfUserId: session.userId,
             selfName: session.displayName,
-            lockPriority,
+            horizon,
           } : undefined}
         />
       </div>

@@ -4,13 +4,15 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createServerClient } from '@/lib/supabase/server'
 import { getSession } from '@/lib/auth/session'
-import { canAssignTask, canChangeTaskStatus } from '@/lib/auth/permissions'
+import { canAssignTask, canChangeTaskStatus, canMoveTaskOnBoard } from '@/lib/auth/permissions'
 import {
   sendTaskAssigned,
   sendTaskReturned,
   sendTaskSubmittedForReview,
 } from '@/lib/email/reminders'
-import type { TaskPriority, TaskSource, PublicTarget } from '@/types'
+import type {
+  TaskPriority, TaskWeight, TaskHorizon, TaskProblemType, TaskSource, PublicTarget,
+} from '@/types'
 
 export async function createTaskAction(_: unknown, formData: FormData) {
   const session = await getSession()
@@ -37,7 +39,9 @@ export async function createTaskAction(_: unknown, formData: FormData) {
   const sourceType = (formData.get('source_type') as TaskSource) || 'mandiri'
   const sourceMeetingId = formData.get('source_meeting_id') as string | null
   const sourceAgendaId = formData.get('source_agenda_id') as string | null
-  const priority = (formData.get('priority') as TaskPriority) || 'normal'
+  const priority = (formData.get('priority') as TaskPriority) || 'middle'
+  const weight = (formData.get('weight') as TaskWeight) || 'medium'
+  const horizon = (formData.get('horizon') as TaskHorizon) || 'pendek'
   const dueDate = formData.get('due_date') as string | null
   const publicTarget = formData.get('public_target') as PublicTarget | null
 
@@ -53,6 +57,8 @@ export async function createTaskAction(_: unknown, formData: FormData) {
       assigned_to: assignedToId,
       public_target: publicTarget || null,
       priority,
+      weight,
+      horizon,
       due_date: dueDate || null,
       status: 'todo',
     })
@@ -96,7 +102,7 @@ export async function updateTaskStatusAction(
   const supabase = createServerClient()
   const { data: task } = await supabase
     .from('tasks')
-    .select('status, assigned_by, assigned_to, title, users!assigned_by(email, display_name), assignee:users!assigned_to(email, display_name)')
+    .select('status, problem_type, assigned_by, assigned_to, title, users!assigned_by(email, display_name), assignee:users!assigned_to(email, display_name)')
     .eq('id', taskId)
     .single()
 
@@ -114,6 +120,13 @@ export async function updateTaskStatusAction(
   if (newStatus === 'done') {
     updateData.verified_by = session.userId
     updateData.verified_at = new Date().toISOString()
+  }
+  // Jenis hambatan hanya relevan selama status 'problem'.
+  if (newStatus === 'problem') {
+    updateData.problem_type = task.problem_type ?? 'others'
+  } else {
+    updateData.problem_type = null
+    updateData.problem_notes = null
   }
 
   const { error } = await supabase.from('tasks').update(updateData).eq('id', taskId)
@@ -154,6 +167,47 @@ export async function updateTaskStatusAction(
   }
 
   revalidatePath('/tasks')
+  revalidatePath(`/tasks/${taskId}`)
+  return { success: true }
+}
+
+/**
+ * Ubah jenis hambatan pada task yang sedang berstatus 'problem'.
+ * Izinnya sama dengan izin menggeser kartu: pelaksana, pemberi tugas, Kepala RQ.
+ */
+export async function updateTaskProblemAction(
+  taskId: string,
+  problemType: TaskProblemType,
+  notes?: string
+) {
+  const session = await getSession()
+  if (!session) return { error: 'Sesi tidak valid.' }
+
+  const supabase = createServerClient()
+  const { data: task } = await supabase
+    .from('tasks')
+    .select('status, assigned_by, assigned_to')
+    .eq('id', taskId)
+    .single()
+
+  if (!task) return { error: 'Task tidak ditemukan.' }
+  if (task.status !== 'problem') return { error: 'Task ini tidak sedang berstatus Problem.' }
+
+  const allowed = canMoveTaskOnBoard(
+    session.role,
+    task.assigned_to === session.userId,
+    task.assigned_by === session.userId,
+  )
+  if (!allowed) return { error: 'Anda tidak memiliki izin mengubah hambatan task ini.' }
+
+  const { error } = await supabase
+    .from('tasks')
+    .update({ problem_type: problemType, ...(notes !== undefined ? { problem_notes: notes } : {}) })
+    .eq('id', taskId)
+  if (error) return { error: 'Gagal memperbarui jenis hambatan.' }
+
+  revalidatePath('/tasks')
+  revalidatePath('/tasks/board')
   revalidatePath(`/tasks/${taskId}`)
   return { success: true }
 }

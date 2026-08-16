@@ -16,8 +16,11 @@ export const meetingTypeEnum = pgEnum('meeting_type', [
 export const agendaTagEnum = pgEnum('agenda_tag', [
   'keputusan', 'informasi', 'perlu_diskusi', 'tindak_lanjut', 'approval',
 ])
-export const taskPriorityEnum = pgEnum('task_priority', ['normal', 'mendesak', 'jangka_panjang'])
-export const taskStatusEnum = pgEnum('task_status', ['todo', 'in_progress', 'submitted', 'done', 'returned'])
+export const taskPriorityEnum = pgEnum('task_priority', ['low', 'middle', 'high'])
+export const taskWeightEnum = pgEnum('task_weight', ['easy', 'medium', 'hard'])
+export const taskHorizonEnum = pgEnum('task_horizon', ['pendek', 'panjang'])
+export const taskStatusEnum = pgEnum('task_status', ['todo', 'in_progress', 'problem', 'submitted', 'done', 'returned'])
+export const taskProblemTypeEnum = pgEnum('task_problem_type', ['bottleneck', 'blocked', 'wip_limit', 'others'])
 export const taskSourceEnum = pgEnum('task_source', ['rapat', 'mandiri', 'home_publik'])
 export const contentRequestTypeEnum = pgEnum('content_request_type', [
   'flyer_ujian', 'flyer_lain', 'video', 'lain_lain',
@@ -75,8 +78,12 @@ export const tasks = pgTable('tasks', {
   assigned_by: uuid('assigned_by').references(() => users.id),
   assigned_to: uuid('assigned_to').references(() => users.id),
   public_target: publicTargetEnum('public_target'),
-  priority: taskPriorityEnum('priority').default('normal'),
+  priority: taskPriorityEnum('priority').default('middle'),
+  weight: taskWeightEnum('weight').default('medium'),
+  horizon: taskHorizonEnum('horizon').default('pendek'),
   status: taskStatusEnum('status').default('todo'),
+  problem_type: taskProblemTypeEnum('problem_type'),
+  problem_notes: text('problem_notes'),
   due_date: date('due_date'),
   return_notes: text('return_notes'),
   verified_by: uuid('verified_by').references(() => users.id),

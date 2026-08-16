@@ -1,4 +1,7 @@
-import type { UserRole, MeetingType, AgendaTag, TaskStatus, PublicTarget, Jenjang } from '@/types'
+import type {
+  UserRole, MeetingType, AgendaTag, TaskStatus, TaskPriority, TaskWeight,
+  TaskProblemType, PublicTarget, Jenjang,
+} from '@/types'
 
 // Dashboard access matrix.
 // Isolasi penuh: tiap role hanya boleh membuka dashboard-nya sendiri.
@@ -134,6 +137,22 @@ export function canViewAnalytics(role: UserRole): boolean {
 }
 
 // Task status change — who can perform which transitions
+//
+// Pelaksana (assignee) menggerakkan tugasnya sendiri sampai kolom Review.
+// Pemberi tugas (assigner) hanya berwenang menutup review: Review → Selesai
+// atau Review → dikembalikan. Kepala RQ boleh semuanya.
+const ASSIGNEE_TRANSITIONS: Partial<Record<TaskStatus, TaskStatus[]>> = {
+  todo:        ['in_progress', 'problem'],
+  in_progress: ['submitted', 'problem', 'todo'],
+  problem:     ['in_progress', 'submitted', 'todo'],
+  submitted:   ['in_progress'],           // tarik kembali sebelum direview
+  returned:    ['in_progress', 'problem'],
+}
+
+const ASSIGNER_TRANSITIONS: Partial<Record<TaskStatus, TaskStatus[]>> = {
+  submitted: ['done', 'returned'],
+}
+
 export function canChangeTaskStatus(
   role: UserRole,
   currentStatus: TaskStatus,
@@ -142,21 +161,28 @@ export function canChangeTaskStatus(
   isAssigner: boolean
 ): boolean {
   if (role === 'kepala_rq') return true
-
-  const assigneeTransitions: Partial<Record<TaskStatus, TaskStatus[]>> = {
-    todo: ['in_progress'],
-    in_progress: ['submitted'],
-    returned: ['in_progress'],
-  }
-
-  const assignerTransitions: Partial<Record<TaskStatus, TaskStatus[]>> = {
-    submitted: ['done', 'returned'],
-  }
-
-  if (isAssignee && assigneeTransitions[currentStatus]?.includes(newStatus)) return true
-  if (isAssigner && assignerTransitions[currentStatus]?.includes(newStatus)) return true
-
+  if (isAssignee && ASSIGNEE_TRANSITIONS[currentStatus]?.includes(newStatus)) return true
+  if (isAssigner && ASSIGNER_TRANSITIONS[currentStatus]?.includes(newStatus)) return true
   return false
+}
+
+/**
+ * Boleh menyeret kartu di papan kanban? Hanya orang yang bersangkutan
+ * (pelaksana atau pemberi tugas) dan Kepala RQ. Ini gerbang UI — server tetap
+ * memvalidasi transisinya lewat canChangeTaskStatus.
+ */
+export function canMoveTaskOnBoard(role: UserRole, isAssignee: boolean, isAssigner: boolean): boolean {
+  return role === 'kepala_rq' || isAssignee || isAssigner
+}
+
+/** Task yang menunggu review orang ini (antrean review pemberi tugas). */
+export function isAwaitingMyReview(
+  task: { status: TaskStatus; assigned_by: string },
+  userId: string,
+  role: UserRole
+): boolean {
+  if (task.status !== 'submitted') return false
+  return task.assigned_by === userId || role === 'kepala_rq'
 }
 
 // Home publik post permissions
@@ -292,6 +318,25 @@ export const ROLE_LABELS: Record<UserRole, string> = {
   humas: 'Humas',
   div_training: 'Div Training',
   new_squad: 'New Squad',
+}
+
+export const TASK_PRIORITY_LABELS: Record<TaskPriority, string> = {
+  high:   'High',
+  middle: 'Middle',
+  low:    'Low',
+}
+
+export const TASK_WEIGHT_LABELS: Record<TaskWeight, string> = {
+  easy:   'Easy',
+  medium: 'Medium',
+  hard:   'Hard',
+}
+
+export const TASK_PROBLEM_LABELS: Record<TaskProblemType, string> = {
+  bottleneck: 'Bottleneck',
+  blocked:    'Blocked',
+  wip_limit:  'WIP Limit',
+  others:     'Lainnya',
 }
 
 export const AGENDA_TAG_LABELS: Record<AgendaTag, string> = {

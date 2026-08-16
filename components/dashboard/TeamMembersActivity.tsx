@@ -31,7 +31,7 @@ function initials(name: string) {
 
 // Penanda kegentingan pada tiap card: merah=mendesak, orange=deadline dekat, biru=perlu verifikasi.
 const URGENCY: { key: string; label: string; dot: string; match: (t: Task) => boolean }[] = [
-  { key: 'mendesak',   label: 'mendesak',        dot: 'bg-red-500',    match: t => t.priority === 'mendesak' },
+  { key: 'mendesak',   label: 'prioritas high',  dot: 'bg-red-500',    match: t => t.priority === 'high' },
   { key: 'deadline',   label: 'deadline dekat',  dot: 'bg-orange-500', match: isDueSoon },
   { key: 'verifikasi', label: 'perlu verifikasi', dot: 'bg-blue-500',   match: t => t.status === 'submitted' },
 ]

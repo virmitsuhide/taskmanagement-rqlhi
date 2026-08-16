@@ -1,30 +1,55 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { updateTaskStatusAction } from '@/app/actions/tasks'
-import { ROLE_LABELS } from '@/lib/auth/permissions'
-import type { Task, TaskStatus } from '@/types'
+import { updateTaskStatusAction, updateTaskProblemAction } from '@/app/actions/tasks'
+import {
+  ROLE_LABELS, TASK_PRIORITY_LABELS, TASK_WEIGHT_LABELS, TASK_PROBLEM_LABELS,
+  canMoveTaskOnBoard,
+} from '@/lib/auth/permissions'
+import { cn } from '@/lib/utils'
+import type { Task, TaskStatus, TaskProblemType, UserRole } from '@/types'
 import type { BoardColumn, BoardColumnKey } from '@/lib/data/board'
 
 const COLUMN_ACCENT: Record<BoardColumnKey, string> = {
   todo: '#94a3b8',
   in_progress: '#2563eb',
+  problem: '#dc2626',
   submitted: '#d97706',
   done: '#16a34a',
 }
 
-const PRIORITY_STYLE: Record<string, { bg: string; color: string; label: string }> = {
-  mendesak:       { bg: '#fee2e2', color: '#b91c1c', label: 'Mendesak' },
-  jangka_panjang: { bg: '#fef3c7', color: '#92400e', label: 'Jangka Panjang' },
-  normal:         { bg: '#dbeafe', color: '#1d4ed8', label: 'Normal' },
+const PRIORITY_STYLE: Record<string, { bg: string; color: string }> = {
+  high:   { bg: '#fee2e2', color: '#b91c1c' },
+  middle: { bg: '#dbeafe', color: '#1d4ed8' },
+  low:    { bg: '#f1f5f9', color: '#475569' },
 }
 
-/** Tentukan status target ketika kartu dijatuhkan di sebuah kolom. */
+const WEIGHT_STYLE: Record<string, { bg: string; color: string }> = {
+  hard:   { bg: '#ede9fe', color: '#6d28d9' },
+  medium: { bg: '#f1f5f9', color: '#475569' },
+  easy:   { bg: '#dcfce7', color: '#15803d' },
+}
+
+/**
+ * Warna kartu di kolom Problem dibedakan per jenis hambatan, supaya Kepala RQ
+ * bisa memindai jenis masalah tanpa membuka satu per satu.
+ */
+const PROBLEM_STYLE: Record<TaskProblemType, { border: string; bg: string; dot: string }> = {
+  bottleneck: { border: '#f59e0b', bg: 'color-mix(in srgb, #f59e0b 8%, transparent)', dot: '#f59e0b' },
+  blocked:    { border: '#dc2626', bg: 'color-mix(in srgb, #dc2626 8%, transparent)', dot: '#dc2626' },
+  wip_limit:  { border: '#7c3aed', bg: 'color-mix(in srgb, #7c3aed 8%, transparent)', dot: '#7c3aed' },
+  others:     { border: '#64748b', bg: 'color-mix(in srgb, #64748b 8%, transparent)', dot: '#64748b' },
+}
+
+const PROBLEM_ORDER: TaskProblemType[] = ['bottleneck', 'blocked', 'wip_limit', 'others']
+
+/** Status target ketika kartu dijatuhkan di sebuah kolom. */
 function columnToStatus(target: BoardColumnKey, current: TaskStatus): TaskStatus {
   if (target === 'todo') return current === 'submitted' ? 'returned' : 'todo'
   if (target === 'in_progress') return 'in_progress'
+  if (target === 'problem') return 'problem'
   if (target === 'submitted') return 'submitted'
   return 'done'
 }
@@ -34,12 +59,30 @@ function initials(name?: string) {
   return name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase()
 }
 
-export function KanbanBoard({ columns: initialColumns }: { columns: BoardColumn[] }) {
+interface Props {
+  columns: BoardColumn[]
+  currentUserId: string
+  currentRole: UserRole
+}
+
+export function KanbanBoard({ columns: initialColumns, currentUserId, currentRole }: Props) {
   const router = useRouter()
   const [columns, setColumns] = useState(initialColumns)
   const [dragId, setDragId] = useState<string | null>(null)
   const [overCol, setOverCol] = useState<BoardColumnKey | null>(null)
   const didDragRef = useRef(false)
+
+  // Kolom dari server berubah (mis. ganti tab divisi / router.refresh) → ikut.
+  useEffect(() => { setColumns(initialColumns) }, [initialColumns])
+
+  /** Boleh digeser oleh orang ini? Pelaksana, pemberi tugas, atau Kepala RQ. */
+  function canMove(task: Task): boolean {
+    return canMoveTaskOnBoard(
+      currentRole,
+      task.assigned_to === currentUserId,
+      task.assigned_by === currentUserId,
+    )
+  }
 
   function findTask(id: string): { task: Task; col: BoardColumnKey } | null {
     for (const c of columns) {
@@ -59,12 +102,21 @@ export function KanbanBoard({ columns: initialColumns }: { columns: BoardColumn[
     if (!found) return
     if (found.col === targetCol) return
 
+    if (!canMove(found.task)) {
+      toast.error('Hanya pelaksana, pemberi tugas, atau Kepala RQ yang bisa memindahkan kartu ini.')
+      return
+    }
+
     const newStatus = columnToStatus(targetCol, found.task.status)
 
-    // Optimistic move
+    // Optimistic move — kartu yang masuk Problem tanpa jenis diberi 'others'.
     const prev = columns
     setColumns(cols => {
-      const moved = { ...found.task, status: newStatus }
+      const moved: Task = {
+        ...found.task,
+        status: newStatus,
+        problem_type: newStatus === 'problem' ? (found.task.problem_type ?? 'others') : null,
+      }
       return cols.map(c => {
         if (c.key === found.col) return { ...c, tasks: c.tasks.filter(t => t.id !== id) }
         if (c.key === targetCol) return { ...c, tasks: [moved, ...c.tasks] }
@@ -76,14 +128,31 @@ export function KanbanBoard({ columns: initialColumns }: { columns: BoardColumn[
     if (res?.error) {
       setColumns(prev) // revert
       toast.error(res.error)
+      return
+    }
+
+    const label =
+      newStatus === 'returned' ? 'dikembalikan'
+      : newStatus === 'done' ? 'ditandai selesai'
+      : newStatus === 'submitted' ? 'dikirim untuk review'
+      : newStatus === 'problem' ? 'ditandai bermasalah'
+      : newStatus === 'in_progress' ? 'mulai dikerjakan'
+      : 'dipindahkan'
+    toast.success(`Task ${label}`)
+    router.refresh()
+  }
+
+  async function handleProblemType(taskId: string, type: TaskProblemType) {
+    const prev = columns
+    setColumns(cols => cols.map(c => ({
+      ...c,
+      tasks: c.tasks.map(t => (t.id === taskId ? { ...t, problem_type: type } : t)),
+    })))
+    const res = await updateTaskProblemAction(taskId, type)
+    if (res?.error) {
+      setColumns(prev)
+      toast.error(res.error)
     } else {
-      const label =
-        newStatus === 'returned' ? 'dikembalikan'
-        : newStatus === 'done' ? 'ditandai selesai'
-        : newStatus === 'submitted' ? 'dikirim untuk review'
-        : newStatus === 'in_progress' ? 'mulai dikerjakan'
-        : 'dipindahkan'
-      toast.success(`Task ${label}`)
       router.refresh()
     }
   }
@@ -94,7 +163,7 @@ export function KanbanBoard({ columns: initialColumns }: { columns: BoardColumn[
   }
 
   return (
-    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4 items-start">
+    <div className="grid gap-3 items-start md:grid-cols-2 xl:grid-cols-5">
       {columns.map(col => (
         <div
           key={col.key}
@@ -117,18 +186,37 @@ export function KanbanBoard({ columns: initialColumns }: { columns: BoardColumn[
               <p className="text-xs text-muted-foreground/60 text-center py-6">Kosong</p>
             )}
             {col.tasks.map(task => {
-              const pr = PRIORITY_STYLE[task.priority] ?? PRIORITY_STYLE.normal
+              const movable = canMove(task)
+              const pr = PRIORITY_STYLE[task.priority] ?? PRIORITY_STYLE.middle
+              const wt = WEIGHT_STYLE[task.weight] ?? WEIGHT_STYLE.medium
+              const problem = col.key === 'problem'
+                ? PROBLEM_STYLE[task.problem_type ?? 'others']
+                : null
+              // Kartu di kolom Review yang menunggu review orang ini.
+              const needsMyReview =
+                col.key === 'submitted' &&
+                (task.assigned_by === currentUserId || currentRole === 'kepala_rq')
               const overdue = task.due_date && task.status !== 'done' && new Date(task.due_date) < new Date(new Date().toDateString())
+
               return (
                 <div
                   key={task.id}
-                  draggable
-                  onDragStart={() => { setDragId(task.id); didDragRef.current = false }}
+                  draggable={movable}
+                  onDragStart={() => { if (!movable) return; setDragId(task.id); didDragRef.current = false }}
                   onDrag={() => { didDragRef.current = true }}
                   onDragEnd={() => { setDragId(null); setOverCol(null); setTimeout(() => { didDragRef.current = false }, 50) }}
                   onClick={() => openTask(task.id)}
-                  className="rounded-lg border bg-background p-3 cursor-grab active:cursor-grabbing hover:border-foreground/30 hover:shadow-sm transition"
-                  style={dragId === task.id ? { opacity: 0.5 } : undefined}
+                  title={movable ? undefined : 'Hanya pelaksana, pemberi tugas, atau Kepala RQ yang bisa memindahkan kartu ini'}
+                  className={cn(
+                    'rounded-lg border p-3 transition hover:shadow-sm',
+                    movable ? 'cursor-grab active:cursor-grabbing hover:border-foreground/30' : 'cursor-pointer',
+                    !problem && 'bg-background',
+                  )}
+                  style={{
+                    ...(problem ? { borderColor: problem.border, background: problem.bg } : {}),
+                    ...(dragId === task.id ? { opacity: 0.5 } : {}),
+                    ...(needsMyReview ? { boxShadow: `inset 3px 0 0 ${COLUMN_ACCENT.submitted}` } : {}),
+                  }}
                 >
                   <div className="flex flex-wrap gap-1 mb-1.5">
                     {task.assignee?.role && (
@@ -136,17 +224,49 @@ export function KanbanBoard({ columns: initialColumns }: { columns: BoardColumn[
                         {ROLE_LABELS[task.assignee.role]}
                       </span>
                     )}
-                    {task.priority !== 'normal' && (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: pr.bg, color: pr.color }}>{pr.label}</span>
-                    )}
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium" style={{ background: pr.bg, color: pr.color }}>
+                      {TASK_PRIORITY_LABELS[task.priority] ?? task.priority}
+                    </span>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium" style={{ background: wt.bg, color: wt.color }}>
+                      {TASK_WEIGHT_LABELS[task.weight] ?? task.weight}
+                    </span>
                     {task.status === 'returned' && (
                       <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: '#fee2e2', color: '#b91c1c' }}>Dikembalikan</span>
+                    )}
+                    {needsMyReview && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium" style={{ background: '#fef3c7', color: '#92400e' }}>
+                        Perlu kamu review
+                      </span>
                     )}
                   </div>
 
                   <p className={`text-sm font-medium leading-snug ${task.status === 'done' ? 'line-through text-muted-foreground' : ''}`}>
                     {task.title}
                   </p>
+
+                  {/* Jenis hambatan — hanya di kolom Problem, bisa diubah langsung */}
+                  {problem && (
+                    <div className="mt-2" onClick={e => e.stopPropagation()}>
+                      {movable ? (
+                        <select
+                          value={task.problem_type ?? 'others'}
+                          onChange={e => handleProblemType(task.id, e.target.value as TaskProblemType)}
+                          aria-label={`Jenis hambatan untuk ${task.title}`}
+                          className="w-full rounded-md border bg-background px-2 py-1 text-[11px] font-medium"
+                          style={{ borderColor: problem.border, color: problem.dot }}
+                        >
+                          {PROBLEM_ORDER.map(p => (
+                            <option key={p} value={p}>{TASK_PROBLEM_LABELS[p]}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-[11px] font-medium" style={{ color: problem.dot }}>
+                          <span className="h-2 w-2 rounded-full" style={{ background: problem.dot }} aria-hidden />
+                          {TASK_PROBLEM_LABELS[task.problem_type ?? 'others']}
+                        </span>
+                      )}
+                    </div>
+                  )}
 
                   <div className="flex items-center justify-between mt-2 text-[11px] text-muted-foreground">
                     <span className={overdue ? 'text-destructive font-medium' : ''}>

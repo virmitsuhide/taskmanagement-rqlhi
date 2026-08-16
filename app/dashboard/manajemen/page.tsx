@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { getSession } from '@/lib/auth/session'
-import { canViewDashboard } from '@/lib/auth/permissions'
+import { canViewDashboard, getBoardDivisions } from '@/lib/auth/permissions'
 import { getTeamActiveTasks, getRecentMeetings, getCompletionHistory } from '@/lib/data/dashboard'
 import { getBoardTasks } from '@/lib/data/board'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
@@ -35,7 +35,13 @@ export default async function ManajemenDashboardPage() {
         </section>
 
         {/* Tugas tim: bisa ditukar antara daftar pengurus & papan kanban in-place */}
-        <TeamTasksSwitcher tasks={teamTasks} currentUserId={session.userId} boardColumns={boardColumns} />
+        <TeamTasksSwitcher
+          tasks={teamTasks}
+          currentUserId={session.userId}
+          currentRole={session.role}
+          boardColumns={boardColumns}
+          divisions={getBoardDivisions(session.role)}
+        />
 
         {/* Riwayat penyelesaian tugas */}
         <section>

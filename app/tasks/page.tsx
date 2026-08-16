@@ -26,7 +26,7 @@ const ACTIVE_STATUSES: TaskStatus[] = ['todo', 'in_progress', 'submitted', 'retu
 function bucketOf(task: Task, selfUserId: string): 'pribadi_pendek' | 'pribadi_panjang' | 'follow_up' | 'penugasan' {
   const isSelf = task.assigned_by === selfUserId
   if (task.source_type === 'rapat') return 'follow_up'
-  if (isSelf) return task.priority === 'jangka_panjang' ? 'pribadi_panjang' : 'pribadi_pendek'
+  if (isSelf) return task.horizon === 'panjang' ? 'pribadi_panjang' : 'pribadi_pendek'
   return 'penugasan'
 }
 

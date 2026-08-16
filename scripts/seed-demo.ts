@@ -229,17 +229,17 @@ async function main() {
     } else {
       const tasksToInsert: Record<string, unknown>[] = [
         // Personal kepala_rq jangka panjang
-        { title: 'Susun Renstra RQ 2026-2030', source_type: 'mandiri', priority: 'jangka_panjang', assigned_by: kepalaRqId, assigned_to: kepalaRqId, status: 'in_progress', description: 'Rencana strategis 5 tahun untuk pengembangan RQ.' },
+        { title: 'Susun Renstra RQ 2026-2030', source_type: 'mandiri', priority: 'low', horizon: 'panjang', assigned_by: kepalaRqId, assigned_to: kepalaRqId, status: 'in_progress', description: 'Rencana strategis 5 tahun untuk pengembangan RQ.' },
         // Personal kepala_rq jangka pendek
-        { title: 'Review proposal pelatihan guru', source_type: 'mandiri', priority: 'normal', assigned_by: kepalaRqId, assigned_to: kepalaRqId, status: 'todo' },
+        { title: 'Review proposal pelatihan guru', source_type: 'mandiri', priority: 'middle', assigned_by: kepalaRqId, assigned_to: kepalaRqId, status: 'todo' },
         // Delegasi dari kepala_rq ke kumik (penugasan atasan)
-        { title: 'Evaluasi kurikulum tahfidz semester ini', source_type: 'mandiri', priority: 'mendesak', assigned_by: kepalaRqId, assigned_to: kumikId, status: 'in_progress', due_date: isoDate(daysAgo(-3)) },
+        { title: 'Evaluasi kurikulum tahfidz semester ini', source_type: 'mandiri', priority: 'high', assigned_by: kepalaRqId, assigned_to: kumikId, status: 'in_progress', due_date: isoDate(daysAgo(-3)) },
         // Delegasi dari kumik ke koor_sd
-        { title: 'Susun jadwal halaqoh Ramadhan', source_type: 'mandiri', priority: 'mendesak', assigned_by: kumikId, assigned_to: koorSdId, status: 'todo', due_date: isoDate(daysAgo(-7)) },
+        { title: 'Susun jadwal halaqoh Ramadhan', source_type: 'mandiri', priority: 'high', assigned_by: kumikId, assigned_to: koorSdId, status: 'todo', due_date: isoDate(daysAgo(-7)) },
         // Delegasi ke humas (selesai)
-        { title: 'Buat flyer kegiatan akhir semester', source_type: 'mandiri', priority: 'normal', assigned_by: kumikId, assigned_to: humasId, status: 'done', verified_by: kumikId, verified_at: new Date().toISOString() },
+        { title: 'Buat flyer kegiatan akhir semester', source_type: 'mandiri', priority: 'middle', assigned_by: kumikId, assigned_to: humasId, status: 'done', verified_by: kumikId, verified_at: new Date().toISOString() },
         // Dari rapat (follow up) — butuh meeting_id, kita skip kalau tidak ada meeting; pakai source_type tetap mandiri dengan title hint
-        { title: '[Follow up rapat manajemen] Sinkronisasi jadwal ujian akhir', source_type: 'mandiri', priority: 'normal', assigned_by: kepalaRqId, assigned_to: kumikId, status: 'submitted' },
+        { title: '[Follow up rapat manajemen] Sinkronisasi jadwal ujian akhir', source_type: 'mandiri', priority: 'middle', assigned_by: kepalaRqId, assigned_to: kumikId, status: 'submitted' },
       ]
 
       for (const t of tasksToInsert) {

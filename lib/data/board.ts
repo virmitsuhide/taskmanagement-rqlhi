@@ -3,7 +3,7 @@ import { getBoardDivisions } from '@/lib/auth/permissions'
 import type { Task, TaskStatus, UserRole, SessionData } from '@/types'
 
 export type BoardScope = 'personal' | 'divisi'
-export type BoardColumnKey = 'todo' | 'in_progress' | 'submitted' | 'done'
+export type BoardColumnKey = 'todo' | 'in_progress' | 'problem' | 'submitted' | 'done'
 
 export interface BoardColumn {
   key: BoardColumnKey
@@ -12,11 +12,13 @@ export interface BoardColumn {
   tasks: Task[]
 }
 
+// 'returned' (dikembalikan setelah review) jatuh kembali ke To Do.
 export const BOARD_COLUMNS: { key: BoardColumnKey; label: string; statuses: TaskStatus[] }[] = [
-  { key: 'todo',        label: 'To Do',          statuses: ['todo', 'returned'] },
-  { key: 'in_progress', label: 'Dikerjakan',     statuses: ['in_progress'] },
-  { key: 'submitted',   label: 'Menunggu Review', statuses: ['submitted'] },
-  { key: 'done',        label: 'Selesai',         statuses: ['done'] },
+  { key: 'todo',        label: 'To Do',       statuses: ['todo', 'returned'] },
+  { key: 'in_progress', label: 'In Progress', statuses: ['in_progress'] },
+  { key: 'problem',     label: 'Problem',     statuses: ['problem'] },
+  { key: 'submitted',   label: 'Review',      statuses: ['submitted'] },
+  { key: 'done',        label: 'Done',        statuses: ['done'] },
 ]
 
 /** Jumlah task 'done' maksimum yang ditampilkan di kolom (hindari kolom membengkak). */

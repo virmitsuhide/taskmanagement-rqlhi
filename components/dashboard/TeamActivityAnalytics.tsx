@@ -23,7 +23,7 @@ interface Category {
 }
 
 const CATEGORIES: Category[] = [
-  { key: 'mendesak',   label: 'Mendesak',         icon: <AlertCircle className="h-4 w-4 text-destructive" />, tone: 'text-destructive', match: t => t.priority === 'mendesak' },
+  { key: 'mendesak',   label: 'Prioritas High',   icon: <AlertCircle className="h-4 w-4 text-destructive" />, tone: 'text-destructive', match: t => t.priority === 'high' },
   { key: 'deadline',   label: 'Deadline Dekat',   icon: <Clock className="h-4 w-4 text-warning" />,           tone: 'text-warning',     match: isDueSoon },
   { key: 'verifikasi', label: 'Perlu Verifikasi', icon: <CheckCircle2 className="h-4 w-4 text-info" />,        tone: 'text-info',        match: t => t.status === 'submitted' },
   { key: 'dikerjakan', label: 'Sedang Dikerjakan', icon: <TrendingUp className="h-4 w-4 text-success" />,      tone: 'text-success',     match: t => t.status === 'in_progress' },

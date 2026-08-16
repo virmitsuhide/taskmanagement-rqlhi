@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { Calendar, User, AlertCircle, ChevronRight } from 'lucide-react'
-import { TaskStatusBadge, TaskPriorityBadge } from './TaskStatusBadge'
+import { TaskStatusBadge, TaskPriorityBadge, TaskWeightBadge } from './TaskStatusBadge'
 import type { Task } from '@/types'
 
 interface Props {
@@ -54,7 +54,8 @@ export function TaskCard({ task, showAssignee = true, showAssigner = false, hash
         </h3>
         <div className="flex flex-col gap-1 items-end shrink-0">
           <TaskStatusBadge status={task.status} />
-          {task.priority !== 'normal' && <TaskPriorityBadge priority={task.priority} />}
+          <TaskPriorityBadge priority={task.priority} />
+          {task.weight !== 'medium' && <TaskWeightBadge weight={task.weight} />}
         </div>
       </div>
 

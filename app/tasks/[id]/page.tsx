@@ -1,11 +1,11 @@
 import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
 import { getSession } from '@/lib/auth/session'
-import { canChangeTaskStatus, ROLE_LABELS } from '@/lib/auth/permissions'
+import { canChangeTaskStatus, ROLE_LABELS, TASK_PROBLEM_LABELS } from '@/lib/auth/permissions'
 import { createServerClient } from '@/lib/supabase/server'
 import { updateTaskStatusFromFormAction } from '@/app/actions/tasks'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
-import { TaskStatusBadge, TaskPriorityBadge } from '@/components/tasks/TaskStatusBadge'
+import { TaskStatusBadge, TaskPriorityBadge, TaskWeightBadge } from '@/components/tasks/TaskStatusBadge'
 import { TaskComments } from '@/components/tasks/TaskComments'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -28,11 +28,12 @@ function formatDate(dateStr: string) {
 }
 
 const STATUS_FLOW: Record<TaskStatus, TaskStatus[]> = {
-  todo: ['in_progress'],
-  in_progress: ['submitted'],
+  todo: ['in_progress', 'problem'],
+  in_progress: ['submitted', 'problem'],
+  problem: ['in_progress', 'submitted'],
   submitted: ['done', 'returned'],
   done: [],
-  returned: ['in_progress'],
+  returned: ['in_progress', 'problem'],
 }
 
 export default async function TaskDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -101,7 +102,13 @@ export default async function TaskDetailPage({ params }: { params: Promise<{ id:
         <div className="mb-6">
           <div className="flex flex-wrap gap-2 mb-2">
             <TaskStatusBadge status={task.status} />
-            {task.priority !== 'normal' && <TaskPriorityBadge priority={task.priority} />}
+            <TaskPriorityBadge priority={task.priority} />
+            <TaskWeightBadge weight={task.weight} />
+            {task.status === 'problem' && task.problem_type && (
+              <Badge variant="outline" className="text-destructive border-destructive/40">
+                Hambatan: {TASK_PROBLEM_LABELS[task.problem_type]}
+              </Badge>
+            )}
           </div>
           <h1 className="text-xl font-bold mb-3">{task.title}</h1>
           {task.description && (
@@ -200,7 +207,8 @@ function StatusChangeForm({ taskId, nextStatus, needsNotes }: {
   const STATUS_LABELS: Record<TaskStatus, string> = {
     todo: 'Kembalikan ke To Do',
     in_progress: nextStatus === 'in_progress' ? 'Mulai Kerjakan' : 'Kerjakan Ulang',
-    submitted: 'Tandai Selesai (Kirim Verifikasi)',
+    problem: 'Tandai Bermasalah',
+    submitted: 'Kirim untuk Review',
     done: 'Verifikasi Selesai ✓',
     returned: 'Kembalikan (Perlu Revisi)',
   }

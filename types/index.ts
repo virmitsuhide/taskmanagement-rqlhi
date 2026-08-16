@@ -14,9 +14,21 @@ export type MeetingType = 'manajemen' | 'kumik' | 'new_squad' | 'koor_sd' | 'koo
 
 export type AgendaTag = 'keputusan' | 'informasi' | 'perlu_diskusi' | 'tindak_lanjut' | 'approval'
 
-export type TaskPriority = 'normal' | 'mendesak' | 'jangka_panjang'
+export type TaskPriority = 'low' | 'middle' | 'high'
 
-export type TaskStatus = 'todo' | 'in_progress' | 'submitted' | 'done' | 'returned'
+/** Bobot/berat pengerjaan — terpisah dari mendesak-tidaknya (priority). */
+export type TaskWeight = 'easy' | 'medium' | 'hard'
+
+/**
+ * Horizon tugas pribadi (jangka pendek vs panjang). Dulu dititipkan pada
+ * priority='jangka_panjang'; dipisah saat priority berubah jadi low/middle/high.
+ */
+export type TaskHorizon = 'pendek' | 'panjang'
+
+export type TaskStatus = 'todo' | 'in_progress' | 'problem' | 'submitted' | 'done' | 'returned'
+
+/** Jenis hambatan saat task berstatus 'problem' — menentukan warna kartu di papan. */
+export type TaskProblemType = 'bottleneck' | 'blocked' | 'wip_limit' | 'others'
 
 export type TaskSource = 'rapat' | 'mandiri' | 'home_publik'
 
@@ -78,7 +90,11 @@ export interface Task {
   assigned_to: string
   public_target: PublicTarget | null
   priority: TaskPriority
+  weight: TaskWeight
+  horizon: TaskHorizon
   status: TaskStatus
+  problem_type: TaskProblemType | null
+  problem_notes: string | null
   due_date: string | null
   return_notes: string | null
   verified_by: string | null

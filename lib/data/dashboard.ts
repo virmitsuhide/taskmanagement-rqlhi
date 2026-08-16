@@ -22,7 +22,7 @@ export async function getDashboardStats(userId: string) {
   ])
 
   const myTasks = myTasksRes.data ?? []
-  const urgentCount = myTasks.filter(t => t.priority === 'mendesak').length
+  const urgentCount = myTasks.filter(t => t.priority === 'high').length
   const dueSoonCount = myTasks.filter(t => {
     if (!t.due_date) return false
     const due = new Date(t.due_date)

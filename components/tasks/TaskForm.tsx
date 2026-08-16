@@ -7,8 +7,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { ROLE_LABELS } from '@/lib/auth/permissions'
-import type { User } from '@/types'
+import { ROLE_LABELS, TASK_PRIORITY_LABELS, TASK_WEIGHT_LABELS } from '@/lib/auth/permissions'
+import type { User, TaskPriority, TaskWeight, TaskHorizon } from '@/types'
 
 interface Props {
   assignableUsers: User[]
@@ -18,14 +18,11 @@ interface Props {
     agendaId?: string
   }
   /** Mode tugas pribadi: assignee = creator, tidak ada dropdown penerima. */
-  personalMode?: { selfUserId: string; selfName: string; lockPriority?: 'normal' | 'jangka_panjang' }
+  personalMode?: { selfUserId: string; selfName: string; horizon?: TaskHorizon }
 }
 
-const PRIORITY_OPTIONS = [
-  { value: 'normal', label: 'Normal' },
-  { value: 'mendesak', label: 'Mendesak' },
-  { value: 'jangka_panjang', label: 'Jangka Panjang' },
-]
+const PRIORITY_OPTIONS: TaskPriority[] = ['high', 'middle', 'low']
+const WEIGHT_OPTIONS: TaskWeight[] = ['easy', 'medium', 'hard']
 
 export function TaskForm({ assignableUsers, defaults, personalMode }: Props) {
   const [state, action, isPending] = useActionState(createTaskAction, null)
@@ -35,9 +32,7 @@ export function TaskForm({ assignableUsers, defaults, personalMode }: Props) {
       {personalMode && (
         <>
           <input type="hidden" name="assigned_to" value={personalMode.selfUserId} />
-          {personalMode.lockPriority && (
-            <input type="hidden" name="priority" value={personalMode.lockPriority} />
-          )}
+          <input type="hidden" name="horizon" value={personalMode.horizon ?? 'pendek'} />
         </>
       )}
       {defaults?.meetingId && (
@@ -99,25 +94,41 @@ export function TaskForm({ assignableUsers, defaults, personalMode }: Props) {
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-3">
+      {personalMode?.horizon && (
+        <div className="space-y-1.5">
+          <Label>Horizon</Label>
+          <div className="px-3 py-2 rounded-md bg-muted text-sm">
+            {personalMode.horizon === 'panjang' ? '🎯 Jangka Panjang' : '⚡ Jangka Pendek'}
+          </div>
+        </div>
+      )}
+
+      <div className="grid gap-3 sm:grid-cols-3">
         <div className="space-y-1.5">
           <Label htmlFor="priority">Prioritas</Label>
-          {personalMode?.lockPriority ? (
-            <div className="px-3 py-2 rounded-md bg-muted text-sm">
-              {personalMode.lockPriority === 'jangka_panjang' ? '🎯 Jangka Panjang' : '⚡ Jangka Pendek'}
-            </div>
-          ) : (
-            <Select name="priority" defaultValue="normal">
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {PRIORITY_OPTIONS.map(opt => (
-                  <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
+          <Select name="priority" defaultValue="middle">
+            <SelectTrigger id="priority" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {PRIORITY_OPTIONS.map(p => (
+                <SelectItem key={p} value={p}>{TASK_PRIORITY_LABELS[p]}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="weight">Bobot Tugas</Label>
+          <Select name="weight" defaultValue="medium">
+            <SelectTrigger id="weight" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {WEIGHT_OPTIONS.map(w => (
+                <SelectItem key={w} value={w}>{TASK_WEIGHT_LABELS[w]}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="due_date">Deadline (opsional)</Label>
