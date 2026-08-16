@@ -10,17 +10,10 @@ import { Button } from '@/components/ui/button'
 import { Markdown } from '@/components/ui/markdown'
 import { PrintButton } from '@/components/rapat/PrintButton'
 import { ArrowLeft, Calendar, Clock, Edit, MapPin, Trash2, Users, ExternalLink, FileText } from 'lucide-react'
-import type { Meeting, AgendaItem, AgendaTag } from '@/types'
+import { agendaTagStyle } from '@/lib/rapat/agenda-tags'
+import type { Meeting, AgendaItem } from '@/types'
 
-const TAG_CONFIG: Record<AgendaTag, { label: string; badge: string; bar: string }> = {
-  keputusan:     { label: AGENDA_TAG_LABELS.keputusan,     badge: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-900',       bar: 'bg-blue-500' },
-  informasi:     { label: AGENDA_TAG_LABELS.informasi,     badge: 'bg-green-50 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-900', bar: 'bg-green-500' },
-  perlu_diskusi: { label: AGENDA_TAG_LABELS.perlu_diskusi, badge: 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950 dark:text-purple-300 dark:border-purple-900', bar: 'bg-purple-500' },
-  tindak_lanjut: { label: AGENDA_TAG_LABELS.tindak_lanjut, badge: 'bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-950 dark:text-orange-300 dark:border-orange-900', bar: 'bg-orange-500' },
-  approval:      { label: AGENDA_TAG_LABELS.approval,      badge: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-900', bar: 'bg-amber-500' },
-}
-
-const TAG_FALLBACK = { label: 'Lainnya', badge: 'bg-muted text-muted-foreground border-border', bar: 'bg-muted-foreground' }
+// Warna tag dipakai bersama form notulen — lihat lib/rapat/agenda-tags.ts
 
 function formatDate(dateStr: string) {
   return new Date(dateStr).toLocaleDateString('id-ID', {
@@ -142,14 +135,15 @@ export default async function RapatDetailPage({ params }: { params: Promise<{ id
           ) : (
             <div className="space-y-3">
               {items.map((item, idx) => {
-                const cfg = TAG_CONFIG[item.tag] ?? TAG_FALLBACK
+                const style = agendaTagStyle(item.tag)
+                const label = AGENDA_TAG_LABELS[item.tag] ?? 'Lainnya'
                 return (
                   <div key={item.id} className="relative rounded-xl border bg-card p-4 pl-5 overflow-hidden">
-                    <span className={`absolute left-0 top-0 bottom-0 w-1 ${cfg.bar}`} aria-hidden />
+                    <span className={`absolute left-0 top-0 bottom-0 w-1 ${style.bar}`} aria-hidden />
                     <div className="flex items-center justify-between gap-3 mb-2">
                       <span className="text-xs text-muted-foreground font-medium">Poin #{idx + 1}</span>
-                      <Badge variant="outline" className={`text-[10px] font-medium ${cfg.badge}`}>
-                        {cfg.label}
+                      <Badge variant="outline" className={`text-[10px] font-medium ${style.badge}`}>
+                        {label}
                       </Badge>
                     </div>
                     <Markdown content={item.discussion} className="text-sm text-foreground/90" />
