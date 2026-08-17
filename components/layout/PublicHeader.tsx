@@ -17,7 +17,7 @@ interface NavItem {
 
 const NAV: NavItem[] = [
   { label: 'Beranda', href: '/'        },
-  { label: 'News',    href: '/news'    },
+  { label: 'Berita',  href: '/news'    },
   { label: 'Program', href: '/program' },
   {
     label: 'Tentang RQ',

@@ -42,7 +42,7 @@ export default async function EditNewsPage({ params }: PageProps) {
         role={session.role}
         title="Edit Berita"
         breadcrumbs={[
-          { label: 'Berita', href: '/news' },
+          { label: 'Berita', href: '/humas/berita' },
           { label: article.title, href: `/news/${id}` },
           { label: 'Edit' },
         ]}
@@ -50,8 +50,8 @@ export default async function EditNewsPage({ params }: PageProps) {
       />
       <div className="max-w-2xl mx-auto px-4 md:px-6 py-6 md:py-10">
         <Button asChild variant="ghost" size="sm" className="mb-6 -ml-2">
-          <Link href={`/news/${id}`}>
-            <ArrowLeft className="h-4 w-4 mr-1" />Kembali ke Berita
+          <Link href="/humas/berita">
+            <ArrowLeft className="h-4 w-4 mr-1" />Kembali ke Kelola Berita
           </Link>
         </Button>
         <h1

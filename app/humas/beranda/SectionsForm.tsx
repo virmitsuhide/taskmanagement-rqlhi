@@ -16,7 +16,7 @@ const SECTION_META: Record<HomeSectionKey, { hint: string; hasLimit: boolean }> 
   tugas:       { hint: 'Daftar tugas guru SD & SMP di kolom kiri',        hasLimit: true  },
   agenda:      { hint: 'Kalender agenda 2 pekan di kolom kanan',          hasLimit: false },
   pengumuman:  { hint: 'Papan pengumuman bergaya kertas catatan',         hasLimit: true  },
-  news:        { hint: 'Carousel berita & artikel dari halaman News',     hasLimit: true  },
+  news:        { hint: 'Carousel berita & artikel dari halaman Berita',   hasLimit: true  },
   program:     { hint: 'Kartu ringkas program RQ',                        hasLimit: true  },
   profil_guru: { hint: 'Cuplikan guru yang ditandai tampil publik',       hasLimit: true  },
 }

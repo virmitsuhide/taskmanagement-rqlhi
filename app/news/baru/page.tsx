@@ -21,13 +21,13 @@ export default async function BuatBeritaPage() {
         displayName={session.displayName}
         role={session.role}
         title="Buat Berita"
-        breadcrumbs={[{ label: 'Berita', href: '/news' }, { label: 'Buat Berita' }]}
+        breadcrumbs={[{ label: 'Berita', href: '/humas/berita' }, { label: 'Buat Berita' }]}
         ownH1
       />
       <div className="max-w-2xl mx-auto px-4 md:px-6 py-6 md:py-10">
         <Button asChild variant="ghost" size="sm" className="mb-6 -ml-2">
-          <Link href="/news">
-            <ArrowLeft className="h-4 w-4 mr-1" />Kembali ke Daftar Berita
+          <Link href="/humas/berita">
+            <ArrowLeft className="h-4 w-4 mr-1" />Kembali ke Kelola Berita
           </Link>
         </Button>
         <h1

@@ -1,12 +1,11 @@
 import Link from 'next/link'
 import Image from 'next/image'
-import { ArrowLeft, Plus } from 'lucide-react'
+import { ArrowLeft, Settings2 } from 'lucide-react'
 import { Lora, Playfair_Display } from 'next/font/google'
 import { createServerClient } from '@/lib/supabase/server'
 import { getSession } from '@/lib/auth/session'
 import { canCreateNews } from '@/lib/auth/permissions'
 import { PublicHeader } from '@/components/layout/PublicHeader'
-import { EditorControls } from './_components/EditorControls'
 import { Button } from '@/components/ui/button'
 import { SearchInput } from '@/components/ui/search-input'
 import { Pagination } from '@/components/ui/pagination'
@@ -85,8 +84,11 @@ export default async function NewsPage({ searchParams }: PageProps) {
   const page = Math.max(1, parseInt(params.page ?? '1', 10) || 1)
 
   const [news, session] = await Promise.all([getNews(), getSession()])
-  const isEditor = session && canCreateNews(session.role)
-  let filtered = isEditor ? news : news.filter(n => n.is_active)
+  const isEditor = session ? canCreateNews(session.role) : false
+
+  // Halaman ini murni tampilan publik: draft/nonaktif tidak pernah ikut,
+  // termasuk untuk editor. Arsip lengkapnya ada di /humas/berita.
+  let filtered = news.filter(n => n.is_active)
   if (activeType) filtered = filtered.filter(n => n.type === activeType)
   if (activeCategory) filtered = filtered.filter(n => n.category === activeCategory)
   if (queryLower) {
@@ -149,9 +151,9 @@ export default async function NewsPage({ searchParams }: PageProps) {
             </p>
           </div>
           {isEditor && (
-            <Button asChild size="sm" className="shrink-0">
-              <Link href="/news/baru">
-                <Plus className="h-4 w-4 mr-1" />Buat Berita
+            <Button asChild size="sm" variant="outline" className="shrink-0">
+              <Link href="/humas/berita">
+                <Settings2 className="h-4 w-4 mr-1" />Kelola Berita
               </Link>
             </Button>
           )}
@@ -206,11 +208,7 @@ export default async function NewsPage({ searchParams }: PageProps) {
           <div className="grid md:grid-cols-[1.6fr_1fr] gap-6 mb-10">
             {/* Lead */}
             <div className="relative">
-              {isEditor && <EditorControls newsId={featured.id} isActive={featured.is_active} size="md" />}
-              <Link
-                href={`/news/${featured.id}`}
-                className={`group block ${!featured.is_active ? 'opacity-50' : ''}`}
-              >
+              <Link href={`/news/${featured.id}`} className="group block">
               <article className="rounded-xl border bg-card overflow-hidden hover:border-foreground/20 hover:shadow-sm transition">
                 {featured.thumbnail_url ? (
                   <div className="relative w-full aspect-[16/10] overflow-hidden">
@@ -231,9 +229,6 @@ export default async function NewsPage({ searchParams }: PageProps) {
                     <span className="text-[11px] text-muted-foreground">
                       {formatDate(featured.created_at)}
                     </span>
-                    {!featured.is_active && (
-                      <span className="px-1.5 py-0.5 bg-muted rounded text-[10px] font-medium">Non-aktif</span>
-                    )}
                   </div>
                   <h2
                     className="font-bold leading-snug text-2xl md:text-3xl mb-3"
@@ -258,10 +253,9 @@ export default async function NewsPage({ searchParams }: PageProps) {
             <div className="flex flex-col gap-3">
               {sideSlot.map(item => (
                 <div key={item.id} className="relative">
-                  {isEditor && <EditorControls newsId={item.id} isActive={item.is_active} />}
                 <Link
                   href={`/news/${item.id}`}
-                  className={`flex gap-3 rounded-lg border bg-card p-3 hover:border-foreground/20 hover:shadow-sm transition group ${!item.is_active ? 'opacity-50' : ''}`}
+                  className="flex gap-3 rounded-lg border bg-card p-3 hover:border-foreground/20 hover:shadow-sm transition group"
                 >
                   {item.thumbnail_url && (
                     <div className="relative shrink-0 w-24 h-24 rounded overflow-hidden border">
@@ -293,7 +287,7 @@ export default async function NewsPage({ searchParams }: PageProps) {
             {rest.map(item => (
               <article
                 key={item.id}
-                className={`group rounded-xl border bg-card overflow-hidden hover:border-foreground/20 hover:shadow-sm transition relative ${!item.is_active ? 'opacity-50' : ''}`}
+                className="group rounded-xl border bg-card overflow-hidden hover:border-foreground/20 hover:shadow-sm transition relative"
               >
                 <Link href={`/news/${item.id}`} className="block">
                   {item.thumbnail_url ? (
@@ -326,7 +320,6 @@ export default async function NewsPage({ searchParams }: PageProps) {
                     </p>
                   </div>
                 </Link>
-                {isEditor && <EditorControls newsId={item.id} isActive={item.is_active} />}
               </article>
             ))}
           </div>

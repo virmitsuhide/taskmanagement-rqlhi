@@ -8,6 +8,8 @@ const ADMIN_PREFIXES = [
   '/rapat',
   '/tasks',
   '/humas-request',
+  // Panel CMS Humas: /humas/beranda, /humas/berita
+  '/humas',
   '/home-post',
   '/notes',
   '/profil',
@@ -73,6 +75,7 @@ export const config: ProxyConfig = {
     '/rapat/:path*',
     '/tasks/:path*',
     '/humas-request/:path*',
+    '/humas/:path*',
     '/home-post/:path*',
     '/notes/:path*',
     '/profil/:path*',

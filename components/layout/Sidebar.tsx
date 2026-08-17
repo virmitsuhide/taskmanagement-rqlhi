@@ -115,8 +115,9 @@ export function Sidebar({ role, displayName, username }: Props) {
             {canPostToHome(role) && (
               <NavItem href="/home-post" icon={<Megaphone className="h-4 w-4" />} label="Home Publik" active={isActive('/home-post')} />
             )}
+            {/* Menyala juga saat menulis/menyunting di /news/… */}
             {canCreateNews(role) && (
-              <NavItem href="/news" icon={<Newspaper className="h-4 w-4" />} label="Berita" active={isActive('/news')} />
+              <NavItem href="/humas/berita" icon={<Newspaper className="h-4 w-4" />} label="Berita" active={isActive('/humas/berita') || isActive('/news')} />
             )}
             {canManageHomepage(role) && (
               <NavItem href="/humas/beranda" icon={<LayoutTemplate className="h-4 w-4" />} label="Kelola Beranda" active={isActive('/humas/beranda')} />

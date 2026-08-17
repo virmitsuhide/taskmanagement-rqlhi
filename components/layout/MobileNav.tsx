@@ -192,7 +192,7 @@ export function MobileNav({ role, displayName, username }: Props) {
                 <DrawerLink href="/home-post" icon={<Megaphone className="h-4 w-4" />} label="Home Publik" active={isActive('/home-post')} onNavigate={close} />
               )}
               {canCreateNews(role) && (
-                <DrawerLink href="/news" icon={<Newspaper className="h-4 w-4" />} label="Berita" active={isActive('/news')} onNavigate={close} />
+                <DrawerLink href="/humas/berita" icon={<Newspaper className="h-4 w-4" />} label="Berita" active={isActive('/humas/berita') || isActive('/news')} onNavigate={close} />
               )}
               {canManageHomepage(role) && (
                 <DrawerLink href="/humas/beranda" icon={<LayoutTemplate className="h-4 w-4" />} label="Kelola Beranda" active={isActive('/humas/beranda')} onNavigate={close} />

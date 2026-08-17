@@ -70,7 +70,10 @@ export async function createNewsAction(_: unknown, formData: FormData) {
 
   revalidatePath('/')
   revalidatePath('/news')
-  redirect('/news')
+  revalidatePath('/humas/berita')
+  // Editor kembali ke panel kelola, bukan ke halaman publik — di sanalah
+  // status terbit/nonaktif dan seluruh arsip terlihat.
+  redirect('/humas/berita')
 }
 
 export async function updateNewsAction(newsId: string, _: unknown, formData: FormData) {
@@ -121,8 +124,9 @@ export async function updateNewsAction(newsId: string, _: unknown, formData: For
 
   revalidatePath('/')
   revalidatePath('/news')
+  revalidatePath('/humas/berita')
   revalidatePath(`/news/${newsId}`)
-  redirect(`/news/${newsId}`)
+  redirect('/humas/berita')
 }
 
 export async function toggleNewsAction(newsId: string, isActive: boolean) {
@@ -138,6 +142,7 @@ export async function toggleNewsAction(newsId: string, isActive: boolean) {
 
   if (error) return { error: error.message }
   revalidatePath('/news')
+  revalidatePath('/humas/berita')
   revalidatePath('/')
   return { success: true }
 }
@@ -152,6 +157,7 @@ export async function deleteNewsAction(newsId: string) {
   if (error) return { error: error.message }
 
   revalidatePath('/news')
+  revalidatePath('/humas/berita')
   revalidatePath('/')
   return { success: true }
 }
