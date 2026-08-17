@@ -1,7 +1,7 @@
 import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
 import { getSession } from '@/lib/auth/session'
-import { canManageTeachers, canViewTeachers, JENJANG_LABELS } from '@/lib/auth/permissions'
+import { canManageTeachers, canViewTeachers, getManageableJenjang, JENJANG_LABELS } from '@/lib/auth/permissions'
 import { createServerClient } from '@/lib/supabase/server'
 import { resetTeacherPasswordAction } from '@/app/actions/teachers'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
@@ -37,6 +37,29 @@ export default async function TeacherDetailPage({ params, searchParams }: PagePr
     .select('id, name, jenjang, is_active')
     .eq('wali_teacher_id', id)
     .order('name')
+
+  // Koor hanya boleh membuka guru di unitnya — cegah akses lintas unit via URL.
+  if (session.role === 'koor_sd' || session.role === 'koor_smp') {
+    const unitScope = getManageableJenjang(session.role)
+    const { data: unitHalaqoh } = await supabase
+      .from('halaqoh')
+      .select('id, wali_teacher_id')
+      .in('jenjang', unitScope)
+
+    const isWali = (unitHalaqoh ?? []).some(h => h.wali_teacher_id === id)
+    let isPengampu = false
+    const halaqohIds = (unitHalaqoh ?? []).map(h => h.id as string)
+    if (!isWali && halaqohIds.length > 0) {
+      const { data: rel } = await supabase
+        .from('halaqoh_teachers')
+        .select('teacher_id')
+        .in('halaqoh_id', halaqohIds)
+        .eq('teacher_id', id)
+        .limit(1)
+      isPengampu = (rel ?? []).length > 0
+    }
+    if (!isWali && !isPengampu) redirect('/ustadz')
+  }
 
   const canEdit = canManageTeachers(session.role)
 

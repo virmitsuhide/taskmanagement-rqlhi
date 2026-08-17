@@ -33,7 +33,7 @@ export default async function SiswaListPage({ searchParams }: PageProps) {
 
   const allowed = getManageableJenjang(session.role)
   const viewableJenjang: Jenjang[] = ['kepala_rq', 'kumik', 'sdm', 'bendahara'].includes(session.role)
-    ? ['paud', 'sd', 'smp', 'sma']
+    ? ['paud', 'sd', 'sd_juara', 'smp', 'sma']
     : allowed
   const canCreate = allowed.length > 0
 

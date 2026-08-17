@@ -8,8 +8,7 @@ import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { DivisionStats } from '@/components/dashboard/DivisionStats'
 import { TaskCard } from '@/components/tasks/TaskCard'
 import { ContentRequestCard } from '@/components/humas/ContentRequestCard'
-import { Button } from '@/components/ui/button'
-import { Plus } from 'lucide-react'
+import { ChevronRight, LayoutTemplate } from 'lucide-react'
 import type { ContentRequest } from '@/types'
 
 export default async function HumasDashboardPage() {
@@ -38,6 +37,22 @@ export default async function HumasDashboardPage() {
       <div className="p-4 md:p-6 space-y-6 max-w-4xl">
         <DivisionStats {...stats} />
 
+        <Link
+          href="/humas/beranda"
+          className="flex items-center gap-3.5 rounded-xl border bg-card p-4 hover:border-primary/40 hover:shadow-sm transition-all"
+        >
+          <span className="inline-flex items-center justify-center rounded-lg p-2.5 bg-primary/10">
+            <LayoutTemplate className="h-4 w-4 text-primary" />
+          </span>
+          <span className="flex-1 min-w-0">
+            <span className="block text-sm font-semibold">Kelola Beranda</span>
+            <span className="block text-xs text-muted-foreground mt-0.5">
+              Seksi yang tampil, teks header &amp; footer, dan profil guru
+            </span>
+          </span>
+          <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+        </Link>
+
         {pendingRequests.length > 0 && (
           <section>
             <div className="flex items-center justify-between mb-3">
@@ -62,9 +77,6 @@ export default async function HumasDashboardPage() {
         <section>
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-sm font-semibold">Task Aktif Saya</h2>
-            <Button asChild size="sm" variant="outline">
-              <Link href="/humas-request"><Plus className="h-3 w-3 mr-1" />Request Baru</Link>
-            </Button>
           </div>
           {myTasks.length === 0 ? (
             <p className="text-sm text-muted-foreground py-4">Tidak ada task aktif.</p>

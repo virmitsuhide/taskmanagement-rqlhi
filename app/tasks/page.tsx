@@ -133,8 +133,11 @@ export default async function TasksPage({ searchParams }: PageProps) {
   }
 
   return (
-    <div>
+    <div className="flex min-h-full flex-col">
       <DashboardHeader displayName={session.displayName} role={session.role} title="Tugas" />
+      {/* Kanvas bertint supaya kartu (bg-card) punya kontras di mode terang,
+          di mana --card dan --background sama-sama putih. */}
+      <div className="flex-1 bg-muted/50 dark:bg-background">
       <div className="p-4 md:p-6 max-w-3xl mx-auto">
         <div className="flex items-end justify-between gap-3 flex-wrap mb-5">
           <div>
@@ -248,6 +251,7 @@ export default async function TasksPage({ searchParams }: PageProps) {
           </>
         )}
       </div>
+      </div>
     </div>
   )
 }
@@ -258,21 +262,28 @@ function BucketSection({
   icon: React.ReactNode; title: string; emptyHint: string; tasks: Task[]; showAssigner: boolean
 }) {
   return (
-    <section>
-      <div className="flex items-center gap-2 mb-2.5">
+    <section className="overflow-hidden rounded-xl border bg-card shadow-sm">
+      <div className="flex items-center gap-2 border-b bg-muted/40 px-4 py-3">
         {icon}
         <h2 className="text-sm font-semibold">{title}</h2>
-        <span className="text-xs text-muted-foreground">({tasks.length})</span>
+        <span className="ml-auto rounded-full bg-background px-2 py-0.5 text-[11px] font-medium text-muted-foreground tabular-nums">
+          {tasks.length}
+        </span>
       </div>
-      {tasks.length === 0 ? (
-        <p className="text-xs text-muted-foreground italic py-2 px-3 rounded border border-dashed">{emptyHint}</p>
-      ) : (
-        <div className="space-y-2">
-          {tasks.map(t => (
-            <TaskCard key={t.id} task={t} showAssignee={false} showAssigner={showAssigner} />
-          ))}
-        </div>
-      )}
+      {/* Badan section dibuat bertint agar TaskCard yang bg-card menonjol di atasnya */}
+      <div className="bg-muted/30 p-3">
+        {tasks.length === 0 ? (
+          <p className="rounded-lg border border-dashed px-3 py-4 text-center text-xs italic text-muted-foreground">
+            {emptyHint}
+          </p>
+        ) : (
+          <div className="space-y-2">
+            {tasks.map(t => (
+              <TaskCard key={t.id} task={t} showAssignee={false} showAssigner={showAssigner} />
+            ))}
+          </div>
+        )}
+      </div>
     </section>
   )
 }

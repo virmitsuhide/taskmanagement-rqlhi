@@ -1,5 +1,6 @@
 import type { RaporData } from '@/lib/data/rapor'
 import { StarValue } from '@/components/StarValue'
+import { Logo } from '@/components/brand/Logo'
 
 const JENJANG_LABELS: Record<string, string> = { paud: 'PAUD', sd: 'SD', sd_juara: 'SD Juara', smp: 'SMP', sma: 'SMA' }
 
@@ -24,12 +25,7 @@ export function RaporDocument({ data }: { data: RaporData }) {
         {/* Header */}
         <div className="flex items-start justify-between gap-4 pb-4" style={{ borderBottom: '2px solid var(--primary)' }}>
           <div className="flex items-center gap-3">
-            <div
-              className="w-12 h-12 rounded-xl flex items-center justify-center text-white font-extrabold"
-              style={{ background: 'var(--primary)', fontFamily: "var(--font-playfair), 'Playfair Display', Georgia, serif" }}
-            >
-              RQ
-            </div>
+            <Logo size={48} alt="" />
             <div>
               <h1 className="text-xl font-extrabold leading-tight" style={{ fontFamily: "var(--font-playfair), 'Playfair Display', Georgia, serif" }}>
                 Rapor Tahsin &amp; Tahfidz

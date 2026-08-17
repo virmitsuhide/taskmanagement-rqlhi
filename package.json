@@ -18,7 +18,8 @@
     "seed:demo": "tsx scripts/seed-demo.ts",
     "seed:demo:content": "tsx scripts/seed-demo-content.ts",
     "seed:demo:tahsin": "tsx scripts/seed-demo-tahsin.ts",
-    "seed:demo:meetings": "tsx scripts/seed-demo-meetings.ts"
+    "seed:demo:meetings": "tsx scripts/seed-demo-meetings.ts",
+    "seed:rapat-baru": "tsx scripts/seed-rapat-baru.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",

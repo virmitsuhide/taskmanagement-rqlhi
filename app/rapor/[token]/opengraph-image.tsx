@@ -1,6 +1,7 @@
 import { ImageResponse } from 'next/og'
 import { verifyRaporToken } from '@/lib/rapor-token'
 import { getStudentRaporData } from '@/lib/data/rapor'
+import { getOgLogo } from '@/lib/og/logo'
 
 export const alt = 'Rapor Tahsin & Tahfidz — RQ LHI'
 export const size = { width: 1200, height: 630 }
@@ -14,6 +15,7 @@ export default async function Image({ params }: Props) {
   const { token } = await params
   const payload = await verifyRaporToken(token)
   const data = payload ? await getStudentRaporData(payload.sid, payload.y, payload.m) : null
+  const logo = await getOgLogo()
 
   const name = data?.student.full_name ?? 'Rapor Siswa'
   const monthLabel = data?.period.monthLabel ?? ''
@@ -40,21 +42,16 @@ export default async function Image({ params }: Props) {
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <div
-            style={{
-              width: 64, height: 64, borderRadius: 16, background: 'rgba(255,255,255,0.2)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 28, fontWeight: 800,
-            }}
-          >
-            RQ
-          </div>
+          {/* eslint-disable-next-line @next/next/no-img-element -- Satori hanya mengenal <img> */}
+          <img src={logo} alt="" width={64} height={64} style={{ borderRadius: 32 }} />
           <div style={{ fontSize: 22, opacity: 0.9, letterSpacing: 2 }}>RUMAH QUR&apos;AN LHI</div>
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column' }}>
+          {/* Satori: teks + ekspresi dihitung sebagai dua anak — gabungkan
+              jadi satu string agar div tanpa `display: flex` tetap valid. */}
           <div style={{ fontSize: 24, opacity: 0.85, marginBottom: 8 }}>
-            Rapor Tahsin &amp; Tahfidz · {monthLabel}
+            {`Rapor Tahsin & Tahfidz · ${monthLabel}`}
           </div>
           <div style={{ fontSize: 68, fontWeight: 800, lineHeight: 1.1 }}>{name}</div>
         </div>

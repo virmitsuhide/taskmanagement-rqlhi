@@ -13,7 +13,7 @@ export default async function BuatHomePostPage() {
   if (!canPostToHome(session.role)) redirect('/home-post')
 
   return (
-    <div>
+    <div className="flex min-h-full flex-col">
       <DashboardHeader
         displayName={session.displayName}
         role={session.role}
@@ -21,12 +21,18 @@ export default async function BuatHomePostPage() {
         breadcrumbs={[{ label: 'Home Publik', href: '/home-post' }, { label: 'Buat Post' }]}
         ownH1
       />
-      <div className="p-4 md:p-6 max-w-2xl mx-auto">
-        <Button asChild variant="ghost" size="sm" className="mb-4">
-          <Link href="/home-post"><ArrowLeft className="h-4 w-4 mr-1" />Kembali ke Manajemen Home</Link>
-        </Button>
-        <h1 className="text-xl font-bold mb-6">Buat Post Publik</h1>
-        <PublicPostForm />
+      {/* Kanvas bertint supaya kartu form punya kontras di mode terang. */}
+      <div className="flex-1 bg-muted/50 dark:bg-background">
+        <div className="p-4 md:p-6 max-w-2xl mx-auto">
+          <Button asChild variant="ghost" size="sm" className="mb-4">
+            <Link href="/home-post"><ArrowLeft className="h-4 w-4 mr-1" />Kembali ke Manajemen Home</Link>
+          </Button>
+          <h1 className="text-xl font-bold mb-1">Buat Post Publik</h1>
+          <p className="text-sm text-muted-foreground mb-6">
+            Tampil di beranda publik — bisa dibaca tanpa login.
+          </p>
+          <PublicPostForm />
+        </div>
       </div>
     </div>
   )

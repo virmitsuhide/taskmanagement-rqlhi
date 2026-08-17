@@ -9,6 +9,8 @@ interface Props {
   kaldiEvents?: KaldiEvent[]
   weekStartIso: string
   todayIso: string
+  /** Judul seksi; diatur Humas lewat panel kelola beranda. */
+  title?: string
 }
 
 const DAY_LABELS = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min']
@@ -29,7 +31,7 @@ function kaldiEventDate(e: KaldiEvent): Date | null {
   return isNaN(d.getTime()) ? null : d
 }
 
-export function WeeklyAgenda({ posts, kaldiEvents = [], weekStartIso, todayIso }: Props) {
+export function WeeklyAgenda({ posts, kaldiEvents = [], weekStartIso, todayIso, title = "Agenda Qur'an." }: Props) {
   const week = useMemo(() => {
     const start = new Date(weekStartIso)
     return Array.from({ length: 14 }, (_, i) => {
@@ -108,7 +110,7 @@ export function WeeklyAgenda({ posts, kaldiEvents = [], weekStartIso, todayIso }
             <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
               2 Minggu Ini
             </p>
-            <h3 className="text-lg font-semibold mt-1.5">Agenda Qur&apos;an.</h3>
+            <h3 className="text-lg font-semibold mt-1.5">{title}</h3>
           </div>
           <Calendar className="h-5 w-5 text-primary" />
         </div>

@@ -1,8 +1,9 @@
 import {
   pgTable, pgEnum, text, uuid, boolean,
-  timestamp, integer, date, time, numeric, smallint, primaryKey,
+  timestamp, integer, date, time, numeric, smallint, primaryKey, jsonb,
 } from 'drizzle-orm/pg-core'
 import { relations } from 'drizzle-orm'
+import type { FooterLink, FooterUnit, HomeSection } from '@/types'
 
 // ─── Enums ───────────────────────────────────────────────────────────────────
 export const userRoleEnum = pgEnum('user_role', [
@@ -12,6 +13,7 @@ export const userRoleEnum = pgEnum('user_role', [
 ])
 export const meetingTypeEnum = pgEnum('meeting_type', [
   'manajemen', 'kumik', 'new_squad', 'koor_sd', 'koor_smp',
+  'koor_x_sd', 'koor_x_smp', 'koor_x_boarding', 'rq_x_quls',
 ])
 export const agendaTagEnum = pgEnum('agenda_tag', [
   'keputusan', 'informasi', 'perlu_diskusi', 'tindak_lanjut', 'approval',
@@ -39,6 +41,29 @@ export const users = pgTable('users', {
   display_name: text('display_name').notNull(),
   email: text('email'),
   can_change_password: boolean('can_change_password').default(true),
+  /** Kapan dropdown notifikasi terakhir dibuka — mengendalikan badge lonceng. */
+  notifications_seen_at: timestamp('notifications_seen_at', { withTimezone: true }),
+
+  // ── Profil pengurus (semua role kecuali new_squad) ──────────────
+  /** 'ust' | 'usth' — menentukan sapaan "Ust." atau "Usth." */
+  sapaan: text('sapaan'),
+  nickname: text('nickname'),
+  full_name: text('full_name'),
+  nip: text('nip'),
+  birth_place: text('birth_place'),
+  birth_date: date('birth_date'),
+  current_amanah: text('current_amanah'),
+  /** SD | SMP | SMA | S1 | S2 | S3 */
+  education_level: text('education_level'),
+  photo_url: text('photo_url'),
+  competencies: text('competencies').array(),
+  /** [{ name, year, organizer }] */
+  trainings: jsonb('trainings'),
+  /** [{ position, period }] */
+  amanah_history: jsonb('amanah_history'),
+  /** [{ name, year }] */
+  awards: jsonb('awards'),
+
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
 })
 
@@ -101,6 +126,16 @@ export const taskHistory = pgTable('task_history', {
   notes: text('notes'),
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
 })
+
+/**
+ * Item notifikasi yang sudah diklik pengguna. Notifikasinya sendiri diturunkan
+ * dari task_history, jadi tabel ini hanya menyimpan status bacanya.
+ */
+export const notificationReads = pgTable('notification_reads', {
+  user_id: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  history_id: uuid('history_id').notNull().references(() => taskHistory.id, { onDelete: 'cascade' }),
+  read_at: timestamp('read_at', { withTimezone: true }).defaultNow(),
+}, (t) => [primaryKey({ columns: [t.user_id, t.history_id] })])
 
 export const publicPosts = pgTable('public_posts', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -239,6 +274,11 @@ export const teachers = pgTable('teachers', {
   phone: text('phone'),
   photo_url: text('photo_url'),
   is_active: boolean('is_active').default(true),
+  // Profil publik — dikelola Humas, tampil di /profil-guru
+  public_title: text('public_title'),
+  public_bio: text('public_bio'),
+  is_public: boolean('is_public').default(false),
+  display_order: integer('display_order').default(0),
   can_change_password: boolean('can_change_password').default(true),
   joined_at: date('joined_at').defaultNow(),
   linked_user_id: uuid('linked_user_id').references(() => users.id, { onDelete: 'set null' }),
@@ -419,6 +459,32 @@ export const aboutRq = pgTable('about_rq', {
   vision: text('vision').default(''),
   mission: text('mission').default(''),
   history: text('history').default(''),
+  updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+  updated_by: uuid('updated_by').references(() => users.id),
+})
+
+/**
+ * Identitas situs + konfigurasi tampilan beranda publik. Tabel singleton
+ * (selalu id = 1) dengan pola yang sama seperti about_rq.
+ *
+ * `sections` disimpan sebagai jsonb karena urutan seksi ikut ditentukan oleh
+ * urutan array — menyimpannya sebagai kolom terpisah akan memaksa migrasi
+ * setiap kali ada seksi baru di beranda.
+ */
+export const siteSettings = pgTable('site_settings', {
+  id: integer('id').primaryKey().default(1),
+  header_brand: text('header_brand').default(''),
+  header_tagline: text('header_tagline').default(''),
+  footer_brand: text('footer_brand').default(''),
+  footer_brand_sub: text('footer_brand_sub').default(''),
+  footer_tagline: text('footer_tagline').default(''),
+  footer_units: jsonb('footer_units').$type<FooterUnit[]>().default([]),
+  footer_links: jsonb('footer_links').$type<FooterLink[]>().default([]),
+  footer_email: text('footer_email').default(''),
+  footer_phone: text('footer_phone').default(''),
+  footer_hours: text('footer_hours').default(''),
+  footer_copyright: text('footer_copyright').default(''),
+  sections: jsonb('sections').$type<HomeSection[]>().default([]),
   updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
   updated_by: uuid('updated_by').references(() => users.id),
 })

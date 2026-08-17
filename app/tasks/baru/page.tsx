@@ -51,13 +51,14 @@ export default async function BuatTaskPage({
     : 'Delegasikan Tugas'
 
   return (
-    <div>
+    <div className="flex min-h-full flex-col">
       <DashboardHeader
         displayName={session.displayName}
         role={session.role}
         title={title}
         breadcrumbs={[{ label: 'Tugas', href: '/tasks' }, { label: title }]}
       />
+      <div className="flex-1 bg-muted/50 dark:bg-background">
       <div className="p-4 md:p-6 max-w-2xl mx-auto">
         <Button asChild variant="ghost" size="sm" className="mb-4">
           <Link href={sp.meeting_id ? `/rapat/${sp.meeting_id}` : '/tasks'}>
@@ -84,6 +85,7 @@ export default async function BuatTaskPage({
             horizon,
           } : undefined}
         />
+      </div>
       </div>
     </div>
   )

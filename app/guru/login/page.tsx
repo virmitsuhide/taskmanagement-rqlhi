@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Logo } from '@/components/brand/Logo'
 
 export default function TeacherLoginPage() {
   const [state, action, isPending] = useActionState(loginTeacherAction, null)
@@ -16,20 +17,14 @@ export default function TeacherLoginPage() {
       className="min-h-screen flex flex-col items-center justify-center px-4"
       style={{ background: 'linear-gradient(180deg, var(--primary-wash) 0%, var(--secondary) 60%)' }}
     >
-      <div className="mb-6 text-center">
-        <div
-          className="inline-flex h-14 w-14 items-center justify-center rounded-xl text-white text-xl font-bold mb-3"
-          style={{ background: 'var(--primary)', fontFamily: "var(--font-playfair), Georgia, serif" }}
-        >
-          📖
-        </div>
+      <div className="mb-6 flex flex-col items-center text-center">
+        <Logo variant="full" size={132} priority />
         <p
           className="text-base font-semibold"
           style={{ fontFamily: "var(--font-playfair), Georgia, serif" }}
         >
           Portal Guru
         </p>
-        <p className="text-xs text-muted-foreground mt-1">Rumah Qur&apos;an LHI</p>
       </div>
 
       <Card className="w-full max-w-sm border-[var(--border)] shadow-[0_8px_24px_-12px_rgba(184,134,11,0.2)]">

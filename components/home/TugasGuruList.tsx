@@ -3,11 +3,16 @@
 import { useState } from 'react'
 import { ArrowRight } from 'lucide-react'
 import Link from 'next/link'
+import { stripMarkdown } from '@/lib/markdown'
 import type { PublicPost } from '@/types'
 
 interface Props {
   tugasSD: PublicPost[]
   tugasSMP: PublicPost[]
+  /** Judul seksi; diatur Humas lewat panel kelola beranda. */
+  title?: string
+  /** Jumlah kartu yang ditampilkan. */
+  limit?: number
 }
 
 const MONTH_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
@@ -28,14 +33,14 @@ function initials(name: string) {
   return name.split(/\s+/).slice(0, 2).map(w => w.charAt(0)).join('').toUpperCase()
 }
 
-export function TugasGuruList({ tugasSD, tugasSMP }: Props) {
+export function TugasGuruList({ tugasSD, tugasSMP, title = 'Tugas Guru', limit = 6 }: Props) {
   const [filter, setFilter] = useState<'semua' | 'sd' | 'smp'>('semua')
 
   const all = [...tugasSD, ...tugasSMP].sort(
     (a, b) => new Date(b.due_date ?? b.created_at).getTime() - new Date(a.due_date ?? a.created_at).getTime()
   )
   const filtered = filter === 'sd' ? tugasSD : filter === 'smp' ? tugasSMP : all
-  const shown = filtered.slice(0, 6)
+  const shown = filtered.slice(0, limit)
 
   return (
     <>
@@ -44,7 +49,7 @@ export function TugasGuruList({ tugasSD, tugasSMP }: Props) {
           className="m-0 text-base font-bold tracking-tight text-foreground"
           style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
         >
-          Tugas Guru
+          {title}
         </h2>
         <div className="flex gap-0.5 bg-muted rounded-xl p-1">
           {(['semua', 'sd', 'smp'] as const).map(f => (
@@ -78,7 +83,7 @@ export function TugasGuruList({ tugasSD, tugasSMP }: Props) {
             return (
               <div
                 key={post.id}
-                className="flex items-start gap-3.5 px-2.5 py-3 border-b border-border last:border-0 hover:bg-muted/50 transition-colors rounded-lg cursor-pointer group"
+                className="relative flex items-start gap-3.5 px-2.5 py-3 border-b border-border last:border-0 hover:bg-muted/50 transition-colors rounded-lg group"
               >
                 {/* Tanggal */}
                 <div className="min-w-[34px] text-center shrink-0 pt-0.5">
@@ -108,8 +113,17 @@ export function TugasGuruList({ tugasSD, tugasSMP }: Props) {
                       </span>
                     )}
                   </div>
+                  {/* Judul = tautan ke halaman detail berisi isi lengkap */}
                   <p className="text-sm font-medium leading-[1.4] mb-1 text-foreground line-clamp-2">
-                    {post.title}
+                    <Link
+                      href={`/pengumuman/${post.id}`}
+                      className="after:absolute after:inset-0 hover:underline underline-offset-2"
+                    >
+                      {post.title}
+                    </Link>
+                  </p>
+                  <p className="text-[12px] text-muted-foreground line-clamp-2 leading-relaxed mb-1">
+                    {stripMarkdown(post.content)}
                   </p>
                   {post.creator && (
                     <p className="text-[11px] text-muted-foreground">oleh {post.creator.display_name}</p>

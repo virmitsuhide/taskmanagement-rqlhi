@@ -1,7 +1,7 @@
 'use client'
 
 import { useRef, useState, useCallback } from 'react'
-import { Bold, Italic, List, ListOrdered, Smile, Code } from 'lucide-react'
+import { Bold, Italic, Strikethrough, List, ListOrdered, Smile, Code } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const EMOJI_GROUPS: { label: string; emojis: string[] }[] = [
@@ -109,6 +109,9 @@ export function RichTextEditor({
     } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'i') {
       e.preventDefault()
       wrapSelection('*')
+    } else if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'x') {
+      e.preventDefault()
+      wrapSelection('~~')
     }
   }
 
@@ -120,6 +123,9 @@ export function RichTextEditor({
         </ToolbarButton>
         <ToolbarButton onClick={() => wrapSelection('*')} title="Miring (Ctrl+I)">
           <Italic className="h-3.5 w-3.5" />
+        </ToolbarButton>
+        <ToolbarButton onClick={() => wrapSelection('~~')} title="Coret (Ctrl+Shift+X)">
+          <Strikethrough className="h-3.5 w-3.5" />
         </ToolbarButton>
         <ToolbarButton onClick={() => wrapSelection('`')} title="Kode">
           <Code className="h-3.5 w-3.5" />
@@ -136,7 +142,7 @@ export function RichTextEditor({
           <Smile className="h-3.5 w-3.5" />
         </ToolbarButton>
         <span className="ml-auto text-[10px] text-muted-foreground/70 pr-1 hidden sm:block">
-          **tebal**  ·  *miring*  ·  - daftar  ·  1. nomor
+          **tebal**  ·  *miring*  ·  ~~coret~~  ·  - daftar
         </span>
 
         {emojiOpen && (

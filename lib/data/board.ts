@@ -46,17 +46,19 @@ export async function getBoardTasks({ session, scope, divisi }: GetBoardOpts): P
     tasks = (data ?? []) as Task[]
   } else {
     // Divisi board — divisi = role assignee.
+    //
+    // Cakupannya ditentukan sepenuhnya oleh getBoardDivisions(): papan ini
+    // memang untuk melihat aktivitas divisi, bukan tugas pribadi (itu sudah
+    // dilayani scope 'personal'). Dulu ada filter tambahan "hanya task yang
+    // saya delegasikan / saya terima" — filter itu membuat divisi yang baru
+    // dibuka untuk koor (New Squad & Humas) selalu tampil kosong, karena task
+    // divisi tersebut umumnya diberikan oleh SDM atau kepala RQ.
     const allowedDivisions = getBoardDivisions(session.role)
     if (allowedDivisions.length === 0) return columnize([])
 
-    const fullVisibility = session.role === 'kepala_rq' || session.role === 'kumik' || session.role === 'sdm'
-
-    let query = supabase.from('tasks').select(selectCols)
-    if (!fullVisibility) {
-      // Koor: hanya task yang ia delegasikan atau yang ditugaskan padanya
-      query = query.or(`assigned_by.eq.${session.userId},assigned_to.eq.${session.userId}`)
-    }
-    const { data } = await query
+    const { data } = await supabase
+      .from('tasks')
+      .select(selectCols)
       .order('priority', { ascending: false })
       .order('created_at', { ascending: false })
 

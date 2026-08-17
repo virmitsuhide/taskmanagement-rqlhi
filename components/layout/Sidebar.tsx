@@ -6,15 +6,18 @@ import { cn } from '@/lib/utils'
 import {
   LayoutDashboard, BookOpen, CheckSquare, ImageIcon,
   FileText, User, Megaphone, LogOut, ChevronRight, GraduationCap, Newspaper, LayoutGrid,
-  Users, UserCog, BookMarked, BarChart3,
+  Users, UserCog, BookMarked, BarChart3, LayoutTemplate,
 } from 'lucide-react'
 import { DASHBOARD_LABELS, getAccessibleDashboards, ROLE_LABELS } from '@/lib/auth/permissions'
 import {
-  canAccessNotes, canPostToHome, canRequestToHumas, canCreateNews,
-  canViewStudents, canViewHalaqoh, canViewTeachers, canViewAnalytics,
+  canViewFinanceNotes, canPostToHome, canViewHumasRequests, canCreateNews,
+  canAccessProgramMenu,
+  canViewStudents, canViewHalaqoh, canViewTeachers, canViewAnalytics, canViewUnitAnalytics,
+  canManageHomepage,
 } from '@/lib/auth/permissions'
 import type { UserRole } from '@/types'
 import { logoutAction } from '@/app/actions/auth'
+import { Logo } from '@/components/brand/Logo'
 
 interface Props {
   role: UserRole
@@ -46,9 +49,7 @@ export function Sidebar({ role, displayName, username }: Props) {
     <aside className="flex h-full w-64 flex-col border-r bg-sidebar text-sidebar-foreground">
       {/* Logo / Brand */}
       <div className="flex items-center gap-2.5 border-b px-4 py-4">
-        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-sidebar-primary to-sidebar-primary/70 text-sidebar-primary-foreground text-sm font-bold shadow-sm">
-          RQ
-        </div>
+        <Logo size={36} alt="" className="shadow-sm" />
         <div className="min-w-0">
           <p className="text-sm font-semibold leading-none">RQ LHI</p>
           <p className="text-[11px] text-sidebar-foreground/60 mt-1 truncate">{ROLE_LABELS[role]}</p>
@@ -83,8 +84,13 @@ export function Sidebar({ role, displayName, username }: Props) {
                 </Link>
               </li>
             ))}
-            {canViewAnalytics(role) && (
-              <NavItem href="/dashboard/analitik" icon={<BarChart3 className="h-4 w-4" />} label="Analitik RQ" active={isActive('/dashboard/analitik')} />
+            {canViewUnitAnalytics(role) && (
+              <NavItem
+                href={canViewAnalytics(role) ? '/dashboard/analitik' : '/dashboard/analitik/unit'}
+                icon={<BarChart3 className="h-4 w-4" />}
+                label="Analitik RQ"
+                active={isActive('/dashboard/analitik')}
+              />
             )}
           </ul>
         </div>
@@ -95,13 +101,15 @@ export function Sidebar({ role, displayName, username }: Props) {
             Fitur
           </p>
           <ul className="space-y-1">
-            <NavItem href="/program" icon={<LayoutGrid className="h-4 w-4" />} label="Program RQ" active={isActive('/program')} />
+            {canAccessProgramMenu(role) && (
+              <NavItem href="/program" icon={<LayoutGrid className="h-4 w-4" />} label="Program RQ" active={isActive('/program')} />
+            )}
             <NavItem href="/rapat" icon={<BookOpen className="h-4 w-4" />} label="Rapat & Notulen" active={isActive('/rapat')} />
             <NavItem href="/tasks" icon={<CheckSquare className="h-4 w-4" />} label="Tugas" active={isActive('/tasks') && !pathname.startsWith('/tasks/board')} />
             {role !== 'kepala_rq' && (
               <NavItem href="/tasks/board" icon={<LayoutGrid className="h-4 w-4" />} label="Papan Tugas" active={pathname.startsWith('/tasks/board')} />
             )}
-            {canRequestToHumas(role) && (
+            {canViewHumasRequests(role) && (
               <NavItem href="/humas-request" icon={<ImageIcon className="h-4 w-4" />} label="Request Humas" active={isActive('/humas-request')} />
             )}
             {canPostToHome(role) && (
@@ -110,8 +118,11 @@ export function Sidebar({ role, displayName, username }: Props) {
             {canCreateNews(role) && (
               <NavItem href="/news" icon={<Newspaper className="h-4 w-4" />} label="Berita" active={isActive('/news')} />
             )}
-            {canAccessNotes(role) && (
-              <NavItem href="/notes" icon={<FileText className="h-4 w-4" />} label="Catatan Pribadi" active={isActive('/notes')} />
+            {canManageHomepage(role) && (
+              <NavItem href="/humas/beranda" icon={<LayoutTemplate className="h-4 w-4" />} label="Kelola Beranda" active={isActive('/humas/beranda')} />
+            )}
+            {canViewFinanceNotes(role) && (
+              <NavItem href="/notes" icon={<FileText className="h-4 w-4" />} label="Catatan Keuangan" active={isActive('/notes')} />
             )}
           </ul>
         </div>

@@ -2,7 +2,6 @@ import Link from 'next/link'
 import { getSession } from '@/lib/auth/session'
 import { canEditAbout } from '@/lib/auth/permissions'
 import { createServerClient } from '@/lib/supabase/server'
-import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { PublicHeader } from '@/components/layout/PublicHeader'
 import { Button } from '@/components/ui/button'
 import {
@@ -56,31 +55,19 @@ export default async function TentangPage({ searchParams }: PageProps) {
     : 'struktur'
 
   const [session, about] = await Promise.all([getSession(), getAbout()])
-  const isLoggedIn = !!session?.isLoggedIn
   const canEdit = !!session && canEditAbout(session.role)
 
   return (
     <div>
-      {isLoggedIn && session ? (
-        <DashboardHeader
-          displayName={session.displayName}
-          role={session.role}
-          title="Tentang RQ"
-          ownH1
-        />
-      ) : (
-        <PublicHeader />
-      )}
+      <PublicHeader />
 
       <div className="p-4 md:p-6 max-w-5xl mx-auto">
-        {!isLoggedIn && (
-          <Link
-            href="/"
-            className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground mb-3 transition-colors"
-          >
-            <ArrowLeft className="h-3 w-3" /> Kembali ke Beranda
-          </Link>
-        )}
+        <Link
+          href="/"
+          className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground mb-3 transition-colors"
+        >
+          <ArrowLeft className="h-3 w-3" /> Kembali ke Beranda
+        </Link>
 
         <div className="flex items-start justify-between gap-4 mb-6 flex-wrap">
           <div>

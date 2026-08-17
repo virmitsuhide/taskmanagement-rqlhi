@@ -10,7 +10,20 @@ export type UserRole =
   | 'div_training'
   | 'new_squad'
 
-export type MeetingType = 'manajemen' | 'kumik' | 'new_squad' | 'koor_sd' | 'koor_smp'
+export type MeetingType =
+  | 'manajemen'
+  | 'kumik'
+  | 'new_squad'
+  | 'koor_sd'
+  | 'koor_smp'
+  /** Rapat Koor x SD — dibuat koor SD */
+  | 'koor_x_sd'
+  /** Rapat Koor x SMP — dibuat koor SMP */
+  | 'koor_x_smp'
+  /** Rapat Koor x Boarding — dibuat koor SMP */
+  | 'koor_x_boarding'
+  /** Rapat RQ x QULS — dibuat kumik, terbatas untuk kumik/kepala/SDM/bendahara */
+  | 'rq_x_quls'
 
 export type AgendaTag = 'keputusan' | 'informasi' | 'perlu_diskusi' | 'tindak_lanjut' | 'approval'
 
@@ -50,6 +63,44 @@ export interface User {
   email: string | null
   can_change_password: boolean
   created_at: string
+}
+
+/** 'ust' → "Ust. Habib", 'usth' → "Usth. Aul" */
+export type Sapaan = 'ust' | 'usth'
+
+export type EducationLevel = 'SD' | 'SMP' | 'SMA' | 'S1' | 'S2' | 'S3'
+
+export interface TrainingEntry {
+  name: string
+  year: string
+  organizer: string
+}
+
+export interface AmanahEntry {
+  position: string
+  period: string
+}
+
+export interface AwardEntry {
+  name: string
+  year: string
+}
+
+/** Profil lengkap pengurus — semua role kecuali new_squad. */
+export interface PengurusProfile extends User {
+  sapaan: Sapaan | null
+  nickname: string | null
+  full_name: string | null
+  nip: string | null
+  birth_place: string | null
+  birth_date: string | null
+  current_amanah: string | null
+  education_level: EducationLevel | null
+  photo_url: string | null
+  competencies: string[] | null
+  trainings: TrainingEntry[] | null
+  amanah_history: AmanahEntry[] | null
+  awards: AwardEntry[] | null
 }
 
 export interface Meeting {
@@ -483,3 +534,62 @@ export const AYAT_PER_JUZ: Record<number, number> = {
  25: 246, 26: 195, 27: 399, 28: 137, 29: 431, 30: 564,
 }
 
+
+// ─── Tampilan Beranda & identitas situs (dikelola Humas) ────────────
+
+/** Seksi yang bisa dinyalakan/dimatikan & diurutkan di beranda publik. */
+export type HomeSectionKey =
+  | 'tugas'
+  | 'agenda'
+  | 'pengumuman'
+  | 'news'
+  | 'program'
+  | 'profil_guru'
+
+export interface HomeSection {
+  key: HomeSectionKey
+  enabled: boolean
+  /** Judul yang tampil di beranda. Kosong = pakai judul bawaan. */
+  title: string
+  /** Jumlah item maksimum. Diabaikan untuk seksi tanpa daftar. */
+  limit: number
+}
+
+export interface FooterUnit {
+  name: string
+  address: string
+  phone: string
+}
+
+export interface FooterLink {
+  label: string
+  href: string
+}
+
+export interface SiteSettings {
+  id: number
+  header_brand: string
+  header_tagline: string
+  footer_brand: string
+  footer_brand_sub: string
+  footer_tagline: string
+  footer_units: FooterUnit[]
+  footer_links: FooterLink[]
+  footer_email: string
+  footer_phone: string
+  footer_hours: string
+  footer_copyright: string
+  sections: HomeSection[]
+  updated_at: string
+  updated_by: string | null
+}
+
+/** Guru yang ditampilkan di halaman Profil Guru publik. */
+export interface PublicTeacher {
+  id: string
+  full_name: string
+  photo_url: string | null
+  public_title: string | null
+  public_bio: string | null
+  display_order: number
+}

@@ -85,7 +85,7 @@ ada cron/scheduler yang trigger dia. Setengah jadi.
     `students.ts`, `halaqoh.ts`) **tetap** pakai Supabase client — split ini
     disengaja, bukan dibongkar (lihat §6).
 - **Auth:** custom JWT cookie via `jose` — `rqlhi-session` (admin, 7 hari) dan
-  `rqlhi-teacher-session` (guru), diverifikasi di `middleware.ts`. **NextAuth
+  `rqlhi-teacher-session` (guru), diverifikasi di `proxy.ts`. **NextAuth
   sudah dihapus** (Agustus 2026) — sebelumnya terpasang lengkap tapi dead
   code, tidak pernah ter-wire ke satu pun route.
 - **Migration:** `scripts/migrate.ts` (custom runner, bukan `drizzle-kit

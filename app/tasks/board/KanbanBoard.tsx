@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { updateTaskStatusAction, updateTaskProblemAction } from '@/app/actions/tasks'
@@ -36,11 +36,13 @@ const WEIGHT_STYLE: Record<string, { bg: string; color: string }> = {
  * Warna kartu di kolom Problem dibedakan per jenis hambatan, supaya Kepala RQ
  * bisa memindai jenis masalah tanpa membuka satu per satu.
  */
+// Dicampur dengan var(--card), bukan transparent, supaya kartu tetap solid di
+// atas kolom yang bertint — dan tetap ikut tema terang/gelap.
 const PROBLEM_STYLE: Record<TaskProblemType, { border: string; bg: string; dot: string }> = {
-  bottleneck: { border: '#f59e0b', bg: 'color-mix(in srgb, #f59e0b 8%, transparent)', dot: '#f59e0b' },
-  blocked:    { border: '#dc2626', bg: 'color-mix(in srgb, #dc2626 8%, transparent)', dot: '#dc2626' },
-  wip_limit:  { border: '#7c3aed', bg: 'color-mix(in srgb, #7c3aed 8%, transparent)', dot: '#7c3aed' },
-  others:     { border: '#64748b', bg: 'color-mix(in srgb, #64748b 8%, transparent)', dot: '#64748b' },
+  bottleneck: { border: '#f59e0b', bg: 'color-mix(in srgb, #f59e0b 12%, var(--card))', dot: '#f59e0b' },
+  blocked:    { border: '#dc2626', bg: 'color-mix(in srgb, #dc2626 12%, var(--card))', dot: '#dc2626' },
+  wip_limit:  { border: '#7c3aed', bg: 'color-mix(in srgb, #7c3aed 12%, var(--card))', dot: '#7c3aed' },
+  others:     { border: '#64748b', bg: 'color-mix(in srgb, #64748b 12%, var(--card))', dot: '#64748b' },
 }
 
 const PROBLEM_ORDER: TaskProblemType[] = ['bottleneck', 'blocked', 'wip_limit', 'others']
@@ -72,8 +74,14 @@ export function KanbanBoard({ columns: initialColumns, currentUserId, currentRol
   const [overCol, setOverCol] = useState<BoardColumnKey | null>(null)
   const didDragRef = useRef(false)
 
-  // Kolom dari server berubah (mis. ganti tab divisi / router.refresh) → ikut.
-  useEffect(() => { setColumns(initialColumns) }, [initialColumns])
+  // Kolom dari server berubah (ganti tab divisi / router.refresh) → buang state
+  // optimistis dan ikut data terbaru. Disesuaikan saat render, bukan di effect:
+  // setState di dalam useEffect memicu render berantai.
+  const [syncedFrom, setSyncedFrom] = useState(initialColumns)
+  if (syncedFrom !== initialColumns) {
+    setSyncedFrom(initialColumns)
+    setColumns(initialColumns)
+  }
 
   /** Boleh digeser oleh orang ini? Pelaksana, pemberi tugas, atau Kepala RQ. */
   function canMove(task: Task): boolean {
@@ -170,7 +178,9 @@ export function KanbanBoard({ columns: initialColumns, currentUserId, currentRol
           onDragOver={e => { e.preventDefault(); setOverCol(col.key) }}
           onDragLeave={() => setOverCol(c => (c === col.key ? null : c))}
           onDrop={() => handleDrop(col.key)}
-          className="rounded-xl border bg-card p-3 min-h-[300px] transition-colors"
+          // Kolom = baki bertint; kartu di dalamnya bg-card (putih) agar terlihat
+          // terpisah. Tanpa ini kolom dan kartu sama-sama putih di mode terang.
+          className="rounded-xl border bg-muted/50 dark:bg-muted/20 p-3 min-h-[300px] transition-colors"
           style={overCol === col.key ? { borderColor: COLUMN_ACCENT[col.key], background: 'color-mix(in srgb, ' + COLUMN_ACCENT[col.key] + ' 6%, transparent)' } : undefined}
         >
           <div className="flex items-center justify-between pb-2.5 mb-2 border-b">
@@ -178,7 +188,7 @@ export function KanbanBoard({ columns: initialColumns, currentUserId, currentRol
               <span className="w-2 h-2 rounded-full" style={{ background: COLUMN_ACCENT[col.key] }} />
               {col.label}
             </div>
-            <span className="text-[11px] text-muted-foreground bg-muted px-2 py-0.5 rounded-full">{col.tasks.length}</span>
+            <span className="text-[11px] text-muted-foreground bg-background px-2 py-0.5 rounded-full tabular-nums">{col.tasks.length}</span>
           </div>
 
           <div className="space-y-2">
@@ -208,9 +218,9 @@ export function KanbanBoard({ columns: initialColumns, currentUserId, currentRol
                   onClick={() => openTask(task.id)}
                   title={movable ? undefined : 'Hanya pelaksana, pemberi tugas, atau Kepala RQ yang bisa memindahkan kartu ini'}
                   className={cn(
-                    'rounded-lg border p-3 transition hover:shadow-sm',
+                    'rounded-lg border p-3 shadow-sm transition hover:shadow-md',
                     movable ? 'cursor-grab active:cursor-grabbing hover:border-foreground/30' : 'cursor-pointer',
-                    !problem && 'bg-background',
+                    !problem && 'bg-card',
                   )}
                   style={{
                     ...(problem ? { borderColor: problem.border, background: problem.bg } : {}),

@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { getSession } from '@/lib/auth/session'
-import { canRequestToHumas } from '@/lib/auth/permissions'
+import { canRequestToHumas, canViewHumasRequests } from '@/lib/auth/permissions'
 import { createServerClient } from '@/lib/supabase/server'
 import { updateContentRequestStatusAction } from '@/app/actions/content-requests'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
@@ -14,6 +14,7 @@ import type { ContentRequest } from '@/types'
 export default async function HumasRequestPage() {
   const session = await getSession()
   if (!session) redirect('/login')
+  if (!canViewHumasRequests(session.role)) redirect('/dashboard')
 
   const supabase = createServerClient()
   const query = supabase

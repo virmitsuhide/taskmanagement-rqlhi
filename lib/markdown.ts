@@ -13,9 +13,32 @@ function escapeHtml(str: string): string {
 function applyInline(text: string): string {
   return text
     .replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>')
+    // Coret: ~~teks~~ (markdown) dan ~teks~ (gaya WhatsApp). Pola ganda harus
+    // diproses lebih dulu, kalau tidak ~~x~~ akan tertangkap pola tunggal.
+    .replace(/~~([^~\n]+)~~/g, '<del>$1</del>')
+    .replace(/(^|[^~])~([^~\n]+)~(?!~)/g, '$1<del>$2</del>')
     .replace(/(^|[^*])\*([^*\n]+)\*/g, '$1<em>$2</em>')
     .replace(/_([^_\n]+)_/g, '<em>$1</em>')
     .replace(/`([^`\n]+)`/g, '<code class="px-1 py-0.5 rounded bg-muted text-[0.85em]">$1</code>')
+}
+
+/**
+ * Buang penanda format untuk pratinjau teks polos (mis. cuplikan di beranda),
+ * di mana HTML tidak dirender. Emoji sengaja dibiarkan.
+ */
+export function stripMarkdown(input: string): string {
+  if (!input) return ''
+  return input
+    .replace(/^\s*[-*]\s+/gm, '')
+    .replace(/^\s*\d+\.\s+/gm, '')
+    .replace(/\*\*([^*\n]+)\*\*/g, '$1')
+    .replace(/~~([^~\n]+)~~/g, '$1')
+    .replace(/~([^~\n]+)~/g, '$1')
+    .replace(/\*([^*\n]+)\*/g, '$1')
+    .replace(/_([^_\n]+)_/g, '$1')
+    .replace(/`([^`\n]+)`/g, '$1')
+    .replace(/\s+/g, ' ')
+    .trim()
 }
 
 export function renderMarkdown(input: string): string {

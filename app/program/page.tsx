@@ -1,31 +1,20 @@
 import Link from 'next/link'
-import { getSession } from '@/lib/auth/session'
-import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { PublicHeader } from '@/components/layout/PublicHeader'
 import { ChevronRight, ArrowLeft } from 'lucide-react'
 import { PROGRAMS } from './_data'
 
 export default async function ProgramPage() {
-  const session = await getSession()
-  const isLoggedIn = !!session?.isLoggedIn
-
   return (
     <div>
-      {isLoggedIn && session ? (
-        <DashboardHeader displayName={session.displayName} role={session.role} title="Program" />
-      ) : (
-        <PublicHeader />
-      )}
+      <PublicHeader />
 
       <div className="p-4 md:p-6 max-w-5xl mx-auto">
-        {!isLoggedIn && (
-          <Link
-            href="/"
-            className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground mb-3 transition-colors"
-          >
-            <ArrowLeft className="h-3 w-3" /> Kembali ke Beranda
-          </Link>
-        )}
+        <Link
+          href="/"
+          className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground mb-3 transition-colors"
+        >
+          <ArrowLeft className="h-3 w-3" /> Kembali ke Beranda
+        </Link>
 
         <div className="mb-6">
           <p className="text-2xl font-bold leading-tight">Program RQ</p>

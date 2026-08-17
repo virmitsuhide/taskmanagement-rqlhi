@@ -28,6 +28,7 @@ function daysUntil(dueDate: string | null): number | null {
 const STATUS_BAR: Record<string, string> = {
   todo: 'bg-muted-foreground/30',
   in_progress: 'bg-info',
+  problem: 'bg-destructive',
   submitted: 'bg-warning',
   done: 'bg-success',
   returned: 'bg-destructive',
@@ -41,7 +42,7 @@ export function TaskCard({ task, showAssignee = true, showAssigner = false, hash
   return (
     <Link
       href={hash ? `/tasks/${task.id}#${hash}` : `/tasks/${task.id}`}
-      className="group relative block rounded-xl border bg-card p-4 transition hover:border-foreground/20 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className="group relative block overflow-hidden rounded-xl border bg-card p-4 shadow-sm transition hover:border-foreground/25 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
       <span
         className={`absolute left-0 top-3 bottom-3 w-1 rounded-r ${STATUS_BAR[task.status] ?? 'bg-muted-foreground/30'}`}

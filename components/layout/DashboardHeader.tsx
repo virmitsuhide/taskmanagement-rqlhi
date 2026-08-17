@@ -1,9 +1,10 @@
 import Link from 'next/link'
-import { ChevronRight, LayoutDashboard } from 'lucide-react'
-import { ROLE_LABELS, DEFAULT_DASHBOARD } from '@/lib/auth/permissions'
+import { ChevronRight, LayoutDashboard, Home } from 'lucide-react'
+import { DEFAULT_DASHBOARD } from '@/lib/auth/permissions'
 import type { UserRole } from '@/types'
 import { BackButton } from './BackButton'
 import { ThemeToggle } from './ThemeToggle'
+import { NotificationBellSlot } from './NotificationBellSlot'
 
 interface Crumb {
   label: string
@@ -23,7 +24,9 @@ interface Props {
   ownH1?: boolean
 }
 
-export function DashboardHeader({ displayName, role, title, showBack, breadcrumbs, ownH1 }: Props) {
+// `displayName` masih diterima agar pemanggil lama tidak perlu diubah, tapi
+// identitas kini tampil di sidebar dan di kartu profil header beranda.
+export function DashboardHeader({ role, title, showBack, breadcrumbs, ownH1 }: Props) {
   const dashboardHref = `/dashboard/${DEFAULT_DASHBOARD[role]}`
 
   // Explicit breadcrumbs take priority; fall back to single crumb from title
@@ -51,18 +54,18 @@ export function DashboardHeader({ displayName, role, title, showBack, breadcrumb
           )}
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
+          <NotificationBellSlot />
           <ThemeToggle />
-          <div className="hidden sm:flex items-center gap-2 text-sm pl-2 border-l h-6">
-            <span className="text-muted-foreground">{displayName}</span>
-            <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
-              {ROLE_LABELS[role]}
-            </span>
-          </div>
-          <div className="sm:hidden">
-            <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
-              {ROLE_LABELS[role]}
-            </span>
-          </div>
+          {/* Identitas pengguna sudah tampil di sidebar & di header beranda,
+              jadi ruang paling kanan dipakai untuk jalan keluar ke beranda. */}
+          <Link
+            href="/"
+            title="Buka halaman beranda"
+            className="inline-flex items-center gap-1.5 rounded-md border px-2.5 h-8 text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+          >
+            <Home className="h-4 w-4 shrink-0" />
+            <span className="hidden sm:inline">Beranda</span>
+          </Link>
         </div>
       </div>
 

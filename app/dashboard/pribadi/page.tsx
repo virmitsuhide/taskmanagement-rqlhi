@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { getSession } from '@/lib/auth/session'
-import { canViewDashboard, canAccessNotes, getViewableMeetingTypes } from '@/lib/auth/permissions'
+import { canViewDashboard, canViewFinanceNotes, getViewableMeetingTypes } from '@/lib/auth/permissions'
 import { getDashboardStats, getMyActiveTasks, getRecentMeetings, getPendingVerifications } from '@/lib/data/dashboard'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { DivisionStats } from '@/components/dashboard/DivisionStats'
@@ -56,10 +56,10 @@ export default async function PribadiDashboardPage() {
           <Link href="/tasks" className="text-xs text-primary hover:underline mt-2 inline-block">Lihat semua task →</Link>
         </section>
 
-        {canAccessNotes(session.role) && (
+        {canViewFinanceNotes(session.role) && (
           <section>
             <Button asChild variant="outline" size="sm">
-              <Link href="/notes"><FileText className="h-3 w-3 mr-1" />Catatan Pribadi</Link>
+              <Link href="/notes"><FileText className="h-3 w-3 mr-1" />Catatan Keuangan</Link>
             </Button>
           </section>
         )}

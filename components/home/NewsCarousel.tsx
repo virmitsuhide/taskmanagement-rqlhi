@@ -9,6 +9,8 @@ import type { NewsArticle } from '@/types'
 interface Props {
   items: NewsArticle[]
   canCreate?: boolean
+  /** Judul seksi; diatur Humas lewat panel kelola beranda. */
+  title?: string
 }
 
 const CARD_GRADIENTS = [
@@ -31,7 +33,7 @@ function excerpt(text: string, max = 72) {
   return text.length > max ? text.slice(0, max).trimEnd() + '…' : text
 }
 
-export function NewsCarousel({ items, canCreate }: Props) {
+export function NewsCarousel({ items, canCreate, title = 'Kabar & Berita' }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null)
 
   function slide(dir: 'prev' | 'next') {
@@ -49,7 +51,7 @@ export function NewsCarousel({ items, canCreate }: Props) {
           className="m-0 text-lg font-bold tracking-tight text-foreground"
           style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
         >
-          Kabar &amp; Berita
+          {title}
         </h2>
         <div className="flex items-center gap-2">
           {canCreate && (

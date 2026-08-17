@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Plus, Eye, EyeOff, Trash2 } from 'lucide-react'
+import { stripMarkdown } from '@/lib/markdown'
 import type { PublicPost } from '@/types'
 
 function formatDate(dateStr: string) {
@@ -40,7 +41,7 @@ export default async function HomePostPage() {
   return (
     <div>
       <DashboardHeader displayName={session.displayName} role={session.role} title="Manajemen Home Publik" />
-      <div className="p-4 md:p-6 max-w-3xl">
+      <div className="p-4 md:p-6 max-w-3xl mx-auto">
         <div className="flex items-center justify-between mb-4">
           <p className="text-sm text-muted-foreground">{posts.length} post</p>
           <Button asChild size="sm">
@@ -89,7 +90,7 @@ export default async function HomePostPage() {
                   </div>
                 </CardHeader>
                 <CardContent className="px-4 pb-4">
-                  <p className="text-xs text-muted-foreground line-clamp-2">{post.content}</p>
+                  <p className="text-xs text-muted-foreground line-clamp-2">{stripMarkdown(post.content)}</p>
                 </CardContent>
               </Card>
             ))}

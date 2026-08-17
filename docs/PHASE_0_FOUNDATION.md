@@ -147,7 +147,7 @@ Standar industri (semua API Quran pakai number 1-114), lebih ringan di FK, dan s
 ## Yang Belum Dibuat di Fase 0 (Sesuai Rencana — status Mei 2026)
 
 - ✅ ~~Halaman `/guru/login` (Fase 1A)~~ — dibangun, lihat `app/guru/login/page.tsx`.
-- ✅ ~~Middleware `/guru/*` (Fase 1A)~~ — dibangun, lihat `middleware.ts`.
+- ✅ ~~Middleware `/guru/*` (Fase 1A)~~ — dibangun, lihat `proxy.ts`.
 - ✅ ~~Admin CRUD untuk siswa & halaqoh (Fase 1B)~~ — dibangun, lihat `app/siswa/*`, `app/halaqoh/*`.
 - ✅ ~~Form setoran fungsional (Fase 2)~~ — dibangun, lihat `app/guru/setoran/*` + `app/actions/setoran.ts`.
 - ✅ ~~`lib/auth/teacher-session.ts` (Fase 1A)~~ — dibangun.

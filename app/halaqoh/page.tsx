@@ -38,7 +38,7 @@ export default async function HalaqohListPage({ searchParams }: PageProps) {
 
   // Scope ke jenjang yang user bisa lihat
   const viewableJenjang: Jenjang[] = ['kepala_rq', 'kumik', 'sdm', 'bendahara'].includes(session.role)
-    ? ['paud', 'sd', 'smp', 'sma']
+    ? ['paud', 'sd', 'sd_juara', 'smp', 'sma']
     : allowed
   if (viewableJenjang.length > 0) {
     query = query.in('jenjang', viewableJenjang)

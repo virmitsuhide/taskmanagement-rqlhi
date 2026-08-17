@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { ROLE_LABELS, TASK_PRIORITY_LABELS, TASK_WEIGHT_LABELS } from '@/lib/auth/permissions'
 import type { User, TaskPriority, TaskWeight, TaskHorizon } from '@/types'
 
@@ -47,6 +48,13 @@ export function TaskForm({ assignableUsers, defaults, personalMode }: Props) {
       {!defaults?.meetingId && (
         <input type="hidden" name="source_type" value="mandiri" />
       )}
+
+      <Card className="gap-0 border py-0 shadow-sm ring-0">
+        <CardHeader className="border-b bg-muted/40 py-3.5">
+          <CardTitle>Isi Tugas</CardTitle>
+          <CardDescription>Apa yang harus dikerjakan dan oleh siapa.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4 py-5">
 
       <div className="space-y-1.5">
         <Label htmlFor="title">Judul Task</Label>
@@ -103,7 +111,16 @@ export function TaskForm({ assignableUsers, defaults, personalMode }: Props) {
         </div>
       )}
 
-      <div className="grid gap-3 sm:grid-cols-3">
+        </CardContent>
+      </Card>
+
+      <Card className="gap-0 border py-0 shadow-sm ring-0">
+        <CardHeader className="border-b bg-muted/40 py-3.5">
+          <CardTitle>Prioritas & Tenggat</CardTitle>
+          <CardDescription>Menentukan urutan dan warna kartu di papan tugas.</CardDescription>
+        </CardHeader>
+        <CardContent className="py-5">
+          <div className="grid gap-3 sm:grid-cols-3">
         <div className="space-y-1.5">
           <Label htmlFor="priority">Prioritas</Label>
           <Select name="priority" defaultValue="middle">
@@ -134,17 +151,22 @@ export function TaskForm({ assignableUsers, defaults, personalMode }: Props) {
           <Label htmlFor="due_date">Deadline (opsional)</Label>
           <Input id="due_date" name="due_date" type="date" />
         </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
+        {state?.error && (
+          <p className="border-b bg-destructive/10 px-4 py-2.5 text-sm text-destructive">
+            {state.error}
+          </p>
+        )}
+        <div className="p-4">
+          <Button type="submit" disabled={isPending} className="w-full">
+            {isPending ? 'Menyimpan...' : (personalMode ? 'Buat Tugas Pribadi' : 'Delegasikan Tugas')}
+          </Button>
+        </div>
       </div>
-
-      {state?.error && (
-        <p className="text-sm text-destructive bg-destructive/10 px-3 py-2 rounded-md">
-          {state.error}
-        </p>
-      )}
-
-      <Button type="submit" disabled={isPending} className="w-full">
-        {isPending ? 'Menyimpan...' : (personalMode ? 'Buat Tugas Pribadi' : 'Delegasikan Tugas')}
-      </Button>
     </form>
   )
 }

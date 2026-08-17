@@ -9,7 +9,6 @@ import { TaskStatusBadge, TaskPriorityBadge, TaskWeightBadge } from '@/component
 import { TaskComments } from '@/components/tasks/TaskComments'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Separator } from '@/components/ui/separator'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { ArrowLeft, Calendar, Clock } from 'lucide-react'
@@ -85,7 +84,7 @@ export default async function TaskDetailPage({ params }: { params: Promise<{ id:
   )
 
   return (
-    <div>
+    <div className="flex min-h-full flex-col">
       <DashboardHeader
         displayName={session.displayName}
         role={session.role}
@@ -93,13 +92,14 @@ export default async function TaskDetailPage({ params }: { params: Promise<{ id:
         breadcrumbs={[{ label: 'Task', href: '/tasks' }, { label: task.title }]}
         ownH1
       />
-      <div className="p-4 md:p-6 max-w-3xl">
-        <Button asChild variant="ghost" size="sm" className="mb-4">
+      <div className="flex-1 bg-muted/50 dark:bg-background">
+      <div className="p-4 md:p-6 max-w-3xl space-y-5">
+        <Button asChild variant="ghost" size="sm" className="-mb-1">
           <Link href="/tasks"><ArrowLeft className="h-4 w-4 mr-1" />Kembali</Link>
         </Button>
 
         {/* Task header */}
-        <div className="mb-6">
+        <div className="rounded-xl border bg-card p-5 shadow-sm">
           <div className="flex flex-wrap gap-2 mb-2">
             <TaskStatusBadge status={task.status} />
             <TaskPriorityBadge priority={task.priority} />
@@ -139,10 +139,9 @@ export default async function TaskDetailPage({ params }: { params: Promise<{ id:
 
         {/* Status change actions */}
         {allowedNextStatuses.length > 0 && (
-          <>
-            <Separator className="mb-6" />
-            <div className="mb-6">
-              <h2 className="font-semibold mb-3">Ubah Status</h2>
+          <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
+            <h2 className="border-b bg-muted/40 px-5 py-3 text-sm font-semibold">Ubah Status</h2>
+            <div className="p-5 pb-2">
               {allowedNextStatuses.map(nextStatus => (
                 <StatusChangeForm
                   key={nextStatus}
@@ -152,15 +151,13 @@ export default async function TaskDetailPage({ params }: { params: Promise<{ id:
                 />
               ))}
             </div>
-          </>
+          </div>
         )}
 
-        <Separator className="mb-6" />
-
         {/* History */}
-        <div>
-          <h2 className="font-semibold mb-4">Riwayat</h2>
-          <div className="space-y-3">
+        <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
+          <h2 className="border-b bg-muted/40 px-5 py-3 text-sm font-semibold">Riwayat</h2>
+          <div className="space-y-3 p-5">
             {history.map(h => (
               <div key={h.id} className="flex gap-3">
                 <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground mt-2 shrink-0" />
@@ -183,17 +180,18 @@ export default async function TaskDetailPage({ params }: { params: Promise<{ id:
           </div>
         </div>
 
-        <Separator className="my-6" />
-
         {/* Diskusi / Komentar */}
-        <TaskComments
-          taskId={id}
-          taskTitle={task.title}
-          comments={comments}
-          currentUserId={session.userId}
-          isModerator={session.role === 'kepala_rq'}
-          participants={participants}
-        />
+        <div className="rounded-xl border bg-card p-5 shadow-sm">
+          <TaskComments
+            taskId={id}
+            taskTitle={task.title}
+            comments={comments}
+            currentUserId={session.userId}
+            isModerator={session.role === 'kepala_rq'}
+            participants={participants}
+          />
+        </div>
+      </div>
       </div>
     </div>
   )

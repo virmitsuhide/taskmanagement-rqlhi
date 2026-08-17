@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import type { NextRequest } from 'next/server'
+import type { NextRequest, ProxyConfig } from 'next/server'
 import { jwtVerify } from 'jose'
 
 // Route admin (pakai cookie rqlhi-session, role-based)
@@ -35,7 +35,7 @@ async function verifyToken(token: string | undefined) {
   }
 }
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   // ── Teacher routes ─────────────────────────────────────────────
@@ -67,7 +67,7 @@ export async function middleware(request: NextRequest) {
   return NextResponse.next()
 }
 
-export const config = {
+export const config: ProxyConfig = {
   matcher: [
     '/dashboard/:path*',
     '/rapat/:path*',

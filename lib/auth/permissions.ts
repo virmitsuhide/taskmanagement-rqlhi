@@ -36,6 +36,10 @@ const MEETING_CREATE: Record<MeetingType, UserRole[]> = {
   new_squad: ['sdm'],
   koor_sd: ['koor_sd'],
   koor_smp: ['koor_smp'],
+  koor_x_sd: ['koor_sd'],
+  koor_x_smp: ['koor_smp'],
+  koor_x_boarding: ['koor_smp'],
+  rq_x_quls: ['kumik'],
 }
 
 const MEETING_EDIT: Record<MeetingType, UserRole[]> = {
@@ -44,6 +48,10 @@ const MEETING_EDIT: Record<MeetingType, UserRole[]> = {
   new_squad: ['sdm'],
   koor_sd: ['koor_sd'],
   koor_smp: ['koor_smp'],
+  koor_x_sd: ['koor_sd'],
+  koor_x_smp: ['koor_smp'],
+  koor_x_boarding: ['koor_smp'],
+  rq_x_quls: ['kumik'],
 }
 
 const MEETING_DELETE: Record<MeetingType, UserRole[]> = {
@@ -52,14 +60,24 @@ const MEETING_DELETE: Record<MeetingType, UserRole[]> = {
   new_squad: ['sdm'],
   koor_sd: ['koor_sd'],
   koor_smp: ['koor_smp'],
+  koor_x_sd: ['koor_sd'],
+  koor_x_smp: ['koor_smp'],
+  koor_x_boarding: ['koor_smp'],
+  rq_x_quls: ['kumik'],
 }
 
 const MEETING_VIEW: Record<MeetingType, UserRole[]> = {
   manajemen: ['kepala_rq', 'kumik', 'sdm', 'bendahara'],
   kumik: ['kepala_rq', 'kumik', 'sdm', 'bendahara', 'koor_sd', 'koor_smp', 'koor_ekstra'],
-  new_squad: ['kepala_rq', 'kumik', 'sdm', 'bendahara', 'div_training', 'new_squad'],
+  // Para koor ikut memantau notulen New Squad.
+  new_squad: ['kepala_rq', 'kumik', 'sdm', 'bendahara', 'div_training', 'new_squad', 'koor_sd', 'koor_smp', 'koor_ekstra'],
   koor_sd: ['kepala_rq', 'kumik', 'sdm', 'bendahara', 'koor_sd'],
   koor_smp: ['kepala_rq', 'kumik', 'sdm', 'bendahara', 'koor_smp'],
+  koor_x_sd: ['kepala_rq', 'kumik', 'sdm', 'bendahara', 'koor_sd'],
+  koor_x_smp: ['kepala_rq', 'kumik', 'sdm', 'bendahara', 'koor_smp'],
+  koor_x_boarding: ['kepala_rq', 'kumik', 'sdm', 'bendahara', 'koor_smp'],
+  // Rapat RQ x QULS sengaja dibatasi — koor & divisi lain tidak melihatnya.
+  rq_x_quls: ['kumik', 'kepala_rq', 'sdm', 'bendahara'],
 }
 
 export function canCreateMeeting(role: UserRole, type: MeetingType): boolean {
@@ -121,9 +139,10 @@ const ALL_ROLES: UserRole[] = [
 
 export function getBoardDivisions(role: UserRole): UserRole[] {
   if (role === 'kepala_rq' || role === 'kumik' || role === 'sdm') return ALL_ROLES
-  if (role === 'koor_sd') return ['koor_sd']
-  if (role === 'koor_smp') return ['koor_smp']
-  if (role === 'koor_ekstra') return ['koor_ekstra', 'humas']
+  // Para koor memantau divisinya sendiri plus New Squad & Humas.
+  if (role === 'koor_sd') return ['koor_sd', 'new_squad', 'humas']
+  if (role === 'koor_smp') return ['koor_smp', 'new_squad', 'humas']
+  if (role === 'koor_ekstra') return ['koor_ekstra', 'new_squad', 'humas']
   return []
 }
 
@@ -134,6 +153,28 @@ export function canViewDivisiBoard(role: UserRole): boolean {
 // Analitik RQ — dashboard agregat lintas divisi/halaqoh (manajemen)
 export function canViewAnalytics(role: UserRole): boolean {
   return role === 'kepala_rq' || role === 'kumik' || role === 'sdm'
+}
+
+/**
+ * Boleh membuka Analitik per Unit. Lebih luas dari canViewAnalytics: koor SD &
+ * koor SMP ikut masuk, tapi datanya dipersempit ke unit masing-masing lewat
+ * getAnalyticsJenjang(). Halaman "Analitik RQ" umum (agregat seluruh RQ) tetap
+ * tertutup untuk koor.
+ */
+export function canViewUnitAnalytics(role: UserRole): boolean {
+  return canViewAnalytics(role) || role === 'koor_sd' || role === 'koor_smp'
+}
+
+/**
+ * Unit (jenjang) mana yang boleh dilihat di Analitik per Unit.
+ *
+ * Untuk koor, cakupannya sama persis dengan getManageableJenjang() — satu unit
+ * saja. Bedanya di manajemen: kumik & SDM tidak mengelola jenjang apa pun tapi
+ * tetap boleh melihat analitik seluruh unit.
+ */
+export function getAnalyticsJenjang(role: UserRole): Jenjang[] {
+  if (canViewAnalytics(role)) return ['paud', 'sd', 'sd_juara', 'smp', 'sma']
+  return getManageableJenjang(role)
 }
 
 // Task status change — who can perform which transitions
@@ -208,24 +249,65 @@ export function canPostTugasGuru(role: UserRole): PublicTarget | null {
 }
 
 // Humas request
+//
+// Humas adalah penerima request, bukan pemohon — dia tidak request ke dirinya
+// sendiri. Jadi humas tidak boleh membuat request, tapi tetap harus bisa
+// membuka daftarnya untuk memproses request yang masuk.
 export function canRequestToHumas(role: UserRole): boolean {
-  return role !== 'new_squad'
+  return role !== 'new_squad' && role !== 'humas'
 }
 
-// Private notes — bendahara only
-export function canAccessNotes(role: UserRole): boolean {
+/** Siapa yang boleh membuka halaman daftar request: pemohon + humas & kepala RQ. */
+export function canViewHumasRequests(role: UserRole): boolean {
+  return canRequestToHumas(role) || role === 'humas' || role === 'kepala_rq'
+}
+
+// Catatan Keuangan Bendahara
+//
+// Buku catatan ini milik fungsi keuangan, bukan catatan pribadi per-user:
+// bendahara yang menulis, kepala RQ boleh ikut membacanya (read-only).
+/** Boleh menulis/mengubah/menghapus catatan keuangan. */
+export function canManageFinanceNotes(role: UserRole): boolean {
   return role === 'bendahara'
 }
 
+/** Boleh membuka & membaca catatan keuangan. */
+export function canViewFinanceNotes(role: UserRole): boolean {
+  return canManageFinanceNotes(role) || role === 'kepala_rq'
+}
+
+/**
+ * Kelola berita (buat, ubah, hapus) — sepenuhnya wewenang Humas.
+ *
+ * Kepala RQ sengaja tidak termasuk: penulisan berita digeser ke Humas. Kepala
+ * RQ tetap bisa membaca berita lewat halaman publik /news yang terbuka untuk
+ * semua, jadi yang hilang hanya hak menyuntingnya.
+ */
 export function canCreateNews(role: UserRole): boolean {
-  return role === 'kepala_rq' || role === 'humas'
+  return role === 'humas'
 }
 
 export function canEditProgram(role: UserRole): boolean {
   return role === 'kepala_rq' || role === 'humas'
 }
 
+/**
+ * Menu "Program RQ" di sidebar/mobile nav — hanya pengelola program.
+ * Halaman /program sendiri tetap publik (dilink dari header beranda).
+ */
+export function canAccessProgramMenu(role: UserRole): boolean {
+  return role === 'kepala_rq' || role === 'humas'
+}
+
 export function canEditAbout(role: UserRole): boolean {
+  return role === 'kepala_rq' || role === 'humas'
+}
+
+/**
+ * Kelola tampilan beranda publik: teks header/footer, seksi mana yang tampil
+ * beserta urutannya, dan kurasi Profil Guru.
+ */
+export function canManageHomepage(role: UserRole): boolean {
   return role === 'kepala_rq' || role === 'humas'
 }
 
@@ -239,8 +321,8 @@ export function canEditAbout(role: UserRole): boolean {
  */
 export function canManageStudents(role: UserRole, jenjang?: Jenjang | null): boolean {
   if (role === 'kepala_rq') return true
-  if (role === 'koor_sd')  return !jenjang || jenjang === 'sd'  || jenjang === 'sd_juara' || jenjang === 'paud'
-  if (role === 'koor_smp') return !jenjang || jenjang === 'smp' || jenjang === 'sma'
+  if (role === 'koor_sd')  return !jenjang || jenjang === 'sd'
+  if (role === 'koor_smp') return !jenjang || jenjang === 'smp'
   return false
 }
 
@@ -260,8 +342,8 @@ export function canViewStudents(role: UserRole, jenjang?: Jenjang | null): boole
  */
 export function canManageHalaqoh(role: UserRole, jenjang?: Jenjang | null): boolean {
   if (role === 'kepala_rq') return true
-  if (role === 'koor_sd')  return !jenjang || jenjang === 'sd'  || jenjang === 'sd_juara' || jenjang === 'paud'
-  if (role === 'koor_smp') return !jenjang || jenjang === 'smp' || jenjang === 'sma'
+  if (role === 'koor_sd')  return !jenjang || jenjang === 'sd'
+  if (role === 'koor_smp') return !jenjang || jenjang === 'smp'
   return false
 }
 
@@ -288,13 +370,16 @@ export function canViewTeachers(role: UserRole): boolean {
 }
 
 /**
- * Jenjang mana yang bisa di-manage user.
- * Untuk filter UI: koor_sd cuma lihat ['sd','paud'], dst.
+ * Jenjang mana yang bisa di-manage user — dipakai untuk filter UI di Siswa,
+ * Halaqoh, dan Ustadz/Guru.
+ *
+ * Koor dibatasi ke satu unit saja: koor SD hanya SD (bukan TPAIT/PAUD atau
+ * SD Juara), koor SMP hanya SMP (bukan SMA) — sama dengan cakupan analitiknya.
  */
 export function getManageableJenjang(role: UserRole): Jenjang[] {
   if (role === 'kepala_rq') return ['paud', 'sd', 'sd_juara', 'smp', 'sma']
-  if (role === 'koor_sd')   return ['paud', 'sd', 'sd_juara']
-  if (role === 'koor_smp')  return ['smp', 'sma']
+  if (role === 'koor_sd')   return ['sd']
+  if (role === 'koor_smp')  return ['smp']
   return []
 }
 
@@ -304,6 +389,29 @@ export const JENJANG_LABELS: Record<Jenjang, string> = {
   sd_juara: 'SD Juara',
   smp:      'SMP',
   sma:      'SMA',
+}
+
+/**
+ * Punya profil pengurus lengkap (data diri, pendidikan, kompetensi, riwayat).
+ * New Squad dikecualikan — mereka hanya punya pengaturan akun dasar.
+ */
+export function canHavePengurusProfile(role: UserRole): boolean {
+  return role !== 'new_squad'
+}
+
+/**
+ * Nama sapaan untuk header: "Ust. Habib" / "Usth. Aul".
+ * Jatuh kembali ke display_name kalau profil belum diisi.
+ */
+export function sapaanName(
+  sapaan: string | null | undefined,
+  nickname: string | null | undefined,
+  displayName: string,
+): string {
+  const name = nickname?.trim() || displayName
+  if (sapaan === 'ust') return `Ust. ${name}`
+  if (sapaan === 'usth') return `Usth. ${name}`
+  return name
 }
 
 // Display labels
@@ -353,6 +461,10 @@ export const MEETING_TYPE_LABELS: Record<MeetingType, string> = {
   new_squad: 'Rapat New Squad',
   koor_sd: 'Rapat Koor SD',
   koor_smp: 'Rapat Koor SMP',
+  koor_x_sd: 'Rapat Koor x SD',
+  koor_x_smp: 'Rapat Koor x SMP',
+  koor_x_boarding: 'Rapat Koor x Boarding',
+  rq_x_quls: 'Rapat RQ x QULS',
 }
 
 export const DASHBOARD_LABELS: Record<string, string> = {

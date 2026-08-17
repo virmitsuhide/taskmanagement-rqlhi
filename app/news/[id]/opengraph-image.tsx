@@ -1,6 +1,7 @@
 import { ImageResponse } from 'next/og'
 import { createServerClient } from '@/lib/supabase/server'
 import type { NewsCategory } from '@/types'
+import { getOgLogo } from '@/lib/og/logo'
 
 export const alt = 'Berita Rumah Qur\'an LHI'
 export const size = { width: 1200, height: 630 }
@@ -59,6 +60,7 @@ export default async function Image({ params }: Props) {
     // pakai default
   }
 
+  const logo = await getOgLogo()
   const cat = category ? CATEGORY_META[category] : null
   const accent = cat?.color ?? '#b8860b'
   const badge = type === 'artikel' ? 'ARTIKEL' : (cat?.label ?? 'BERITA').toUpperCase()
@@ -73,25 +75,29 @@ export default async function Image({ params }: Props) {
           fontFamily: 'serif',
         }}
       >
-        {/* Foto background + overlay gelap */}
+        {/* Foto background + overlay gelap.
+            Satori tidak mengenal React Fragment — sebuah <> dengan >1 anak
+            diperlakukan sebagai node tanpa `display: flex` dan render gagal.
+            Karena itu keduanya ditulis sebagai dua kondisional terpisah. */}
         {thumbnailDataUrl && (
-          <>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={thumbnailDataUrl}
-              alt=""
-              style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
-            />
-            <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.25) 60%, rgba(0,0,0,0.4) 100%)' }} />
-          </>
+          /* eslint-disable-next-line @next/next/no-img-element */
+          <img
+            src={thumbnailDataUrl}
+            alt=""
+            style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+          />
+        )}
+        {thumbnailDataUrl && (
+          <div style={{
+            position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
+            background: 'linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.25) 60%, rgba(0,0,0,0.4) 100%)',
+          }} />
         )}
 
         {/* Top bar: brand */}
         <div style={{ position: 'absolute', top: 48, left: 56, display: 'flex', alignItems: 'center', gap: 14 }}>
-          <div style={{
-            width: 56, height: 56, borderRadius: 14, background: '#b8860b', color: 'white',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, fontWeight: 800,
-          }}>RQ</div>
+          {/* eslint-disable-next-line @next/next/no-img-element -- Satori hanya mengenal <img> */}
+          <img src={logo} alt="" width={56} height={56} style={{ borderRadius: 28 }} />
           <div style={{ color: 'white', fontSize: 20, letterSpacing: 2, opacity: 0.95 }}>RUMAH QUR&apos;AN LHI</div>
         </div>
 
@@ -106,8 +112,10 @@ export default async function Image({ params }: Props) {
           <div style={{ color: 'white', fontSize: 56, fontWeight: 800, lineHeight: 1.1, maxWidth: 1050 }}>
             {title.length > 110 ? title.slice(0, 110) + '…' : title}
           </div>
+          {/* Satori: teks + ekspresi dihitung sebagai dua anak — digabung jadi
+              satu string agar div tanpa `display: flex` tetap valid. */}
           {author && (
-            <div style={{ color: 'rgba(255,255,255,0.85)', fontSize: 24 }}>Oleh {author}</div>
+            <div style={{ color: 'rgba(255,255,255,0.85)', fontSize: 24 }}>{`Oleh ${author}`}</div>
           )}
         </div>
       </div>

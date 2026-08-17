@@ -1,12 +1,16 @@
-const LINKS = ['Tugas Guru', 'Kabar & Program', 'Program & Madrasah', 'Visi & Misi', 'Kontak Kami']
-const CONTACTS = [
-  { icon: '✉', text: 'rq.rumahquran@lhi.sch.id' },
-  { icon: '☎', text: '(0274) 555-1247' },
-  { icon: '◷', text: 'Sen–Jum, 07.30–15.00' },
-]
+import Link from 'next/link'
+import { Logo } from '@/components/brand/Logo'
+import { getSiteSettings } from '@/lib/data/site'
 
-export function PublicFooter() {
+export async function PublicFooter() {
+  const settings = await getSiteSettings()
   const year = new Date().getFullYear()
+
+  const contacts = [
+    { icon: '✉', text: settings.footer_email },
+    { icon: '☎', text: settings.footer_phone },
+    { icon: '◷', text: settings.footer_hours },
+  ].filter(c => c.text)
 
   return (
     <footer className="bg-[#18181A] pt-11">
@@ -15,18 +19,13 @@ export function PublicFooter() {
         {/* Brand */}
         <div>
           <div className="flex items-center gap-2.5 mb-3.5">
-            <div className="w-[34px] h-[34px] rounded-lg bg-[#1E6642] text-white flex items-center justify-center text-[17px] font-bold shrink-0">
-              ج
-            </div>
+            <Logo size={34} alt="" />
             <div>
-              <div className="text-sm font-bold leading-tight text-[#E8E5DB]">Rumah Qur&apos;an LHI</div>
-              <div className="text-[9px] tracking-[0.5px] text-[#7A7870]">RQ · Yayasan LHI</div>
+              <div className="text-sm font-bold leading-tight text-[#E8E5DB]">{settings.footer_brand}</div>
+              <div className="text-[9px] tracking-[0.5px] text-[#7A7870]">{settings.footer_brand_sub}</div>
             </div>
           </div>
-          <p className="text-xs leading-[1.7] m-0 text-[#7A7870]">
-            Mendidik generasi qur&apos;ani dengan adab, ilmu, dan cinta sunnah —
-            untuk siswa SDIT dan SMPIT LHI Yogyakarta.
-          </p>
+          <p className="text-xs leading-[1.7] m-0 text-[#7A7870]">{settings.footer_tagline}</p>
           <div className="flex gap-2 mt-4">
             {['▶', '✉', '☎', '◈'].map((ic, i) => (
               <div
@@ -44,14 +43,14 @@ export function PublicFooter() {
           <div className="text-[9px] font-bold tracking-[1.8px] uppercase mb-3 text-[#7A7870]">
             Unit Pendidikan
           </div>
-          <div className="text-sm font-bold mb-1 text-[#C8C5BC]">SDIT LHI</div>
-          <div className="text-[11px] leading-[1.8] text-[#7A7870]">
-            Jl. Karangsari No. 3<br />Banguntapan, Bantul, DIY<br />(0274) 555-1247
-          </div>
-          <div className="text-sm font-bold mt-3.5 mb-1 text-[#C8C5BC]">SMPIT LHI</div>
-          <div className="text-[11px] leading-[1.8] text-[#7A7870]">
-            Jl. Wonosari No. 17<br />Banguntapan, Bantul, DIY<br />(0274) 555-1596
-          </div>
+          {settings.footer_units.map((unit, i) => (
+            <div key={unit.name} className={i > 0 ? 'mt-3.5' : undefined}>
+              <div className="text-sm font-bold mb-1 text-[#C8C5BC]">{unit.name}</div>
+              <div className="text-[11px] leading-[1.8] text-[#7A7870] whitespace-pre-line">
+                {[unit.address, unit.phone].filter(Boolean).join('\n')}
+              </div>
+            </div>
+          ))}
         </div>
 
         {/* Jelajahi */}
@@ -59,14 +58,14 @@ export function PublicFooter() {
           <div className="text-[9px] font-bold tracking-[1.8px] uppercase mb-3 text-[#7A7870]">
             Jelajahi
           </div>
-          {LINKS.map(l => (
-            <a
-              key={l}
-              href="#"
+          {settings.footer_links.map(link => (
+            <Link
+              key={link.label}
+              href={link.href || '#'}
               className="block text-xs mb-1.5 text-[#7A7870] hover:text-[#C8C5BC] transition-colors no-underline"
             >
-              {l}
-            </a>
+              {link.label}
+            </Link>
           ))}
         </div>
 
@@ -75,8 +74,8 @@ export function PublicFooter() {
           <div className="text-[9px] font-bold tracking-[1.8px] uppercase mb-3 text-[#7A7870]">
             Kontak &amp; Info
           </div>
-          {CONTACTS.map((row, i) => (
-            <div key={i} className="flex items-start gap-2 mb-1.5 text-xs text-[#7A7870]">
+          {contacts.map(row => (
+            <div key={row.icon} className="flex items-start gap-2 mb-1.5 text-xs text-[#7A7870]">
               <span className="shrink-0 mt-0.5">{row.icon}</span>
               <span>{row.text}</span>
             </div>
@@ -100,7 +99,7 @@ export function PublicFooter() {
       </div>
 
       <div className="max-w-5xl mx-auto px-6 py-3.5 flex justify-between items-center text-[10px] text-[#3E3E3A] tracking-[0.4px]">
-        <span>© {year} RQ LHI · Yayasan Lukman Al Hakim Internasional · Yogyakarta</span>
+        <span>© {year} {settings.footer_copyright}</span>
         <span>Kebijakan · Syarat · Masuk Guru</span>
       </div>
     </footer>

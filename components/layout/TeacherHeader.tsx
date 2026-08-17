@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { logoutTeacherAction } from '@/app/actions/teacher-auth'
 import { Button } from '@/components/ui/button'
+import { Logo } from '@/components/brand/Logo'
 
 interface Props {
   fullName: string
@@ -24,10 +25,11 @@ export function TeacherHeader({ fullName, active }: Props) {
       <div className="flex items-center gap-4 min-w-0">
         <Link
           href="/guru"
-          className="font-extrabold text-base md:text-lg tracking-tight shrink-0"
+          className="flex items-center gap-2 font-extrabold text-base md:text-lg tracking-tight shrink-0"
           style={{ fontFamily: 'var(--font-playfair), Georgia, serif' }}
         >
-          RQ <span style={{ color: 'var(--primary)' }}>LHI</span>
+          <Logo size={32} alt="" />
+          <span>RQ <span style={{ color: 'var(--primary)' }}>LHI</span></span>
         </Link>
         <span
           className="hidden sm:inline text-[11px] px-2 py-0.5 rounded-full border shrink-0"

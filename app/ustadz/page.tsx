@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { getSession } from '@/lib/auth/session'
-import { canManageTeachers, canViewTeachers } from '@/lib/auth/permissions'
+import { canManageTeachers, canViewTeachers, getManageableJenjang } from '@/lib/auth/permissions'
 import { createServerClient } from '@/lib/supabase/server'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { SearchInput } from '@/components/ui/search-input'
@@ -24,6 +24,37 @@ export default async function UstadzListPage({ searchParams }: PageProps) {
   const canCreate = canManageTeachers(session.role)
 
   const supabase = createServerClient()
+
+  // Koor hanya melihat guru di unitnya. Guru terhubung ke unit lewat halaqoh —
+  // sebagai wali (halaqoh.wali_teacher_id) atau pengampu (halaqoh_teachers).
+  // Manajemen (kepala RQ, SDM, kumik) tidak dibatasi.
+  const unitScope = getManageableJenjang(session.role)
+  const restrictToUnit = session.role === 'koor_sd' || session.role === 'koor_smp'
+  let unitTeacherIds: string[] | null = null
+
+  if (restrictToUnit) {
+    const { data: unitHalaqoh } = await supabase
+      .from('halaqoh')
+      .select('id, wali_teacher_id')
+      .in('jenjang', unitScope)
+
+    const halaqohIds = (unitHalaqoh ?? []).map(h => h.id as string)
+    const ids = new Set<string>()
+    for (const h of unitHalaqoh ?? []) {
+      if (h.wali_teacher_id) ids.add(h.wali_teacher_id as string)
+    }
+
+    if (halaqohIds.length > 0) {
+      const { data: pengampu } = await supabase
+        .from('halaqoh_teachers')
+        .select('teacher_id')
+        .in('halaqoh_id', halaqohIds)
+      for (const r of pengampu ?? []) ids.add(r.teacher_id as string)
+    }
+
+    unitTeacherIds = [...ids]
+  }
+
   let q = supabase
     .from('teachers')
     .select('id, username, full_name, nip, email, phone, is_active, created_at')
@@ -31,8 +62,9 @@ export default async function UstadzListPage({ searchParams }: PageProps) {
 
   q = q.eq('is_active', status === 'active')
   if (query) q = q.or(`full_name.ilike.%${query}%,username.ilike.%${query}%,nip.ilike.%${query}%`)
+  if (unitTeacherIds) q = q.in('id', unitTeacherIds)
 
-  const { data } = await q
+  const { data } = unitTeacherIds && unitTeacherIds.length === 0 ? { data: [] } : await q
   const teachers = (data ?? []) as Pick<Teacher, 'id' | 'username' | 'full_name' | 'nip' | 'email' | 'phone' | 'is_active' | 'created_at'>[]
 
   // Counter siswa & halaqoh per guru

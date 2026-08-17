@@ -7,17 +7,15 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Logo } from '@/components/brand/Logo'
 
 export default function LoginPage() {
   const [state, action, isPending] = useActionState(loginAction, null)
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-muted/30 px-4">
-      <div className="mb-6 text-center">
-        <div className="inline-flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-primary-foreground text-lg font-bold mb-3">
-          RQ
-        </div>
-        <p className="text-sm text-muted-foreground">Rumah Qur&apos;an LHI</p>
+      <div className="mb-6 flex flex-col items-center text-center">
+        <Logo variant="full" size={132} priority className="mb-1" />
       </div>
 
       <Card className="w-full max-w-sm">

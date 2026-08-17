@@ -16,7 +16,11 @@ function formatDate(dateStr: string) {
   })
 }
 
-export function NoteEditor({ notes }: { notes: PrivateNote[] }) {
+/**
+ * `canManage` false = mode baca (Kepala RQ). Tombol tambah/edit/hapus
+ * disembunyikan; server action tetap menolaknya sebagai lapis kedua.
+ */
+export function NoteEditor({ notes, canManage }: { notes: PrivateNote[]; canManage: boolean }) {
   const [showNew, setShowNew] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [createState, createAction, isCreating] = useActionState(createNoteAction, null)
@@ -24,13 +28,13 @@ export function NoteEditor({ notes }: { notes: PrivateNote[] }) {
 
   return (
     <div className="space-y-4">
-      {!showNew && (
+      {canManage && !showNew && (
         <Button size="sm" onClick={() => setShowNew(true)}>
           <Plus className="h-4 w-4 mr-1" />Catatan Baru
         </Button>
       )}
 
-      {showNew && (
+      {canManage && showNew && (
         <Card>
           <CardHeader className="pb-2 pt-4 px-4">
             <div className="flex items-center justify-between">
@@ -82,25 +86,27 @@ export function NoteEditor({ notes }: { notes: PrivateNote[] }) {
                 <CardTitle className="text-sm">{note.title}</CardTitle>
                 <p className="text-xs text-muted-foreground mt-0.5">{formatDate(note.updated_at)}</p>
               </div>
-              <div className="flex gap-1">
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => setEditingId(editingId === note.id ? null : note.id)}
-                  className="h-7 w-7 p-0"
-                >
-                  {editingId === note.id ? <X className="h-3.5 w-3.5" /> : <Pencil className="h-3.5 w-3.5" />}
-                </Button>
-                <form action={deleteNoteAction.bind(null, note.id) as unknown as (fd: FormData) => void}>
-                  <Button size="sm" variant="ghost" type="submit" className="h-7 w-7 p-0 text-destructive hover:text-destructive">
-                    <Trash2 className="h-3.5 w-3.5" />
+              {canManage && (
+                <div className="flex gap-1">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setEditingId(editingId === note.id ? null : note.id)}
+                    className="h-7 w-7 p-0"
+                  >
+                    {editingId === note.id ? <X className="h-3.5 w-3.5" /> : <Pencil className="h-3.5 w-3.5" />}
                   </Button>
-                </form>
-              </div>
+                  <form action={deleteNoteAction.bind(null, note.id) as unknown as (fd: FormData) => void}>
+                    <Button size="sm" variant="ghost" type="submit" className="h-7 w-7 p-0 text-destructive hover:text-destructive">
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </form>
+                </div>
+              )}
             </div>
           </CardHeader>
           <CardContent className="px-4 pb-4">
-            {editingId === note.id ? (
+            {canManage && editingId === note.id ? (
               <form action={updateAction} className="space-y-3">
                 <input type="hidden" name="note_id" value={note.id} />
                 <Input name="title" defaultValue={note.title} required />
