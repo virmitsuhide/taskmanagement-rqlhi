@@ -78,7 +78,7 @@ export default async function TentangPage({ searchParams }: PageProps) {
           </div>
           {canEdit && activeTab !== 'struktur' && (
             <Button asChild size="sm" variant="outline">
-              <Link href="/tentang/edit">
+              <Link href="/humas/tentang">
                 <Pencil className="h-3.5 w-3.5 mr-1.5" />
                 Edit Konten
               </Link>

@@ -40,6 +40,7 @@ const MEETING_CREATE: Record<MeetingType, UserRole[]> = {
   koor_x_smp: ['koor_smp'],
   koor_x_boarding: ['koor_smp'],
   rq_x_quls: ['kumik'],
+  humas_yayasan: ['humas'],
 }
 
 const MEETING_EDIT: Record<MeetingType, UserRole[]> = {
@@ -52,6 +53,7 @@ const MEETING_EDIT: Record<MeetingType, UserRole[]> = {
   koor_x_smp: ['koor_smp'],
   koor_x_boarding: ['koor_smp'],
   rq_x_quls: ['kumik'],
+  humas_yayasan: ['humas'],
 }
 
 const MEETING_DELETE: Record<MeetingType, UserRole[]> = {
@@ -64,13 +66,14 @@ const MEETING_DELETE: Record<MeetingType, UserRole[]> = {
   koor_x_smp: ['koor_smp'],
   koor_x_boarding: ['koor_smp'],
   rq_x_quls: ['kumik'],
+  humas_yayasan: ['humas'],
 }
 
 const MEETING_VIEW: Record<MeetingType, UserRole[]> = {
   manajemen: ['kepala_rq', 'kumik', 'sdm', 'bendahara'],
   kumik: ['kepala_rq', 'kumik', 'sdm', 'bendahara', 'koor_sd', 'koor_smp', 'koor_ekstra'],
-  // Para koor ikut memantau notulen New Squad.
-  new_squad: ['kepala_rq', 'kumik', 'sdm', 'bendahara', 'div_training', 'new_squad', 'koor_sd', 'koor_smp', 'koor_ekstra'],
+  // Para koor & Humas ikut memantau notulen New Squad.
+  new_squad: ['kepala_rq', 'kumik', 'sdm', 'bendahara', 'div_training', 'new_squad', 'koor_sd', 'koor_smp', 'koor_ekstra', 'humas'],
   koor_sd: ['kepala_rq', 'kumik', 'sdm', 'bendahara', 'koor_sd'],
   koor_smp: ['kepala_rq', 'kumik', 'sdm', 'bendahara', 'koor_smp'],
   koor_x_sd: ['kepala_rq', 'kumik', 'sdm', 'bendahara', 'koor_sd'],
@@ -78,6 +81,8 @@ const MEETING_VIEW: Record<MeetingType, UserRole[]> = {
   koor_x_boarding: ['kepala_rq', 'kumik', 'sdm', 'bendahara', 'koor_smp'],
   // Rapat RQ x QULS sengaja dibatasi — koor & divisi lain tidak melihatnya.
   rq_x_quls: ['kumik', 'kepala_rq', 'sdm', 'bendahara'],
+  // Rapat Humas dengan Yayasan — dipegang Humas, dipantau manajemen.
+  humas_yayasan: ['humas', 'kepala_rq', 'kumik', 'sdm', 'bendahara'],
 }
 
 export function canCreateMeeting(role: UserRole, type: MeetingType): boolean {
@@ -143,6 +148,8 @@ export function getBoardDivisions(role: UserRole): UserRole[] {
   if (role === 'koor_sd') return ['koor_sd', 'new_squad', 'humas']
   if (role === 'koor_smp') return ['koor_smp', 'new_squad', 'humas']
   if (role === 'koor_ekstra') return ['koor_ekstra', 'new_squad', 'humas']
+  // Humas memantau papannya sendiri plus New Squad.
+  if (role === 'humas') return ['humas', 'new_squad']
   return []
 }
 
@@ -465,6 +472,7 @@ export const MEETING_TYPE_LABELS: Record<MeetingType, string> = {
   koor_x_smp: 'Rapat Koor x SMP',
   koor_x_boarding: 'Rapat Koor x Boarding',
   rq_x_quls: 'Rapat RQ x QULS',
+  humas_yayasan: 'Rapat Humas Yayasan',
 }
 
 export const DASHBOARD_LABELS: Record<string, string> = {

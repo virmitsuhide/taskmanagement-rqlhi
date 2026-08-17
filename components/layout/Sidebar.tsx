@@ -6,12 +6,12 @@ import { cn } from '@/lib/utils'
 import {
   LayoutDashboard, BookOpen, CheckSquare, ImageIcon,
   FileText, User, Megaphone, LogOut, ChevronRight, GraduationCap, Newspaper, LayoutGrid,
-  Users, UserCog, BookMarked, BarChart3, LayoutTemplate,
+  Users, UserCog, BookMarked, BarChart3, LayoutTemplate, Info,
 } from 'lucide-react'
 import { DASHBOARD_LABELS, getAccessibleDashboards, ROLE_LABELS } from '@/lib/auth/permissions'
 import {
   canViewFinanceNotes, canPostToHome, canViewHumasRequests, canCreateNews,
-  canAccessProgramMenu,
+  canAccessProgramMenu, canEditAbout,
   canViewStudents, canViewHalaqoh, canViewTeachers, canViewAnalytics, canViewUnitAnalytics,
   canManageHomepage,
 } from '@/lib/auth/permissions'
@@ -102,7 +102,10 @@ export function Sidebar({ role, displayName, username }: Props) {
           </p>
           <ul className="space-y-1">
             {canAccessProgramMenu(role) && (
-              <NavItem href="/program" icon={<LayoutGrid className="h-4 w-4" />} label="Program RQ" active={isActive('/program')} />
+              <NavItem href="/humas/program" icon={<LayoutGrid className="h-4 w-4" />} label="Program RQ" active={isActive('/humas/program') || isActive('/program')} />
+            )}
+            {canEditAbout(role) && (
+              <NavItem href="/humas/tentang" icon={<Info className="h-4 w-4" />} label="Tentang RQ" active={isActive('/humas/tentang')} />
             )}
             <NavItem href="/rapat" icon={<BookOpen className="h-4 w-4" />} label="Rapat & Notulen" active={isActive('/rapat')} />
             <NavItem href="/tasks" icon={<CheckSquare className="h-4 w-4" />} label="Tugas" active={isActive('/tasks') && !pathname.startsWith('/tasks/board')} />

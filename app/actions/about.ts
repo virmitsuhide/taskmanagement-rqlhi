@@ -37,5 +37,7 @@ export async function updateAboutRqAction(
   if (error) return { error: error.message || 'Gagal menyimpan perubahan.' }
 
   revalidatePath('/tentang')
-  redirect('/tentang')
+  revalidatePath('/humas/tentang')
+  // Editor kembali ke panel kelola, bukan ke halaman publik.
+  redirect('/humas/tentang')
 }

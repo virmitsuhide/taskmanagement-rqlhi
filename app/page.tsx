@@ -1,14 +1,15 @@
 import { Lora, Playfair_Display } from 'next/font/google'
 import { createServerClient } from '@/lib/supabase/server'
 import { getSession } from '@/lib/auth/session'
-import { canCreateNews } from '@/lib/auth/permissions'
+import { canCreateNews, canEditProgram } from '@/lib/auth/permissions'
 import { getSiteSettings, getPublicTeachers, findSection } from '@/lib/data/site'
+import { getActivePrograms } from '@/lib/data/programs'
 import { PublicHeader } from '@/components/layout/PublicHeader'
 import { WeeklyAgenda } from '@/components/home/WeeklyAgenda'
 import { TugasGuruList } from '@/components/home/TugasGuruList'
 import { NewsCarousel } from '@/components/home/NewsCarousel'
 import { NotePaperCard } from '@/components/home/NotePaperCard'
-import { ProgramGrid } from '@/components/home/ProgramGrid'
+import { ProgramCarousel } from '@/components/home/ProgramCarousel'
 import { TeacherStrip } from '@/components/home/TeacherStrip'
 import { PublicFooter } from '@/components/home/PublicFooter'
 import type { PublicPost, NewsArticle, KaldiEvent } from '@/types'
@@ -71,12 +72,13 @@ export default async function HomePage() {
   const programCfg = findSection(settings, 'program')
   const guruCfg    = findSection(settings, 'profil_guru')
 
-  const [posts, newsItems, session, kaldiEvents, publicTeachers] = await Promise.all([
+  const [posts, newsItems, session, kaldiEvents, publicTeachers, programItems] = await Promise.all([
     getPosts(),
     news.enabled ? getNews(news.limit) : Promise.resolve([]),
     getSession(),
     agendaCfg.enabled ? getKaldiEvents() : Promise.resolve([]),
     guruCfg.enabled ? getPublicTeachers(guruCfg.limit) : Promise.resolve([]),
+    programCfg.enabled ? getActivePrograms(programCfg.limit) : Promise.resolve([]),
   ])
 
   const now = new Date()
@@ -87,6 +89,7 @@ export default async function HomePage() {
   const allTugas    = [...tugasSD, ...tugasSMP]
   const overdueCount = allTugas.filter(p => p.due_date && new Date(p.due_date) < now).length
   const userCanCreateNews = session ? canCreateNews(session.role) : false
+  const userCanEditProgram = session ? canEditProgram(session.role) : false
 
   const todayStart = new Date(now); todayStart.setHours(0, 0, 0, 0)
   const monday = new Date(todayStart)
@@ -181,7 +184,12 @@ export default async function HomePage() {
 
       case 'program':
         blocks.push(
-          <ProgramGrid key="program" title={programCfg.title} limit={programCfg.limit || 4} />,
+          <ProgramCarousel
+            key="program"
+            items={programItems}
+            title={programCfg.title}
+            canManage={userCanEditProgram}
+          />,
         )
         break
 

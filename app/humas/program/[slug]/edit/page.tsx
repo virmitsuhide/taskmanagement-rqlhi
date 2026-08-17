@@ -1,14 +1,13 @@
 import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
+import { ArrowLeft } from 'lucide-react'
 import { getSession } from '@/lib/auth/session'
 import { canEditProgram } from '@/lib/auth/permissions'
-import { createServerClient } from '@/lib/supabase/server'
+import { getProgramBySlug } from '@/lib/data/programs'
+import { updateProgramAction } from '@/app/actions/program'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { Button } from '@/components/ui/button'
-import { ArrowLeft } from 'lucide-react'
-import { findProgram } from '../../_data'
-import { ProgramEditForm } from './ProgramEditForm'
-import type { ProgramDetail } from '@/types'
+import { ProgramForm } from '../../ProgramForm'
 
 interface PageProps {
   params: Promise<{ slug: string }>
@@ -18,19 +17,12 @@ export default async function EditProgramPage({ params }: PageProps) {
   const { slug } = await params
   const session = await getSession()
   if (!session) redirect('/login')
-  if (!canEditProgram(session.role)) redirect(`/program/${slug}`)
+  if (!canEditProgram(session.role)) redirect('/dashboard')
 
-  const program = findProgram(slug)
+  const program = await getProgramBySlug(slug)
   if (!program) notFound()
 
-  const supabase = createServerClient()
-  const { data } = await supabase
-    .from('program_details')
-    .select('*')
-    .eq('slug', slug)
-    .maybeSingle()
-
-  const detail = (data as ProgramDetail | null) ?? null
+  const boundAction = updateProgramAction.bind(null, slug)
 
   return (
     <div>
@@ -39,27 +31,29 @@ export default async function EditProgramPage({ params }: PageProps) {
         role={session.role}
         title="Edit Program"
         breadcrumbs={[
-          { label: 'Program', href: '/program' },
+          { label: 'Program', href: '/humas/program' },
           { label: program.title, href: `/program/${slug}` },
           { label: 'Edit' },
         ]}
         ownH1
       />
-      <div className="max-w-2xl mx-auto px-4 md:px-6 py-6 md:py-10">
+      <div className="max-w-2xl px-4 md:px-6 py-6 md:py-8">
         <Button asChild variant="ghost" size="sm" className="mb-6 -ml-2">
-          <Link href={`/program/${slug}`}>
-            <ArrowLeft className="h-4 w-4 mr-1" />Kembali ke {program.title}
+          <Link href="/humas/program">
+            <ArrowLeft className="h-4 w-4 mr-1" />Kembali ke Kelola Program
           </Link>
         </Button>
 
-        <h1 className="text-2xl md:text-3xl font-bold mb-1.5 tracking-tight">
-          Edit Detail {program.title}
-        </h1>
+        <h1 className="text-2xl font-bold mb-1.5 tracking-tight">Edit Program</h1>
         <p className="text-sm text-muted-foreground mb-8">
-          Perubahan akan langsung terlihat di halaman publik.
+          Perubahan langsung terlihat di beranda dan halaman publik program.
         </p>
 
-        <ProgramEditForm slug={slug} defaultValues={detail} />
+        <ProgramForm
+          action={boundAction}
+          defaultValues={program}
+          submitLabel="Simpan Perubahan"
+        />
       </div>
     </div>
   )

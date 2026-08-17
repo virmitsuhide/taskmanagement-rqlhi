@@ -13,7 +13,7 @@ export const userRoleEnum = pgEnum('user_role', [
 ])
 export const meetingTypeEnum = pgEnum('meeting_type', [
   'manajemen', 'kumik', 'new_squad', 'koor_sd', 'koor_smp',
-  'koor_x_sd', 'koor_x_smp', 'koor_x_boarding', 'rq_x_quls',
+  'koor_x_sd', 'koor_x_smp', 'koor_x_boarding', 'rq_x_quls', 'humas_yayasan',
 ])
 export const agendaTagEnum = pgEnum('agenda_tag', [
   'keputusan', 'informasi', 'perlu_diskusi', 'tindak_lanjut', 'approval',
@@ -443,6 +443,38 @@ export const juzPromotions = pgTable('juz_promotions', {
 })
 
 // ─── Halaman publik (Program & Tentang RQ) ───────────────────────────────────
+
+/**
+ * Program RQ. Dulu daftar hardcode di app/program/_data.ts + tabel
+ * program_details untuk isinya; sekarang satu tabel yang bisa di-CRUD Humas.
+ *
+ * `icon` & `accent` disimpan sebagai kunci ('BookOpen', 'emerald'), bukan kelas
+ * Tailwind — Tailwind memangkas kelas yang tidak muncul literal di kode, jadi
+ * kelas lengkapnya dipetakan di lib/programs/theme.ts.
+ */
+export const programs = pgTable('programs', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  slug: text('slug').notNull().unique(),
+  title: text('title').notNull(),
+  /** Ringkasan pendek — dipakai di kartu beranda & daftar program. */
+  description: text('description').notNull().default(''),
+  /** Foto artikel di beranda. Kosong = jatuh ke gradasi + ikon. */
+  photo_url: text('photo_url'),
+  icon: text('icon').notNull().default('BookOpen'),
+  accent: text('accent').notNull().default('emerald'),
+  long_description: text('long_description').notNull().default(''),
+  curriculum: text('curriculum').notNull().default(''),
+  schedule: text('schedule').notNull().default(''),
+  target_audience: text('target_audience').notNull().default(''),
+  contact_info: text('contact_info').notNull().default(''),
+  display_order: integer('display_order').notNull().default(0),
+  is_active: boolean('is_active').notNull().default(true),
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+  updated_by: uuid('updated_by').references(() => users.id),
+})
+
+/** @deprecated digantikan tabel `programs`. Dipertahankan sampai datanya dicek. */
 export const programDetails = pgTable('program_details', {
   slug: text('slug').primaryKey(),
   long_description: text('long_description').default(''),

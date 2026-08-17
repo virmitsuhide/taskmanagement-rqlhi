@@ -20,9 +20,9 @@ const TABS: { value: Tab; label: string; icon: typeof Type }[] = [
 
 /** Konten yang editornya sudah punya halaman sendiri — panel cukup menautkan. */
 const CONTENT_LINKS = [
-  { label: 'Tulis & kelola berita', href: '/humas/berita', hint: 'Isi artikel yang tampil di seksi Kabar & Berita' },
-  { label: 'Kelola isi program',    href: '/program',      hint: 'Deskripsi, kurikulum, dan jadwal tiap program'   },
-  { label: 'Tentang RQ',            href: '/tentang',      hint: 'Visi-misi, sejarah, dan struktur organisasi'     },
+  { label: 'Tulis & kelola berita', href: '/humas/berita',  hint: 'Isi artikel yang tampil di seksi Kabar & Berita' },
+  { label: 'Kelola program',        href: '/humas/program', hint: 'Tambah, ubah, dan atur urutan program RQ'        },
+  { label: 'Tentang RQ',            href: '/humas/tentang', hint: 'Visi-misi, sejarah, dan struktur organisasi'     },
 ]
 
 interface PageProps {

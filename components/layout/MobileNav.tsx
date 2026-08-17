@@ -6,13 +6,13 @@ import { usePathname } from 'next/navigation'
 import {
   Menu, X, LayoutDashboard, CheckSquare, BookOpen,
   ImageIcon, Megaphone, FileText, User, LogOut, GraduationCap, Newspaper, LayoutGrid,
-  Users, UserCog, BookMarked, BarChart3, LayoutTemplate,
+  Users, UserCog, BookMarked, BarChart3, LayoutTemplate, Info,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
   DASHBOARD_LABELS, getAccessibleDashboards, DEFAULT_DASHBOARD,
   canViewFinanceNotes, canPostToHome, canViewHumasRequests, canCreateNews,
-  canAccessProgramMenu,
+  canAccessProgramMenu, canEditAbout,
   canViewStudents, canViewHalaqoh, canViewTeachers, canViewAnalytics, canViewUnitAnalytics,
   canManageHomepage,
 } from '@/lib/auth/permissions'
@@ -178,7 +178,10 @@ export function MobileNav({ role, displayName, username }: Props) {
             <p className="px-2 mb-2 text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/50">Fitur</p>
             <ul className="space-y-1">
               {canAccessProgramMenu(role) && (
-                <DrawerLink href="/program" icon={<LayoutGrid className="h-4 w-4" />} label="Program RQ" active={isActive('/program')} onNavigate={close} />
+                <DrawerLink href="/humas/program" icon={<LayoutGrid className="h-4 w-4" />} label="Program RQ" active={isActive('/humas/program') || isActive('/program')} onNavigate={close} />
+              )}
+              {canEditAbout(role) && (
+                <DrawerLink href="/humas/tentang" icon={<Info className="h-4 w-4" />} label="Tentang RQ" active={isActive('/humas/tentang')} onNavigate={close} />
               )}
               <DrawerLink href="/rapat" icon={<BookOpen className="h-4 w-4" />} label="Rapat & Notulen" active={isActive('/rapat')} onNavigate={close} />
               <DrawerLink href="/tasks" icon={<CheckSquare className="h-4 w-4" />} label="Tugas" active={isActive('/tasks')} onNavigate={close} />

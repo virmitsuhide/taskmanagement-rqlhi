@@ -24,6 +24,8 @@ export type MeetingType =
   | 'koor_x_boarding'
   /** Rapat RQ x QULS — dibuat kumik, terbatas untuk kumik/kepala/SDM/bendahara */
   | 'rq_x_quls'
+  /** Rapat Humas Yayasan — dibuat humas, dipantau manajemen */
+  | 'humas_yayasan'
 
 export type AgendaTag = 'keputusan' | 'informasi' | 'perlu_diskusi' | 'tindak_lanjut' | 'approval'
 
@@ -284,6 +286,31 @@ export interface AboutRq {
   updated_by: string | null
 }
 
+/** Kunci warna aksen program — dipetakan ke kelas Tailwind di lib/programs/theme.ts */
+export type ProgramAccent =
+  | 'emerald' | 'teal' | 'blue' | 'violet' | 'amber' | 'sky' | 'rose'
+
+export interface Program {
+  id: string
+  slug: string
+  title: string
+  description: string
+  photo_url: string | null
+  icon: string
+  accent: ProgramAccent
+  long_description: string
+  curriculum: string
+  schedule: string
+  target_audience: string
+  contact_info: string
+  display_order: number
+  is_active: boolean
+  created_at: string
+  updated_at: string
+  updated_by: string | null
+}
+
+/** @deprecated digantikan `Program`. */
 export interface ProgramDetail {
   slug: string
   long_description: string
