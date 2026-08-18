@@ -30,6 +30,8 @@ export const contentRequestTypeEnum = pgEnum('content_request_type', [
 export const contentPriorityEnum = pgEnum('content_priority', ['low', 'medium', 'high'])
 export const contentStatusEnum = pgEnum('content_status', ['requested', 'on_process', 'finish'])
 export const publicPostTypeEnum = pgEnum('public_post_type', ['pengumuman', 'tugas_guru'])
+/** Status urgensi pengumuman — ditentukan penulis, bukan disimpulkan dari tanggal. */
+export const postPriorityEnum = pgEnum('post_priority', ['penting', 'info', 'pengingat'])
 export const publicTargetEnum = pgEnum('public_target', ['all', 'sd', 'smp'])
 
 // ─── Tables ──────────────────────────────────────────────────────────────────
@@ -144,6 +146,7 @@ export const publicPosts = pgTable('public_posts', {
   title: text('title').notNull(),
   content: text('content').notNull(),
   due_date: date('due_date'),
+  priority: postPriorityEnum('priority').notNull().default('info'),
   created_by: uuid('created_by').references(() => users.id),
   is_active: boolean('is_active').default(true),
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),

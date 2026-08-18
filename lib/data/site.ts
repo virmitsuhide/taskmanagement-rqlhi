@@ -12,9 +12,8 @@ import type {
  * dijalankan). Baris DB ditimpa di atas nilai ini, per-field.
  */
 export const DEFAULT_SECTIONS: HomeSection[] = [
-  { key: 'tugas',       enabled: true, title: 'Tugas Guru',        limit: 0 },
-  { key: 'agenda',      enabled: true, title: 'Agenda Pekan Ini',  limit: 0 },
-  { key: 'pengumuman',  enabled: true, title: 'Papan Pengumuman',  limit: 6 },
+  { key: 'pengumuman',  enabled: true, title: 'Pengumuman',        limit: 6 },
+  { key: 'agenda',      enabled: true, title: 'Kalender Agenda',   limit: 0 },
   { key: 'news',        enabled: true, title: 'Kabar & Berita',    limit: 12 },
   { key: 'program',     enabled: true, title: 'Program Kami',      limit: 4 },
   { key: 'profil_guru', enabled: true, title: "Guru Rumah Qur'an", limit: 6 },
@@ -33,7 +32,7 @@ export const DEFAULT_SITE_SETTINGS: SiteSettings = {
     { name: 'SMPIT LHI', address: 'Jl. Wonosari No. 17\nBanguntapan, Bantul, DIY', phone: '(0274) 555-1596' },
   ],
   footer_links: [
-    { label: 'Tugas Guru',      href: '/#tugas'      },
+    { label: 'Pengumuman',      href: '/#pengumuman' },
     { label: 'Kabar & Berita',  href: '/news'        },
     { label: 'Program',         href: '/program'     },
     { label: 'Profil Guru',     href: '/profil-guru' },

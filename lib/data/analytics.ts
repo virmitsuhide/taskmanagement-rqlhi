@@ -57,9 +57,10 @@ export async function getRqAnalytics(): Promise<RqAnalytics> {
   for (const s of studentsRes.data ?? []) {
     studentsByJenjangMap.set(s.jenjang as Jenjang, (studentsByJenjangMap.get(s.jenjang as Jenjang) ?? 0) + 1)
   }
+  // Semua unit selalu ditulis, termasuk yang belum punya siswa — angka 0 itu
+  // sendiri informasi (unit belum terdata), bukan alasan menyembunyikan baris.
   const studentsByJenjang = JENJANG_ORDER
     .map(j => ({ jenjang: j, count: studentsByJenjangMap.get(j) ?? 0 }))
-    .filter(x => x.count > 0)
 
   const juzMutqinTotal = ((juzProgressRes.data ?? []) as { mutqin: boolean }[]).filter(j => j.mutqin).length
 

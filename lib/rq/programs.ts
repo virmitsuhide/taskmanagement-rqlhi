@@ -34,7 +34,7 @@ export const PROGRAMS_BY_JENJANG: Record<Jenjang, ProgramOption[]> = {
 
 /** Label unit (jenjang) versi lengkap RQ LHI. */
 export const UNIT_LABELS: Record<Jenjang, string> = {
-  paud: 'TPAIT LHI',
+  paud: 'PAUD/TPAIT',
   sd: 'SDIT LHI',
   sd_juara: 'SD LHI Juara',
   smp: 'SMPIT LHI',

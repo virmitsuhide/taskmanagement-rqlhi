@@ -194,6 +194,9 @@ export interface MemberCompletion {
   tasks: CompletedTaskEntry[]
 }
 
+/** Status urgensi pengumuman di beranda. */
+export type PostPriority = 'penting' | 'info' | 'pengingat'
+
 export interface PublicPost {
   id: string
   type: PublicPostType
@@ -201,6 +204,8 @@ export interface PublicPost {
   title: string
   content: string
   due_date: string | null
+  /** Post lama sebelum migrasi 0017 bisa undefined — perlakukan sebagai 'info'. */
+  priority?: PostPriority | null
   created_by: string
   is_active: boolean
   created_at: string
@@ -566,8 +571,8 @@ export const AYAT_PER_JUZ: Record<number, number> = {
 
 /** Seksi yang bisa dinyalakan/dimatikan & diurutkan di beranda publik. */
 export type HomeSectionKey =
-  | 'tugas'
   | 'agenda'
+  /** Pengumuman + tugas guru, digabung dalam satu papan. */
   | 'pengumuman'
   | 'news'
   | 'program'

@@ -1,7 +1,8 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { getSession } from '@/lib/auth/session'
-import { canViewAnalytics, JENJANG_LABELS } from '@/lib/auth/permissions'
+import { canViewAnalytics } from '@/lib/auth/permissions'
+import { UNIT_LABELS } from '@/lib/rq/programs'
 import { getRqAnalytics, getUnitHafalanBoards } from '@/lib/data/analytics'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { UnitHafalanBoard } from '@/components/dashboard/UnitHafalanBoard'
@@ -67,15 +68,17 @@ export default async function AnalitikPage() {
           <h2 className="text-sm font-semibold mb-4 flex items-center gap-2">
             <GraduationCap className="h-4 w-4" /> Distribusi Siswa per Jenjang
           </h2>
-          {a.overview.studentsByJenjang.length === 0 ? (
+          {a.overview.activeStudents === 0 ? (
             <p className="text-sm text-muted-foreground">Belum ada data siswa.</p>
           ) : (
             <div className="space-y-3">
               {a.overview.studentsByJenjang.map(j => (
                 <div key={j.jenjang}>
                   <div className="flex justify-between text-xs mb-1">
-                    <span className="font-medium">{JENJANG_LABELS[j.jenjang]}</span>
-                    <span className="text-muted-foreground">{j.count} siswa</span>
+                    <span className="font-medium">{UNIT_LABELS[j.jenjang]}</span>
+                    <span className={j.count === 0 ? 'text-muted-foreground/60' : 'text-muted-foreground'}>
+                      {j.count} siswa
+                    </span>
                   </div>
                   <div className="h-2 rounded-full bg-muted overflow-hidden">
                     <div className="h-full rounded-full" style={{ width: `${(j.count / maxJenjang) * 100}%`, background: 'var(--primary)' }} />

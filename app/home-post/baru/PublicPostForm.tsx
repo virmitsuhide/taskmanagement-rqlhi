@@ -113,9 +113,31 @@ export function PublicPostForm() {
             )}
           </div>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="due_date">Deadline (opsional)</Label>
-            <Input id="due_date" name="due_date" type="date" />
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="priority">Status Prioritas</Label>
+              <Select name="priority" defaultValue="info" required>
+                <SelectTrigger id="priority" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="penting">Penting</SelectItem>
+                  <SelectItem value="info">Info</SelectItem>
+                  <SelectItem value="pengingat">Pengingat</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Menentukan penanda yang tampil di papan pengumuman beranda.
+              </p>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="due_date">Deadline (opsional)</Label>
+              <Input id="due_date" name="due_date" type="date" />
+              <p className="text-xs text-muted-foreground">
+                Dipakai untuk menaruh post ini di kalender agenda.
+              </p>
+            </div>
           </div>
         </CardContent>
       </Card>
