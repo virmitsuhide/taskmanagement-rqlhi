@@ -20,6 +20,26 @@ const playfair = Playfair_Display({ subsets: ['latin'], variable: '--font-playfa
 const MONTH_ID = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember']
 const DAY_ID   = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu']
 
+/**
+ * "Hari ini" menurut WIB, bukan menurut jam server.
+ *
+ * Vercel menjalankan fungsi di UTC, jadi `new Date()` di server sudah berganti
+ * hari 7 jam lebih lambat daripada pengguna di Indonesia — antara 00:00 dan
+ * 07:00 WIB kalender akan menandai tanggal kemarin sebagai "Hari ini".
+ * Tanggalnya diambil lewat Intl agar tidak perlu menghitung offset sendiri
+ * (dan tetap benar seandainya aturan zona berubah).
+ */
+function todayInJakarta(): Date {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Jakarta',
+    year: 'numeric', month: '2-digit', day: '2-digit',
+  }).format(new Date())
+  const [y, m, d] = parts.split('-').map(Number)
+  // Tengah hari UTC: cukup jauh dari kedua tepi tanggal sehingga pergeseran
+  // zona pembaca tidak pernah menggesernya ke hari sebelum/sesudahnya.
+  return new Date(Date.UTC(y, m - 1, d, 12, 0, 0))
+}
+
 async function getNews(limit: number): Promise<NewsArticle[]> {
   try {
     const supabase = createServerClient()
@@ -35,12 +55,16 @@ async function getNews(limit: number): Promise<NewsArticle[]> {
   }
 }
 
-async function getKaldiEvents(): Promise<KaldiEvent[]> {
+const KALDI_BASE = 'https://kaldikrqlhi.vercel.app'
+
+/** Identitas logis satu agenda — dipakai untuk membuang duplikat. */
+function kaldiKey(e: KaldiEvent) {
+  return `${e.date ?? e.start ?? ''}|${e.title}|${e.unit ?? ''}`
+}
+
+async function getKaldiYear(year: number): Promise<KaldiEvent[]> {
   try {
-    // Jendela 90 hari supaya kalender masih berisi saat digeser ke bulan
-    // berikutnya. Bulan yang sudah lewat memang tidak punya data — API-nya
-    // hanya menyediakan agenda mendatang.
-    const res = await fetch('https://kaldikrqlhi.vercel.app/api/upcoming?days=90', {
+    const res = await fetch(`${KALDI_BASE}/api/calendar?year=${year}`, {
       next: { revalidate: 300 }, // 5 menit
     })
     if (!res.ok) return []
@@ -49,6 +73,39 @@ async function getKaldiEvents(): Promise<KaldiEvent[]> {
   } catch {
     return []
   }
+}
+
+/**
+ * Agenda kaldik untuk kalender beranda.
+ *
+ * Memakai `/api/calendar?year=`, bukan `/api/upcoming`. `upcoming` adalah feed
+ * "N agenda terdekat": `days` cuma menyaring batas atas, sedangkan jumlah baris
+ * dipatok `limit` (default 50, server menolak di atas 100). Akibatnya
+ * `?days=90` nyatanya hanya sampai ~3 pekan ke depan, dan bulan yang sudah
+ * lewat tidak pernah terisi karena feed itu selalu mulai dari hari ini.
+ * `calendar` mengembalikan setahun penuh tanpa batas.
+ *
+ * Tahun berikutnya ikut diambil karena tahun ajaran membentang dua tahun
+ * kalender — tanpa itu, Januari kosong setiap kali Desember terlewati. Tahun
+ * yang belum diisi membalas `events: []`, jadi aman.
+ *
+ * Data sumber mengandung duplikat (agenda yang sama ter-seed dua kali, ~36%
+ * dari payload). Dibuang di sini supaya tidak tampil ganda di daftar harian
+ * dan tidak ikut terkirim ke klien.
+ */
+async function getKaldiEvents(): Promise<KaldiEvent[]> {
+  const year = new Date().getFullYear()
+  const years = await Promise.all([getKaldiYear(year), getKaldiYear(year + 1)])
+
+  const seen = new Set<string>()
+  const unique: KaldiEvent[] = []
+  for (const e of years.flat()) {
+    const key = kaldiKey(e)
+    if (seen.has(key)) continue
+    seen.add(key)
+    unique.push(e)
+  }
+  return unique
 }
 
 async function getPosts() {
@@ -84,7 +141,7 @@ export default async function HomePage() {
     getHomeStats(),
   ])
 
-  const now = new Date()
+  const now = todayInJakarta()
 
   // Pengumuman & tugas guru tampil dalam satu papan — pembacanya sama, dan
   // memisahkannya cuma membuat satu informasi terlewat karena ada di kolom lain.
@@ -92,10 +149,11 @@ export default async function HomePage() {
   const userCanCreateNews = session ? canCreateNews(session.role) : false
   const userCanEditProgram = session ? canEditProgram(session.role) : false
 
-  const todayStart = new Date(now); todayStart.setHours(0, 0, 0, 0)
-  const todayIso = todayStart.toISOString()
+  const todayIso = now.toISOString()
 
-  const dateLabel = `${DAY_ID[now.getDay()]}, ${now.getDate()} ${MONTH_ID[now.getMonth()]} ${now.getFullYear()}`
+  // Getter UTC, sepasang dengan `todayInJakarta` yang menyimpan tanggal WIB
+  // sebagai tengah hari UTC — getter lokal akan mengembalikannya ke jam server.
+  const dateLabel = `${DAY_ID[now.getUTCDay()]}, ${now.getUTCDate()} ${MONTH_ID[now.getUTCMonth()]} ${now.getUTCFullYear()}`
   const headingFont = { fontFamily: "var(--font-playfair), 'Georgia', serif" }
 
   /**
