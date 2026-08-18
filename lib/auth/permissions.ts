@@ -157,9 +157,23 @@ export function canViewDivisiBoard(role: UserRole): boolean {
   return getBoardDivisions(role).length > 0
 }
 
+/**
+ * Lapisan manajemen RQ.
+ *
+ * Ketiganya sudah memantau papan seluruh divisi (getBoardDivisions) dan
+ * analitik agregat, jadi merekalah yang diberi tahu saat ada tugas disunting
+ * atau dihapus — termasuk tugas pribadi yang pemiliknya adalah pemberi sekaligus
+ * penerima, yang kalau tidak begitu tidak akan terpantau siapa pun.
+ */
+const MANAGEMENT_ROLES: UserRole[] = ['kepala_rq', 'kumik', 'sdm']
+
+export function isManagement(role: UserRole): boolean {
+  return MANAGEMENT_ROLES.includes(role)
+}
+
 // Analitik RQ — dashboard agregat lintas divisi/halaqoh (manajemen)
 export function canViewAnalytics(role: UserRole): boolean {
-  return role === 'kepala_rq' || role === 'kumik' || role === 'sdm'
+  return isManagement(role)
 }
 
 /**
@@ -221,6 +235,43 @@ export function canChangeTaskStatus(
  */
 export function canMoveTaskOnBoard(role: UserRole, isAssignee: boolean, isAssigner: boolean): boolean {
   return role === 'kepala_rq' || isAssignee || isAssigner
+}
+
+/**
+ * Boleh menghapus tugas?
+ *
+ * Catatan penting soal `isAssigner`: pada tugas untuk diri sendiri, assigned_by
+ * dan assigned_to berisi orang yang sama, sehingga satu bendera ini sekaligus
+ * mencakup dua aturan yang diminta — "pemberi tugas boleh menghapus tugas yang
+ * ia delegasikan" dan "setiap pengurus boleh menghapus tugasnya sendiri".
+ * Pelaksana yang menerima delegasi orang lain sengaja TIDAK bisa menghapus:
+ * ia tidak boleh menghilangkan tugas yang dibebankan kepadanya.
+ */
+export function canDeleteTask(
+  role: UserRole,
+  isAssignee: boolean,
+  isAssigner: boolean,
+): boolean {
+  if (role === 'kepala_rq') return true
+  void isAssignee
+  return isAssigner
+}
+
+/**
+ * Boleh menyunting isi tugas (judul, deskripsi, prioritas, bobot, tenggat)?
+ *
+ * Lebih sempit daripada hak menghapus: hanya tugas untuk diri sendiri, yaitu
+ * saat pemberi dan penerimanya orang yang sama. Tugas hasil delegasi tidak
+ * bisa disunting sepihak oleh pemberinya — mengubah isi tugas yang sudah
+ * dikerjakan orang lain menggeser kesepakatan tanpa jejak persetujuan.
+ */
+export function canEditTask(
+  role: UserRole,
+  isAssignee: boolean,
+  isAssigner: boolean,
+): boolean {
+  if (role === 'kepala_rq') return true
+  return isAssignee && isAssigner
 }
 
 /** Task yang menunggu review orang ini (antrean review pemberi tugas). */
@@ -306,8 +357,16 @@ export function canAccessProgramMenu(role: UserRole): boolean {
   return role === 'kepala_rq' || role === 'humas'
 }
 
+/**
+ * Kelola "Tentang RQ" (visi, misi, sejarah) — sepenuhnya wewenang Humas.
+ *
+ * Kepala RQ sengaja tidak termasuk: pengelolaan halaman profil lembaga digeser
+ * ke Humas, sejalan dengan berita. Yang hilang hanya hak menyuntingnya —
+ * halaman /tentang tetap terbuka untuk semua, jadi Kepala RQ masih bisa
+ * membacanya seperti pembaca lain.
+ */
 export function canEditAbout(role: UserRole): boolean {
-  return role === 'kepala_rq' || role === 'humas'
+  return role === 'humas'
 }
 
 /**

@@ -13,11 +13,13 @@ export async function getDashboardStats(userId: string) {
       .from('tasks')
       .select('id, status, priority, due_date')
       .eq('assigned_to', userId)
+      .is('deleted_at', null)
       .not('status', 'in', '("done")'),
     supabase
       .from('tasks')
       .select('id')
       .eq('assigned_by', userId)
+      .is('deleted_at', null)
       .eq('status', 'submitted'),
   ])
 
@@ -40,6 +42,7 @@ export async function getMyActiveTasks(userId: string) {
     .from('tasks')
     .select('*, assigner:users!assigned_by(id, display_name, role)')
     .eq('assigned_to', userId)
+    .is('deleted_at', null)
     .not('status', 'in', '("done")')
     .order('priority', { ascending: false })
     .order('due_date', { ascending: true, nullsFirst: false })
@@ -67,6 +70,7 @@ export async function getTeamActiveTasks() {
   const { data } = await supabase
     .from('tasks')
     .select('*, assignee:users!assigned_to(id, display_name, role), assigner:users!assigned_by(id, display_name, role)')
+    .is('deleted_at', null)
     .not('status', 'in', '("done")')
     .order('priority', { ascending: false })
     .order('due_date', { ascending: true, nullsFirst: false })
@@ -85,6 +89,7 @@ export async function getCompletionHistory(limit = 100): Promise<MemberCompletio
     .from('tasks')
     .select('*, assignee:users!assigned_to(id, display_name, role), assigner:users!assigned_by(id, display_name, role)')
     .eq('status', 'done')
+    .is('deleted_at', null)
     .order('verified_at', { ascending: false, nullsFirst: false })
     .limit(limit)
   const doneTasks = (doneData ?? []) as Task[]
@@ -147,6 +152,7 @@ export async function getPendingVerifications(userId: string) {
     .select('*, assignee:users!assigned_to(id, display_name, role)')
     .eq('assigned_by', userId)
     .eq('status', 'submitted')
+    .is('deleted_at', null)
     .order('updated_at', { ascending: false })
     .limit(10)
   return (data ?? []) as Task[]

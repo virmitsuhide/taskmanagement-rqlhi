@@ -109,7 +109,9 @@ function HistoryCard({ entry }: { entry: CompletedTaskEntry }) {
   const { task, startedAt, completedAt, durationMs, comments } = entry
 
   async function handleDelete() {
-    if (!confirm(`Hapus tugas "${task.title}" dari riwayat? Diskusi & riwayat status ikut terhapus permanen.`)) return
+    // Sejak migrasi 0018 penghapusan bersifat lunak — diskusi & riwayat status
+    // tetap tersimpan, dan tugasnya masih bisa dipulihkan oleh manajemen.
+    if (!confirm(`Hapus tugas "${task.title}" dari riwayat? Tugas disembunyikan dan masih bisa dipulihkan.`)) return
     setDeleting(true)
     const res = await deleteCompletedTaskAction(task.id)
     setDeleting(false)

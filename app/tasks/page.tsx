@@ -49,6 +49,7 @@ export default async function TasksPage({ searchParams }: PageProps) {
       .from('tasks')
       .select('*, assigner:users!assigned_by(id, display_name, role)')
       .eq('assigned_to', session.userId)
+      .is('deleted_at', null)
       .in('status', ACTIVE_STATUSES)
       .order('priority', { ascending: false })
       .order('due_date', { ascending: true, nullsFirst: false })
@@ -69,18 +70,22 @@ export default async function TasksPage({ searchParams }: PageProps) {
         .select('*, assignee:users!assigned_to(id, display_name, role)')
         .eq('assigned_by', session.userId)
         .neq('assigned_to', session.userId)
+        .is('deleted_at', null)
         .order('created_at', { ascending: false })
       countQuery = supabase.from('tasks').select('*', { count: 'exact', head: true })
         .eq('assigned_by', session.userId).neq('assigned_to', session.userId)
+        .is('deleted_at', null)
     } else {
       listQuery = supabase
         .from('tasks')
         .select('*, assigner:users!assigned_by(id, display_name, role)')
         .eq('assigned_to', session.userId)
         .eq('status', 'done')
+        .is('deleted_at', null)
         .order('updated_at', { ascending: false })
       countQuery = supabase.from('tasks').select('*', { count: 'exact', head: true })
         .eq('assigned_to', session.userId).eq('status', 'done')
+        .is('deleted_at', null)
     }
     if (query) { listQuery = listQuery.ilike('title', `%${query}%`); countQuery = countQuery.ilike('title', `%${query}%`) }
     const { count } = await countQuery
@@ -94,15 +99,16 @@ export default async function TasksPage({ searchParams }: PageProps) {
   }
 
   // ── Hitungan untuk badge stat & tab counts ─────────────────────
+  // Semua penghitung wajib menyaring deleted_at: tanpa itu angka di badge
+  // menghitung tugas yang sudah dihapus dan tidak cocok dengan isi daftarnya.
+  const countTasks = () =>
+    supabase.from('tasks').select('*', { count: 'exact', head: true }).is('deleted_at', null)
+
   const [activeCountRes, doneCountRes, delegatedCountRes, overdueRes] = await Promise.all([
-    supabase.from('tasks').select('*', { count: 'exact', head: true })
-      .eq('assigned_to', session.userId).in('status', ACTIVE_STATUSES),
-    supabase.from('tasks').select('*', { count: 'exact', head: true })
-      .eq('assigned_to', session.userId).eq('status', 'done'),
-    supabase.from('tasks').select('*', { count: 'exact', head: true })
-      .eq('assigned_by', session.userId).neq('assigned_to', session.userId),
-    supabase.from('tasks').select('*', { count: 'exact', head: true })
-      .eq('assigned_to', session.userId).in('status', ACTIVE_STATUSES)
+    countTasks().eq('assigned_to', session.userId).in('status', ACTIVE_STATUSES),
+    countTasks().eq('assigned_to', session.userId).eq('status', 'done'),
+    countTasks().eq('assigned_by', session.userId).neq('assigned_to', session.userId),
+    countTasks().eq('assigned_to', session.userId).in('status', ACTIVE_STATUSES)
       .lt('due_date', new Date().toISOString().slice(0, 10)),
   ])
 

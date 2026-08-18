@@ -2,12 +2,13 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { LayoutTemplate, Type, Users, ExternalLink } from 'lucide-react'
 import { getSession } from '@/lib/auth/session'
-import { canManageHomepage } from '@/lib/auth/permissions'
+import { canManageHomepage, canCreateNews, canEditProgram, canEditAbout } from '@/lib/auth/permissions'
 import { getSiteSettings, getTeachersForCuration } from '@/lib/data/site'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { HeaderFooterForm } from './HeaderFooterForm'
 import { SectionsForm } from './SectionsForm'
 import { TeacherProfilesForm } from './TeacherProfilesForm'
+import type { UserRole } from '@/types'
 
 type Tab = 'seksi' | 'teks' | 'guru'
 const VALID_TABS: Tab[] = ['seksi', 'teks', 'guru']
@@ -18,11 +19,23 @@ const TABS: { value: Tab; label: string; icon: typeof Type }[] = [
   { value: 'guru',  label: 'Profil Guru',     icon: Users          },
 ]
 
-/** Konten yang editornya sudah punya halaman sendiri — panel cukup menautkan. */
-const CONTENT_LINKS = [
-  { label: 'Tulis & kelola berita', href: '/humas/berita',  hint: 'Isi artikel yang tampil di seksi Kabar & Berita' },
-  { label: 'Kelola program',        href: '/humas/program', hint: 'Tambah, ubah, dan atur urutan program RQ'        },
-  { label: 'Tentang RQ',            href: '/humas/tentang', hint: 'Visi-misi, sejarah, dan struktur organisasi'     },
+/**
+ * Konten yang editornya sudah punya halaman sendiri — panel cukup menautkan.
+ *
+ * Tiap tautan membawa izinnya sendiri karena panel ini dibuka oleh Kepala RQ
+ * maupun Humas (canManageHomepage), sementara halaman tujuannya tidak semuanya
+ * seluas itu: berita & Tentang RQ kini murni wewenang Humas. Tanpa penyaringan
+ * ini Kepala RQ melihat tautan yang justru melemparnya kembali ke /dashboard.
+ */
+const CONTENT_LINKS: {
+  label: string
+  href: string
+  hint: string
+  can: (role: UserRole) => boolean
+}[] = [
+  { label: 'Tulis & kelola berita', href: '/humas/berita',  hint: 'Isi artikel yang tampil di seksi Kabar & Berita', can: canCreateNews  },
+  { label: 'Kelola program',        href: '/humas/program', hint: 'Tambah, ubah, dan atur urutan program RQ',        can: canEditProgram },
+  { label: 'Tentang RQ',            href: '/humas/tentang', hint: 'Visi-misi, sejarah, dan struktur organisasi',     can: canEditAbout   },
 ]
 
 interface PageProps {
@@ -38,6 +51,8 @@ export default async function KelolaBerandaPage({ searchParams }: PageProps) {
   const activeTab: Tab = VALID_TABS.includes(params.tab as Tab) ? (params.tab as Tab) : 'seksi'
 
   const [settings, teachers] = await Promise.all([getSiteSettings(), getTeachersForCuration()])
+
+  const contentLinks = CONTENT_LINKS.filter(l => l.can(session.role))
 
   return (
     <div>
@@ -92,6 +107,7 @@ export default async function KelolaBerandaPage({ searchParams }: PageProps) {
           <div className="space-y-8 pb-10">
             <SectionsForm sections={settings.sections} />
 
+            {contentLinks.length > 0 && (
             <div className="rounded-xl border bg-muted/20 p-5">
               <h2 className="text-sm font-semibold mb-1">Mengisi kontennya</h2>
               <p className="text-xs text-muted-foreground mb-4">
@@ -99,7 +115,7 @@ export default async function KelolaBerandaPage({ searchParams }: PageProps) {
                 halaman berikut.
               </p>
               <div className="grid gap-2 sm:grid-cols-3">
-                {CONTENT_LINKS.map(link => (
+                {contentLinks.map(link => (
                   <Link
                     key={link.href}
                     href={link.href}
@@ -116,6 +132,7 @@ export default async function KelolaBerandaPage({ searchParams }: PageProps) {
                 ))}
               </div>
             </div>
+            )}
           </div>
         )}
 

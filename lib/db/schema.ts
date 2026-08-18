@@ -23,6 +23,8 @@ export const taskWeightEnum = pgEnum('task_weight', ['easy', 'medium', 'hard'])
 export const taskHorizonEnum = pgEnum('task_horizon', ['pendek', 'panjang'])
 export const taskStatusEnum = pgEnum('task_status', ['todo', 'in_progress', 'problem', 'submitted', 'done', 'returned'])
 export const taskProblemTypeEnum = pgEnum('task_problem_type', ['bottleneck', 'blocked', 'wip_limit', 'others'])
+/** Jenis peristiwa di task_history — memisahkan sunting/hapus dari ubah status. */
+export const taskHistoryActionEnum = pgEnum('task_history_action', ['status', 'edited', 'deleted', 'restored'])
 export const taskSourceEnum = pgEnum('task_source', ['rapat', 'mandiri', 'home_publik'])
 export const contentRequestTypeEnum = pgEnum('content_request_type', [
   'flyer_ujian', 'flyer_lain', 'video', 'lain_lain',
@@ -115,6 +117,12 @@ export const tasks = pgTable('tasks', {
   return_notes: text('return_notes'),
   verified_by: uuid('verified_by').references(() => users.id),
   verified_at: timestamp('verified_at', { withTimezone: true }),
+  /**
+   * Penanda hapus. Tugas tidak pernah dibuang secara fisik: riwayatnya
+   * ON DELETE CASCADE, dan notifikasi diturunkan dari riwayat itu — hard delete
+   * akan menghapus notifikasi "tugas dihapus" bersamaan dengan pembuatannya.
+   */
+  deleted_at: timestamp('deleted_at', { withTimezone: true }),
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
 })
@@ -125,6 +133,13 @@ export const taskHistory = pgTable('task_history', {
   changed_by: uuid('changed_by').references(() => users.id),
   old_status: taskStatusEnum('old_status'),
   new_status: taskStatusEnum('new_status').notNull(),
+  /**
+   * Jenis peristiwa, terpisah dari status. new_status NOT NULL dan bertipe
+   * task_status, jadi "disunting"/"dihapus" tidak bisa dititipkan di sana tanpa
+   * mengotori kolom kanban — pada kedua aksi itu new_status diisi status tugas
+   * saat itu dan kolom inilah yang menerangkan maksudnya.
+   */
+  action: taskHistoryActionEnum('action').notNull().default('status'),
   notes: text('notes'),
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
 })

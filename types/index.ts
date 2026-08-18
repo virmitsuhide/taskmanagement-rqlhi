@@ -152,11 +152,16 @@ export interface Task {
   return_notes: string | null
   verified_by: string | null
   verified_at: string | null
+  /** Terisi = tugas sudah dihapus (disembunyikan, masih bisa dipulihkan). */
+  deleted_at: string | null
   created_at: string
   updated_at: string
   assignee?: User
   assigner?: User
 }
+
+/** Jenis peristiwa di riwayat tugas — lihat migrasi 0018. */
+export type TaskHistoryAction = 'status' | 'edited' | 'deleted' | 'restored'
 
 export interface TaskHistory {
   id: string
@@ -164,6 +169,8 @@ export interface TaskHistory {
   changed_by: string
   old_status: TaskStatus | null
   new_status: TaskStatus
+  /** Baris lama sebelum migrasi 0018 bisa undefined — perlakukan sebagai 'status'. */
+  action?: TaskHistoryAction | null
   notes: string | null
   created_at: string
   changer?: User
@@ -269,15 +276,27 @@ export interface ActionResult {
   data?: unknown
 }
 
+/**
+ * Satu agenda dari kaldikrqlhi.vercel.app (`/api/calendar?year=`).
+ *
+ * `date` adalah bentuk yang benar-benar dikirim API (YYYY-MM-DD, sehari penuh);
+ * `start`/`end`/`location` dipertahankan opsional untuk agenda berjam yang
+ * mungkin menyusul.
+ */
 export interface KaldiEvent {
   id?: string
   title: string
-  start?: string
   date?: string
+  start?: string
   end?: string
   location?: string
-  description?: string
+  description?: string | null
+  /** Jenjang pemilik agenda: 'SD' | 'SMP' | 'NASIONAL' | … dipakai untuk legenda. */
+  unit?: string
+  /** 'agenda' | 'libur_nasional' | … */
+  type?: string
   color?: string
+  year?: number
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   [key: string]: any
 }

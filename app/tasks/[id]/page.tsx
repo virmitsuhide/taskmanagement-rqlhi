@@ -1,12 +1,16 @@
 import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
 import { getSession } from '@/lib/auth/session'
-import { canChangeTaskStatus, ROLE_LABELS, TASK_PROBLEM_LABELS } from '@/lib/auth/permissions'
+import {
+  canChangeTaskStatus, canEditTask, canDeleteTask, isManagement,
+  ROLE_LABELS, TASK_PROBLEM_LABELS,
+} from '@/lib/auth/permissions'
 import { createServerClient } from '@/lib/supabase/server'
 import { updateTaskStatusFromFormAction } from '@/app/actions/tasks'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { TaskStatusBadge, TaskPriorityBadge, TaskWeightBadge } from '@/components/tasks/TaskStatusBadge'
 import { TaskComments } from '@/components/tasks/TaskComments'
+import { TaskRowActions } from '@/components/tasks/TaskRowActions'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
@@ -58,6 +62,14 @@ export default async function TaskDetailPage({ params }: { params: Promise<{ id:
   const isAssigner = task.assigned_by === session.userId
   if (!isAssignee && !isAssigner && session.role !== 'kepala_rq') redirect('/tasks')
 
+  // Tugas terhapus hanya terbuka bagi manajemen — merekalah yang bisa
+  // memulihkannya. Bagi orang lain tugas itu memang sudah tidak ada.
+  const isDeleted = !!task.deleted_at
+  if (isDeleted && !isManagement(session.role)) notFound()
+
+  const mayEdit = !isDeleted && canEditTask(session.role, isAssignee, isAssigner)
+  const mayDelete = !isDeleted && canDeleteTask(session.role, isAssignee, isAssigner)
+
   const { data: historyData } = await supabase
     .from('task_history')
     .select('*, changer:users!changed_by(id, display_name)')
@@ -79,9 +91,13 @@ export default async function TaskDetailPage({ params }: { params: Promise<{ id:
     .filter((u, i, arr) => arr.findIndex(x => x.id === u.id) === i)
     .map(u => ({ id: u.id, name: u.display_name }))
 
-  const allowedNextStatuses = STATUS_FLOW[task.status].filter(next =>
-    canChangeTaskStatus(session.role, task.status, next, isAssignee, isAssigner)
-  )
+  // Tugas terhapus tidak bisa digerakkan lagi — memindahkannya antar kolom
+  // hanya akan membingungkan, karena kartunya sendiri tidak ada di papan.
+  const allowedNextStatuses = isDeleted
+    ? []
+    : STATUS_FLOW[task.status].filter(next =>
+        canChangeTaskStatus(session.role, task.status, next, isAssignee, isAssigner)
+      )
 
   return (
     <div className="flex min-h-full flex-col">
@@ -94,9 +110,29 @@ export default async function TaskDetailPage({ params }: { params: Promise<{ id:
       />
       <div className="flex-1 bg-muted/50 dark:bg-background">
       <div className="p-4 md:p-6 max-w-3xl space-y-5">
-        <Button asChild variant="ghost" size="sm" className="-mb-1">
-          <Link href="/tasks"><ArrowLeft className="h-4 w-4 mr-1" />Kembali</Link>
-        </Button>
+        <div className="flex items-center justify-between gap-2 flex-wrap -mb-1">
+          <Button asChild variant="ghost" size="sm">
+            <Link href="/tasks"><ArrowLeft className="h-4 w-4 mr-1" />Kembali</Link>
+          </Button>
+          <TaskRowActions
+            taskId={id}
+            title={task.title}
+            canEdit={mayEdit}
+            canDelete={mayDelete}
+            isDeleted={isDeleted}
+            canRestore={isManagement(session.role)}
+          />
+        </div>
+
+        {isDeleted && (
+          <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-4">
+            <p className="text-sm font-medium text-destructive">Tugas ini sudah dihapus.</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Hanya manajemen yang masih bisa membukanya. Riwayat & diskusinya utuh,
+              dan tugas dapat dikembalikan ke daftar lewat tombol Pulihkan.
+            </p>
+          </div>
+        )}
 
         {/* Task header */}
         <div className="rounded-xl border bg-card p-5 shadow-sm">
@@ -164,11 +200,7 @@ export default async function TaskDetailPage({ params }: { params: Promise<{ id:
                 <div>
                   <p className="text-sm">
                     <strong>{h.changer?.display_name}</strong>{' '}
-                    {h.old_status ? (
-                      <>mengubah status dari <Badge variant="outline" className="text-xs">{h.old_status}</Badge> ke <Badge variant="outline" className="text-xs">{h.new_status}</Badge></>
-                    ) : (
-                      <>membuat task</>
-                    )}
+                    <HistoryVerb entry={h} />
                   </p>
                   {h.notes && <p className="text-xs text-muted-foreground mt-0.5">{h.notes}</p>}
                   <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1">
@@ -195,6 +227,34 @@ export default async function TaskDetailPage({ params }: { params: Promise<{ id:
       </div>
     </div>
   )
+}
+
+/**
+ * Kalimat riwayat sesuai jenis peristiwanya.
+ *
+ * Sejak migrasi 0018 tidak semua baris riwayat adalah perpindahan status:
+ * sunting/hapus/pulih menyimpan new_status yang sama dengan old_status, jadi
+ * membacanya sebagai perubahan status akan menghasilkan "dari todo ke todo".
+ * Baris lama (sebelum migrasi) tidak punya kolom action — diperlakukan
+ * sebagai 'status', sesuai artinya selama ini.
+ */
+function HistoryVerb({ entry }: { entry: TaskHistory }) {
+  switch (entry.action ?? 'status') {
+    case 'edited':
+      return <>menyunting isi tugas</>
+    case 'deleted':
+      return <>menghapus tugas</>
+    case 'restored':
+      return <>memulihkan tugas</>
+    default:
+      if (!entry.old_status) return <>membuat task</>
+      return (
+        <>
+          mengubah status dari <Badge variant="outline" className="text-xs">{entry.old_status}</Badge>
+          {' '}ke <Badge variant="outline" className="text-xs">{entry.new_status}</Badge>
+        </>
+      )
+  }
 }
 
 function StatusChangeForm({ taskId, nextStatus, needsNotes }: {

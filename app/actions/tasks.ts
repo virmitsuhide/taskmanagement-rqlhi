@@ -4,7 +4,10 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createServerClient } from '@/lib/supabase/server'
 import { getSession } from '@/lib/auth/session'
-import { canAssignTask, canChangeTaskStatus, canMoveTaskOnBoard } from '@/lib/auth/permissions'
+import {
+  canAssignTask, canChangeTaskStatus, canMoveTaskOnBoard,
+  canDeleteTask, canEditTask, isManagement,
+} from '@/lib/auth/permissions'
 import {
   sendTaskAssigned,
   sendTaskReturned,
@@ -102,11 +105,11 @@ export async function updateTaskStatusAction(
   const supabase = createServerClient()
   const { data: task } = await supabase
     .from('tasks')
-    .select('status, problem_type, assigned_by, assigned_to, title, users!assigned_by(email, display_name), assignee:users!assigned_to(email, display_name)')
+    .select('status, problem_type, assigned_by, assigned_to, title, deleted_at, users!assigned_by(email, display_name), assignee:users!assigned_to(email, display_name)')
     .eq('id', taskId)
     .single()
 
-  if (!task) return { error: 'Task tidak ditemukan.' }
+  if (!task || task.deleted_at) return { error: 'Task tidak ditemukan.' }
 
   const isAssignee = task.assigned_to === session.userId
   const isAssigner = task.assigned_by === session.userId
@@ -186,11 +189,11 @@ export async function updateTaskProblemAction(
   const supabase = createServerClient()
   const { data: task } = await supabase
     .from('tasks')
-    .select('status, assigned_by, assigned_to')
+    .select('status, assigned_by, assigned_to, deleted_at')
     .eq('id', taskId)
     .single()
 
-  if (!task) return { error: 'Task tidak ditemukan.' }
+  if (!task || task.deleted_at) return { error: 'Task tidak ditemukan.' }
   if (task.status !== 'problem') return { error: 'Task ini tidak sedang berstatus Problem.' }
 
   const allowed = canMoveTaskOnBoard(
@@ -220,24 +223,191 @@ export async function updateTaskStatusFromFormAction(formData: FormData) {
   await updateTaskStatusAction(taskId, newStatus, notes)
 }
 
-export async function deleteTaskAction(taskId: string) {
+export async function deleteTaskFromFormAction(formData: FormData) {
+  await deleteTaskAction(formData.get('task_id') as string)
+}
+
+export async function restoreTaskFromFormAction(formData: FormData) {
+  await restoreTaskAction(formData.get('task_id') as string)
+}
+
+/** Label ramah untuk ringkasan perubahan di riwayat. */
+const FIELD_LABELS: Record<string, string> = {
+  title:       'judul',
+  description: 'deskripsi',
+  priority:    'prioritas',
+  weight:      'bobot',
+  horizon:     'jangka',
+  due_date:    'tenggat',
+}
+
+/**
+ * Sunting isi tugas.
+ *
+ * Hanya untuk tugas kepada diri sendiri (pemberi = penerima), plus Kepala RQ —
+ * lihat canEditTask. Statusnya sengaja tidak ikut disunting di sini: perpindahan
+ * status punya jalurnya sendiri lewat updateTaskStatusAction yang memvalidasi
+ * transisi antar kolom kanban.
+ *
+ * Setiap suntingan mencatat baris riwayat action='edited' berisi ringkasan
+ * field yang berubah. Baris itulah yang kemudian muncul sebagai notifikasi bagi
+ * manajemen — tanpa jejak ini, tugas pribadi bisa diubah tanpa terpantau siapa
+ * pun, karena pemberi dan penerimanya orang yang sama.
+ */
+export async function updateTaskAction(_: unknown, formData: FormData) {
   const session = await getSession()
-  if (!session || session.role !== 'kepala_rq') {
-    return { error: 'Tidak memiliki izin.' }
-  }
+  if (!session) return { error: 'Sesi tidak valid.' }
+
+  const taskId = formData.get('task_id') as string
+  if (!taskId) return { error: 'Task tidak dikenali.' }
 
   const supabase = createServerClient()
-  const { error } = await supabase.from('tasks').delete().eq('id', taskId)
-  if (error) return { error: 'Gagal menghapus task.' }
+  const { data: task } = await supabase
+    .from('tasks')
+    .select('title, description, priority, weight, horizon, due_date, status, assigned_by, assigned_to, deleted_at')
+    .eq('id', taskId)
+    .maybeSingle()
+
+  if (!task || task.deleted_at) return { error: 'Tugas tidak ditemukan.' }
+
+  const isAssignee = task.assigned_to === session.userId
+  const isAssigner = task.assigned_by === session.userId
+  if (!canEditTask(session.role, isAssignee, isAssigner)) {
+    return { error: 'Anda tidak memiliki izin menyunting tugas ini.' }
+  }
+
+  const title = ((formData.get('title') as string) ?? '').trim()
+  if (!title) return { error: 'Judul tugas wajib diisi.' }
+
+  const next = {
+    title,
+    description: ((formData.get('description') as string) ?? '').trim() || null,
+    priority: (formData.get('priority') as TaskPriority) || task.priority,
+    weight: (formData.get('weight') as TaskWeight) || task.weight,
+    horizon: (formData.get('horizon') as TaskHorizon) || task.horizon,
+    due_date: ((formData.get('due_date') as string) ?? '') || null,
+  }
+
+  const changed = Object.keys(next).filter(
+    k => next[k as keyof typeof next] !== task[k as keyof typeof task],
+  )
+  // Form dikirim tanpa mengubah apa pun — jangan mengotori riwayat & notifikasi.
+  if (changed.length === 0) {
+    redirect(`/tasks/${taskId}`)
+  }
+
+  const { error } = await supabase
+    .from('tasks')
+    .update({ ...next, updated_at: new Date().toISOString() })
+    .eq('id', taskId)
+  if (error) return { error: 'Gagal menyimpan perubahan.' }
+
+  await supabase.from('task_history').insert({
+    task_id: taskId,
+    changed_by: session.userId,
+    old_status: task.status,
+    new_status: task.status, // tidak berpindah kolom; 'action' yang menerangkan
+    action: 'edited',
+    notes: `Menyunting ${changed.map(f => FIELD_LABELS[f] ?? f).join(', ')}`,
+  })
 
   revalidatePath('/tasks')
+  revalidatePath('/tasks/board')
+  revalidatePath(`/tasks/${taskId}`)
+  redirect(`/tasks/${taskId}`)
+}
+
+/**
+ * Hapus tugas — menyembunyikan, bukan membuang (lihat migrasi 0018).
+ *
+ * Hard delete akan meruntuhkan notifikasi yang baru saja dibuat: task_history
+ * ber-FK ON DELETE CASCADE dan getNotifications membuang baris yang task
+ * induknya hilang. Dengan deleted_at, jejaknya utuh dan tugas masih bisa
+ * dipulihkan lewat restoreTaskAction.
+ */
+export async function deleteTaskAction(taskId: string) {
+  const session = await getSession()
+  if (!session) return { error: 'Sesi tidak valid.' }
+
+  const supabase = createServerClient()
+  const { data: task } = await supabase
+    .from('tasks')
+    .select('status, assigned_by, assigned_to, deleted_at')
+    .eq('id', taskId)
+    .maybeSingle()
+
+  if (!task || task.deleted_at) return { error: 'Tugas tidak ditemukan.' }
+
+  const isAssignee = task.assigned_to === session.userId
+  const isAssigner = task.assigned_by === session.userId
+  if (!canDeleteTask(session.role, isAssignee, isAssigner)) {
+    return { error: 'Anda tidak memiliki izin menghapus tugas ini.' }
+  }
+
+  const { error } = await supabase
+    .from('tasks')
+    .update({ deleted_at: new Date().toISOString() })
+    .eq('id', taskId)
+  if (error) return { error: 'Gagal menghapus tugas.' }
+
+  await supabase.from('task_history').insert({
+    task_id: taskId,
+    changed_by: session.userId,
+    old_status: task.status,
+    new_status: task.status,
+    action: 'deleted',
+    notes: 'Tugas dihapus',
+  })
+
+  revalidatePath('/tasks')
+  revalidatePath('/tasks/board')
   redirect('/tasks')
 }
 
 /**
+ * Pulihkan tugas yang terhapus. Wewenang manajemen — inilah alasan penghapusan
+ * dibuat lunak, supaya salah hapus tidak permanen.
+ */
+export async function restoreTaskAction(taskId: string) {
+  const session = await getSession()
+  if (!session || !isManagement(session.role)) {
+    return { error: 'Tidak memiliki izin.' }
+  }
+
+  const supabase = createServerClient()
+  const { data: task } = await supabase
+    .from('tasks')
+    .select('status, deleted_at')
+    .eq('id', taskId)
+    .maybeSingle()
+
+  if (!task) return { error: 'Tugas tidak ditemukan.' }
+  if (!task.deleted_at) return { error: 'Tugas ini tidak sedang terhapus.' }
+
+  const { error } = await supabase
+    .from('tasks')
+    .update({ deleted_at: null })
+    .eq('id', taskId)
+  if (error) return { error: 'Gagal memulihkan tugas.' }
+
+  await supabase.from('task_history').insert({
+    task_id: taskId,
+    changed_by: session.userId,
+    old_status: task.status,
+    new_status: task.status,
+    action: 'restored',
+    notes: 'Tugas dipulihkan',
+  })
+
+  revalidatePath('/tasks')
+  revalidatePath('/tasks/board')
+  revalidatePath(`/tasks/${taskId}`)
+  return { success: true }
+}
+
+/**
  * Hapus tugas yang sudah selesai dari riwayat (khusus kepala_rq).
- * FK task_history & task_comments ON DELETE CASCADE — ikut terhapus.
- * Tidak redirect: dipakai dari dashboard, cukup revalidate.
+ * Dipakai dari dashboard manajemen — tidak redirect, cukup revalidate.
  */
 export async function deleteCompletedTaskAction(taskId: string) {
   const session = await getSession()
@@ -248,14 +418,26 @@ export async function deleteCompletedTaskAction(taskId: string) {
   const supabase = createServerClient()
   const { data: task } = await supabase
     .from('tasks')
-    .select('status')
+    .select('status, deleted_at')
     .eq('id', taskId)
     .maybeSingle()
-  if (!task) return { error: 'Tugas tidak ditemukan.' }
+  if (!task || task.deleted_at) return { error: 'Tugas tidak ditemukan.' }
   if (task.status !== 'done') return { error: 'Hanya tugas yang sudah selesai yang bisa dihapus dari riwayat.' }
 
-  const { error } = await supabase.from('tasks').delete().eq('id', taskId)
+  const { error } = await supabase
+    .from('tasks')
+    .update({ deleted_at: new Date().toISOString() })
+    .eq('id', taskId)
   if (error) return { error: 'Gagal menghapus tugas.' }
+
+  await supabase.from('task_history').insert({
+    task_id: taskId,
+    changed_by: session.userId,
+    old_status: task.status,
+    new_status: task.status,
+    action: 'deleted',
+    notes: 'Tugas selesai dihapus dari riwayat',
+  })
 
   revalidatePath('/dashboard/manajemen')
   return { success: true }

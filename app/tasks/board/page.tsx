@@ -1,11 +1,12 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { getSession } from '@/lib/auth/session'
-import { canViewDivisiBoard, getBoardDivisions, ROLE_LABELS } from '@/lib/auth/permissions'
+import { canViewDivisiBoard, getBoardDivisions, canAssignAnyTask, ROLE_LABELS } from '@/lib/auth/permissions'
 import { getBoardTasks, type BoardScope } from '@/lib/data/board'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
+import { NewTaskMenu } from '@/components/tasks/NewTaskMenu'
 import { KanbanBoard } from './KanbanBoard'
-import { List, Plus } from 'lucide-react'
+import { List } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { UserRole } from '@/types'
 
@@ -54,9 +55,14 @@ export default async function TaskBoardPage({ searchParams }: PageProps) {
             <Button asChild size="sm" variant="outline">
               <Link href="/tasks"><List className="h-4 w-4 mr-1" />Tampilan List</Link>
             </Button>
-            <Button asChild size="sm">
-              <Link href="/tasks/baru"><Plus className="h-4 w-4 mr-1" />Buat Task</Link>
-            </Button>
+            {/*
+              Menu yang sama dengan tampilan list. Tautan polos ke /tasks/baru
+              tidak cukup: halaman itu menolak role yang tidak boleh
+              mendelegasi, jadi Humas & Bendahara terlempar balik ke /tasks
+              tanpa penjelasan — padahal mereka tetap berhak membuat tugas
+              untuk diri sendiri lewat ?personal=1.
+            */}
+            <NewTaskMenu canDelegate={canAssignAnyTask(session.role)} />
           </div>
         </div>
 

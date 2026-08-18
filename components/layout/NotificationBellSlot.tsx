@@ -16,7 +16,7 @@ export async function NotificationBellSlot() {
   const session = await getSession()
   if (!session) return null
 
-  const feed = await getNotifications(session.userId).catch(() => EMPTY)
+  const feed = await getNotifications(session.userId, session.role).catch(() => EMPTY)
 
   return <NotificationBell items={feed.items} unseenCount={feed.unseenCount} />
 }

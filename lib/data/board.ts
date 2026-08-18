@@ -41,6 +41,7 @@ export async function getBoardTasks({ session, scope, divisi }: GetBoardOpts): P
       .from('tasks')
       .select(selectCols)
       .eq('assigned_to', session.userId)
+      .is('deleted_at', null)
       .order('priority', { ascending: false })
       .order('created_at', { ascending: false })
     tasks = (data ?? []) as Task[]
@@ -59,6 +60,7 @@ export async function getBoardTasks({ session, scope, divisi }: GetBoardOpts): P
     const { data } = await supabase
       .from('tasks')
       .select(selectCols)
+      .is('deleted_at', null)
       .order('priority', { ascending: false })
       .order('created_at', { ascending: false })
 

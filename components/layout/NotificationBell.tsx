@@ -29,6 +29,17 @@ const STATUS_TONE: Partial<Record<TaskStatus, string>> = {
   submitted: 'text-primary',
 }
 
+/**
+ * Peristiwa tata kelola (migrasi 0018). Berbeda dari notifikasi status: yang
+ * penting di sini bukan tugasnya berpindah ke kolom mana, melainkan bahwa
+ * isinya diubah atau dihapus — jadi kata kerjanya yang ditonjolkan, bukan status.
+ */
+const AUDIT_META: Record<'edited' | 'deleted' | 'restored', { label: string; tone: string }> = {
+  edited:   { label: 'Tugas disunting', tone: 'text-warning' },
+  deleted:  { label: 'Tugas dihapus',   tone: 'text-destructive' },
+  restored: { label: 'Tugas dipulihkan', tone: 'text-success' },
+}
+
 function timeAgo(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime()
   const m = Math.floor(diff / 60000)
@@ -183,12 +194,19 @@ export function NotificationBell({ items, unseenCount }: Props) {
                         >
                           {item.kind === 'assigned' ? (
                             <>Tugas baru: {item.taskTitle}</>
-                          ) : (
+                          ) : item.kind === 'status' ? (
                             <>
                               {item.taskTitle} →{' '}
                               <span className={STATUS_TONE[item.newStatus] ?? ''}>
                                 {STATUS_LABELS[item.newStatus]}
                               </span>
+                            </>
+                          ) : (
+                            <>
+                              <span className={AUDIT_META[item.kind].tone}>
+                                {AUDIT_META[item.kind].label}
+                              </span>
+                              : {item.taskTitle}
                             </>
                           )}
                         </span>
