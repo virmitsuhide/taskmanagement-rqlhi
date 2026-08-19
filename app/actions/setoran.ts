@@ -39,6 +39,22 @@ function resolveStudentPosition(opts: {
   }
 }
 
+/**
+ * Baca nilai 0-100 dari form.
+ *
+ * Kosong berarti aspek itu memang tidak dinilai, bukan bernilai nol -- nol
+ * akan menyeret rata-rata rapor ke bawah tanpa ada yang menyadarinya.
+ * Nilai di luar 0-100 ditolak di sini juga, bukan hanya oleh CHECK di
+ * database, supaya pesannya bisa menyebut aspek mana yang keliru.
+ */
+function readScore(formData: FormData, field: string): number | null {
+  const raw = formData.get(field)
+  if (raw === null || String(raw).trim() === '') return null
+  const value = Number(raw)
+  if (!Number.isFinite(value) || value < 0 || value > 100) return null
+  return value
+}
+
 export async function createTahsinLogAction(_: unknown, formData: FormData) {
   const session = await getTeacherSession()
   if (!session) return { error: 'Sesi guru tidak valid.' }
@@ -55,9 +71,8 @@ export async function createTahsinLogAction(_: unknown, formData: FormData) {
   const halaman = formData.get('halaman') ? Number(formData.get('halaman')) : null
   const barisDari = formData.get('baris_dari') ? Number(formData.get('baris_dari')) : null
   const barisKe = formData.get('baris_ke') ? Number(formData.get('baris_ke')) : null
-  const nilaiFashohah = formData.get('nilai_fashohah') ? Number(formData.get('nilai_fashohah')) : null
-  const nilaiTajwid = formData.get('nilai_tajwid') ? Number(formData.get('nilai_tajwid')) : null
-  const nilaiKelancaran = formData.get('nilai_kelancaran') ? Number(formData.get('nilai_kelancaran')) : null
+  const nilaiTahsin = readScore(formData, 'nilai_tahsin')
+  const nilaiSikap = readScore(formData, 'nilai_sikap')
   const status = ((formData.get('status') as string) || 'lulus') as TahsinStatus
   const catatan = ((formData.get('catatan') as string) || '').trim() || null
   const setoranDate = (formData.get('setoran_date') as string) || new Date().toISOString().slice(0, 10)
@@ -86,9 +101,8 @@ export async function createTahsinLogAction(_: unknown, formData: FormData) {
     halaman: halaman,
     baris_dari: barisDari,
     baris_ke: barisKe,
-    nilai_fashohah: nilaiFashohah,
-    nilai_tajwid: nilaiTajwid,
-    nilai_kelancaran: nilaiKelancaran,
+    nilai_tahsin: nilaiTahsin,
+    nilai_sikap: nilaiSikap,
     status,
     catatan,
   })
@@ -163,9 +177,8 @@ export async function createTahfidzLogAction(_: unknown, formData: FormData) {
   const suratId = formData.get('surat_id') ? Number(formData.get('surat_id')) : null
   const ayatDari = formData.get('ayat_dari') ? Number(formData.get('ayat_dari')) : null
   const ayatKe = formData.get('ayat_ke') ? Number(formData.get('ayat_ke')) : null
-  const nilaiFashohah = formData.get('nilai_fashohah') ? Number(formData.get('nilai_fashohah')) : null
-  const nilaiTajwid = formData.get('nilai_tajwid') ? Number(formData.get('nilai_tajwid')) : null
-  const nilaiKelancaran = formData.get('nilai_kelancaran') ? Number(formData.get('nilai_kelancaran')) : null
+  const nilaiTahfidz = readScore(formData, 'nilai_tahfidz')
+  const nilaiSikap = readScore(formData, 'nilai_sikap')
   const catatan = ((formData.get('catatan') as string) || '').trim() || null
   const setoranDate = (formData.get('setoran_date') as string) || new Date().toISOString().slice(0, 10)
   const naikJuz = formData.get('naik_juz') === 'on'
@@ -205,9 +218,8 @@ export async function createTahfidzLogAction(_: unknown, formData: FormData) {
     surat_id: suratId,
     ayat_dari: ayatDari,
     ayat_ke: ayatKe,
-    nilai_fashohah: nilaiFashohah,
-    nilai_tajwid: nilaiTajwid,
-    nilai_kelancaran: nilaiKelancaran,
+    nilai_tahfidz: nilaiTahfidz,
+    nilai_sikap: nilaiSikap,
     catatan,
   })
   if (logErr) return { error: 'Gagal menyimpan setoran tahfidz.' }
@@ -258,9 +270,8 @@ export async function createTasmiLogAction(_: unknown, formData: FormData) {
   const scopeJuz = formData.get('scope_juz') ? Number(formData.get('scope_juz')) : null
   const juzFrom = formData.get('juz_from') ? Number(formData.get('juz_from')) : null
   const juzTo = formData.get('juz_to') ? Number(formData.get('juz_to')) : null
-  const nilaiFashohah = formData.get('nilai_fashohah') ? Number(formData.get('nilai_fashohah')) : null
-  const nilaiTajwid = formData.get('nilai_tajwid') ? Number(formData.get('nilai_tajwid')) : null
-  const nilaiKelancaran = formData.get('nilai_kelancaran') ? Number(formData.get('nilai_kelancaran')) : null
+  const nilaiTahfidz = readScore(formData, 'nilai_tahfidz')
+  const nilaiSikap = readScore(formData, 'nilai_sikap')
   const status = ((formData.get('status') as string) || 'lulus') as TahsinStatus
   const catatan = ((formData.get('catatan') as string) || '').trim() || null
   const setoranDate = (formData.get('setoran_date') as string) || new Date().toISOString().slice(0, 10)
@@ -288,9 +299,8 @@ export async function createTasmiLogAction(_: unknown, formData: FormData) {
     scope_juz: scopeJuz,
     juz_from: juzFrom,
     juz_to: juzTo,
-    nilai_fashohah: nilaiFashohah,
-    nilai_tajwid: nilaiTajwid,
-    nilai_kelancaran: nilaiKelancaran,
+    nilai_tahfidz: nilaiTahfidz,
+    nilai_sikap: nilaiSikap,
     status,
     catatan,
   })

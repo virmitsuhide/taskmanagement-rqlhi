@@ -22,7 +22,7 @@ export default async function StudentDetailPage({ params }: PageProps) {
     .from('students')
     .select(`
       *,
-      halaqoh:halaqoh(id, name),
+      halaqoh:halaqoh!students_halaqoh_id_fkey(id, name),
       current_method:tahsin_methods!students_current_method_id_fkey(id, name),
       current_jilid:jilid_levels!students_current_jilid_id_fkey(id, label)
     `)

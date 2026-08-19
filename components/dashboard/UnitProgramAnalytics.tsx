@@ -4,7 +4,6 @@ import { useMemo, useState } from 'react'
 import {
   ChevronDown, GraduationCap, BookOpen, Sparkles, Award, Users, UserCog, BookMarked, BarChart3,
 } from 'lucide-react'
-import { StarValue } from '@/components/StarValue'
 import { cn } from '@/lib/utils'
 import type { UnitLearning, ProgramAnalytics } from '@/lib/data/analytics'
 
@@ -131,9 +130,9 @@ function TahsinTahfidzView({ unit }: { unit: UnitLearning }) {
   const tasmi = unit.logs.tasmi.filter(l => inPeriod(l.date))
 
   const normKind = (k: string) => (k === 'hafalan_baru' ? 'ziyadah' : k === 'murojaah' ? 'murojaah_baru' : k)
-  const tahsinAvg = { f: avgOf(tahsin.map(l => l.f)), t: avgOf(tahsin.map(l => l.t)), k: avgOf(tahsin.map(l => l.k)) }
+  const tahsinAvg = { n: avgOf(tahsin.map(l => l.n)), s: avgOf(tahsin.map(l => l.s)) }
   const tahfidzAll = [...tahfidz, ...tasmi]
-  const tahfidzAvg = { f: avgOf(tahfidzAll.map(l => l.f)), t: avgOf(tahfidzAll.map(l => l.t)), k: avgOf(tahfidzAll.map(l => l.k)) }
+  const tahfidzAvg = { n: avgOf(tahfidzAll.map(l => l.n)), s: avgOf(tahfidzAll.map(l => l.s)) }
 
   const maxMethod = Math.max(1, ...unit.byMethod.map(m => m.count))
   const maxJuz = Math.max(1, ...unit.juzHistogram.map(j => j.students))
@@ -166,7 +165,7 @@ function TahsinTahfidzView({ unit }: { unit: UnitLearning }) {
             <Metric label="Lulus" value={tahsin.filter(l => l.status === 'lulus').length} accent />
             <Metric label="Ulang" value={tahsin.filter(l => l.status === 'ulang').length} />
           </div>
-          <ScoreRows avg={tahsinAvg} />
+          <ScoreRows avg={tahsinAvg} label="Tahsin" />
         </section>
 
         <section className="rounded-xl border bg-card p-4">
@@ -177,7 +176,7 @@ function TahsinTahfidzView({ unit }: { unit: UnitLearning }) {
             <Metric label="Muroj. Lama" value={tahfidz.filter(l => normKind(l.kind) === 'murojaah_lama').length} />
             <Metric label="Tasmi'" value={tasmi.length} />
           </div>
-          <ScoreRows avg={tahfidzAvg} />
+          <ScoreRows avg={tahfidzAvg} label="Tahfidz" />
         </section>
       </div>
 
@@ -361,15 +360,17 @@ function ProgramPanel({ program, showExams, singleProgram }: {
 }
 
 // ── Sub-komponen kecil ──
-function ScoreRows({ avg }: { avg: { f: number | null; t: number | null; k: number | null } }) {
-  const rows: [string, number | null][] = [['Fashohah', avg.f], ['Tajwid', avg.t], ['Kelancaran', avg.k]]
+function ScoreRows({ avg, label }: { avg: { n: number | null; s: number | null }; label: string }) {
+  const rows: [string, number | null][] = [[label, avg.n], ['Sikap', avg.s]]
   return (
     <div className="space-y-2 border-t pt-3">
       <p className="text-xs font-medium text-muted-foreground">Rata-rata nilai</p>
       {rows.map(([label, val]) => (
         <div key={label} className="flex items-center justify-between">
           <span className="text-xs">{label}</span>
-          <StarValue value={val} size={15} />
+          <span className="text-xs font-semibold tabular-nums">
+            {val === null ? '—' : val.toLocaleString('id-ID')}
+          </span>
         </div>
       ))}
     </div>

@@ -22,7 +22,8 @@
     "seed:rapat-baru": "tsx scripts/seed-rapat-baru.ts",
     "seed:berita": "tsx scripts/seed-berita-dummy.ts",
     "seed:guru-mpp": "tsx scripts/seed-guru-mpp.ts",
-    "seed:gukar": "tsx scripts/seed-gukar.ts"
+    "seed:gukar": "tsx scripts/seed-gukar.ts",
+    "seed:siswa": "tsx scripts/seed-siswa.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",

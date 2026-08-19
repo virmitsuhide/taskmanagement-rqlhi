@@ -171,7 +171,7 @@ export async function getStudentsNeedingAttention(
 
   const { data: students } = await supabase
     .from('students')
-    .select('id, full_name, halaqoh:halaqoh(name)')
+    .select('id, full_name, halaqoh:halaqoh!students_halaqoh_id_fkey(name)')
     .in('halaqoh_id', halaqohIds)
     .eq('is_active', true)
 

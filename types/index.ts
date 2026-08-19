@@ -828,3 +828,17 @@ export interface GukarMonthly {
 
 /** Ambang kehadiran yang dipakai rekap — mengikuti kolom "Kekurangan (75%)". */
 export const GUKAR_TARGET_HADIR = 0.75
+
+/** Capaian awal & akhir satu siswa pada satu bulan. */
+export interface StudentMonthly {
+  id: string
+  student_id: string
+  period: string
+  level: string
+  halaman_awal_tahsin: string
+  halaman_akhir_tahsin: string
+  tahfidz_awal: string
+  tahfidz_akhir: string
+  capaian_halaman: number
+  catatan: string
+}

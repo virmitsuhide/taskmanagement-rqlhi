@@ -22,7 +22,7 @@ export default async function NewTahfidzSetoranPage({ searchParams }: PageProps)
     halaqohIds.length > 0
       ? supabase
           .from('students')
-          .select('id, full_name, halaqoh:halaqoh(name)')
+          .select('id, full_name, halaqoh:halaqoh!students_halaqoh_id_fkey(name)')
           .in('halaqoh_id', halaqohIds)
           .eq('is_active', true)
           .order('full_name')

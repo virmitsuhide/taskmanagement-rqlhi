@@ -83,7 +83,8 @@ export async function getRqAnalytics(): Promise<RqAnalytics> {
 }
 
 // ─── Analitik khusus Tahsin & Tahfidz (manajemen) ───────────────────
-type Avg3 = { fashohah: number | null; tajwid: number | null; kelancaran: number | null }
+/** Rata-rata rubrik baru: nilai pokok (tahsin/tahfidz) dan nilai sikap. */
+type Avg2 = { nilai: number | null; sikap: number | null }
 
 export interface TahsinTahfidzAnalytics {
   monthLabel: string
@@ -94,8 +95,8 @@ export interface TahsinTahfidzAnalytics {
     method: string
     levels: { label: string; order_num: number; count: number; isTerminal: boolean; isQuran: boolean }[]
   }[]
-  tahsinMonth: { setoran: number; lulus: number; ulang: number; avg: Avg3 }
-  tahfidzMonth: { ziyadah: number; murojaahBaru: number; murojaahLama: number; tasmi: number; avg: Avg3 }
+  tahsinMonth: { setoran: number; lulus: number; ulang: number; avg: Avg2 }
+  tahfidzMonth: { ziyadah: number; murojaahBaru: number; murojaahLama: number; tasmi: number; avg: Avg2 }
   juzHistogram: { juz: number; students: number }[]
 }
 
@@ -120,9 +121,9 @@ export async function getTahsinTahfidzAnalytics(): Promise<TahsinTahfidzAnalytic
     supabase.from('tahsin_methods').select('id, name').eq('is_active', true),
     supabase.from('jilid_levels').select('id, method_id, label, order_num, is_terminal, is_quran'),
     supabase.from('juz_progress').select('student_id, juz_number, ayat_hafal, mutqin'),
-    supabase.from('tahsin_logs').select('status, nilai_fashohah, nilai_tajwid, nilai_kelancaran').gte('setoran_date', monthStartIso).lte('setoran_date', monthEndIso),
-    supabase.from('tahfidz_logs').select('kind, nilai_fashohah, nilai_tajwid, nilai_kelancaran').gte('setoran_date', monthStartIso).lte('setoran_date', monthEndIso),
-    supabase.from('tasmi_logs').select('nilai_fashohah, nilai_tajwid, nilai_kelancaran').gte('setoran_date', monthStartIso).lte('setoran_date', monthEndIso),
+    supabase.from('tahsin_logs').select('status, nilai_tahsin, nilai_sikap').gte('setoran_date', monthStartIso).lte('setoran_date', monthEndIso),
+    supabase.from('tahfidz_logs').select('kind, nilai_tahfidz, nilai_sikap').gte('setoran_date', monthStartIso).lte('setoran_date', monthEndIso),
+    supabase.from('tasmi_logs').select('nilai_tahfidz, nilai_sikap').gte('setoran_date', monthStartIso).lte('setoran_date', monthEndIso),
   ])
 
   const students = (studentsRes.data ?? []) as { jenjang: Jenjang; current_method_id: string | null; current_jilid_id: string | null }[]
@@ -169,31 +170,29 @@ export async function getTahsinTahfidzAnalytics(): Promise<TahsinTahfidzAnalytic
   const juzHistogram = [...juzHistMap.entries()].map(([juz, students]) => ({ juz, students })).sort((a, b) => a.juz - b.juz)
 
   // Tahsin bulan ini
-  const tahsinLogs = (tahsinMonthRes.data ?? []) as { status: string; nilai_fashohah: number | string | null; nilai_tajwid: number | string | null; nilai_kelancaran: number | string | null }[]
+  const tahsinLogs = (tahsinMonthRes.data ?? []) as { status: string; nilai_tahsin: number | string | null; nilai_sikap: number | string | null }[]
   const tahsinMonth = {
     setoran: tahsinLogs.length,
     lulus: tahsinLogs.filter(l => l.status === 'lulus').length,
     ulang: tahsinLogs.filter(l => l.status === 'ulang').length,
     avg: {
-      fashohah: avgOf(tahsinLogs.map(l => l.nilai_fashohah)),
-      tajwid: avgOf(tahsinLogs.map(l => l.nilai_tajwid)),
-      kelancaran: avgOf(tahsinLogs.map(l => l.nilai_kelancaran)),
+      nilai: avgOf(tahsinLogs.map(l => l.nilai_tahsin)),
+      sikap: avgOf(tahsinLogs.map(l => l.nilai_sikap)),
     },
   }
 
   // Tahfidz bulan ini
-  const tahfidzLogs = (tahfidzMonthRes.data ?? []) as { kind: string; nilai_fashohah: number | string | null; nilai_tajwid: number | string | null; nilai_kelancaran: number | string | null }[]
+  const tahfidzLogs = (tahfidzMonthRes.data ?? []) as { kind: string; nilai_tahfidz: number | string | null; nilai_sikap: number | string | null }[]
   const normKind = (k: string) => (k === 'hafalan_baru' ? 'ziyadah' : k === 'murojaah' ? 'murojaah_baru' : k)
-  const tasmiLogs = (tasmiMonthRes.data ?? []) as { nilai_fashohah: number | string | null; nilai_tajwid: number | string | null; nilai_kelancaran: number | string | null }[]
+  const tasmiLogs = (tasmiMonthRes.data ?? []) as { nilai_tahfidz: number | string | null; nilai_sikap: number | string | null }[]
   const tahfidzMonth = {
     ziyadah: tahfidzLogs.filter(l => normKind(l.kind) === 'ziyadah').length,
     murojaahBaru: tahfidzLogs.filter(l => normKind(l.kind) === 'murojaah_baru').length,
     murojaahLama: tahfidzLogs.filter(l => normKind(l.kind) === 'murojaah_lama').length,
     tasmi: tasmiLogs.length,
     avg: {
-      fashohah: avgOf([...tahfidzLogs, ...tasmiLogs].map(l => l.nilai_fashohah)),
-      tajwid: avgOf([...tahfidzLogs, ...tasmiLogs].map(l => l.nilai_tajwid)),
-      kelancaran: avgOf([...tahfidzLogs, ...tasmiLogs].map(l => l.nilai_kelancaran)),
+      nilai: avgOf([...tahfidzLogs, ...tasmiLogs].map(l => l.nilai_tahfidz)),
+      sikap: avgOf([...tahfidzLogs, ...tasmiLogs].map(l => l.nilai_sikap)),
     },
   }
 
@@ -369,9 +368,9 @@ export interface UnitLearning {
   juzHistogram: { juz: number; students: number }[]
   juzByKelas: { kelas: string; total: number; avgJuz: number; distribution: { juzCount: number; students: number }[] }[]
   logs: {
-    tahsin: { date: string; status: string; f: number | null; t: number | null; k: number | null }[]
-    tahfidz: { date: string; kind: string; f: number | null; t: number | null; k: number | null }[]
-    tasmi: { date: string; f: number | null; t: number | null; k: number | null }[]
+    tahsin: { date: string; status: string; n: number | null; s: number | null }[]
+    tahfidz: { date: string; kind: string; n: number | null; s: number | null }[]
+    tasmi: { date: string; n: number | null; s: number | null }[]
   }
 }
 
@@ -384,9 +383,9 @@ export async function getUnitLearning(): Promise<UnitLearning[]> {
     supabase.from('jilid_levels').select('id, method_id, label, order_num, is_terminal, is_quran'),
     supabase.from('juz_progress').select('student_id, juz_number, ayat_hafal, mutqin'),
     supabase.from('juz_promotions').select('student_id, juz_number, exam_score, promotion_date'),
-    supabase.from('tasmi_logs').select('student_id, scope_juz, juz_from, juz_to, status, setoran_date, nilai_fashohah, nilai_tajwid, nilai_kelancaran'),
-    supabase.from('tahsin_logs').select('student_id, setoran_date, status, nilai_fashohah, nilai_tajwid, nilai_kelancaran'),
-    supabase.from('tahfidz_logs').select('student_id, setoran_date, kind, nilai_fashohah, nilai_tajwid, nilai_kelancaran'),
+    supabase.from('tasmi_logs').select('student_id, scope_juz, juz_from, juz_to, status, setoran_date, nilai_tahfidz, nilai_sikap'),
+    supabase.from('tahsin_logs').select('student_id, setoran_date, status, nilai_tahsin, nilai_sikap'),
+    supabase.from('tahfidz_logs').select('student_id, setoran_date, kind, nilai_tahfidz, nilai_sikap'),
     supabase.from('halaqoh').select('id, jenjang, wali_teacher_id').eq('is_active', true),
     supabase.from('halaqoh_teachers').select('halaqoh_id, teacher_id'),
   ])
@@ -543,15 +542,15 @@ export async function getUnitLearning(): Promise<UnitLearning[]> {
 
     // Log setoran mentah (untuk filter bulan/tahun di klien)
     const unitIds = new Set(unitStudents.map(s => s.id))
-    const tahsinLogs = ((tahsinRes.data ?? []) as { student_id: string; setoran_date: string; status: string; nilai_fashohah: number | string | null; nilai_tajwid: number | string | null; nilai_kelancaran: number | string | null }[])
+    const tahsinLogs = ((tahsinRes.data ?? []) as { student_id: string; setoran_date: string; status: string; nilai_tahsin: number | string | null; nilai_sikap: number | string | null }[])
       .filter(r => unitIds.has(r.student_id))
-      .map(r => ({ date: r.setoran_date, status: r.status, f: numOrNull(r.nilai_fashohah), t: numOrNull(r.nilai_tajwid), k: numOrNull(r.nilai_kelancaran) }))
-    const tahfidzLogs = ((tahfidzRes.data ?? []) as { student_id: string; setoran_date: string; kind: string; nilai_fashohah: number | string | null; nilai_tajwid: number | string | null; nilai_kelancaran: number | string | null }[])
+      .map(r => ({ date: r.setoran_date, status: r.status, n: numOrNull(r.nilai_tahsin), s: numOrNull(r.nilai_sikap) }))
+    const tahfidzLogs = ((tahfidzRes.data ?? []) as { student_id: string; setoran_date: string; kind: string; nilai_tahfidz: number | string | null; nilai_sikap: number | string | null }[])
       .filter(r => unitIds.has(r.student_id))
-      .map(r => ({ date: r.setoran_date, kind: r.kind, f: numOrNull(r.nilai_fashohah), t: numOrNull(r.nilai_tajwid), k: numOrNull(r.nilai_kelancaran) }))
-    const tasmiLogs = ((tasmiRes.data ?? []) as { student_id: string; setoran_date: string; nilai_fashohah: number | string | null; nilai_tajwid: number | string | null; nilai_kelancaran: number | string | null }[])
+      .map(r => ({ date: r.setoran_date, kind: r.kind, n: numOrNull(r.nilai_tahfidz), s: numOrNull(r.nilai_sikap) }))
+    const tasmiLogs = ((tasmiRes.data ?? []) as { student_id: string; setoran_date: string; nilai_tahfidz: number | string | null; nilai_sikap: number | string | null }[])
       .filter(r => unitIds.has(r.student_id))
-      .map(r => ({ date: r.setoran_date, f: numOrNull(r.nilai_fashohah), t: numOrNull(r.nilai_tajwid), k: numOrNull(r.nilai_kelancaran) }))
+      .map(r => ({ date: r.setoran_date, n: numOrNull(r.nilai_tahfidz), s: numOrNull(r.nilai_sikap) }))
 
     return {
       jenjang, label: UNIT_LABELS[jenjang], hasPrograms,

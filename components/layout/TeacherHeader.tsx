@@ -5,7 +5,7 @@ import { Logo } from '@/components/brand/Logo'
 
 interface Props {
   fullName: string
-  active?: 'dashboard' | 'setoran' | 'tahfidz' | 'siswa' | 'statistik' | 'jadwal' | 'rapor' | 'gukar'
+  active?: 'dashboard' | 'setoran' | 'tahfidz' | 'siswa' | 'statistik' | 'jadwal' | 'rapor' | 'gukar' | 'capaian'
 }
 
 const NAV: { key: Props['active']; label: string; href: string }[] = [
@@ -13,6 +13,7 @@ const NAV: { key: Props['active']; label: string; href: string }[] = [
   { key: 'siswa', label: 'Siswa', href: '/guru/siswa' },
   { key: 'setoran', label: 'Setor Tahsin', href: '/guru/setoran/tahsin/baru' },
   { key: 'tahfidz', label: 'Setor Tahfidz', href: '/guru/setoran/tahfidz/baru' },
+  { key: 'capaian', label: 'Capaian Bulanan', href: '/guru/capaian' },
   { key: 'statistik', label: 'Statistik', href: '/guru/statistik' },
   // Hanya relevan bagi pengampu pembinaan; halamannya sendiri menampilkan
   // pesan kosong yang jelas bagi guru yang tidak mengampu kelompok.

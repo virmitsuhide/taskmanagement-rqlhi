@@ -6,11 +6,14 @@ const MONTH_ID = [
   'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
 ]
 
-// Coerce Number: numeric(2,1) Postgres bisa datang sebagai string lewat PostgREST.
+// numeric Postgres bisa datang sebagai string lewat PostgREST, jadi dipaksa
+// jadi angka dulu. Dibulatkan ke satu desimal karena rubriknya kini 0-100 --
+// pembulatan ke kelipatan 0,5 dulu mengikuti skala bintang, dan pada skala
+// ratusan ia hanya menyamarkan selisih nilai.
 function avg(nums: (number | string | null)[]): number | null {
   const valid = nums.map(Number).filter(n => !Number.isNaN(n))
   if (valid.length === 0) return null
-  return Math.round((valid.reduce((a, b) => a + b, 0) / valid.length) * 2) / 2
+  return Math.round((valid.reduce((a, b) => a + b, 0) / valid.length) * 10) / 10
 }
 
 export interface RaporData {
@@ -30,9 +33,8 @@ export interface RaporData {
   tahsin: {
     setoranCount: number
     lulusCount: number
-    avgFashohah: number | null
-    avgTajwid: number | null
-    avgKelancaran: number | null
+    avgTahsin: number | null
+    avgSikap: number | null
     currentMethod: string | null
     currentJilid: string | null
     currentPage: number | null
@@ -43,7 +45,8 @@ export interface RaporData {
     setoranCount: number
     ayatBaru: number
     murojaahCount: number
-    avgKelancaran: number | null
+    avgTahfidz: number | null
+    avgSikap: number | null
     currentJuz: number | null
     currentJuzPercent: number | null
     totalAyatHafal: number
@@ -72,7 +75,7 @@ export async function getStudentRaporData(
     .from('students')
     .select(`
       id, full_name, nis, jenjang, kelas, wali_name, wali_phone, current_jilid_page,
-      halaqoh:halaqoh(name, wali_teacher:teachers!halaqoh_wali_teacher_id_fkey(full_name)),
+      halaqoh:halaqoh!students_halaqoh_id_fkey(name, wali_teacher:teachers!halaqoh_wali_teacher_id_fkey(full_name)),
       current_method:tahsin_methods!students_current_method_id_fkey(name),
       current_jilid:jilid_levels!students_current_jilid_id_fkey(label)
     `)
@@ -96,12 +99,12 @@ export async function getStudentRaporData(
   ] = await Promise.all([
     supabase
       .from('tahsin_logs')
-      .select('setoran_date, nilai_fashohah, nilai_tajwid, nilai_kelancaran, status, catatan')
+      .select('setoran_date, nilai_tahsin, nilai_sikap, status, catatan')
       .eq('student_id', studentId).gte('setoran_date', startIso).lte('setoran_date', endIso)
       .order('setoran_date', { ascending: false }),
     supabase
       .from('tahfidz_logs')
-      .select('setoran_date, kind, ayat_dari, ayat_ke, nilai_kelancaran')
+      .select('setoran_date, kind, ayat_dari, ayat_ke, nilai_tahfidz, nilai_sikap')
       .eq('student_id', studentId).gte('setoran_date', startIso).lte('setoran_date', endIso),
     supabase
       .from('jilid_promotions')
@@ -183,9 +186,8 @@ export async function getStudentRaporData(
     tahsin: {
       setoranCount: tahsinLogs.length,
       lulusCount: tahsinLogs.filter(l => l.status === 'lulus').length,
-      avgFashohah: avg(tahsinLogs.map(l => l.nilai_fashohah)),
-      avgTajwid: avg(tahsinLogs.map(l => l.nilai_tajwid)),
-      avgKelancaran: avg(tahsinLogs.map(l => l.nilai_kelancaran)),
+      avgTahsin: avg(tahsinLogs.map(l => l.nilai_tahsin)),
+      avgSikap: avg(tahsinLogs.map(l => l.nilai_sikap)),
       currentMethod: s.current_method?.name ?? null,
       currentJilid: s.current_jilid?.label ?? null,
       currentPage: s.current_jilid_page,
@@ -200,7 +202,8 @@ export async function getStudentRaporData(
       setoranCount: tahfidzLogs.length,
       ayatBaru,
       murojaahCount,
-      avgKelancaran: avg(tahfidzLogs.map(l => l.nilai_kelancaran)),
+      avgTahfidz: avg(tahfidzLogs.map(l => l.nilai_tahfidz)),
+      avgSikap: avg(tahfidzLogs.map(l => l.nilai_sikap)),
       currentJuz,
       currentJuzPercent,
       totalAyatHafal,

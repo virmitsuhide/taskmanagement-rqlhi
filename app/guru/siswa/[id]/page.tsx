@@ -9,7 +9,6 @@ import { BookOpen, CheckCircle2, Sparkles } from 'lucide-react'
 import { AYAT_PER_JUZ } from '@/types'
 import type { Jenjang, TahfidzKind } from '@/types'
 import { TAHFIDZ_KIND_META } from '@/lib/tahsin'
-import { StarValue } from '@/components/StarValue'
 
 interface PageProps {
   params: Promise<{ id: string }>
@@ -20,12 +19,6 @@ const JENJANG_LABELS: Record<string, string> = { paud: 'PAUD', sd: 'SD', sd_juar
 
 // Rata-rata nilai → dibulatkan ke 0.5 terdekat untuk tampilan bintang.
 // Coerce Number karena numeric Postgres bisa datang sebagai string.
-function avgNum(...vals: (number | string | null)[]): number | null {
-  const nums = vals.map(Number).filter(v => !Number.isNaN(v))
-  if (nums.length === 0) return null
-  return Math.round((nums.reduce((a, b) => a + b, 0) / nums.length) * 2) / 2
-}
-
 export default async function GuruStudentDetailPage({ params, searchParams }: PageProps) {
   const session = await getTeacherSession()
   if (!session) redirect('/guru/login')
@@ -41,7 +34,7 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
     .from('students')
     .select(`
       id, full_name, nis, gender, kelas, jenjang, current_jilid_page,
-      halaqoh:halaqoh(id, name),
+      halaqoh:halaqoh!students_halaqoh_id_fkey(id, name),
       current_method:tahsin_methods!students_current_method_id_fkey(id, name),
       current_jilid:jilid_levels!students_current_jilid_id_fkey(id, label, is_terminal, is_quran)
     `)
@@ -61,7 +54,7 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
   // Riwayat 15 setoran tahsin terakhir
   const { data: logs } = await supabase
     .from('tahsin_logs')
-    .select('id, setoran_date, halaman, baris_dari, baris_ke, nilai_fashohah, nilai_tajwid, nilai_kelancaran, status, catatan, jilid:jilid_levels!tahsin_logs_jilid_id_fkey(label)')
+    .select('id, setoran_date, halaman, baris_dari, baris_ke, nilai_tahsin, nilai_sikap, status, catatan, jilid:jilid_levels!tahsin_logs_jilid_id_fkey(label)')
     .eq('student_id', id)
     .order('setoran_date', { ascending: false })
     .order('created_at', { ascending: false })
@@ -78,7 +71,7 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
   const [tahfidzRes, juzProgressRes, juzPromRes, tasmiRes] = await Promise.all([
     supabase
       .from('tahfidz_logs')
-      .select('id, setoran_date, kind, ayat_dari, ayat_ke, nilai_fashohah, nilai_tajwid, nilai_kelancaran, catatan, surat:surat_master!tahfidz_logs_surat_id_fkey(name_latin, juz_start)')
+      .select('id, setoran_date, kind, ayat_dari, ayat_ke, nilai_tahfidz, nilai_sikap, catatan, surat:surat_master!tahfidz_logs_surat_id_fkey(name_latin, juz_start)')
       .eq('student_id', id)
       .order('setoran_date', { ascending: false })
       .order('created_at', { ascending: false })
@@ -94,7 +87,7 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
       .order('juz_number', { ascending: true }),
     supabase
       .from('tasmi_logs')
-      .select('id, setoran_date, scope_juz, juz_from, juz_to, nilai_fashohah, nilai_tajwid, nilai_kelancaran, status, catatan')
+      .select('id, setoran_date, scope_juz, juz_from, juz_to, nilai_tahfidz, nilai_sikap, status, catatan')
       .eq('student_id', id)
       .order('setoran_date', { ascending: false })
       .order('created_at', { ascending: false })
@@ -107,12 +100,12 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
 
   const tahfidzLogs = (tahfidzRes.data ?? []) as unknown as Array<{
     id: string; setoran_date: string; kind: string; ayat_dari: number; ayat_ke: number
-    nilai_fashohah: number | null; nilai_tajwid: number | null; nilai_kelancaran: number | null
+    nilai_tahfidz: number | null; nilai_sikap: number | null
     catatan: string | null; surat: { name_latin: string; juz_start: number } | null
   }>
   const tasmiLogs = (tasmiRes.data ?? []) as Array<{
     id: string; setoran_date: string; scope_juz: number; juz_from: number; juz_to: number
-    nilai_fashohah: number | null; nilai_tajwid: number | null; nilai_kelancaran: number | null
+    nilai_tahfidz: number | null; nilai_sikap: number | null
     status: string; catatan: string | null
   }>
   const juzProgress = (juzProgressRes.data ?? []) as Array<{ juz_number: number; ayat_hafal: number; mutqin: boolean }>
@@ -270,7 +263,7 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
                       {new Date(log.setoran_date).toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
                     </p>
                     <div className="mt-1">
-                      <StarValue value={avgNum(log.nilai_fashohah, log.nilai_tajwid, log.nilai_kelancaran)} size={13} />
+                      <ScoreBadge nilai={log.nilai_tahsin} sikap={log.nilai_sikap} />
                     </div>
                     {log.catatan && (
                       <p className="text-xs italic text-muted-foreground mt-1">“{log.catatan}”</p>
@@ -337,7 +330,7 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
                     <p className="text-xs text-muted-foreground mt-1">
                       {new Date(log.setoran_date).toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
                       {log.surat ? ` · Juz ${log.surat.juz_start}` : ''}
-                      {' · '}<StarValue value={avgNum(log.nilai_fashohah, log.nilai_tajwid, log.nilai_kelancaran)} size={12} />
+                      {' · '}<ScoreBadge nilai={log.nilai_tahfidz} sikap={log.nilai_sikap} />
                     </p>
                     {log.catatan && (
                       <p className="text-xs italic text-muted-foreground mt-1">“{log.catatan}”</p>
@@ -371,7 +364,7 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">
                     {new Date(log.setoran_date).toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
-                    {' · '}<StarValue value={avgNum(log.nilai_fashohah, log.nilai_tajwid, log.nilai_kelancaran)} size={12} />
+                    {' · '}<ScoreBadge nilai={log.nilai_tahfidz} sikap={log.nilai_sikap} />
                   </p>
                   {log.catatan && (
                     <p className="text-xs italic text-muted-foreground mt-1">“{log.catatan}”</p>
@@ -402,5 +395,23 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
         )}
       </main>
     </div>
+  )
+}
+
+/**
+ * Nilai satu setoran: nilai pokok dan nilai sikap berdampingan.
+ *
+ * Dulu ditampilkan sebagai rata-rata bintang dari tiga aspek. Dengan rubrik
+ * baru merata-ratakannya justru menyesatkan — nilai tahsin dan nilai sikap
+ * mengukur hal yang berbeda, dan anak bisa bagus di satu sisi tapi tidak di
+ * sisi lain.
+ */
+function ScoreBadge({ nilai, sikap }: { nilai: number | null; sikap: number | null }) {
+  if (nilai === null && sikap === null) return <span className="text-muted-foreground">—</span>
+  return (
+    <span className="tabular-nums">
+      {nilai ?? '—'}
+      <span className="text-muted-foreground"> · sikap {sikap ?? '—'}</span>
+    </span>
   )
 }

@@ -65,7 +65,7 @@ export async function getTeacherStudents(teacherId: string): Promise<TeacherStud
     .from('students')
     .select(`
       id, full_name, nis, gender, kelas, jenjang, halaqoh_id, current_jilid_page,
-      halaqoh:halaqoh(name),
+      halaqoh:halaqoh!students_halaqoh_id_fkey(name),
       current_method:tahsin_methods!students_current_method_id_fkey(name),
       current_jilid:jilid_levels!students_current_jilid_id_fkey(label)
     `)

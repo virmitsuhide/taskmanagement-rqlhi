@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { StarRating } from '@/components/StarRating'
+import { ScoreInput } from '@/components/setoran/ScoreInput'
 import { methodsForJenjang } from '@/lib/tahsin'
 import type { Jenjang } from '@/types'
 
@@ -145,18 +145,14 @@ export function TahsinSetoranForm({ students, methods, jilidLevels, defaultStude
       {/* Penilaian */}
       <fieldset className="border-t pt-4">
         <legend className="text-sm font-semibold mb-3">Penilaian</legend>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 bg-muted/30 rounded-lg p-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-muted/30 rounded-lg p-4">
           <div>
-            <p className="text-xs font-medium mb-1.5">Fashohah</p>
-            <StarRating name="nilai_fashohah" />
+            <p className="text-xs font-medium mb-1.5">Nilai Tahsin</p>
+            <ScoreInput name="nilai_tahsin" />
           </div>
           <div>
-            <p className="text-xs font-medium mb-1.5">Tajwid</p>
-            <StarRating name="nilai_tajwid" />
-          </div>
-          <div>
-            <p className="text-xs font-medium mb-1.5">Kelancaran</p>
-            <StarRating name="nilai_kelancaran" />
+            <p className="text-xs font-medium mb-1.5">Nilai Sikap</p>
+            <ScoreInput name="nilai_sikap" />
           </div>
         </div>
       </fieldset>

@@ -22,7 +22,7 @@ export default async function NewTahsinSetoranPage({ searchParams }: PageProps) 
     halaqohIds.length > 0
       ? supabase
           .from('students')
-          .select('id, full_name, jenjang, current_method_id, current_jilid_id, current_jilid_page, halaqoh:halaqoh(name)')
+          .select('id, full_name, jenjang, current_method_id, current_jilid_id, current_jilid_page, halaqoh:halaqoh!students_halaqoh_id_fkey(name)')
           .in('halaqoh_id', halaqohIds)
           .eq('is_active', true)
           .order('full_name')

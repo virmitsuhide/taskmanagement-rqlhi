@@ -1,12 +1,16 @@
 import type { RaporData } from '@/lib/data/rapor'
-import { StarValue } from '@/components/StarValue'
 import { Logo } from '@/components/brand/Logo'
 
 const JENJANG_LABELS: Record<string, string> = { paud: 'PAUD', sd: 'SD', sd_juara: 'SD Juara', smp: 'SMP', sma: 'SMA' }
 
-function Stars({ value }: { value: number | string | null }) {
+/**
+ * Nilai 0-100 apa adanya. Menggantikan tampilan bintang: rubriknya kini
+ * angka ratusan, dan memampatkan 88 versus 90 jadi jumlah bintang yang sama
+ * justru menghapus perbedaan yang ingin dilihat wali.
+ */
+function Score({ value }: { value: number | string | null }) {
   if (value === null || value === undefined) return <span className="text-muted-foreground">—</span>
-  return <StarValue value={value} size={14} />
+  return <span style={{ fontWeight: 600 }}>{Number(value).toLocaleString('id-ID')}</span>
 }
 
 /**
@@ -49,9 +53,8 @@ export function RaporDocument({ data }: { data: RaporData }) {
         <Section title="📖 Capaian Tahsin">
           <Row k="Posisi Saat Ini" v={tahsin.currentMethod && tahsin.currentJilid ? `${tahsin.currentMethod} ${tahsin.currentJilid} · hal. ${tahsin.currentPage ?? '—'}` : 'Belum ada data'} />
           <Row k="Setoran Bulan Ini" v={`${tahsin.setoranCount}x (${tahsin.lulusCount} lulus)`} />
-          <Row k="Fashohah" v={<Stars value={tahsin.avgFashohah} />} />
-          <Row k="Tajwid" v={<Stars value={tahsin.avgTajwid} />} />
-          <Row k="Kelancaran" v={<Stars value={tahsin.avgKelancaran} />} />
+          <Row k="Nilai Tahsin" v={<Score value={tahsin.avgTahsin} />} />
+          <Row k="Nilai Sikap" v={<Score value={tahsin.avgSikap} />} />
           {tahsin.promotions.length > 0 && (
             <Row k="Kenaikan Jilid" v={
               <span style={{ color: '#15803d', fontWeight: 600 }}>
@@ -67,7 +70,8 @@ export function RaporDocument({ data }: { data: RaporData }) {
           <Row k="Hafalan Baru Bulan Ini" v={`${tahfidz.ayatBaru} ayat`} />
           <Row k="Total Ayat Dihafal" v={`${tahfidz.totalAyatHafal} ayat`} />
           <Row k="Muroja'ah Bulan Ini" v={`${tahfidz.murojaahCount}x`} />
-          <Row k="Kelancaran" v={<Stars value={tahfidz.avgKelancaran} />} />
+          <Row k="Nilai Tahfidz" v={<Score value={tahfidz.avgTahfidz} />} />
+          <Row k="Nilai Sikap" v={<Score value={tahfidz.avgSikap} />} />
           {tahfidz.juzMutqinCount > 0 && (
             <Row k="Juz Mutqin" v={<span style={{ color: '#15803d', fontWeight: 600 }}>{tahfidz.juzMutqinCount} juz</span>} />
           )}

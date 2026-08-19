@@ -379,6 +379,8 @@ export const students = pgTable('students', {
   jenjang: jenjangEnum('jenjang').notNull(),
   kelas: text('kelas'),
   program: text('program'),
+  /** Titik berangkat anak pada semester berjalan, mis. 'Jilid 1 hal 1'. */
+  level_awal: text('level_awal').notNull().default(''),
   halaqoh_id: uuid('halaqoh_id').references(() => halaqoh.id, { onDelete: 'set null' }),
   wali_name: text('wali_name'),
   wali_phone: text('wali_phone'),
@@ -405,6 +407,9 @@ export const tahsinLogs = pgTable('tahsin_logs', {
   baris_ke: integer('baris_ke'),
   nilai_fashohah: numeric('nilai_fashohah', { precision: 2, scale: 1 }),
   nilai_tajwid: numeric('nilai_tajwid', { precision: 2, scale: 1 }),
+  /** Rubrik yang dipakai formulir sekarang -- skala 0-100. */
+  nilai_tahsin: numeric('nilai_tahsin', { precision: 5, scale: 2 }),
+  nilai_sikap: numeric('nilai_sikap', { precision: 5, scale: 2 }),
   nilai_kelancaran: numeric('nilai_kelancaran', { precision: 2, scale: 1 }),
   status: tahsinStatusEnum('status').default('lulus'),
   catatan: text('catatan'),
@@ -423,6 +428,9 @@ export const tahfidzLogs = pgTable('tahfidz_logs', {
   ayat_ke: integer('ayat_ke'),
   nilai_fashohah: numeric('nilai_fashohah', { precision: 2, scale: 1 }),
   nilai_tajwid: numeric('nilai_tajwid', { precision: 2, scale: 1 }),
+  /** Rubrik yang dipakai formulir sekarang -- skala 0-100. */
+  nilai_tahfidz: numeric('nilai_tahfidz', { precision: 5, scale: 2 }),
+  nilai_sikap: numeric('nilai_sikap', { precision: 5, scale: 2 }),
   nilai_kelancaran: numeric('nilai_kelancaran', { precision: 2, scale: 1 }),
   catatan: text('catatan'),
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
@@ -766,6 +774,29 @@ export const gukarMonthly = pgTable('gukar_monthly', {
   hadir_4: boolean('hadir_4').notNull().default(false),
   hadir_5: boolean('hadir_5').notNull().default(false),
   jumlah_halaman: integer('jumlah_halaman').notNull().default(0),
+  catatan: text('catatan').notNull().default(''),
+  recorded_by: uuid('recorded_by').references(() => teachers.id, { onDelete: 'set null' }),
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+})
+
+/**
+ * Capaian awal & akhir tiap bulan per siswa — cerminan lembar "DB Y1–Y6".
+ *
+ * Bukan turunan dari setoran harian: patokan bulanan tetap harus ada meski
+ * bulan itu setorannya bolong, dan itulah yang dipakai menyusun rapor serta
+ * rekap semester.
+ */
+export const studentMonthly = pgTable('student_monthly', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  student_id: uuid('student_id').notNull().references(() => students.id, { onDelete: 'cascade' }),
+  period: date('period').notNull(),
+  level: text('level').notNull().default(''),
+  halaman_awal_tahsin: text('halaman_awal_tahsin').notNull().default(''),
+  halaman_akhir_tahsin: text('halaman_akhir_tahsin').notNull().default(''),
+  tahfidz_awal: text('tahfidz_awal').notNull().default(''),
+  tahfidz_akhir: text('tahfidz_akhir').notNull().default(''),
+  capaian_halaman: integer('capaian_halaman').notNull().default(0),
   catatan: text('catatan').notNull().default(''),
   recorded_by: uuid('recorded_by').references(() => teachers.id, { onDelete: 'set null' }),
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),

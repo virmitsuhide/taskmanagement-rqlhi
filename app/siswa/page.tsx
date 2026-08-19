@@ -41,7 +41,7 @@ export default async function SiswaListPage({ searchParams }: PageProps) {
 
   let q = supabase
     .from('students')
-    .select('id, full_name, nis, jenjang, kelas, gender, is_active, halaqoh:halaqoh(id, name)', { count: 'exact' })
+    .select('id, full_name, nis, jenjang, kelas, gender, is_active, halaqoh:halaqoh!students_halaqoh_id_fkey(id, name)', { count: 'exact' })
     .order('full_name')
 
   if (viewableJenjang.length > 0) {
