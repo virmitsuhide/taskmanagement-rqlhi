@@ -6,7 +6,7 @@ import { UNIT_LABELS } from '@/lib/rq/programs'
 import { getRqAnalytics, getUnitHafalanBoards } from '@/lib/data/analytics'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { UnitHafalanBoard } from '@/components/dashboard/UnitHafalanBoard'
-import { Users, GraduationCap, BookMarked, Sparkles } from 'lucide-react'
+import { Users, GraduationCap, BookMarked, Sparkles, ClipboardList } from 'lucide-react'
 
 export default async function AnalitikPage() {
   const session = await getSession()
@@ -60,6 +60,21 @@ export default async function AnalitikPage() {
             </div>
           </Link>
         )}
+
+        <Link
+          href="/dashboard/analitik/kelengkapan"
+          className="flex items-center justify-between rounded-xl border bg-card p-4 hover:bg-muted/40 transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            <span className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'var(--primary-wash)', color: 'var(--primary)' }}>
+              <ClipboardList className="h-4 w-4" />
+            </span>
+            <div>
+              <p className="text-sm font-semibold">Kelengkapan Pengisian Capaian →</p>
+              <p className="text-xs text-muted-foreground">Halaqoh mana yang gurunya belum mengisi capaian bulan ini</p>
+            </div>
+          </div>
+        </Link>
 
         {/* KPI utama */}
         <div className="grid grid-cols-3 gap-3">
