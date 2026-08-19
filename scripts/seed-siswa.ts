@@ -17,6 +17,7 @@ import { createClient } from '@supabase/supabase-js'
 import * as dotenv from 'dotenv'
 import { readFileSync } from 'fs'
 import { resolve } from 'path'
+import { sesiOf } from '@/lib/rq/sesi'
 
 dotenv.config({ path: resolve(process.cwd(), '.env.local') })
 
@@ -49,14 +50,27 @@ function loadData<T>(file: string): T {
   }
 }
 
-/** Nama halaqoh: cukup menyebut pengampu dan tempatnya. */
+/**
+ * Nama halaqoh: sesi + pengampu. Tempat sengaja TIDAK ikut.
+ *
+ * Ruang bisa berpindah tanpa halaqohnya berubah; kalau tempat masuk nama,
+ * begitu ruangnya pindah namanya jadi berbohong — padahal nama itu sudah
+ * terlanjur tercetak di rapor dan riwayat setoran.
+ */
 function halaqohName(row: Row): string {
   const pengampu = row.pengampu.replace(/\s+/g, ' ').trim()
-  return row.tempat ? `${pengampu} — ${row.tempat}` : pengampu
+  return `Sesi ${sesiOf(row.jenjang, row.kelas)} — ${pengampu}`
 }
 
+/**
+ * Kelompok = jenjang + pengampu + sesi.
+ *
+ * Pengelompokan sebelumnya memakai tempat, sehingga dua sesi berbeda yang
+ * kebetulan memakai ruang sama tergabung jadi satu halaqoh — lima kelompok
+ * tercampur begitu, salah satunya menyatukan kelas 8 dan kelas 9.
+ */
 function groupKey(row: Row): string {
-  return `${row.jenjang}|${halaqohName(row)}`
+  return `${row.jenjang}|${row.pengampu}|${sesiOf(row.jenjang, row.kelas)}`
 }
 
 async function main() {
@@ -126,6 +140,22 @@ async function main() {
     const name = halaqohName(sample)
     const wali = teacherId.get(pengampuMap[sample.pengampu]) ?? null
 
+    // Sebagian kelompok punya ruang cadangan, dipakai kalau ruang utamanya
+    // sedang terpakai kegiatan lain. Ruang yang tercatat untuk paling banyak
+    // anak dianggap yang utama — urutan baris di spreadsheet tidak berarti
+    // apa-apa, jumlah anak berarti. Sisanya jadi catatan, bukan dibuang.
+    const tally = new Map<string, number>()
+    for (const m of members) {
+      if (m.tempat) tally.set(m.tempat, (tally.get(m.tempat) ?? 0) + 1)
+    }
+    const urut = [...tally.entries()].sort((a, b) => b[1] - a[1])
+    const tempat = urut[0]?.[0] ?? ''
+    const alternatif = urut.slice(1).map(([ruang]) => ruang)
+    const catatan = alternatif.length
+      ? `Ruang alternatif bila ${tempat} terpakai: ${alternatif.join(', ')}`
+      : null
+    if (alternatif.length) console.log(`  · ${name}: ruang alternatif ${alternatif.join(', ')}`)
+
     const { data: existing } = await supabase
       .from('halaqoh')
       .select('id')
@@ -138,7 +168,9 @@ async function main() {
       name,
       jenjang: sample.jenjang,
       wali_teacher_id: wali,
-      schedule_note: sample.tempat,
+      sesi: sesiOf(sample.jenjang, sample.kelas),
+      tempat,
+      schedule_note: catatan,
       term_id: term.id,
       is_active: true,
     }

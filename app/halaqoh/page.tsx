@@ -1,17 +1,18 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { getSession } from '@/lib/auth/session'
-import { canManageHalaqoh, canViewHalaqoh, getManageableJenjang, JENJANG_LABELS } from '@/lib/auth/permissions'
+import { canViewHalaqoh, getManageableJenjang, JENJANG_LABELS } from '@/lib/auth/permissions'
 import { createServerClient } from '@/lib/supabase/server'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { Button } from '@/components/ui/button'
 import { Plus, Users, Calendar } from 'lucide-react'
+import { sesiLabel } from '@/lib/rq/sesi'
 import type { Halaqoh, Jenjang, Teacher } from '@/types'
 
 type HalaqohWithStatsBase = Omit<Halaqoh, 'wali_teacher'>
 
 interface PageProps {
-  searchParams: Promise<{ jenjang?: string }>
+  searchParams: Promise<{ jenjang?: string; sesi?: string }>
 }
 
 interface HalaqohWithStats extends HalaqohWithStatsBase {
@@ -26,6 +27,7 @@ export default async function HalaqohListPage({ searchParams }: PageProps) {
 
   const params = await searchParams
   const jenjangFilter = params.jenjang as Jenjang | undefined
+  const sesiFilter = ['1', '2', '3'].includes(params.sesi ?? '') ? Number(params.sesi) : null
   const allowed = getManageableJenjang(session.role)
   const canCreateAny = allowed.length > 0
 
@@ -48,7 +50,20 @@ export default async function HalaqohListPage({ searchParams }: PageProps) {
   }
 
   const { data: halaqohData } = await query
-  const halaqohList = (halaqohData ?? []) as HalaqohWithStats[]
+  const allInScope = (halaqohData ?? []) as HalaqohWithStats[]
+
+  // Sesi disaring di memori, bukan lewat query, supaya jumlah pada tiap tab
+  // tetap terhitung dari himpunan yang sama. Menyaringnya di database berarti
+  // satu query tambahan per tab hanya untuk menampilkan angkanya.
+  const sesiCount = new Map<number, number>()
+  for (const h of allInScope) {
+    if (h.sesi) sesiCount.set(h.sesi, (sesiCount.get(h.sesi) ?? 0) + 1)
+  }
+  const tanpaSesi = allInScope.filter(h => !h.sesi).length
+
+  const halaqohList = sesiFilter
+    ? allInScope.filter(h => h.sesi === sesiFilter)
+    : allInScope
 
   // Hitung jumlah siswa per halaqoh
   if (halaqohList.length > 0) {
@@ -83,15 +98,34 @@ export default async function HalaqohListPage({ searchParams }: PageProps) {
           )}
         </div>
 
-        {/* Jenjang filter */}
-        <div className="flex gap-2 mb-4 flex-wrap">
-          <FilterChip href="/halaqoh" active={!jenjangFilter}>Semua</FilterChip>
+        {/* Unit — menyaring jenjang; tab sesi di bawahnya menyempitkan lagi. */}
+        <div className="flex gap-2 mb-3 flex-wrap">
+          <FilterChip href={hrefFor(undefined, sesiFilter)} active={!jenjangFilter}>Semua Unit</FilterChip>
           {viewableJenjang.map(j => (
-            <FilterChip key={j} href={`/halaqoh?jenjang=${j}`} active={jenjangFilter === j}>
+            <FilterChip key={j} href={hrefFor(j, sesiFilter)} active={jenjangFilter === j}>
               {JENJANG_LABELS[j]}
             </FilterChip>
           ))}
         </div>
+
+        {/* Tab sesi. Jam ikut ditampilkan karena itulah pembeda sesungguhnya
+            antar sesi — nomornya sendiri tidak memberi tahu apa-apa. */}
+        <div className="flex gap-1 mb-4 overflow-x-auto border-b">
+          <SesiTab href={hrefFor(jenjangFilter, null)} active={!sesiFilter}>
+            Semua Sesi <Count n={allInScope.length} />
+          </SesiTab>
+          {[1, 2, 3].map(s => (
+            <SesiTab key={s} href={hrefFor(jenjangFilter, s)} active={sesiFilter === s}>
+              {sesiLabel(s)} <Count n={sesiCount.get(s) ?? 0} />
+            </SesiTab>
+          ))}
+        </div>
+
+        {tanpaSesi > 0 && !sesiFilter && (
+          <p className="mb-3 text-xs text-amber-600 dark:text-amber-400">
+            {tanpaSesi} halaqoh belum punya sesi — jamnya tidak akan tampil sampai diisi lewat Edit.
+          </p>
+        )}
 
         {halaqohList.length === 0 ? (
           <div className="rounded-lg border border-dashed py-12 text-center">
@@ -122,11 +156,15 @@ export default async function HalaqohListPage({ searchParams }: PageProps) {
                   <span className="inline-flex items-center gap-1">
                     <Users className="h-3 w-3" /> {h.student_count ?? 0} siswa
                   </span>
-                  {h.schedule_note && (
-                    <span className="inline-flex items-center gap-1 truncate">
-                      <Calendar className="h-3 w-3" /> {h.schedule_note}
+                  {h.sesi && (
+                    <span className="inline-flex items-center gap-1">
+                      <Calendar className="h-3 w-3" /> {sesiLabel(h.sesi)}
                     </span>
                   )}
+                  {/* Tempat sengaja tidak tampil di kartu: ruang jarang jadi
+                      dasar memilih halaqoh dari daftar, dan namanya panjang
+                      sehingga menggeser jumlah siswa & sesi yang justru
+                      dicari. Tampil di halaman detail. */}
                   {!h.is_active && (
                     <span className="text-warning">⚠ Nonaktif</span>
                   )}
@@ -155,4 +193,39 @@ function FilterChip({
       {children}
     </Link>
   )
+}
+
+/**
+ * Tautan daftar halaqoh dengan unit & sesi digabung.
+ *
+ * Keduanya harus saling mempertahankan: memilih sesi tidak boleh membuang
+ * unit yang sedang dipilih, dan sebaliknya.
+ */
+function hrefFor(jenjang: Jenjang | undefined, sesi: number | null): string {
+  const params = new URLSearchParams()
+  if (jenjang) params.set('jenjang', jenjang)
+  if (sesi) params.set('sesi', String(sesi))
+  const qs = params.toString()
+  return qs ? `/halaqoh?${qs}` : '/halaqoh'
+}
+
+function SesiTab({
+  href, active, children,
+}: { href: string; active: boolean; children: React.ReactNode }) {
+  return (
+    <Link
+      href={href}
+      className={`whitespace-nowrap border-b-2 px-3 py-2 text-sm transition-colors ${
+        active
+          ? 'border-primary font-medium text-foreground'
+          : 'border-transparent text-muted-foreground hover:text-foreground'
+      }`}
+    >
+      {children}
+    </Link>
+  )
+}
+
+function Count({ n }: { n: number }) {
+  return <span className="ml-1 text-xs text-muted-foreground tabular-nums">({n})</span>
 }

@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { JENJANG_LABELS } from '@/lib/auth/permissions'
+import { sesiLabel } from '@/lib/rq/sesi'
 import type { Jenjang, Teacher } from '@/types'
 
 interface Props {
@@ -21,6 +22,8 @@ interface Props {
     jenjang: Jenjang
     wali_teacher_id: string | null
     schedule_note: string | null
+    sesi?: number | null
+    tempat?: string | null
     is_active: boolean
   }
 }
@@ -71,14 +74,49 @@ export function HalaqohForm({ mode, allowedJenjang, teachers, initial }: Props) 
         </Select>
       </div>
 
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="space-y-1.5">
+          <Label htmlFor="sesi">Sesi</Label>
+          <select
+            id="sesi"
+            name="sesi"
+            defaultValue={initial?.sesi ? String(initial.sesi) : ''}
+            disabled={isPending}
+            className="h-9 w-full rounded-md border bg-transparent px-3 text-sm"
+          >
+            <option value="">— belum ditentukan —</option>
+            {[1, 2, 3].map(s => (
+              <option key={s} value={s}>{sesiLabel(s)}</option>
+            ))}
+          </select>
+          <p className="text-[11px] text-muted-foreground">
+            Jam mengikuti sesi, tidak diatur per halaqoh.
+          </p>
+        </div>
+
+        <div className="space-y-1.5">
+          <Label htmlFor="tempat">Tempat</Label>
+          <Input
+            id="tempat"
+            name="tempat"
+            defaultValue={initial?.tempat ?? ''}
+            placeholder="contoh: Ruang Kelas 3A"
+            disabled={isPending}
+          />
+          <p className="text-[11px] text-muted-foreground">
+            Ruang bisa berpindah tanpa mengubah nama halaqoh.
+          </p>
+        </div>
+      </div>
+
       <div className="space-y-1.5">
-        <Label htmlFor="schedule_note">Catatan Jadwal</Label>
+        <Label htmlFor="schedule_note">Catatan Jadwal (opsional)</Label>
         <Textarea
           id="schedule_note"
           name="schedule_note"
           rows={2}
           defaultValue={initial?.schedule_note ?? ''}
-          placeholder="contoh: Senin-Jumat, 07:30 - 09:00"
+          placeholder="catatan tambahan di luar sesi & tempat"
           disabled={isPending}
         />
       </div>

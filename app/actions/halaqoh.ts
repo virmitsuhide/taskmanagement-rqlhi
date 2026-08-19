@@ -16,6 +16,10 @@ export async function createHalaqohAction(_: unknown, formData: FormData) {
   const waliRaw = (formData.get('wali_teacher_id') as string) || ''
   const wali_teacher_id = (!waliRaw || waliRaw === 'none') ? null : waliRaw
   const schedule_note = (formData.get('schedule_note') as string)?.trim() || null
+  // Sesi menentukan jam belajar; tempat hanya ruangnya, bukan identitas halaqoh.
+  const sesiRaw = Number(formData.get('sesi'))
+  const sesi = Number.isInteger(sesiRaw) && sesiRaw >= 1 && sesiRaw <= 3 ? sesiRaw : null
+  const tempat = ((formData.get('tempat') as string) ?? '').trim()
 
   if (!name || !jenjang) return { error: 'Nama dan jenjang wajib diisi.' }
   if (!canManageHalaqoh(session.role, jenjang)) {
@@ -40,7 +44,7 @@ export async function createHalaqohAction(_: unknown, formData: FormData) {
 
   const { data, error } = await supabase
     .from('halaqoh')
-    .insert({ name, jenjang, wali_teacher_id, schedule_note, term_id: term.id })
+    .insert({ name, jenjang, wali_teacher_id, schedule_note, sesi, tempat, term_id: term.id })
     .select('id')
     .single()
 
@@ -60,6 +64,10 @@ export async function updateHalaqohAction(_: unknown, formData: FormData) {
   const waliRaw = (formData.get('wali_teacher_id') as string) || ''
   const wali_teacher_id = (!waliRaw || waliRaw === 'none') ? null : waliRaw
   const schedule_note = (formData.get('schedule_note') as string)?.trim() || null
+  // Sesi menentukan jam belajar; tempat hanya ruangnya, bukan identitas halaqoh.
+  const sesiRaw = Number(formData.get('sesi'))
+  const sesi = Number.isInteger(sesiRaw) && sesiRaw >= 1 && sesiRaw <= 3 ? sesiRaw : null
+  const tempat = ((formData.get('tempat') as string) ?? '').trim()
   const is_active = formData.get('is_active') === 'on'
 
   if (!id || !name || !jenjang) return { error: 'Data tidak lengkap.' }
@@ -78,7 +86,7 @@ export async function updateHalaqohAction(_: unknown, formData: FormData) {
 
   const { error } = await supabase
     .from('halaqoh')
-    .update({ name, jenjang, wali_teacher_id, schedule_note, is_active })
+    .update({ name, jenjang, wali_teacher_id, schedule_note, sesi, tempat, is_active })
     .eq('id', id)
 
   if (error) return { error: 'Gagal memperbarui halaqoh.' }

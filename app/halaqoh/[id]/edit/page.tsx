@@ -18,7 +18,7 @@ export default async function EditHalaqohPage({ params }: PageProps) {
   const supabase = createServerClient()
   const { data: halaqoh } = await supabase
     .from('halaqoh')
-    .select('id, name, jenjang, wali_teacher_id, schedule_note, is_active')
+    .select('id, name, jenjang, wali_teacher_id, schedule_note, sesi, tempat, is_active')
     .eq('id', id)
     .maybeSingle()
 
@@ -57,6 +57,8 @@ export default async function EditHalaqohPage({ params }: PageProps) {
             jenjang: halaqoh.jenjang as Jenjang,
             wali_teacher_id: halaqoh.wali_teacher_id,
             schedule_note: halaqoh.schedule_note,
+            sesi: halaqoh.sesi,
+            tempat: halaqoh.tempat,
             is_active: halaqoh.is_active,
           }}
         />

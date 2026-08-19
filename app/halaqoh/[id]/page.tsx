@@ -5,7 +5,8 @@ import { canManageHalaqoh, canViewHalaqoh, JENJANG_LABELS } from '@/lib/auth/per
 import { createServerClient } from '@/lib/supabase/server'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { Button } from '@/components/ui/button'
-import { Pencil, Users, Calendar, UserCog } from 'lucide-react'
+import { Pencil, Users, Calendar, MapPin, UserCog } from 'lucide-react'
+import { sesiLabel } from '@/lib/rq/sesi'
 import { getHalaqohSessions } from '@/lib/data/terms'
 import { SessionEditor } from '@/components/halaqoh/SessionEditor'
 import type { Jenjang } from '@/types'
@@ -73,11 +74,20 @@ export default async function HalaqohDetailPage({ params }: PageProps) {
                   <Users className="h-4 w-4" />
                   {activeStudents.length} siswa aktif
                 </span>
-                {halaqoh.schedule_note && (
+                {halaqoh.sesi && (
                   <span className="inline-flex items-center gap-1.5">
                     <Calendar className="h-4 w-4" />
-                    {halaqoh.schedule_note}
+                    {sesiLabel(halaqoh.sesi)}
                   </span>
+                )}
+                {halaqoh.tempat && (
+                  <span className="inline-flex items-center gap-1.5">
+                    <MapPin className="h-4 w-4" />
+                    {halaqoh.tempat}
+                  </span>
+                )}
+                {halaqoh.schedule_note && (
+                  <span className="text-xs">{halaqoh.schedule_note}</span>
                 )}
               </div>
             </div>

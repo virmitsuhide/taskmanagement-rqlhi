@@ -436,6 +436,10 @@ export interface Halaqoh {
   jenjang: Jenjang
   wali_teacher_id: string | null
   schedule_note: string | null
+  /** Sesi belajar 1–3; jamnya ada di lib/rq/sesi.ts, tidak disimpan per baris. */
+  sesi: number | null
+  /** Ruang belajar — atribut, bukan bagian dari nama halaqoh. */
+  tempat: string
   is_active: boolean
   created_at: string
   updated_at: string

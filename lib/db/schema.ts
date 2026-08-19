@@ -326,6 +326,10 @@ export const halaqoh = pgTable('halaqoh', {
   /** Semester pemilik halaqoh ini — pengacakan tiap semester membuat baris baru. */
   term_id: uuid('term_id'),
   wali_teacher_id: uuid('wali_teacher_id').references(() => teachers.id, { onDelete: 'set null' }),
+  /** Sesi belajar 1-3, ditentukan tingkat kelas anggotanya. Jamnya di lib/rq/sesi.ts. */
+  sesi: smallint('sesi'),
+  /** Ruang/lokasi belajar -- atribut, bukan bagian dari nama halaqoh. */
+  tempat: text('tempat').notNull().default(''),
   schedule_note: text('schedule_note'),
   is_active: boolean('is_active').default(true),
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
