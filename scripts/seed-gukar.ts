@@ -33,59 +33,34 @@ interface Row {
   level: string
 }
 
+interface GroupConfig {
+  name: string
+  /** Username akun guru pengampu, atau null kalau belum ditetapkan. */
+  pengampu: string | null
+  unit: string
+  /** Pengampu yang belum punya akun guru — dibuatkan saat impor. */
+  buatAkun?: { full_name: string; unit: string }
+}
+
 /**
- * Pengampu tiap kelompok, dipetakan ke username akun guru.
+ * Daftar peserta dan susunan kelompok dibaca dari berkas data, bukan ditulis
+ * di dalam kode.
  *
- * Nama lembar di workbook memakai panggilan ("Ust Aul", "Ust Fariz"), jadi
- * pemetaannya ditulis eksplisit di sini — menebaknya dari kemiripan nama
- * pernah salah sasaran, dan salah pengampu berarti orang yang keliru bisa
- * mengisi capaian kelompok orang lain.
+ * Repositori ini publik, sedangkan keduanya memuat nama orang. Memisahkannya
+ * membuat logika impor tetap bisa dibagikan dan ditinjau, sementara datanya
+ * tinggal di komputer yang menjalankannya — scripts/data/ masuk .gitignore.
  */
-const PENGAMPU: Record<string, string | null> = {
-  'Ust. Habiburrahman': 'muhammad_habiburrahman',
-  'Ust Habib Musyrifah': 'muhammad_habiburrahman',
-  'Ust Maulana': 'maulana_achmad',
-  'Ust Maulana Musyrif': 'maulana_achmad',
-  'Ust Fariz': 'mohammad_fariz',
-  'Ust Hendra Kusuma': 'hendra_kusuma',
-  'Ust Hendra LHI Juara': 'hendra_kusuma',
-  'Ust Akhid Akhmad Efendi': 'akhid_akhmad',
-  'Ust Erna': 'erna',
-  'Ust Herlina Wati': 'herlina_wati',
-  'Ust Rima Grup Persiapan': 'rima_indah',
-  'Ust Nisa Shalihah': 'nisa_shalihah',
-  'Ust Sella': 'sella_andriani',
-  'Ust Aul': 'luluk_aulia',
-  'Ust Khanifah (PAUD)': 'khanifah_inabah',
+function loadData<T>(file: string): T[] {
+  const path = resolve(process.cwd(), 'scripts/data', file)
+  try {
+    return JSON.parse(readFileSync(path, 'utf8')) as T[]
+  } catch {
+    console.error(`Tidak menemukan ${path}.`)
+    console.error('Berkas ini tidak ikut di repositori karena memuat nama pegawai.')
+    console.error('Salin dari sumber rekapan, atau minta ke pengurus yang punya salinannya.')
+    process.exit(1)
+  }
 }
-
-/** Unit kelompok, untuk kelompok yang pesertanya tidak membawa unit dari rekap. */
-const GROUP_UNIT: Record<string, string> = {
-  'Ust. Habiburrahman': 'BPH & Kepala',
-  'Ust Habib Musyrifah': 'Musyrifah',
-  'Ust Maulana': 'SMPIT LHI',
-  'Ust Maulana Musyrif': 'Musyrif',
-  'Ust Fariz': 'SDIT LHI',
-  'Ust Hendra Kusuma': 'SDIT LHI',
-  'Ust Hendra LHI Juara': 'SD LHI Juara',
-  'Ust Akhid Akhmad Efendi': 'SDIT LHI',
-  'Ust Erna': 'SDIT LHI',
-  'Ust Herlina Wati': 'SDIT LHI',
-  'Ust Rima Grup Persiapan': 'SDIT LHI',
-  'Ust Nisa Shalihah': 'SDIT LHI',
-  'Ust Sella': 'SMPIT LHI',
-  'Ust Aul': 'SMPIT LHI',
-  'Ust Khanifah (PAUD)': 'PAUD',
-}
-
-/**
- * Khanifah Inabah mengampu kelompok PAUD tapi belum ada di daftar MPP RQ,
- * jadi akunnya dibuat di sini. Statusnya sengaja dikosongkan — biar SDM yang
- * menetapkan jenis kepegawaian dan masa kontraknya lewat panel.
- */
-const PENGAMPU_BARU = [
-  { username: 'khanifah_inabah', full_name: 'Khanifah Inabah, S.Pd.I', unit: 'paud' },
-]
 
 function normalizeKind(raw: string): 'guru' | 'karyawan' | null {
   const value = raw.trim().toLowerCase()
@@ -97,9 +72,9 @@ function normalizeKind(raw: string): 'guru' | 'karyawan' | null {
 async function main() {
   console.log('Impor kelompok pembinaan guru & karyawan\n')
 
-  const rows = JSON.parse(
-    readFileSync(resolve(process.cwd(), 'scripts/data/gukar-2026.json'), 'utf8'),
-  ) as Row[]
+  const rows = loadData<Row>('gukar-2026.json')
+  const groups = loadData<GroupConfig>('gukar-groups-2026.json')
+  const configOf = new Map(groups.map(g => [g.name, g]))
 
   const { data: term } = await supabase
     .from('academic_terms').select('id, year_label, semester').eq('is_current', true).maybeSingle()
@@ -110,7 +85,11 @@ async function main() {
   console.log(`Semester berjalan: ${term.year_label} ${term.semester}\n`)
 
   // ── Akun pengampu yang belum ada ──────────────────────────
-  for (const teacher of PENGAMPU_BARU) {
+  const perluAkun = groups
+    .filter(g => g.pengampu && g.buatAkun)
+    .map(g => ({ username: g.pengampu!, ...g.buatAkun! }))
+
+  for (const teacher of perluAkun) {
     const { data: existing } = await supabase
       .from('teachers').select('id').eq('username', teacher.username).maybeSingle()
     if (existing) {
@@ -146,7 +125,7 @@ async function main() {
   const groupId = new Map<string, string>()
 
   for (const [index, name] of groupNames.entries()) {
-    const username = PENGAMPU[name] ?? null
+    const username = configOf.get(name)?.pengampu ?? null
     const pengampu = username ? teacherId.get(username) ?? null : null
     if (username && !pengampu) console.log(`  ! pengampu '${username}' tidak ditemukan untuk ${name}`)
 
@@ -154,7 +133,7 @@ async function main() {
       term_id: term.id,
       name,
       pengampu_id: pengampu,
-      unit: GROUP_UNIT[name] ?? '',
+      unit: configOf.get(name)?.unit ?? '',
       display_order: index + 1,
       is_active: true,
     }
@@ -180,7 +159,7 @@ async function main() {
     return [{
       group_id: gid,
       full_name: row.name,
-      unit: row.unit || GROUP_UNIT[row.group] || '',
+      unit: row.unit || configOf.get(row.group)?.unit || '',
       kind: normalizeKind(row.kind),
       level_awal: row.level,
       is_active: true,
@@ -205,7 +184,7 @@ async function main() {
   console.log(`\nSelesai: ${groupId.size} kelompok, ${all.length} peserta.`)
   console.log(`  jenis terisi : ${all.filter(p => p.kind).length}`)
   console.log(`  level terisi : ${all.filter(p => p.level_awal).length}`)
-  console.log('\nPengampu mengisi di /guru/gukar; SDM melihat rekapnya di /dashboard/sdm/gukar.')
+  console.log('\nPengampu mengisi di /guru/gukar; SDM melihat rekapnya di /dashboard/analitik/gukar.')
 }
 
 main().catch(err => {
