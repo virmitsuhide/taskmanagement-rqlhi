@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
-import { BookMarked, TrendingUp, UserCheck, Users } from 'lucide-react'
+import Link from 'next/link'
+import { BookMarked, ShieldCheck, TrendingUp, UserCheck, Users } from 'lucide-react'
 import { getSession } from '@/lib/auth/session'
 import { canViewGukarRecap } from '@/lib/auth/permissions'
 import { getCurrentTerm, formatTerm } from '@/lib/data/terms'
@@ -72,6 +73,27 @@ export default async function GukarAnalitikPage({ searchParams }: PageProps) {
           </div>
           <PeriodPicker period={period} />
         </div>
+
+        {/* Kehadiran menjawab "apakah programnya berjalan"; kesiapan standar
+            menjawab "apakah orangnya memenuhi syarat kepegawaian". Dua
+            pertanyaan berbeda, jadi dua halaman — tapi pintunya berdampingan. */}
+        <Link
+          href="/dashboard/analitik/gukar/standar"
+          className="flex items-center gap-3 rounded-xl border bg-card p-4 transition-colors hover:bg-muted/40"
+        >
+          <span
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg"
+            style={{ background: 'var(--primary-wash)', color: 'var(--primary)' }}
+          >
+            <ShieldCheck className="h-4 w-4" />
+          </span>
+          <div>
+            <p className="text-sm font-semibold">Kesiapan Standar Kepegawaian →</p>
+            <p className="text-xs text-muted-foreground">
+              Capaian tahsin &amp; tahfidz dibanding ambang Peraturan Kepegawaian Yayasan
+            </p>
+          </div>
+        </Link>
 
         {!term || rows.length === 0 ? (
           <p className="rounded-xl border border-dashed py-12 text-center text-sm text-muted-foreground">

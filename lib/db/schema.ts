@@ -38,6 +38,9 @@ export const publicTargetEnum = pgEnum('public_target', ['all', 'sd', 'smp'])
 export const academicSemesterEnum = pgEnum('academic_semester', ['ganjil', 'genap'])
 /** Jenis kepegawaian guru, selaras dengan pos gaji di laporan keuangan. */
 export const gukarKindEnum = pgEnum('gukar_kind', ['guru', 'karyawan'])
+export const gukarStatusPegawaiEnum = pgEnum('gukar_status_pegawai', [
+  'tetap', 'calon_tetap', 'kontrak',
+])
 export const teacherEmploymentEnum = pgEnum('teacher_employment', [
   'tetap_yayasan', 'kontrak_yayasan', 'kontrak_rq',
 ])
@@ -761,6 +764,10 @@ export const gukarParticipants = pgTable('gukar_participants', {
   unit: text('unit').notNull().default(''),
   kind: gukarKindEnum('kind'),
   level_awal: text('level_awal').notNull().default(''),
+  /** Status kepegawaian — dasar tiga kelompok tindak lanjut bab 06 laporan SDM. */
+  status_pegawai: gukarStatusPegawaiEnum('status_pegawai'),
+  /** Kunci baris STANDAR_PERAN di lib/rq/gukar-standar.ts, mis. 'guru_kelas'. */
+  kategori_peran: text('kategori_peran').notNull().default(''),
   is_active: boolean('is_active').notNull().default(true),
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
 })
@@ -772,6 +779,15 @@ export const gukarMonthly = pgTable('gukar_monthly', {
   period: date('period').notNull(),
   capaian_tahsin: text('capaian_tahsin').notNull().default(''),
   capaian_tahfidz: text('capaian_tahfidz').notNull().default(''),
+  // ── Capaian terukur (0029) ──────────────────────────────────
+  // Ditambahkan menjawab temuan laporan SDM Juni 2026: capaian free-text
+  // tidak bisa dibandingkan otomatis ke standar kepegawaian. Kolom teks di
+  // atas tetap ada agar rekap 2026 yang sudah masuk tidak perlu ditulis ulang.
+  tahap_tahsin: text('tahap_tahsin').notNull().default(''),
+  juz_tuntas: smallint('juz_tuntas'),
+  juz_berjalan: smallint('juz_berjalan'),
+  nilai_tahfidz: smallint('nilai_tahfidz'),
+  surat_pilihan: smallint('surat_pilihan').notNull().default(0),
   hadir_1: boolean('hadir_1').notNull().default(false),
   hadir_2: boolean('hadir_2').notNull().default(false),
   hadir_3: boolean('hadir_3').notNull().default(false),

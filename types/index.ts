@@ -794,6 +794,9 @@ export const DAY_LABELS: Record<number, string> = {
 
 export type GukarKind = 'guru' | 'karyawan'
 
+/** Status kepegawaian peserta — menentukan kelompok tindak lanjut SDM. */
+export type GukarStatusPegawai = 'tetap' | 'calon_tetap' | 'kontrak'
+
 export interface GukarGroup {
   id: string
   term_id: string
@@ -811,6 +814,10 @@ export interface GukarParticipant {
   unit: string
   kind: GukarKind | null
   level_awal: string
+  /** NULL = belum ditetapkan SDM. */
+  status_pegawai: GukarStatusPegawai | null
+  /** Kunci baris STANDAR_PERAN, mis. 'guru_kelas'. Kosong = pakai ambang inti. */
+  kategori_peran: string
   is_active: boolean
 }
 
@@ -821,6 +828,16 @@ export interface GukarMonthly {
   period: string
   capaian_tahsin: string
   capaian_tahfidz: string
+  /** Tahap tahsin baku dari TAHAP_TAHSIN. Kosong = capaian_tahsin yang dibaca. */
+  tahap_tahsin: string
+  /** Juz yang sudah tuntas; NULL = belum diisi terstruktur. */
+  juz_tuntas: number | null
+  /** Nomor juz yang sedang dihafal. */
+  juz_berjalan: number | null
+  /** Nilai ujian hafalan 0–100. */
+  nilai_tahfidz: number | null
+  /** Banyak surat pilihan di luar juz yang dikuasai. */
+  surat_pilihan: number
   hadir_1: boolean
   hadir_2: boolean
   hadir_3: boolean

@@ -3,13 +3,15 @@
 import { useState, useTransition, useActionState } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { ChevronLeft, ChevronRight, Pencil, X } from 'lucide-react'
-import { saveGukarMonthlyAction, toggleHadirAction } from '@/app/actions/gukar'
+import { ChevronLeft, ChevronRight, Pencil, Trash2, X } from 'lucide-react'
+import { deleteGukarMonthlyAction, saveGukarMonthlyAction, toggleHadirAction } from '@/app/actions/gukar'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { formatPeriod, shiftPeriod } from '@/lib/finance/period'
+import { TAHAP_TAHSIN } from '@/lib/rq/gukar-standar'
+import { predikatHafalan } from '@/lib/rq/quran'
 import type { GukarMonthly, GukarParticipant } from '@/types'
 
 interface Props {
@@ -145,15 +147,57 @@ function ParticipantRow({
           />
         </td>
       ))}
-      <td className="py-2 px-3 text-muted-foreground">{record?.capaian_tahsin || '—'}</td>
-      <td className="py-2 px-3 text-muted-foreground">{record?.capaian_tahfidz || '—'}</td>
-      <td className="py-2 px-2 text-right">
+      <td className="py-2 px-3">
+        <p>{record?.tahap_tahsin || record?.capaian_tahsin || '—'}</p>
+        {record?.tahap_tahsin && record.capaian_tahsin && (
+          <p className="text-xs text-muted-foreground">{record.capaian_tahsin}</p>
+        )}
+      </td>
+      <td className="py-2 px-3">
+        <p>{ringkasTahfidz(record) || '—'}</p>
+        {record?.capaian_tahfidz && (
+          <p className="text-xs text-muted-foreground">{record.capaian_tahfidz}</p>
+        )}
+      </td>
+      <td className="py-2 px-2 text-right whitespace-nowrap">
         <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={onEdit} aria-label="Isi capaian">
           <Pencil className="h-3.5 w-3.5" />
         </Button>
+        {record && (
+          <Button
+            size="sm" variant="ghost" disabled={pending}
+            className="h-7 w-7 p-0 text-destructive"
+            aria-label={`Hapus catatan ${participant.full_name}`}
+            onClick={() => {
+              const ok = confirm(
+                `Hapus catatan ${participant.full_name} untuk bulan ini?\n\n` +
+                'Kehadiran dan capaian bulan ini dikosongkan kembali.',
+              )
+              if (!ok) return
+              startTransition(async () => {
+                const result = await deleteGukarMonthlyAction(groupId, participant.id, period)
+                if (result?.error) toast.error(result.error)
+                else toast.success('Catatan dihapus')
+              })
+            }}
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
+        )}
       </td>
     </tr>
   )
+}
+
+/** Ringkasan angka hafalan untuk kolom tabel — kosong bila belum diukur. */
+function ringkasTahfidz(record?: GukarMonthly): string {
+  if (!record || record.juz_tuntas === null || record.juz_tuntas === undefined) return ''
+  const predikat = predikatHafalan(record.nilai_tahfidz)
+  return [
+    `${record.juz_tuntas} juz`,
+    record.juz_berjalan ? `sedang juz ${record.juz_berjalan}` : '',
+    predikat ? `${predikat} (${record.nilai_tahfidz})` : '',
+  ].filter(Boolean).join(' · ')
 }
 
 function CapaianForm({
@@ -193,23 +237,72 @@ function CapaianForm({
         </Button>
       </div>
 
+      {/* Dua baris pertama terukur, baris ketiga tetap teks bebas.
+          Yang terukur inilah yang bisa dibandingkan otomatis ke standar
+          kepegawaian di analitik SDM; teks bebasnya untuk konteks yang tidak
+          tertampung angka — "drill", "persiapan tashih", dan sejenisnya. */}
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="space-y-1.5">
-          <Label htmlFor="capaian_tahsin">Capaian Tahsin</Label>
+          <Label htmlFor="tahap_tahsin">Tahap tahsin</Label>
+          <select
+            id="tahap_tahsin" name="tahap_tahsin"
+            defaultValue={record?.tahap_tahsin ?? ''}
+            className="h-9 w-full rounded-md border bg-transparent px-3 text-sm"
+          >
+            <option value="">— belum diukur —</option>
+            {TAHAP_TAHSIN.map(tahap => (
+              <option key={tahap} value={tahap}>{tahap}</option>
+            ))}
+          </select>
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="capaian_tahsin">Catatan tahsin</Label>
           <Input
             id="capaian_tahsin" name="capaian_tahsin"
             defaultValue={record?.capaian_tahsin ?? ''}
             placeholder="mis. Syajaroh 1 hal 32"
           />
         </div>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-4">
         <div className="space-y-1.5">
-          <Label htmlFor="capaian_tahfidz">Capaian Tahfidz</Label>
+          <Label htmlFor="juz_tuntas">Juz tuntas</Label>
           <Input
-            id="capaian_tahfidz" name="capaian_tahfidz"
-            defaultValue={record?.capaian_tahfidz ?? ''}
-            placeholder="mis. An-Naba 1–20"
+            id="juz_tuntas" name="juz_tuntas" inputMode="numeric"
+            defaultValue={record?.juz_tuntas ?? ''} placeholder="—"
           />
         </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="juz_berjalan">Juz berjalan</Label>
+          <Input
+            id="juz_berjalan" name="juz_berjalan" inputMode="numeric"
+            defaultValue={record?.juz_berjalan ?? ''} placeholder="30"
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="nilai_tahfidz">Nilai hafalan</Label>
+          <Input
+            id="nilai_tahfidz" name="nilai_tahfidz" inputMode="numeric"
+            defaultValue={record?.nilai_tahfidz ?? ''} placeholder="0–100"
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="surat_pilihan">Surat pilihan</Label>
+          <Input
+            id="surat_pilihan" name="surat_pilihan" inputMode="numeric"
+            defaultValue={record?.surat_pilihan || ''} placeholder="0"
+          />
+        </div>
+      </div>
+
+      <div className="space-y-1.5">
+        <Label htmlFor="capaian_tahfidz">Catatan tahfidz</Label>
+        <Input
+          id="capaian_tahfidz" name="capaian_tahfidz"
+          defaultValue={record?.capaian_tahfidz ?? ''}
+          placeholder="mis. An-Naba 1–20"
+        />
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
