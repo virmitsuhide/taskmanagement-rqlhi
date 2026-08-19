@@ -90,8 +90,10 @@ export async function createTahsinLogAction(_: unknown, formData: FormData) {
     .maybeSingle()
   if (!student) return { error: 'Siswa tidak ditemukan.' }
 
-  // 1. Insert log setoran
-  const { error: logErr } = await supabase.from('tahsin_logs').insert({
+  // 1. Insert log setoran. Id-nya ditangkap supaya kenaikan jilid bisa
+  // ditautkan ke setoran penyebabnya — tautan itu yang membuat koreksi dan
+  // penghapusan bisa membersihkan diri sendiri (lihat migrasi 0027).
+  const { data: logRow, error: logErr } = await supabase.from('tahsin_logs').insert({
     student_id: studentId,
     teacher_id: session.teacherId,
     halaqoh_id: student.halaqoh_id,
@@ -105,8 +107,8 @@ export async function createTahsinLogAction(_: unknown, formData: FormData) {
     nilai_sikap: nilaiSikap,
     status,
     catatan,
-  })
-  if (logErr) return { error: 'Gagal menyimpan setoran.' }
+  }).select('id').single()
+  if (logErr || !logRow) return { error: 'Gagal menyimpan setoran.' }
 
   // 2. Tentukan update posisi siswa
   const position = resolveStudentPosition({
@@ -146,6 +148,7 @@ export async function createTahsinLogAction(_: unknown, formData: FormData) {
           promoted_by: session.teacherId,
           promotion_date: setoranDate,
           catatan: catatan,
+          source_log_id: logRow.id,
         })
         // Pindahkan siswa ke jilid baru, halaman reset ke 1
         studentUpdate.current_jilid_id = nextLevel.id
@@ -209,7 +212,7 @@ export async function createTahfidzLogAction(_: unknown, formData: FormData) {
 
   // Insert log — trigger DB upsert_juz_progress otomatis menambah ayat_hafal
   // ke juz_progress (hanya untuk kind='ziyadah')
-  const { error: logErr } = await supabase.from('tahfidz_logs').insert({
+  const { data: logRow, error: logErr } = await supabase.from('tahfidz_logs').insert({
     student_id: studentId,
     teacher_id: session.teacherId,
     halaqoh_id: student.halaqoh_id,
@@ -221,8 +224,8 @@ export async function createTahfidzLogAction(_: unknown, formData: FormData) {
     nilai_tahfidz: nilaiTahfidz,
     nilai_sikap: nilaiSikap,
     catatan,
-  })
-  if (logErr) return { error: 'Gagal menyimpan setoran tahfidz.' }
+  }).select('id').single()
+  if (logErr || !logRow) return { error: 'Gagal menyimpan setoran tahfidz.' }
 
   // Naik juz: tandai juz surat ini sebagai selesai (mutqin) + catat riwayat.
   // Hanya berlaku untuk ziyadah (penyelesaian hafalan), bukan muroja'ah.
@@ -242,6 +245,7 @@ export async function createTahfidzLogAction(_: unknown, formData: FormData) {
       promoted_by: session.teacherId,
       promotion_date: setoranDate,
       catatan,
+      source_log_id: logRow.id,
     })
     // 23505 = sudah pernah dipromosikan; bukan error fatal
     if (promErr && promErr.code !== '23505') {

@@ -611,3 +611,32 @@ export function canViewGukarRecap(role: UserRole): boolean {
 export function canManageGukar(role: UserRole): boolean {
   return role === 'sdm' || role === 'kepala_rq'
 }
+
+// Koreksi setoran santri
+//
+// Guru sengaja TIDAK diberi akses. Ia mencatat, pengurus yang membetulkan —
+// begitu keputusannya, supaya riwayat capaian tidak bisa diubah diam-diam
+// oleh orang yang nilainya sedang dinilai.
+/**
+ * Boleh menyunting & menghapus setoran santri.
+ *
+ * Kepala RQ dan Kumik untuk semua jenjang; koor hanya unitnya sendiri —
+ * cakupan yang sama dengan wewenangnya mengelola siswa.
+ */
+export function canManageSetoran(role: UserRole, jenjang?: Jenjang | null): boolean {
+  if (role === 'kepala_rq' || role === 'kumik') return true
+  if (role === 'koor_sd') return !jenjang || jenjang === 'sd'
+  if (role === 'koor_smp') return !jenjang || jenjang === 'smp'
+  return false
+}
+
+/**
+ * Boleh menyunting & menghapus catatan pembinaan guru/karyawan.
+ *
+ * Pembinaan gukar programnya SDM, jadi SDM dan Kepala RQ yang membetulkan.
+ * Pengampu tetap bisa mengisi kelompoknya sendiri — itu diperiksa terhadap
+ * gukar_groups.pengampu_id, bukan lewat fungsi ini.
+ */
+export function canManageGukarSetoran(role: UserRole): boolean {
+  return role === 'sdm' || role === 'kepala_rq'
+}

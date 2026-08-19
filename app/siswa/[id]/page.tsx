@@ -1,8 +1,9 @@
 import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
 import { getSession } from '@/lib/auth/session'
-import { canManageStudents, canViewStudents, JENJANG_LABELS } from '@/lib/auth/permissions'
+import { canManageSetoran, canManageStudents, canViewStudents, JENJANG_LABELS } from '@/lib/auth/permissions'
 import { createServerClient } from '@/lib/supabase/server'
+import { SetoranKoreksi, type SetoranItem } from '@/components/siswa/SetoranKoreksi'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { Button } from '@/components/ui/button'
 import { Pencil, Phone, Mail, GraduationCap, BookOpen } from 'lucide-react'
@@ -41,6 +42,11 @@ export default async function StudentDetailPage({ params }: PageProps) {
     .from('tahfidz_logs').select('*', { count: 'exact', head: true }).eq('student_id', id)
   const { data: juzProgress } = await supabase
     .from('juz_progress').select('juz_number, ayat_hafal').eq('student_id', id).order('juz_number')
+
+  // Riwayat setoran hanya diambil untuk yang berwenang mengoreksinya —
+  // bagi yang lain, tiga query ini sia-sia.
+  const canKoreksi = canManageSetoran(session.role, student.jenjang as Jenjang)
+  const setoranItems: SetoranItem[] = canKoreksi ? await ambilSetoran(supabase, id) : []
 
   const initials = student.full_name.split(' ').slice(0, 2).map((w: string) => w[0]).join('').toUpperCase()
   const genderIcon = student.gender === 'L' ? '👦' : student.gender === 'P' ? '👧' : ''
@@ -158,10 +164,79 @@ export default async function StudentDetailPage({ params }: PageProps) {
           </div>
         )}
 
-        <p className="text-xs text-muted-foreground text-center py-4">
-          🚧 Timeline setoran &amp; rapor akan tersedia di Fase 2 (setoran tahsin/tahfidz harian).
-        </p>
+        {canKoreksi && (
+          <section className="mt-6">
+            <h2 className="text-base font-semibold">Riwayat Setoran</h2>
+            <p className="text-xs text-muted-foreground mt-0.5 mb-3">
+              20 setoran terakhir. Guru mencatat, pengurus membetulkan bila ada salah input.
+            </p>
+            <SetoranKoreksi items={setoranItems} />
+          </section>
+        )}
       </div>
     </div>
   )
+}
+
+/**
+ * Riwayat setoran tiga jenis, digabung dan diurutkan menurut tanggal.
+ *
+ * Digabung karena yang dicari pengurus adalah "setoran mana yang salah",
+ * bukan "setoran tahsin mana" — memisahkannya per jenis justru memaksa
+ * mereka mencari di tiga daftar.
+ */
+async function ambilSetoran(
+  supabase: ReturnType<typeof createServerClient>,
+  studentId: string,
+): Promise<SetoranItem[]> {
+  const [tahsin, tahfidz, tasmi] = await Promise.all([
+    supabase
+      .from('tahsin_logs')
+      .select('id, setoran_date, halaman, baris_dari, baris_ke, status, catatan, nilai_tahsin, nilai_sikap, jilid:jilid_levels!tahsin_logs_jilid_id_fkey(label)')
+      .eq('student_id', studentId).order('setoran_date', { ascending: false }).limit(20),
+    supabase
+      .from('tahfidz_logs')
+      .select('id, setoran_date, kind, ayat_dari, ayat_ke, catatan, nilai_tahfidz, nilai_sikap, surat:surat_master!tahfidz_logs_surat_id_fkey(name_latin)')
+      .eq('student_id', studentId).order('setoran_date', { ascending: false }).limit(20),
+    supabase
+      .from('tasmi_logs')
+      .select('id, setoran_date, scope_juz, juz_from, juz_to, status, catatan, nilai_tahfidz, nilai_sikap')
+      .eq('student_id', studentId).order('setoran_date', { ascending: false }).limit(20),
+  ])
+
+  const num = (v: unknown) => (v === null || v === undefined ? null : Number(v))
+
+  const items: SetoranItem[] = [
+    ...((tahsin.data ?? []) as unknown as Array<Record<string, unknown>>).map(r => ({
+      id: String(r.id), table: 'tahsin_logs' as const,
+      tanggal: String(r.setoran_date),
+      judul: [
+        (r.jilid as { label: string } | null)?.label,
+        r.halaman ? `hal ${r.halaman}` : null,
+      ].filter(Boolean).join(' · ') || 'Tahsin',
+      nilai: num(r.nilai_tahsin), sikap: num(r.nilai_sikap),
+      status: (r.status as string) ?? null, catatan: (r.catatan as string) ?? null,
+      halaman: num(r.halaman), barisDari: num(r.baris_dari), barisKe: num(r.baris_ke),
+    })),
+    ...((tahfidz.data ?? []) as unknown as Array<Record<string, unknown>>).map(r => ({
+      id: String(r.id), table: 'tahfidz_logs' as const,
+      tanggal: String(r.setoran_date),
+      judul: [
+        (r.surat as { name_latin: string } | null)?.name_latin,
+        r.ayat_dari ? `ayat ${r.ayat_dari}–${r.ayat_ke}` : null,
+      ].filter(Boolean).join(' ') || 'Tahfidz',
+      nilai: num(r.nilai_tahfidz), sikap: num(r.nilai_sikap),
+      status: null, catatan: (r.catatan as string) ?? null,
+      ayatDari: num(r.ayat_dari), ayatKe: num(r.ayat_ke),
+    })),
+    ...((tasmi.data ?? []) as unknown as Array<Record<string, unknown>>).map(r => ({
+      id: String(r.id), table: 'tasmi_logs' as const,
+      tanggal: String(r.setoran_date),
+      judul: `Tasmi' juz ${r.juz_from}–${r.juz_to}`,
+      nilai: num(r.nilai_tahfidz), sikap: num(r.nilai_sikap),
+      status: (r.status as string) ?? null, catatan: (r.catatan as string) ?? null,
+    })),
+  ]
+
+  return items.sort((a, b) => b.tanggal.localeCompare(a.tanggal)).slice(0, 20)
 }
