@@ -7,6 +7,7 @@ import {
 import { getUnitLearning } from '@/lib/data/analytics'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { UnitProgramAnalytics } from '@/components/dashboard/UnitProgramAnalytics'
+import { BookOpen, ClipboardList } from 'lucide-react'
 
 export default async function AnalitikUnitPage() {
   const session = await getSession()
@@ -49,6 +50,44 @@ export default async function AnalitikUnitPage() {
             ) : null}
           </p>
         </div>
+
+        <Link
+          href="/dashboard/analitik/kurikulum"
+          className="flex items-center gap-3 rounded-xl border bg-card p-4 hover:bg-muted/40 transition-colors"
+        >
+          <span
+            className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
+            style={{ background: 'var(--primary-wash)', color: 'var(--primary)' }}
+          >
+            <BookOpen className="h-4 w-4" />
+          </span>
+          <div>
+            <p className="text-sm font-semibold">Capaian Pembelajaran per Angkatan →</p>
+            <p className="text-xs text-muted-foreground">
+              Ketercapaian target tahsin &amp; tahfidz tiap kelas, dibanding bulan sebelumnya
+            </p>
+          </div>
+        </Link>
+
+        {/* Menagih pengisian adalah tugas koordinator unit, jadi pintunya
+            ditaruh di halaman yang memang mereka buka. */}
+        <Link
+          href="/dashboard/analitik/kelengkapan"
+          className="flex items-center gap-3 rounded-xl border bg-card p-4 hover:bg-muted/40 transition-colors"
+        >
+          <span
+            className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
+            style={{ background: 'var(--primary-wash)', color: 'var(--primary)' }}
+          >
+            <ClipboardList className="h-4 w-4" />
+          </span>
+          <div>
+            <p className="text-sm font-semibold">Kelengkapan Pengisian Capaian →</p>
+            <p className="text-xs text-muted-foreground">
+              Halaqoh mana yang gurunya belum mengisi capaian bulan ini
+            </p>
+          </div>
+        </Link>
 
         {units.length === 0 ? (
           <p className="text-sm text-muted-foreground py-12 text-center">
