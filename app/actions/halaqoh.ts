@@ -23,9 +23,24 @@ export async function createHalaqohAction(_: unknown, formData: FormData) {
   }
 
   const supabase = createServerClient()
+
+  // Halaqoh selalu milik satu semester. Tiap semester santri dan guru diacak
+  // ulang, jadi halaqoh yang dibuat sekarang adalah halaqoh semester berjalan
+  // — bukan kelompok abadi. Tanpa penanda ini, pembagian semester lalu akan
+  // tercampur dengan yang sekarang begitu pengacakan berikutnya dibuat.
+  const { data: term } = await supabase
+    .from('academic_terms')
+    .select('id')
+    .eq('is_current', true)
+    .maybeSingle()
+
+  if (!term) {
+    return { error: 'Belum ada tahun ajaran berjalan. Tetapkan dulu semester aktif.' }
+  }
+
   const { data, error } = await supabase
     .from('halaqoh')
-    .insert({ name, jenjang, wali_teacher_id, schedule_note })
+    .insert({ name, jenjang, wali_teacher_id, schedule_note, term_id: term.id })
     .select('id')
     .single()
 

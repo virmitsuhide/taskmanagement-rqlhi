@@ -120,6 +120,7 @@ export const getPublicTeachers = cache(async (limit?: number): Promise<PublicTea
       .from('teachers')
       .select('id, full_name, photo_url, public_title, public_bio, display_order')
       .eq('is_active', true)
+      .is('deleted_at', null)
       .eq('is_public', true)
       .order('display_order', { ascending: true })
       .order('full_name', { ascending: true })
@@ -140,6 +141,7 @@ export async function getTeachersForCuration() {
       .from('teachers')
       .select('id, full_name, photo_url, public_title, public_bio, is_public, display_order')
       .eq('is_active', true)
+      .is('deleted_at', null)
       .order('display_order', { ascending: true })
       .order('full_name', { ascending: true })
     return (data ?? []) as (PublicTeacher & { is_public: boolean })[]

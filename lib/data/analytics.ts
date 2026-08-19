@@ -44,7 +44,7 @@ export async function getRqAnalytics(): Promise<RqAnalytics> {
     juzProgressRes,
   ] = await Promise.all([
     supabase.from('students').select('jenjang').eq('is_active', true),
-    supabase.from('teachers').select('*', { count: 'exact', head: true }).eq('is_active', true),
+    supabase.from('teachers').select('*', { count: 'exact', head: true }).eq('is_active', true).is('deleted_at', null),
     supabase.from('halaqoh').select('*', { count: 'exact', head: true }).eq('is_active', true),
     supabase.from('tahsin_logs').select('*', { count: 'exact', head: true }).gte('setoran_date', monthStartIso).lte('setoran_date', monthEndIso),
     supabase.from('tahfidz_logs').select('*', { count: 'exact', head: true }).gte('setoran_date', monthStartIso).lte('setoran_date', monthEndIso),

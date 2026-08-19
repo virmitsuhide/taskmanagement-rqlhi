@@ -18,11 +18,14 @@ export default async function EditTeacherPage({ params }: PageProps) {
   const supabase = createServerClient()
   const { data: teacher } = await supabase
     .from('teachers')
-    .select('id, username, full_name, nip, email, phone, is_active')
+    .select('id, username, full_name, nip, email, phone, is_active, deleted_at, employment_type, contract_start, contract_end')
     .eq('id', id)
     .maybeSingle()
 
   if (!teacher) notFound()
+
+  // Akun terhapus harus dipulihkan dulu sebelum bisa disunting.
+  if (teacher.deleted_at) redirect(`/ustadz/${id}`)
 
   return (
     <div>

@@ -17,6 +17,7 @@ export default async function NewHalaqohPage() {
     .from('teachers')
     .select('id, full_name')
     .eq('is_active', true)
+    .is('deleted_at', null)
     .order('full_name')
 
   return (

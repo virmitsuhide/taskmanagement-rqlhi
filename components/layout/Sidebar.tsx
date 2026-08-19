@@ -6,11 +6,11 @@ import { cn } from '@/lib/utils'
 import {
   LayoutDashboard, BookOpen, CheckSquare, ImageIcon,
   FileText, User, Megaphone, LogOut, ChevronRight, GraduationCap, Newspaper, LayoutGrid,
-  Users, UserCog, BookMarked, BarChart3, LayoutTemplate, Info,
+  Users, UserCog, BookMarked, BarChart3, LayoutTemplate, Info, Wallet, CalendarRange,
 } from 'lucide-react'
 import { DASHBOARD_LABELS, getAccessibleDashboards, ROLE_LABELS } from '@/lib/auth/permissions'
 import {
-  canViewFinanceNotes, canPostToHome, canViewHumasRequests, canCreateNews,
+  canViewTerms, canViewGukarRecap, canViewFinance, canViewFinanceNotes, canPostToHome, canViewHumasRequests, canCreateNews,
   canAccessProgramMenu, canEditAbout,
   canViewStudents, canViewHalaqoh, canViewTeachers, canViewAnalytics, canViewUnitAnalytics,
   canManageHomepage,
@@ -125,6 +125,9 @@ export function Sidebar({ role, displayName, username }: Props) {
             {canManageHomepage(role) && (
               <NavItem href="/humas/beranda" icon={<LayoutTemplate className="h-4 w-4" />} label="Kelola Beranda" active={isActive('/humas/beranda')} />
             )}
+            {canViewFinance(role) && (
+              <NavItem href="/keuangan" icon={<Wallet className="h-4 w-4" />} label="Keuangan" active={isActive('/keuangan')} />
+            )}
             {canViewFinanceNotes(role) && (
               <NavItem href="/notes" icon={<FileText className="h-4 w-4" />} label="Catatan Keuangan" active={isActive('/notes')} />
             )}
@@ -132,12 +135,15 @@ export function Sidebar({ role, displayName, username }: Props) {
         </div>
 
         {/* Tahsin & Tahfidz section */}
-        {(canViewStudents(role) || canViewHalaqoh(role) || canViewTeachers(role)) && (
+        {(canViewStudents(role) || canViewHalaqoh(role) || canViewTeachers(role) || canViewTerms(role)) && (
           <div>
             <p className="px-2 mb-2 text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/50">
               Tahsin &amp; Tahfidz
             </p>
             <ul className="space-y-1">
+              {canViewTerms(role) && (
+                <NavItem href="/tahun-ajaran" icon={<CalendarRange className="h-4 w-4" />} label="Tahun Ajaran" active={isActive('/tahun-ajaran')} />
+              )}
               {canViewHalaqoh(role) && (
                 <NavItem href="/halaqoh" icon={<BookMarked className="h-4 w-4" />} label="Halaqoh" active={isActive('/halaqoh')} />
               )}
@@ -146,6 +152,14 @@ export function Sidebar({ role, displayName, username }: Props) {
               )}
               {canViewTeachers(role) && (
                 <NavItem href="/ustadz" icon={<UserCog className="h-4 w-4" />} label="Ustadz / Guru" active={isActive('/ustadz')} />
+              )}
+              {canViewGukarRecap(role) && (
+                <NavItem
+                  href="/dashboard/analitik/gukar"
+                  icon={<BarChart3 className="h-4 w-4" />}
+                  label="Analitik Gukar"
+                  active={isActive('/dashboard/analitik/gukar')}
+                />
               )}
             </ul>
           </div>

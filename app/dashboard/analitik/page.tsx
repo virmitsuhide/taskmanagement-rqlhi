@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { getSession } from '@/lib/auth/session'
-import { canViewAnalytics } from '@/lib/auth/permissions'
+import { canViewAnalytics, canViewGukarRecap } from '@/lib/auth/permissions'
 import { UNIT_LABELS } from '@/lib/rq/programs'
 import { getRqAnalytics, getUnitHafalanBoards } from '@/lib/data/analytics'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
@@ -40,6 +40,26 @@ export default async function AnalitikPage() {
             </div>
           </div>
         </Link>
+
+        {/* Pembinaan gukar dipisah dari analitik santri: pesertanya pegawai,
+            satuannya bulanan, dan pemiliknya SDM — bukan bagian dari capaian
+            santri yang dirangkum di halaman ini. */}
+        {canViewGukarRecap(session.role) && (
+          <Link
+            href="/dashboard/analitik/gukar"
+            className="flex items-center justify-between rounded-xl border bg-card p-4 hover:bg-muted/40 transition-colors"
+          >
+            <div className="flex items-center gap-3">
+              <span className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'var(--primary-wash)', color: 'var(--primary)' }}>
+                <BookMarked className="h-4 w-4" />
+              </span>
+              <div>
+                <p className="text-sm font-semibold">Analitik Halaqoh Qur&apos;an Guru &amp; Karyawan →</p>
+                <p className="text-xs text-muted-foreground">Capaian tahsin &amp; tahfidz dan kehadiran pembinaan pegawai</p>
+              </div>
+            </div>
+          </Link>
+        )}
 
         {/* KPI utama */}
         <div className="grid grid-cols-3 gap-3">

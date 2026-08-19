@@ -35,6 +35,12 @@ export const publicPostTypeEnum = pgEnum('public_post_type', ['pengumuman', 'tug
 /** Status urgensi pengumuman — ditentukan penulis, bukan disimpulkan dari tanggal. */
 export const postPriorityEnum = pgEnum('post_priority', ['penting', 'info', 'pengingat'])
 export const publicTargetEnum = pgEnum('public_target', ['all', 'sd', 'smp'])
+export const academicSemesterEnum = pgEnum('academic_semester', ['ganjil', 'genap'])
+/** Jenis kepegawaian guru, selaras dengan pos gaji di laporan keuangan. */
+export const gukarKindEnum = pgEnum('gukar_kind', ['guru', 'karyawan'])
+export const teacherEmploymentEnum = pgEnum('teacher_employment', [
+  'tetap_yayasan', 'kontrak_yayasan', 'kontrak_rq',
+])
 
 // ─── Tables ──────────────────────────────────────────────────────────────────
 export const users = pgTable('users', {
@@ -299,6 +305,15 @@ export const teachers = pgTable('teachers', {
   display_order: integer('display_order').default(0),
   can_change_password: boolean('can_change_password').default(true),
   joined_at: date('joined_at').defaultNow(),
+  /** Unit penempatan: sd = SDIT LHI, smp = SMPIT LHI, sd_juara = SD LHI Juara. */
+  unit: jenjangEnum('unit'),
+  /** Jenis kepegawaian — menentukan pos gaji & apakah kontraknya bisa habis. */
+  employment_type: teacherEmploymentEnum('employment_type'),
+  contract_start: date('contract_start'),
+  /** Hari terakhir kontrak berlaku. NULL = tidak pernah kedaluwarsa. */
+  contract_end: date('contract_end'),
+  /** Penanda hapus lunak — lihat drizzle/0020_teacher_soft_delete. */
+  deleted_at: timestamp('deleted_at', { withTimezone: true }),
   linked_user_id: uuid('linked_user_id').references(() => users.id, { onDelete: 'set null' }),
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
@@ -308,6 +323,8 @@ export const halaqoh = pgTable('halaqoh', {
   id: uuid('id').primaryKey().defaultRandom(),
   name: text('name').notNull(),
   jenjang: jenjangEnum('jenjang').notNull(),
+  /** Semester pemilik halaqoh ini — pengacakan tiap semester membuat baris baru. */
+  term_id: uuid('term_id'),
   wali_teacher_id: uuid('wali_teacher_id').references(() => teachers.id, { onDelete: 'set null' }),
   schedule_note: text('schedule_note'),
   is_active: boolean('is_active').default(true),
@@ -537,4 +554,220 @@ export const siteSettings = pgTable('site_settings', {
   sections: jsonb('sections').$type<HomeSection[]>().default([]),
   updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
   updated_by: uuid('updated_by').references(() => users.id),
+})
+
+// ─── Keuangan Bendahara ──────────────────────────────────────────────────────
+//
+// Cerminan drizzle dari drizzle/0019_keuangan_bendahara_PASTE_TO_SUPABASE.sql.
+// Dua konsep yang menentukan bentuknya (alasan lengkapnya ada di file SQL):
+//   • Basis kas — transaksi punya `period` (bulan tagihan) dan `paid_at`
+//     (bulan uang diterima). Laporan menjumlah berdasarkan paid_at.
+//   • Alokasi dana sumber — satu pengeluaran bisa dibiayai beberapa pos
+//     pemasukan, jadi relasinya lewat tabel financeFunding.
+
+export const financeAccountKindEnum = pgEnum('finance_account_kind', ['pemasukan', 'pengeluaran'])
+export const financePaymentStatusEnum = pgEnum('finance_payment_status', ['lunas', 'piutang'])
+
+/** Master pos — baris tabel Pemasukan (1.2) & Pengeluaran (1.3) laporan. */
+export const financeAccounts = pgTable('finance_accounts', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  kind: financeAccountKindEnum('kind').notNull(),
+  slug: text('slug').notNull(),
+  name: text('name').notNull(),
+  /** Catatan tetap soal pos ini — muncul sebagai bantuan saat input. */
+  hint: text('hint').notNull().default(''),
+  display_order: integer('display_order').notNull().default(0),
+  is_active: boolean('is_active').notNull().default(true),
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
+})
+
+export const financeTransactions = pgTable('finance_transactions', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  account_id: uuid('account_id').notNull().references(() => financeAccounts.id, { onDelete: 'restrict' }),
+  /** Bulan tagihan ini milik siapa — selalu tanggal 1. */
+  period: date('period').notNull(),
+  /** Rupiah bulat — RQ tidak pernah mencatat sen. */
+  amount: integer('amount').notNull(),
+  description: text('description').notNull().default(''),
+  status: financePaymentStatusEnum('status').notNull().default('lunas'),
+  /** Kapan uangnya benar-benar berpindah. Kosong selama masih piutang. */
+  paid_at: date('paid_at'),
+  created_by: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+})
+
+/** Matriks "Dana Sumber" tabel 1.5: pengeluaran ini dibiayai pos pemasukan apa. */
+export const financeFunding = pgTable('finance_funding', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  transaction_id: uuid('transaction_id').notNull().references(() => financeTransactions.id, { onDelete: 'cascade' }),
+  /** Slug pos pemasukan, bukan FK id — kolom matriks laporan lama tetap utuh
+   *  walau pos pemasukannya kelak dinonaktifkan. */
+  source_slug: text('source_slug').notNull(),
+  amount: integer('amount').notNull(),
+})
+
+export const financeBudgets = pgTable('finance_budgets', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  account_id: uuid('account_id').notNull().references(() => financeAccounts.id, { onDelete: 'cascade' }),
+  period: date('period').notNull(),
+  amount: integer('amount').notNull().default(0),
+  updated_by: uuid('updated_by').references(() => users.id, { onDelete: 'set null' }),
+  updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+})
+
+/** Buku dana titipan (bab 1.4). Saldo awal disimpan sekali, bukan per bulan. */
+export const financeTrustFunds = pgTable('finance_trust_funds', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  slug: text('slug').notNull().unique(),
+  name: text('name').notNull(),
+  opening_balance: integer('opening_balance').notNull().default(0),
+  opening_date: date('opening_date').notNull(),
+  display_order: integer('display_order').notNull().default(0),
+  is_active: boolean('is_active').notNull().default(true),
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
+})
+
+export const financeTrustEntries = pgTable('finance_trust_entries', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  fund_id: uuid('fund_id').notNull().references(() => financeTrustFunds.id, { onDelete: 'cascade' }),
+  entry_date: date('entry_date').notNull(),
+  description: text('description').notNull(),
+  /** Bertanda: positif = dana masuk, negatif = dana diambil. */
+  amount: integer('amount').notNull(),
+  created_by: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
+})
+
+/** Rencana pengeluaran program (bab 2.1). period = bulan yang direncanakan. */
+export const financeProgramPlans = pgTable('finance_program_plans', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  period: date('period').notNull(),
+  name: text('name').notNull(),
+  funding_source: text('funding_source').notNull().default(''),
+  amount: integer('amount').notNull().default(0),
+  created_by: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
+})
+
+/** Bagian laporan yang memang harus ditulis manusia (evaluasi, analisis). */
+export const financeReportNotes = pgTable('finance_report_notes', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  period: date('period').notNull(),
+  section: text('section').notNull(),
+  content: text('content').notNull().default(''),
+  updated_by: uuid('updated_by').references(() => users.id, { onDelete: 'set null' }),
+  updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+})
+
+// ─── Tahun ajaran, keanggotaan halaqoh, & sesi mengajar ──────────────────────
+//
+// Cerminan drizzle dari drizzle/0021_tahun_ajaran_halaqoh_sesi.
+//
+// Intinya menambahkan dimensi waktu pada sisi PENGELOMPOKAN saja. Setoran
+// (tahsin_logs / tahfidz_logs) tidak ikut berubah: ia sudah merekam student_id
+// beserta guru dan halaqoh saat itu, dan justru itulah yang membuat capaian
+// anak selamat dari pergantian guru maupun pengacakan kelompok tiap semester.
+
+export const academicTerms = pgTable('academic_terms', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  /** Label tahun ajaran, mis. '2025/2026'. */
+  year_label: text('year_label').notNull(),
+  semester: academicSemesterEnum('semester').notNull(),
+  start_date: date('start_date').notNull(),
+  end_date: date('end_date').notNull(),
+  /** Hanya satu baris boleh bernilai true — dijaga index unik parsial. */
+  is_current: boolean('is_current').notNull().default(false),
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
+})
+
+/**
+ * Keanggotaan santri di sebuah halaqoh.
+ *
+ * Tidak perlu kolom semester: halaqoh sendiri sudah milik satu semester
+ * (halaqoh.term_id), jadi keanggotaannya ikut bersemester dengan sendirinya.
+ */
+export const halaqohMembers = pgTable('halaqoh_members', {
+  halaqoh_id: uuid('halaqoh_id').notNull().references(() => halaqoh.id, { onDelete: 'cascade' }),
+  student_id: uuid('student_id').notNull().references(() => students.id, { onDelete: 'cascade' }),
+  joined_at: date('joined_at').notNull(),
+  /** Terisi kalau santri pindah halaqoh di tengah semester. */
+  left_at: date('left_at'),
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
+}, (t) => [primaryKey({ columns: [t.halaqoh_id, t.student_id] })])
+
+/**
+ * Sesi mengajar — jadwal nyata sebuah halaqoh.
+ *
+ * Sesi menempel pada halaqoh, bukan pada guru: jadwal kelompok relatif tetap
+ * sementara pengampunya bisa berganti. Beban mengajar guru OS ("2 sesi" /
+ * "3 sesi") dihitung dari sesi seluruh halaqoh yang diampunya.
+ */
+export const halaqohSessions = pgTable('halaqoh_sessions', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  halaqoh_id: uuid('halaqoh_id').notNull().references(() => halaqoh.id, { onDelete: 'cascade' }),
+  /** 1 = Senin … 7 = Ahad, mengikuti ISO-8601. */
+  day_of_week: smallint('day_of_week').notNull(),
+  start_time: time('start_time').notNull(),
+  end_time: time('end_time').notNull(),
+  note: text('note').notNull().default(''),
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
+})
+
+// ─── Pembinaan Tahsin & Tahfidz Guru dan Karyawan (Gukar) ────────────────────
+//
+// Cerminan drizzle dari drizzle/0023_gukar_pembinaan.
+//
+// Modul terpisah dari santri, bukan menumpang tabel students: capaian gukar
+// berupa teks bebas ("Syajaroh 1 hal 32", "Ghorib") dan kehadirannya dicatat
+// per pekan lalu ditotal per semester — dua hal yang tidak punya padanan di
+// mesin setoran santri. Alasan lengkapnya ada di file SQL-nya.
+
+export const gukarGroups = pgTable('gukar_groups', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  term_id: uuid('term_id').notNull().references(() => academicTerms.id, { onDelete: 'restrict' }),
+  name: text('name').notNull(),
+  /** Pengampu kelompok. Boleh kosong sampai ditetapkan. */
+  pengampu_id: uuid('pengampu_id').references(() => teachers.id, { onDelete: 'set null' }),
+  /** Unit apa adanya dari rekap: 'SDIT LHI', 'SMPIT LHI', 'PAUD', 'BPH', … */
+  unit: text('unit').notNull().default(''),
+  display_order: integer('display_order').notNull().default(0),
+  is_active: boolean('is_active').notNull().default(true),
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
+})
+
+/**
+ * Peserta pembinaan — disimpan sebagai nama, bukan tautan ke `teachers`.
+ * Sebagian besar dari 161 peserta adalah pegawai SIT LHI yang tidak punya
+ * akun di sistem ini, dan membuatkan akun hanya demi menjadi peserta akan
+ * menghasilkan ratusan akun yang tidak pernah dipakai login.
+ */
+export const gukarParticipants = pgTable('gukar_participants', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  group_id: uuid('group_id').notNull().references(() => gukarGroups.id, { onDelete: 'cascade' }),
+  full_name: text('full_name').notNull(),
+  unit: text('unit').notNull().default(''),
+  kind: gukarKindEnum('kind'),
+  level_awal: text('level_awal').notNull().default(''),
+  is_active: boolean('is_active').notNull().default(true),
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
+})
+
+/** Satu baris per peserta per bulan: capaian akhir bulan + kehadiran pekanan. */
+export const gukarMonthly = pgTable('gukar_monthly', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  participant_id: uuid('participant_id').notNull().references(() => gukarParticipants.id, { onDelete: 'cascade' }),
+  period: date('period').notNull(),
+  capaian_tahsin: text('capaian_tahsin').notNull().default(''),
+  capaian_tahfidz: text('capaian_tahfidz').notNull().default(''),
+  hadir_1: boolean('hadir_1').notNull().default(false),
+  hadir_2: boolean('hadir_2').notNull().default(false),
+  hadir_3: boolean('hadir_3').notNull().default(false),
+  hadir_4: boolean('hadir_4').notNull().default(false),
+  hadir_5: boolean('hadir_5').notNull().default(false),
+  jumlah_halaman: integer('jumlah_halaman').notNull().default(0),
+  catatan: text('catatan').notNull().default(''),
+  recorded_by: uuid('recorded_by').references(() => teachers.id, { onDelete: 'set null' }),
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
 })

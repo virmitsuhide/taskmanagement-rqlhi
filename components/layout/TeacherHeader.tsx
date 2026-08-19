@@ -5,7 +5,7 @@ import { Logo } from '@/components/brand/Logo'
 
 interface Props {
   fullName: string
-  active?: 'dashboard' | 'setoran' | 'tahfidz' | 'siswa' | 'statistik' | 'jadwal' | 'rapor'
+  active?: 'dashboard' | 'setoran' | 'tahfidz' | 'siswa' | 'statistik' | 'jadwal' | 'rapor' | 'gukar'
 }
 
 const NAV: { key: Props['active']; label: string; href: string }[] = [
@@ -14,6 +14,9 @@ const NAV: { key: Props['active']; label: string; href: string }[] = [
   { key: 'setoran', label: 'Setor Tahsin', href: '/guru/setoran/tahsin/baru' },
   { key: 'tahfidz', label: 'Setor Tahfidz', href: '/guru/setoran/tahfidz/baru' },
   { key: 'statistik', label: 'Statistik', href: '/guru/statistik' },
+  // Hanya relevan bagi pengampu pembinaan; halamannya sendiri menampilkan
+  // pesan kosong yang jelas bagi guru yang tidak mengampu kelompok.
+  { key: 'gukar', label: 'Pembinaan Gukar', href: '/guru/gukar' },
 ]
 
 export function TeacherHeader({ fullName, active }: Props) {

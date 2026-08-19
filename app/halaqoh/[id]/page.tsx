@@ -6,6 +6,8 @@ import { createServerClient } from '@/lib/supabase/server'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { Button } from '@/components/ui/button'
 import { Pencil, Users, Calendar, UserCog } from 'lucide-react'
+import { getHalaqohSessions } from '@/lib/data/terms'
+import { SessionEditor } from '@/components/halaqoh/SessionEditor'
 import type { Jenjang } from '@/types'
 
 interface PageProps {
@@ -35,6 +37,7 @@ export default async function HalaqohDetailPage({ params }: PageProps) {
     .order('full_name')
 
   const canEdit = canManageHalaqoh(session.role, halaqoh.jenjang as Jenjang)
+  const sessions = await getHalaqohSessions(id)
   const activeStudents = (students ?? []).filter(s => s.is_active)
   const inactiveStudents = (students ?? []).filter(s => !s.is_active)
 
@@ -85,6 +88,8 @@ export default async function HalaqohDetailPage({ params }: PageProps) {
             )}
           </div>
         </div>
+
+        <SessionEditor halaqohId={id} sessions={sessions} canManage={canEdit} />
 
         {/* Siswa */}
         <section>

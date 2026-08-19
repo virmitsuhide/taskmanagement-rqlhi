@@ -1,16 +1,27 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { getSession } from '@/lib/auth/session'
-import { canManageTeachers, canViewTeachers, getManageableJenjang } from '@/lib/auth/permissions'
+import { canManageTeachers, canViewTeachers, getManageableJenjang, JENJANG_LABELS } from '@/lib/auth/permissions'
 import { createServerClient } from '@/lib/supabase/server'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { SearchInput } from '@/components/ui/search-input'
 import { Button } from '@/components/ui/button'
-import { Plus, Mail, Phone } from 'lucide-react'
-import type { Teacher } from '@/types'
+import { Plus, Mail } from 'lucide-react'
+import { RestoreTeacherButton } from './TeacherActions'
+import { contractDaysLeft } from '@/lib/auth/contract'
+import { getCurrentTerm, getTeacherSessionLoad } from '@/lib/data/terms'
+import type { Teacher, TeacherEmployment } from '@/types'
 
 interface PageProps {
   searchParams: Promise<{ q?: string; status?: string }>
+}
+
+type TeacherListStatus = 'active' | 'inactive' | 'deleted'
+
+const STATUS_LABELS: Record<TeacherListStatus, string> = {
+  active: 'Aktif',
+  inactive: 'Nonaktif',
+  deleted: 'Terhapus',
 }
 
 export default async function UstadzListPage({ searchParams }: PageProps) {
@@ -20,8 +31,13 @@ export default async function UstadzListPage({ searchParams }: PageProps) {
 
   const params = await searchParams
   const query = (params.q ?? '').trim()
-  const status = params.status === 'inactive' ? 'inactive' : 'active'
+  // 'deleted' hanya untuk yang boleh mengelola — role lain tidak punya urusan
+  // dengan akun terhapus dan tidak boleh bisa mengintipnya lewat URL.
   const canCreate = canManageTeachers(session.role)
+  const status: TeacherListStatus =
+    params.status === 'inactive' ? 'inactive'
+      : params.status === 'deleted' && canCreate ? 'deleted'
+        : 'active'
 
   const supabase = createServerClient()
 
@@ -57,15 +73,40 @@ export default async function UstadzListPage({ searchParams }: PageProps) {
 
   let q = supabase
     .from('teachers')
-    .select('id, username, full_name, nip, email, phone, is_active, created_at')
+    .select('id, username, full_name, nip, email, phone, is_active, deleted_at, created_at, employment_type, unit, contract_end')
     .order('full_name')
 
-  q = q.eq('is_active', status === 'active')
+  // Tab Aktif/Nonaktif hanya memuat guru yang masih ada; guru terhapus punya
+  // tabnya sendiri, kalau tidak ia akan muncul di salah satu dari keduanya.
+  if (status === 'deleted') {
+    q = q.not('deleted_at', 'is', null)
+  } else {
+    q = q.is('deleted_at', null).eq('is_active', status === 'active')
+  }
   if (query) q = q.or(`full_name.ilike.%${query}%,username.ilike.%${query}%,nip.ilike.%${query}%`)
-  if (unitTeacherIds) q = q.in('id', unitTeacherIds)
 
-  const { data } = unitTeacherIds && unitTeacherIds.length === 0 ? { data: [] } : await q
-  const teachers = (data ?? []) as Pick<Teacher, 'id' | 'username' | 'full_name' | 'nip' | 'email' | 'phone' | 'is_active' | 'created_at'>[]
+  // Koor melihat guru unitnya lewat dua jalur: kolom `unit` pada akun guru,
+  // atau halaqoh yang diampunya. Jalur pertama penting tiap awal tahun ajaran
+  // — guru OS baru sudah punya unit penempatan tapi belum dapat halaqoh, dan
+  // tanpa ini ia tak terlihat oleh koordinator yang harus membaginya.
+  if (unitTeacherIds) {
+    const unitFilter = unitScope.map(j => `unit.eq.${j}`).join(',')
+    q = unitTeacherIds.length > 0
+      ? q.or(`id.in.(${unitTeacherIds.join(',')}),${unitFilter}`)
+      : q.or(unitFilter)
+  }
+
+  const { data } = await q
+  const teachers = (data ?? []) as Pick<
+    Teacher,
+    'id' | 'username' | 'full_name' | 'nip' | 'email' | 'phone' | 'is_active' | 'deleted_at'
+    | 'created_at' | 'employment_type' | 'unit' | 'contract_end'
+  >[]
+
+  // Beban sesi dihitung dari jadwal halaqoh semester berjalan — inilah angka
+  // "2 sesi"/"3 sesi" pada MPP, dan dasar perhitungan Gaji OS.
+  const currentTerm = await getCurrentTerm()
+  const sessionLoad = currentTerm ? await getTeacherSessionLoad(currentTerm.id) : new Map<string, number>()
 
   // Counter siswa & halaqoh per guru
   const ids = teachers.map(t => t.id)
@@ -92,7 +133,7 @@ export default async function UstadzListPage({ searchParams }: PageProps) {
           <div>
             <h1 className="text-2xl font-bold leading-tight">Ustadz / Guru</h1>
             <p className="text-sm text-muted-foreground mt-0.5">
-              {teachers.length} guru {status === 'active' ? 'aktif' : 'nonaktif'}
+              {teachers.length} guru {STATUS_LABELS[status].toLowerCase()}
             </p>
           </div>
           {canCreate && (
@@ -109,40 +150,78 @@ export default async function UstadzListPage({ searchParams }: PageProps) {
           <div className="flex gap-1 border rounded-lg p-0.5 bg-card">
             <StatusChip href={statusHref(query, 'active')} active={status === 'active'}>Aktif</StatusChip>
             <StatusChip href={statusHref(query, 'inactive')} active={status === 'inactive'}>Nonaktif</StatusChip>
+            {canCreate && (
+              <StatusChip href={statusHref(query, 'deleted')} active={status === 'deleted'}>Terhapus</StatusChip>
+            )}
           </div>
         </div>
 
         {teachers.length === 0 ? (
           <div className="rounded-lg border border-dashed py-12 text-center text-sm text-muted-foreground">
-            {query ? `Tidak ada hasil untuk "${query}"` : 'Belum ada guru terdaftar'}
+            {query
+              ? `Tidak ada hasil untuk "${query}"`
+              : status === 'deleted'
+                ? 'Tidak ada akun guru yang terhapus'
+                : 'Belum ada guru terdaftar'}
           </div>
         ) : (
           <div className="rounded-lg border divide-y bg-card">
-            {teachers.map(t => (
-              <Link
-                key={t.id}
-                href={`/ustadz/${t.id}`}
-                className="flex items-center gap-3 p-3 hover:bg-muted/30 transition-colors"
-              >
-                <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center text-sm font-semibold shrink-0">
-                  {t.full_name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase()}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <p className="font-medium text-sm">{t.full_name}</p>
-                    <code className="text-[10px] bg-muted px-1.5 py-0.5 rounded">@{t.username}</code>
+            {teachers.map(t => {
+              const identity = (
+                <>
+                  <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center text-sm font-semibold shrink-0">
+                    {t.full_name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase()}
                   </div>
-                  <div className="flex gap-3 mt-0.5 text-xs text-muted-foreground flex-wrap">
-                    {t.nip && <span>NIP {t.nip}</span>}
-                    {t.email && <span className="inline-flex items-center gap-1"><Mail className="h-3 w-3" />{t.email}</span>}
-                    {t.phone && <span className="inline-flex items-center gap-1"><Phone className="h-3 w-3" />{t.phone}</span>}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="font-medium text-sm">{t.full_name}</p>
+                      <code className="text-[10px] bg-muted px-1.5 py-0.5 rounded">@{t.username}</code>
+                    </div>
+                    <div className="flex gap-3 mt-0.5 text-xs text-muted-foreground flex-wrap">
+                      {t.employment_type && (
+                        <span className="rounded bg-muted px-1.5 py-0.5 font-medium">
+                          {EMPLOYMENT_SHORT[t.employment_type]}
+                        </span>
+                      )}
+                      {t.unit && <span>{JENJANG_LABELS[t.unit]}</span>}
+                      {t.nip && <span>NIP {t.nip}</span>}
+                      {t.email && <span className="inline-flex items-center gap-1"><Mail className="h-3 w-3" />{t.email}</span>}
+                      <ContractHint contractEnd={t.contract_end} />
+                    </div>
                   </div>
-                </div>
-                <div className="text-right text-xs text-muted-foreground shrink-0">
-                  {halaqohCountMap.get(t.id) ?? 0} halaqoh
-                </div>
-              </Link>
-            ))}
+                </>
+              )
+
+              // Baris terhapus tidak dibungkus tautan: tombol Pulihkan di
+              // dalam tautan membuat sebagian baris jadi jebakan salah klik.
+              if (t.deleted_at) {
+                return (
+                  <div key={t.id} className="flex items-center gap-3 p-3">
+                    {identity}
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-xs text-muted-foreground">
+                        Dihapus {new Date(t.deleted_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      </span>
+                      <RestoreTeacherButton id={t.id} name={t.full_name} />
+                    </div>
+                  </div>
+                )
+              }
+
+              return (
+                <Link
+                  key={t.id}
+                  href={`/ustadz/${t.id}`}
+                  className="flex items-center gap-3 p-3 hover:bg-muted/30 transition-colors"
+                >
+                  {identity}
+                  <div className="text-right text-xs text-muted-foreground shrink-0">
+                    <div>{halaqohCountMap.get(t.id) ?? 0} halaqoh</div>
+                    <div className="tabular-nums">{sessionLoad.get(t.id) ?? 0} sesi</div>
+                  </div>
+                </Link>
+              )
+            })}
           </div>
         )}
       </div>
@@ -150,7 +229,7 @@ export default async function UstadzListPage({ searchParams }: PageProps) {
   )
 }
 
-function statusHref(q: string, status: 'active' | 'inactive'): string {
+function statusHref(q: string, status: TeacherListStatus): string {
   const p = new URLSearchParams()
   if (q) p.set('q', q)
   if (status !== 'active') p.set('status', status)
@@ -168,5 +247,31 @@ function StatusChip({ href, active, children }: { href: string; active: boolean;
     >
       {children}
     </Link>
+  )
+}
+
+/** Label pendek untuk baris daftar — nama panjangnya dipakai di halaman detail. */
+const EMPLOYMENT_SHORT: Record<TeacherEmployment, string> = {
+  tetap_yayasan: 'Tetap YYS',
+  kontrak_yayasan: 'Kontrak YYS',
+  kontrak_rq: 'OS',
+}
+
+/**
+ * Peringatan masa kontrak. Hanya muncul kalau memang mendesak — kontrak yang
+ * masih lama tidak perlu ikut meramaikan baris. Ambang 60 hari memberi jarak
+ * cukup untuk memproses perpanjangan sebelum aksesnya gugur sendiri.
+ */
+function ContractHint({ contractEnd }: { contractEnd: string | null }) {
+  const daysLeft = contractDaysLeft(contractEnd)
+  if (daysLeft === null || daysLeft > 60) return null
+
+  if (daysLeft < 0) {
+    return <span className="font-medium text-destructive">Kontrak habis</span>
+  }
+  return (
+    <span className="font-medium text-amber-600 dark:text-amber-400">
+      Kontrak {daysLeft} hari lagi
+    </span>
   )
 }

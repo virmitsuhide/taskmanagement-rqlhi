@@ -90,7 +90,10 @@ export async function getStudentRaporData(
   }
 
   // Setoran tahsin & tahfidz bulan ini + promosi bulan ini + agregat juz (all time)
-  const [tahsinRes, tahfidzRes, jilidPromRes, juzPromRes, juzProgRes] = await Promise.all([
+  const [
+    tahsinRes, tahfidzRes, jilidPromRes, juzPromRes, juzProgRes,
+    tahsinPlacementRes, tahfidzPlacementRes,
+  ] = await Promise.all([
     supabase
       .from('tahsin_logs')
       .select('setoran_date, nilai_fashohah, nilai_tajwid, nilai_kelancaran, status, catatan')
@@ -112,11 +115,34 @@ export async function getStudentRaporData(
       .from('juz_progress')
       .select('juz_number, ayat_hafal, mutqin')
       .eq('student_id', studentId),
+    // Halaqoh & pengampu YANG BERLAKU DI BULAN ITU, diambil dari setoran
+    // bulan itu sendiri. Santri dan guru diacak ulang tiap semester, jadi
+    // penempatan yang berlaku sekarang bukan penempatan yang benar untuk
+    // rapor bulan lampau — tanpa ini, rapor Semester 1 yang dicetak ulang
+    // setelah pengacakan akan mencantumkan halaqoh dan ustadz yang keliru.
+    supabase
+      .from('tahsin_logs')
+      .select('halaqoh_id, teacher:teachers(full_name), halaqoh:halaqoh(name)')
+      .eq('student_id', studentId).gte('setoran_date', startIso).lte('setoran_date', endIso)
+      .order('setoran_date', { ascending: false }).limit(1),
+    supabase
+      .from('tahfidz_logs')
+      .select('halaqoh_id, teacher:teachers(full_name), halaqoh:halaqoh(name)')
+      .eq('student_id', studentId).gte('setoran_date', startIso).lte('setoran_date', endIso)
+      .order('setoran_date', { ascending: false }).limit(1),
   ])
 
   const tahsinLogs = tahsinRes.data ?? []
   const tahfidzLogs = tahfidzRes.data ?? []
   const juzProgress = (juzProgRes.data ?? []) as Array<{ juz_number: number; ayat_hafal: number; mutqin: boolean }>
+
+  // Setoran tahsin lebih sering daripada tahfidz, jadi ia dijadikan rujukan
+  // utama penempatan. Kalau bulan itu sama sekali tidak ada setoran — santri
+  // izin sebulan penuh, misalnya — barulah jatuh ke penempatan yang berlaku
+  // sekarang, sambil ditandai sebagai perkiraan.
+  type Placement = { halaqoh: { name: string } | null; teacher: { full_name: string } | null }
+  const placement =
+    ((tahsinPlacementRes.data?.[0] ?? tahfidzPlacementRes.data?.[0]) as Placement | undefined) ?? null
 
   // Kehadiran: hari unik dengan setoran (gabungan tahsin+tahfidz)
   const activeDates = new Set<string>()
@@ -147,11 +173,11 @@ export async function getStudentRaporData(
       nis: s.nis,
       jenjang: s.jenjang,
       kelas: s.kelas,
-      halaqoh_name: s.halaqoh?.name ?? null,
+      halaqoh_name: placement?.halaqoh?.name ?? s.halaqoh?.name ?? null,
       wali_name: s.wali_name,
       wali_phone: s.wali_phone,
     },
-    teacherName: s.halaqoh?.wali_teacher?.full_name ?? null,
+    teacherName: placement?.teacher?.full_name ?? s.halaqoh?.wali_teacher?.full_name ?? null,
     period: { year, month, monthLabel: `${MONTH_ID[month - 1]} ${year}` },
     attendance: { activeDays: activeDates.size },
     tahsin: {

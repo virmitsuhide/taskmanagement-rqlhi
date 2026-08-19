@@ -61,6 +61,8 @@ export async function createStudentAction(_: unknown, formData: FormData) {
     return { error: 'Gagal menambah siswa.' }
   }
 
+  await syncHalaqohMembership(supabase, data.id, fields.halaqoh_id)
+
   revalidatePath('/siswa')
   redirect(`/siswa/${data.id}`)
 }
@@ -83,7 +85,7 @@ export async function updateStudentAction(_: unknown, formData: FormData) {
 
   const supabase = createServerClient()
   const { data: existing } = await supabase
-    .from('students').select('jenjang').eq('id', id).single()
+    .from('students').select('jenjang, halaqoh_id').eq('id', id).single()
   if (!existing || !canManageStudents(session.role, existing.jenjang as Jenjang)) {
     return { error: 'Anda tidak memiliki izin untuk siswa ini.' }
   }
@@ -96,6 +98,10 @@ export async function updateStudentAction(_: unknown, formData: FormData) {
   if (error) {
     if (error.code === '23505') return { error: 'NIS sudah dipakai siswa lain.' }
     return { error: 'Gagal memperbarui siswa.' }
+  }
+
+  if (fields.halaqoh_id !== (existing.halaqoh_id as string | null)) {
+    await syncHalaqohMembership(supabase, id, fields.halaqoh_id, existing.halaqoh_id as string | null)
   }
 
   revalidatePath('/siswa')
@@ -125,4 +131,49 @@ export async function deleteStudentAction(id: string) {
 
   revalidatePath('/siswa')
   redirect('/siswa')
+}
+
+/**
+ * Catat perpindahan halaqoh sebagai riwayat, bukan sekadar mengganti pointer.
+ *
+ * `students.halaqoh_id` tetap dipertahankan sebagai penunjuk penempatan yang
+ * berlaku sekarang — puluhan layar memakainya untuk pertanyaan "halaqoh anak
+ * ini apa?", dan menjadikannya JOIN di semua tempat tidak sepadan. Sumber
+ * kebenaran riwayatnya ada di `halaqoh_members`, yang disegarkan di sini.
+ *
+ * Karena halaqoh sendiri milik satu semester (halaqoh.term_id), keanggotaan
+ * ini ikut bersemester dengan sendirinya. Jadi setelah pengacakan semester
+ * berikutnya, pertanyaan "anak ini di halaqoh mana pada Semester 1" tetap
+ * terjawab — dan rapor bulan lampau tetap menyebut ustadz yang benar.
+ */
+async function syncHalaqohMembership(
+  supabase: ReturnType<typeof createServerClient>,
+  studentId: string,
+  nextHalaqohId: string | null,
+  previousHalaqohId?: string | null,
+) {
+  const today = new Date()
+  const iso = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+
+  // Keanggotaan lama ditutup, bukan dihapus: kepindahan di tengah semester
+  // adalah fakta yang perlu terbaca saat rapor bulan itu disusun.
+  if (previousHalaqohId) {
+    await supabase
+      .from('halaqoh_members')
+      .update({ left_at: iso })
+      .eq('halaqoh_id', previousHalaqohId)
+      .eq('student_id', studentId)
+      .is('left_at', null)
+  }
+
+  if (!nextHalaqohId) return
+
+  // Kembali ke halaqoh yang pernah ditinggalkan: buka lagi barisnya alih-alih
+  // membuat baris kedua — kunci utamanya sepasang (halaqoh, santri).
+  await supabase
+    .from('halaqoh_members')
+    .upsert(
+      { halaqoh_id: nextHalaqohId, student_id: studentId, joined_at: iso, left_at: null },
+      { onConflict: 'halaqoh_id,student_id' },
+    )
 }

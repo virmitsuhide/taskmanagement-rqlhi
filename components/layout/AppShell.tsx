@@ -12,14 +12,17 @@ export async function AppShell({ children }: Props) {
   if (!session?.isLoggedIn) redirect('/login')
 
   return (
-    <div className="flex h-screen overflow-hidden">
+    // Saat dicetak, tinggi tetap + scroll internal harus dilepas. Browser
+    // hanya mencetak apa yang muat di kotak setinggi layar itu, sehingga
+    // halaman sepanjang apa pun keluar sebagai satu lembar terpotong.
+    <div className="flex h-screen overflow-hidden print:block print:h-auto print:overflow-visible">
       <a
         href="#main-content"
         className="sr-only focus:not-sr-only focus:absolute focus:left-3 focus:top-3 focus:z-[60] focus:rounded-md focus:bg-primary focus:px-3 focus:py-2 focus:text-sm focus:font-medium focus:text-primary-foreground focus:shadow-md"
       >
         Lewati ke konten utama
       </a>
-      <div className="hidden md:flex shrink-0">
+      <div className="hidden md:flex shrink-0 print:hidden">
         <Sidebar
           role={session.role}
           displayName={session.displayName}
@@ -31,7 +34,7 @@ export async function AppShell({ children }: Props) {
         displayName={session.displayName}
         username={session.username}
       />
-      <main id="main-content" tabIndex={-1} className="flex-1 overflow-y-auto pb-16 md:pb-0 outline-none">
+      <main id="main-content" tabIndex={-1} className="flex-1 overflow-y-auto pb-16 md:pb-0 outline-none print:overflow-visible print:pb-0">
         {children}
       </main>
     </div>

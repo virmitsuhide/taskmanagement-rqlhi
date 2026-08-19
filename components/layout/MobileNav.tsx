@@ -6,12 +6,12 @@ import { usePathname } from 'next/navigation'
 import {
   Menu, X, LayoutDashboard, CheckSquare, BookOpen,
   ImageIcon, Megaphone, FileText, User, LogOut, GraduationCap, Newspaper, LayoutGrid,
-  Users, UserCog, BookMarked, BarChart3, LayoutTemplate, Info,
+  Users, UserCog, BookMarked, BarChart3, LayoutTemplate, Info, Wallet, CalendarRange,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
   DASHBOARD_LABELS, getAccessibleDashboards, DEFAULT_DASHBOARD,
-  canViewFinanceNotes, canPostToHome, canViewHumasRequests, canCreateNews,
+  canViewTerms, canViewGukarRecap, canViewFinance, canViewFinanceNotes, canPostToHome, canViewHumasRequests, canCreateNews,
   canAccessProgramMenu, canEditAbout,
   canViewStudents, canViewHalaqoh, canViewTeachers, canViewAnalytics, canViewUnitAnalytics,
   canManageHomepage,
@@ -122,7 +122,7 @@ export function MobileNav({ role, displayName, username }: Props) {
       {/* Backdrop */}
       {open && (
         <div
-          className="fixed inset-0 z-40 bg-black/50 md:hidden"
+          className="fixed inset-0 z-40 bg-black/50 md:hidden print:hidden"
           onClick={close}
           aria-hidden
         />
@@ -138,7 +138,7 @@ export function MobileNav({ role, displayName, username }: Props) {
         aria-hidden={!open}
         inert={!open}
         className={cn(
-          'fixed top-0 left-0 z-50 flex h-full w-72 flex-col bg-sidebar text-sidebar-foreground transition-transform duration-200 md:hidden',
+          'fixed top-0 left-0 z-50 flex h-full w-72 flex-col bg-sidebar text-sidebar-foreground transition-transform duration-200 md:hidden print:hidden',
           open ? 'translate-x-0' : '-translate-x-full'
         )}
       >
@@ -200,16 +200,22 @@ export function MobileNav({ role, displayName, username }: Props) {
               {canManageHomepage(role) && (
                 <DrawerLink href="/humas/beranda" icon={<LayoutTemplate className="h-4 w-4" />} label="Kelola Beranda" active={isActive('/humas/beranda')} onNavigate={close} />
               )}
+              {canViewFinance(role) && (
+                <DrawerLink href="/keuangan" icon={<Wallet className="h-4 w-4" />} label="Keuangan" active={isActive('/keuangan')} onNavigate={close} />
+              )}
               {canViewFinanceNotes(role) && (
                 <DrawerLink href="/notes" icon={<FileText className="h-4 w-4" />} label="Catatan Keuangan" active={isActive('/notes')} onNavigate={close} />
               )}
             </ul>
           </div>
 
-          {(canViewStudents(role) || canViewHalaqoh(role) || canViewTeachers(role)) && (
+          {(canViewStudents(role) || canViewHalaqoh(role) || canViewTeachers(role) || canViewTerms(role)) && (
             <div>
               <p className="px-2 mb-2 text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/50">Tahsin &amp; Tahfidz</p>
               <ul className="space-y-1">
+                {canViewTerms(role) && (
+                  <DrawerLink href="/tahun-ajaran" icon={<CalendarRange className="h-4 w-4" />} label="Tahun Ajaran" active={isActive('/tahun-ajaran')} onNavigate={close} />
+                )}
                 {canViewHalaqoh(role) && (
                   <DrawerLink href="/halaqoh" icon={<BookMarked className="h-4 w-4" />} label="Halaqoh" active={isActive('/halaqoh')} onNavigate={close} />
                 )}
@@ -218,6 +224,9 @@ export function MobileNav({ role, displayName, username }: Props) {
                 )}
                 {canViewTeachers(role) && (
                   <DrawerLink href="/ustadz" icon={<UserCog className="h-4 w-4" />} label="Ustadz / Guru" active={isActive('/ustadz')} onNavigate={close} />
+                )}
+                {canViewGukarRecap(role) && (
+                  <DrawerLink href="/dashboard/analitik/gukar" icon={<BarChart3 className="h-4 w-4" />} label="Analitik Gukar" active={isActive('/dashboard/analitik/gukar')} onNavigate={close} />
                 )}
               </ul>
             </div>
@@ -247,7 +256,7 @@ export function MobileNav({ role, displayName, username }: Props) {
       </div>
 
       {/* Bottom tab bar */}
-      <nav aria-label="Navigasi bawah" className="fixed bottom-0 left-0 right-0 z-30 flex h-16 items-center justify-around border-t bg-background px-2 md:hidden">
+      <nav aria-label="Navigasi bawah" className="fixed bottom-0 left-0 right-0 z-30 flex h-16 items-center justify-around border-t bg-background px-2 md:hidden print:hidden">
         <Link
           href={`/dashboard/${defaultDashboard}`}
           aria-current={isActive(`/dashboard/${defaultDashboard}`) ? 'page' : undefined}

@@ -415,6 +415,14 @@ export interface Teacher {
   phone: string | null
   photo_url: string | null
   is_active: boolean
+  /** Terisi kalau akunnya dihapus (hapus lunak). */
+  deleted_at: string | null
+  /** Unit penempatan. Kosong untuk pengurus yang tidak terikat satu unit. */
+  unit: Jenjang | null
+  employment_type: TeacherEmployment | null
+  contract_start: string | null
+  /** Hari terakhir kontrak berlaku. NULL = tidak pernah kedaluwarsa. */
+  contract_end: string | null
   can_change_password: boolean
   joined_at: string
   linked_user_id: string | null
@@ -644,3 +652,179 @@ export interface PublicTeacher {
   public_bio: string | null
   display_order: number
 }
+
+// ─── Keuangan Bendahara ──────────────────────────────────────────────────────
+
+export type FinanceAccountKind = 'pemasukan' | 'pengeluaran'
+export type FinancePaymentStatus = 'lunas' | 'piutang'
+
+export interface FinanceAccount {
+  id: string
+  kind: FinanceAccountKind
+  slug: string
+  name: string
+  hint: string
+  display_order: number
+  is_active: boolean
+}
+
+/** Satu penerimaan / pengeluaran. `period` = bulan tagihan, `paid_at` = kapan
+ *  uangnya berpindah; laporan bulanan menjumlah berdasarkan `paid_at`. */
+export interface FinanceTransaction {
+  id: string
+  account_id: string
+  period: string
+  amount: number
+  description: string
+  status: FinancePaymentStatus
+  paid_at: string | null
+  created_by: string | null
+  created_at: string
+  updated_at: string
+  /** Alokasi dana sumber — hanya terisi untuk transaksi pengeluaran. */
+  funding?: FinanceFunding[]
+}
+
+export interface FinanceFunding {
+  id: string
+  transaction_id: string
+  source_slug: string
+  amount: number
+}
+
+export interface FinanceBudget {
+  id: string
+  account_id: string
+  period: string
+  amount: number
+}
+
+export interface FinanceTrustFund {
+  id: string
+  slug: string
+  name: string
+  opening_balance: number
+  opening_date: string
+  display_order: number
+  is_active: boolean
+}
+
+export interface FinanceTrustEntry {
+  id: string
+  fund_id: string
+  entry_date: string
+  description: string
+  /** Bertanda: positif = dana masuk, negatif = dana diambil. */
+  amount: number
+}
+
+export interface FinanceProgramPlan {
+  id: string
+  period: string
+  name: string
+  funding_source: string
+  amount: number
+}
+
+/** Bagian naratif laporan yang ditulis bendahara sendiri. */
+export type FinanceNoteSection =
+  | 'catatan_pemasukan'
+  | 'catatan_pengeluaran'
+  | 'evaluasi_anggaran'
+  | 'analisis_kemandirian'
+
+export interface FinanceReportNote {
+  id: string
+  period: string
+  section: FinanceNoteSection
+  content: string
+  updated_at: string
+}
+
+// ─── Tahun ajaran, keanggotaan halaqoh, & sesi mengajar ──────────────────────
+
+export type AcademicSemester = 'ganjil' | 'genap'
+
+/** Jenis kepegawaian guru — menentukan pos gaji dan apakah kontraknya habis. */
+export type TeacherEmployment = 'tetap_yayasan' | 'kontrak_yayasan' | 'kontrak_rq'
+
+export const TEACHER_EMPLOYMENT_LABELS: Record<TeacherEmployment, string> = {
+  tetap_yayasan: 'Guru Tetap Yayasan',
+  kontrak_yayasan: 'Guru Kontrak Yayasan',
+  kontrak_rq: 'Guru Kontrak RQ (OS)',
+}
+
+export interface AcademicTerm {
+  id: string
+  /** Label tahun ajaran, mis. '2025/2026'. */
+  year_label: string
+  semester: AcademicSemester
+  start_date: string
+  end_date: string
+  is_current: boolean
+}
+
+export interface HalaqohMember {
+  halaqoh_id: string
+  student_id: string
+  joined_at: string
+  left_at: string | null
+}
+
+export interface HalaqohSession {
+  id: string
+  halaqoh_id: string
+  /** 1 = Senin … 7 = Ahad, mengikuti ISO-8601. */
+  day_of_week: number
+  start_time: string
+  end_time: string
+  note: string
+}
+
+/** Nama hari untuk sesi, diindeks 1–7 seperti kolom day_of_week. */
+export const DAY_LABELS: Record<number, string> = {
+  1: 'Senin', 2: 'Selasa', 3: 'Rabu', 4: 'Kamis', 5: 'Jumat', 6: 'Sabtu', 7: 'Ahad',
+}
+
+// ─── Pembinaan Guru & Karyawan (Gukar) ───────────────────────────────────────
+
+export type GukarKind = 'guru' | 'karyawan'
+
+export interface GukarGroup {
+  id: string
+  term_id: string
+  name: string
+  pengampu_id: string | null
+  unit: string
+  display_order: number
+  is_active: boolean
+}
+
+export interface GukarParticipant {
+  id: string
+  group_id: string
+  full_name: string
+  unit: string
+  kind: GukarKind | null
+  level_awal: string
+  is_active: boolean
+}
+
+/** Catatan satu peserta pada satu bulan. */
+export interface GukarMonthly {
+  id: string
+  participant_id: string
+  period: string
+  capaian_tahsin: string
+  capaian_tahfidz: string
+  hadir_1: boolean
+  hadir_2: boolean
+  hadir_3: boolean
+  hadir_4: boolean
+  hadir_5: boolean
+  jumlah_halaman: number
+  catatan: string
+}
+
+/** Ambang kehadiran yang dipakai rekap — mengikuti kolom "Kekurangan (75%)". */
+export const GUKAR_TARGET_HADIR = 0.75

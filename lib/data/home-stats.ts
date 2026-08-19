@@ -26,7 +26,7 @@ export const getHomeStats = cache(async (): Promise<HomeStats> => {
   try {
     const supabase = createServerClient()
     const [teachersRes, studentsRes] = await Promise.all([
-      supabase.from('teachers').select('id', { count: 'exact', head: true }).eq('is_active', true),
+      supabase.from('teachers').select('id', { count: 'exact', head: true }).eq('is_active', true).is('deleted_at', null),
       supabase.from('students').select('id', { count: 'exact', head: true }).eq('is_active', true),
     ])
     return {

@@ -3,6 +3,7 @@
 import { redirect } from 'next/navigation'
 import bcrypt from 'bcryptjs'
 import { createServerClient } from '@/lib/supabase/server'
+import { isContractExpired } from '@/lib/auth/contract'
 import { createSession, destroySession } from '@/lib/auth/session'
 import { createTeacherSession } from '@/lib/auth/teacher-session'
 import { DEFAULT_DASHBOARD } from '@/lib/auth/permissions'
@@ -43,13 +44,18 @@ export async function loginAction(_: unknown, formData: FormData) {
   // 2. Coba sebagai guru (teachers)
   const { data: teacher } = await supabase
     .from('teachers')
-    .select('id, username, password_hash, full_name, is_active')
+    .select('id, username, password_hash, full_name, is_active, contract_end')
     .eq('username', username)
+    // Akun terhapus kehilangan akses saat itu juga.
+    .is('deleted_at', null)
     .maybeSingle()
 
   if (teacher && (await bcrypt.compare(password, teacher.password_hash))) {
     if (!teacher.is_active) {
       return { error: 'Akun guru ini sudah dinonaktifkan. Hubungi admin.' }
+    }
+    if (isContractExpired(teacher.contract_end)) {
+      return { error: 'Masa kontrak akun ini sudah berakhir. Hubungi admin RQ.' }
     }
     await createTeacherSession({
       teacherId: teacher.id,

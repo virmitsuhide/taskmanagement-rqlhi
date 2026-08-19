@@ -334,6 +334,22 @@ export function canViewFinanceNotes(role: UserRole): boolean {
   return canManageFinanceNotes(role) || role === 'kepala_rq'
 }
 
+// Modul Keuangan (pencatatan → rekap → laporan BPH)
+//
+// Aturan aksesnya sama dengan catatan keuangan: bendahara yang mencatat,
+// kepala RQ ikut membaca karena dialah yang menyampaikan laporannya ke BPH.
+// Dipisah jadi fungsi sendiri supaya kelak bisa berbeda — misal saat BPH
+// diberi akses baca laporan tanpa melihat transaksi satu per satu.
+/** Boleh mencatat transaksi, anggaran, dana titipan, dan narasi laporan. */
+export function canManageFinance(role: UserRole): boolean {
+  return role === 'bendahara'
+}
+
+/** Boleh membuka modul keuangan & laporannya. */
+export function canViewFinance(role: UserRole): boolean {
+  return canManageFinance(role) || role === 'kepala_rq'
+}
+
 /**
  * Kelola berita (buat, ubah, hapus) — sepenuhnya wewenang Humas.
  *
@@ -416,6 +432,22 @@ export function canManageHalaqoh(role: UserRole, jenjang?: Jenjang | null): bool
 export function canViewHalaqoh(role: UserRole, jenjang?: Jenjang | null): boolean {
   if (['kepala_rq', 'kumik', 'sdm', 'bendahara'].includes(role)) return true
   return canManageHalaqoh(role, jenjang)
+}
+
+/**
+ * Tahun ajaran & pengacakan halaqoh tiap semester.
+ *
+ * Menetapkan semester berjalan mengubah acuan seluruh modul tahsin/tahfidz
+ * sekaligus, jadi wewenangnya dipegang Kepala RQ dan Kumik saja — koordinator
+ * tetap bisa membagi santri di dalam semester yang sudah ditetapkan.
+ */
+export function canManageTerms(role: UserRole): boolean {
+  return role === 'kepala_rq' || role === 'kumik'
+}
+
+/** Boleh membuka panel tahun ajaran (baca). */
+export function canViewTerms(role: UserRole): boolean {
+  return canManageTerms(role) || role === 'koor_sd' || role === 'koor_smp' || role === 'sdm'
 }
 
 /**
@@ -557,4 +589,25 @@ export const DEFAULT_DASHBOARD: Record<UserRole, string> = {
   humas: 'humas',
   div_training: 'div-training',
   new_squad: 'pribadi',
+}
+
+// Pembinaan Guru & Karyawan (Gukar)
+//
+// Pengisiannya bukan urusan role melainkan penugasan: pengampu mengisi
+// kelompoknya sendiri lewat portal /guru, dan itu diperiksa terhadap
+// gukar_groups.pengampu_id, bukan lewat fungsi di sini.
+/**
+ * Boleh membuka rekap & analitik pembinaan seluruh kelompok.
+ *
+ * SDM sebagai pemilik program, dan Kepala RQ karena laporan bulanan ke BPH
+ * memuat pembinaan guru. Pengampu lain cukup melihat kelompoknya sendiri
+ * lewat portal guru -- penugasan, bukan role, yang menentukannya di sana.
+ */
+export function canViewGukarRecap(role: UserRole): boolean {
+  return role === 'sdm' || role === 'kepala_rq'
+}
+
+/** Boleh menata kelompok & peserta pembinaan (bukan sekadar mengisi capaian). */
+export function canManageGukar(role: UserRole): boolean {
+  return role === 'sdm' || role === 'kepala_rq'
 }

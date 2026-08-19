@@ -7,8 +7,11 @@ import { resetTeacherPasswordAction } from '@/app/actions/teachers'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { Button } from '@/components/ui/button'
 import { Pencil, KeyRound, Mail, Phone, BookOpen } from 'lucide-react'
+import { DeleteTeacherButton, RestoreTeacherButton } from '../TeacherActions'
 import { PasswordBanner } from './PasswordBanner'
-import type { Jenjang } from '@/types'
+import { contractDaysLeft } from '@/lib/auth/contract'
+import { getCurrentTerm, getTeacherSessionLoad } from '@/lib/data/terms'
+import { TEACHER_EMPLOYMENT_LABELS, type Jenjang, type TeacherEmployment } from '@/types'
 
 interface PageProps {
   params: Promise<{ id: string }>
@@ -26,11 +29,15 @@ export default async function TeacherDetailPage({ params, searchParams }: PagePr
   const supabase = createServerClient()
   const { data: teacher } = await supabase
     .from('teachers')
-    .select('id, username, full_name, nip, email, phone, is_active, joined_at, created_at')
+    .select('id, username, full_name, nip, email, phone, is_active, deleted_at, joined_at, created_at, employment_type, unit, contract_start, contract_end')
     .eq('id', id)
     .maybeSingle()
 
   if (!teacher) notFound()
+
+  // Akun terhapus hanya boleh dibuka oleh yang bisa memulihkannya. Bagi yang
+  // lain guru itu memang sudah tidak ada — termasuk lewat tautan langsung.
+  if (teacher.deleted_at && !canManageTeachers(session.role)) notFound()
 
   const { data: halaqohRows } = await supabase
     .from('halaqoh')
@@ -63,6 +70,12 @@ export default async function TeacherDetailPage({ params, searchParams }: PagePr
 
   const canEdit = canManageTeachers(session.role)
 
+  // Beban sesi semester berjalan — dasar angka "2 sesi"/"3 sesi" pada MPP.
+  const currentTerm = await getCurrentTerm()
+  const sessionCount = currentTerm
+    ? (await getTeacherSessionLoad(currentTerm.id)).get(id) ?? 0
+    : 0
+
   const initials = teacher.full_name.split(' ').slice(0, 2).map((w: string) => w[0]).join('').toUpperCase()
 
   async function resetPasswordFormAction() {
@@ -82,6 +95,18 @@ export default async function TeacherDetailPage({ params, searchParams }: PagePr
 
         {new_password && (
           <PasswordBanner password={new_password} username={teacher.username} />
+        )}
+
+        {teacher.deleted_at && (
+          <div className="mb-4 rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm">
+            <p className="font-medium text-destructive">Akun ini sudah dihapus</p>
+            <p className="text-muted-foreground mt-0.5">
+              Dihapus {new Date(teacher.deleted_at).toLocaleDateString('id-ID', {
+                day: 'numeric', month: 'long', year: 'numeric',
+              })}. Guru tidak bisa login dan tidak muncul di daftar mana pun.
+              Riwayat setoran serta penugasan halaqoh-nya masih tersimpan.
+            </p>
+          </div>
         )}
 
         {/* Hero */}
@@ -114,17 +139,57 @@ export default async function TeacherDetailPage({ params, searchParams }: PagePr
                 )}
                 <span>Bergabung {new Date(teacher.joined_at).toLocaleDateString('id-ID', { year: 'numeric', month: 'short' })}</span>
               </div>
+
+              {/* Kepegawaian: jenis guru, unit, beban sesi, dan masa kontrak. */}
+              <div className="flex flex-wrap items-center gap-2 mt-3 text-xs">
+                {teacher.employment_type && (
+                  <span className="rounded bg-muted px-2 py-1 font-medium">
+                    {TEACHER_EMPLOYMENT_LABELS[teacher.employment_type as TeacherEmployment]}
+                  </span>
+                )}
+                {teacher.unit && (
+                  <span className="rounded bg-muted px-2 py-1">{JENJANG_LABELS[teacher.unit as Jenjang]}</span>
+                )}
+                <span className="rounded bg-muted px-2 py-1 tabular-nums">
+                  {sessionCount} sesi / pekan
+                </span>
+                {teacher.contract_end && (
+                  <span
+                    className={`rounded px-2 py-1 font-medium ${
+                      (contractDaysLeft(teacher.contract_end) ?? 0) < 0
+                        ? 'bg-destructive/10 text-destructive'
+                        : (contractDaysLeft(teacher.contract_end) ?? 999) <= 60
+                          ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
+                          : 'bg-muted'
+                    }`}
+                  >
+                    Kontrak s.d. {new Date(teacher.contract_end).toLocaleDateString('id-ID', {
+                      day: 'numeric', month: 'short', year: 'numeric',
+                    })}
+                  </span>
+                )}
+              </div>
             </div>
             {canEdit && (
-              <div className="flex gap-2">
-                <Button asChild size="sm" variant="outline">
-                  <Link href={`/ustadz/${id}/edit`}><Pencil className="h-3.5 w-3.5 mr-1" />Edit</Link>
-                </Button>
-                <form action={resetPasswordFormAction}>
-                  <Button type="submit" size="sm" variant="outline">
-                    <KeyRound className="h-3.5 w-3.5 mr-1" />Reset Password
-                  </Button>
-                </form>
+              <div className="flex gap-2 flex-wrap">
+                {teacher.deleted_at ? (
+                  // Akun terhapus hanya menawarkan satu jalan keluar: pulihkan
+                  // dulu. Menyunting atau mereset password akun yang sudah
+                  // dibuang cuma membingungkan.
+                  <RestoreTeacherButton id={id} name={teacher.full_name} />
+                ) : (
+                  <>
+                    <Button asChild size="sm" variant="outline">
+                      <Link href={`/ustadz/${id}/edit`}><Pencil className="h-3.5 w-3.5 mr-1" />Edit</Link>
+                    </Button>
+                    <form action={resetPasswordFormAction}>
+                      <Button type="submit" size="sm" variant="outline">
+                        <KeyRound className="h-3.5 w-3.5 mr-1" />Reset Password
+                      </Button>
+                    </form>
+                    <DeleteTeacherButton id={id} name={teacher.full_name} />
+                  </>
+                )}
               </div>
             )}
           </div>

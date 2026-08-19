@@ -6,6 +6,7 @@ import { createTeacherAction, updateTeacherAction } from '@/app/actions/teachers
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { TEACHER_EMPLOYMENT_LABELS, type TeacherEmployment } from '@/types'
 
 interface Props {
   mode: 'create' | 'edit'
@@ -17,6 +18,9 @@ interface Props {
     email: string | null
     phone: string | null
     is_active: boolean
+    employment_type?: TeacherEmployment | null
+    contract_start?: string | null
+    contract_end?: string | null
   }
 }
 
@@ -92,6 +96,50 @@ export function TeacherForm({ mode, initial }: Props) {
           <Input id="phone" name="phone" defaultValue={initial?.phone ?? ''} disabled={isPending} placeholder="08xx" />
         </div>
       </div>
+
+      {/* Kepegawaian — menentukan pos gaji sekaligus apakah aksesnya bisa
+          kedaluwarsa. Guru OS berganti tiap tahun ajaran, jadi tanggal
+          kontraknya yang mencabut akses, bukan ingatan admin. */}
+      <fieldset className="rounded-md border p-3 space-y-3">
+        <legend className="px-1 text-sm font-medium">Kepegawaian</legend>
+
+        <div className="space-y-1.5">
+          <Label htmlFor="employment_type">Jenis guru</Label>
+          <select
+            id="employment_type"
+            name="employment_type"
+            defaultValue={initial?.employment_type ?? ''}
+            disabled={isPending}
+            className="h-9 w-full rounded-md border bg-transparent px-3 text-sm"
+          >
+            <option value="">— belum ditentukan —</option>
+            {(Object.keys(TEACHER_EMPLOYMENT_LABELS) as TeacherEmployment[]).map(key => (
+              <option key={key} value={key}>{TEACHER_EMPLOYMENT_LABELS[key]}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="space-y-1.5">
+            <Label htmlFor="contract_start">Mulai kontrak</Label>
+            <Input
+              id="contract_start" name="contract_start" type="date"
+              defaultValue={initial?.contract_start ?? ''} disabled={isPending}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="contract_end">Akhir kontrak</Label>
+            <Input
+              id="contract_end" name="contract_end" type="date"
+              defaultValue={initial?.contract_end ?? ''} disabled={isPending}
+            />
+            <p className="text-xs text-muted-foreground">
+              Kosongkan untuk guru tetap. Kalau diisi, akses login otomatis
+              berhenti sehari setelah tanggal ini.
+            </p>
+          </div>
+        </div>
+      </fieldset>
 
       {mode === 'edit' && (
         <label className="flex items-center gap-2 text-sm">

@@ -205,3 +205,376 @@
   .bg-accent-warm { background-color: var(--accent-warm); }
   .bg-accent-warm-wash { background-color: var(--accent-warm-wash); }
 }
+/* ── Cetak ──────────────────────────────────────────────────────────────────
+ *
+ * Kerangka aplikasi memakai tinggi layar penuh dengan scroll di dalamnya
+ * (AppShell: h-screen + overflow-hidden). Untuk layar itu benar, tapi saat
+ * dicetak browser hanya mengambil apa yang muat di kotak setinggi layar —
+ * hasilnya satu lembar terpotong berapa pun panjang isinya. Blok ini
+ * melepaskan kotak tersebut dan menyiapkan halaman panjang bertabel agar
+ * terpotong di tempat yang wajar.
+ */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 12mm;
+  }
+
+  html,
+  body {
+    height: auto !important;
+    overflow: visible !important;
+    background: #fff !important;
+  }
+
+  /* Mode gelap tidak ikut tercetak. Printer mengabaikan latar gelap secara
+     bawaan, sehingga teks terang akan hilang di atas kertas putih. */
+  .dark,
+  .dark * {
+    color: #000 !important;
+    background-color: transparent !important;
+    border-color: #b3b3b3 !important;
+  }
+
+  /* Semua wadah bergulir dilepas — isinya harus mengalir ke halaman
+     berikutnya, bukan terpotong di tepi kotaknya. */
+  .overflow-x-auto,
+  .overflow-y-auto,
+  .overflow-hidden {
+    overflow: visible !important;
+  }
+
+  /* Header lengket akan tercetak berulang di tengah halaman. */
+  .sticky,
+  .fixed {
+    position: static !important;
+  }
+
+  body {
+    font-size: 10pt;
+  }
+
+  table {
+    width: 100% !important;
+    font-size: 9pt;
+    border-collapse: collapse;
+  }
+
+  /* Tabel yang terpotong antar halaman tetap membawa barisnya. */
+  thead {
+    display: table-header-group;
+  }
+
+  tr,
+  li {
+    break-inside: avoid;
+  }
+
+  /* Judul sub-bab jangan tertinggal sendirian di kaki halaman. */
+  h1,
+  h2,
+  h3 {
+    break-after: avoid-page;
+  }
+
+  /* Tabel terlebar — matriks dana sumber (1.5) dan rekapitulasi (1.6) —
+     tidak muat di lebar potret. Keduanya dicetak melintang di lembar
+     sendiri; sisa laporan tetap potret. */
+  @page wide-page {
+    size: A4 landscape;
+    margin: 10mm;
+  }
+
+  .print-landscape {
+    page: wide-page;
+  }
+}
+
+/* ── Tema Laporan BPH ───────────────────────────────────────────────────────
+ *
+ * Halaman /keuangan/laporan meniru Laporan Eksekutif RQ (docx) supaya hasil
+ * cetaknya bisa langsung dipakai. Paletnya diambil dari template: navy
+ * #1B2A4A untuk band & kepala tabel, emas #C8952A untuk nomor bab, dan
+ * Segoe UI sebagai huruf.
+ *
+ * Warna ditulis literal, bukan lewat token tema aplikasi, karena lembar ini
+ * harus tampil sama di mode terang, mode gelap, dan di atas kertas — seperti
+ * pratinjau dokumen, bukan bagian dari UI yang ikut berganti tema.
+ */
+.report-sheet {
+  --rp-navy: #1b2a4a;
+  --rp-navy-soft: #2e4a7a;
+  --rp-gold: #c8952a;
+  --rp-blue-100: #ebf3fb;
+  --rp-blue-200: #bdd6ee;
+  --rp-blue-400: #8eaadb;
+  --rp-grey: #f8f9fa;
+  --rp-line: #d0cece;
+  --rp-muted: #6b7280;
+
+  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+  color: var(--rp-navy);
+  background: #fff;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.report-sheet :is(h1, h2, h3, p, td, th, li, span, div) {
+  color: inherit;
+}
+
+/* Sampul: identitas yayasan di atas band navy, seperti kepala dokumen. */
+.report-cover {
+  background: var(--rp-navy);
+  color: #fff;
+  padding: 18px 20px;
+}
+
+.report-cover .brand {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.report-cover .tagline {
+  font-size: 11px;
+  opacity: 0.8;
+  margin-top: 2px;
+}
+
+.report-cover .doc-title {
+  font-size: 20px;
+  font-weight: 700;
+  margin-top: 14px;
+  letter-spacing: 0.02em;
+}
+
+.report-cover .doc-sub {
+  font-size: 12px;
+  opacity: 0.85;
+}
+
+/* Meta dokumen: dua kolom label–nilai, seperti tabel identitas di sampul. */
+.report-meta {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.report-meta td {
+  border: 1px solid var(--rp-line);
+  padding: 5px 9px;
+}
+
+.report-meta td:first-child {
+  width: 34%;
+  background: var(--rp-grey);
+  font-weight: 600;
+  color: var(--rp-navy-soft);
+}
+
+/* Band bab: kotak emas bernomor + judul di atas dasar navy. */
+.report-band {
+  display: flex;
+  align-items: stretch;
+  margin: 22px 0 12px;
+}
+
+.report-band .num {
+  background: var(--rp-gold);
+  color: #fff;
+  font-size: 16px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  padding: 0 14px;
+}
+
+.report-band .title {
+  background: var(--rp-navy);
+  color: #fff;
+  flex: 1;
+  padding: 8px 14px;
+}
+
+.report-band .title strong {
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+
+.report-band .title em {
+  display: block;
+  font-size: 11px;
+  font-style: italic;
+  opacity: 0.8;
+}
+
+/* Judul sub-bab: garis emas di kiri, senada penomoran template. */
+.report-h {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--rp-navy);
+  border-left: 3px solid var(--rp-gold);
+  padding-left: 8px;
+  margin: 16px 0 6px;
+}
+
+.report-h .sub {
+  font-weight: 400;
+  color: var(--rp-muted);
+}
+
+/* Tabel: kepala navy, baris selang-seling abu, baris TOTAL biru muda. */
+.report-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11.5px;
+}
+
+.report-table thead th {
+  background: var(--rp-navy);
+  color: #fff;
+  font-weight: 600;
+  text-align: left;
+  padding: 6px 8px;
+  border: 1px solid var(--rp-navy);
+  vertical-align: bottom;
+}
+
+.report-table tbody td {
+  border: 1px solid var(--rp-line);
+  padding: 5px 8px;
+  vertical-align: top;
+}
+
+.report-table tbody tr:nth-child(2n) td {
+  background: var(--rp-grey);
+}
+
+.report-table tbody tr.total td {
+  background: var(--rp-blue-200);
+  font-weight: 700;
+  color: var(--rp-navy);
+}
+
+.report-table .num-cell {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Kartu angka ringkasan (1.1). */
+.report-stat {
+  border: 1px solid var(--rp-blue-200);
+  border-top: 3px solid var(--rp-navy);
+  background: var(--rp-blue-100);
+  padding: 10px 12px;
+}
+
+.report-stat .value {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--rp-navy);
+  font-variant-numeric: tabular-nums;
+}
+
+.report-stat .label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--rp-navy-soft);
+}
+
+.report-stat .hint {
+  font-size: 10.5px;
+  color: var(--rp-muted);
+}
+
+/* Kotak narasi: evaluasi anggaran & analisis kemandirian. */
+.report-callout {
+  border: 1px solid var(--rp-blue-200);
+  border-left: 4px solid var(--rp-blue-400);
+  background: var(--rp-blue-100);
+  padding: 9px 12px;
+  font-size: 11.5px;
+}
+
+.report-callout.gold {
+  border-color: #ffe599;
+  border-left-color: var(--rp-gold);
+  background: #fff9e8;
+}
+
+.report-callout .caption {
+  font-weight: 700;
+  font-size: 11px;
+  color: var(--rp-navy);
+  margin-bottom: 3px;
+}
+
+/* Lencana status KPI. */
+.report-badge {
+  display: inline-block;
+  padding: 1px 7px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.report-badge[data-status="info"] { background: #eef1f5; color: var(--rp-navy-soft); }
+.report-badge[data-status="aman"] { background: #dcfce7; color: #166534; }
+.report-badge[data-status="pantau"] { background: #fef3c7; color: #92400e; }
+.report-badge[data-status="perlu_naik"] { background: #e0efff; color: #1a5276; }
+.report-badge[data-status="kritis"] { background: #fde2dd; color: #a3341a; }
+
+.report-footer {
+  border-top: 2px solid var(--rp-navy);
+  margin-top: 22px;
+  padding-top: 6px;
+  font-size: 10px;
+  color: var(--rp-muted);
+  text-align: center;
+}
+
+@media print {
+  /* Lembar laporan sudah membawa paletnya sendiri — jangan dipaksa hitam
+     putih oleh normalisasi mode gelap di blok cetak di atas. */
+  .dark .report-sheet,
+  .dark .report-sheet * {
+    color: revert !important;
+    background-color: revert !important;
+    border-color: revert !important;
+  }
+
+  .report-sheet {
+    font-size: 9.5pt;
+  }
+
+  .report-table {
+    font-size: 8.5pt;
+  }
+
+  /* Latar berwarna (band navy, kepala tabel, lencana) harus ikut tercetak. */
+  .report-sheet,
+  .report-sheet * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Band bab memulai halaman baru — tiap bab mulai dari atas seperti docx. */
+  .report-band {
+    break-before: page;
+    break-after: avoid;
+  }
+
+  .report-band:first-of-type {
+    break-before: auto;
+  }
+
+  .report-h {
+    break-after: avoid;
+  }
+}

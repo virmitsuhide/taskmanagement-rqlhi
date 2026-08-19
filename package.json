@@ -20,7 +20,9 @@
     "seed:demo:tahsin": "tsx scripts/seed-demo-tahsin.ts",
     "seed:demo:meetings": "tsx scripts/seed-demo-meetings.ts",
     "seed:rapat-baru": "tsx scripts/seed-rapat-baru.ts",
-    "seed:berita": "tsx scripts/seed-berita-dummy.ts"
+    "seed:berita": "tsx scripts/seed-berita-dummy.ts",
+    "seed:guru-mpp": "tsx scripts/seed-guru-mpp.ts",
+    "seed:gukar": "tsx scripts/seed-gukar.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",

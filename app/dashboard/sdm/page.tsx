@@ -8,7 +8,7 @@ import { DivisionStats } from '@/components/dashboard/DivisionStats'
 import { TaskCard } from '@/components/tasks/TaskCard'
 import { MeetingCard } from '@/components/rapat/MeetingCard'
 import { Button } from '@/components/ui/button'
-import { Plus } from 'lucide-react'
+import { Plus, BookMarked } from 'lucide-react'
 
 export default async function SdmDashboardPage() {
   const session = await getSession()
@@ -27,6 +27,22 @@ export default async function SdmDashboardPage() {
       <DashboardHeader displayName={session.displayName} role={session.role} title="Dashboard SDM" showBack />
       <div className="p-4 md:p-6 space-y-6 max-w-4xl">
         <DivisionStats {...stats} />
+
+        {/* Pembinaan gukar adalah program SDM, jadi pintu masuk rekapnya
+            ditaruh di dashboard ini — pengampu lain cukup mengisi kelompoknya
+            sendiri lewat portal guru. */}
+        <Link
+          href="/dashboard/analitik/gukar"
+          className="flex items-center gap-3 rounded-lg border bg-card p-4 transition-colors hover:border-primary/50"
+        >
+          <BookMarked className="h-5 w-5 shrink-0 text-muted-foreground" />
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium">Analitik Halaqoh Qur&apos;an Guru &amp; Karyawan</p>
+            <p className="text-xs text-muted-foreground">
+              Capaian tahsin/tahfidz dan kehadiran seluruh kelompok
+            </p>
+          </div>
+        </Link>
 
         {pendingVerif.length > 0 && (
           <section>
