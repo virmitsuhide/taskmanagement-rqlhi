@@ -100,9 +100,9 @@ export default async function GuruSiswaPage() {
                         <span
                           className="text-[11px] px-2 py-0.5 rounded-full shrink-0"
                           style={
-                            last.tone === 'ok' ? { background: '#dcfce7', color: '#15803d' }
-                            : last.tone === 'warn' ? { background: '#fef9c3', color: '#a16207' }
-                            : last.tone === 'danger' ? { background: '#fee2e2', color: '#b91c1c' }
+                            last.tone === 'ok' ? { background: 'var(--success-wash)', color: 'var(--success)' }
+                            : last.tone === 'warn' ? { background: 'var(--warning-wash)', color: 'var(--warning)' }
+                            : last.tone === 'danger' ? { background: 'var(--destructive-wash)', color: 'var(--destructive)' }
                             : { background: '#f3f1ec', color: 'var(--muted-foreground)' }
                           }
                         >

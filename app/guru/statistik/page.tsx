@@ -60,10 +60,10 @@ export default async function GuruStatistikPage() {
                 <div key={d.date} className="flex-1 flex flex-col items-center gap-1.5">
                   <div className="flex-1 w-full flex flex-col justify-end gap-0.5" style={{ minHeight: 0 }}>
                     {d.tahfidz > 0 && (
-                      <div className="w-full rounded-t" style={{ height: `${tahfidzH}%`, background: '#15803d', minHeight: 3 }} title={`${d.tahfidz} tahfidz`} />
+                      <div className="w-full rounded-t" style={{ height: `${tahfidzH}%`, background: 'var(--seri-2)', minHeight: 3 }} title={`${d.tahfidz} tahfidz`} />
                     )}
                     {d.tahsin > 0 && (
-                      <div className="w-full rounded-t" style={{ height: `${tahsinH}%`, background: 'var(--primary)', minHeight: 3 }} title={`${d.tahsin} tahsin`} />
+                      <div className="w-full rounded-t" style={{ height: `${tahsinH}%`, background: 'var(--seri-1)', minHeight: 3 }} title={`${d.tahsin} tahsin`} />
                     )}
                   </div>
                   <span className="text-[10px] text-muted-foreground">{d.label}</span>
@@ -73,8 +73,8 @@ export default async function GuruStatistikPage() {
             })}
           </div>
           <div className="flex gap-4 mt-3 text-[11px] text-muted-foreground">
-            <span className="inline-flex items-center gap-1"><span className="w-3 h-3 rounded" style={{ background: 'var(--primary)' }} /> Tahsin</span>
-            <span className="inline-flex items-center gap-1"><span className="w-3 h-3 rounded" style={{ background: '#15803d' }} /> Tahfidz</span>
+            <span className="inline-flex items-center gap-1"><span className="w-3 h-3 rounded" style={{ background: 'var(--seri-1)' }} /> Tahsin</span>
+            <span className="inline-flex items-center gap-1"><span className="w-3 h-3 rounded" style={{ background: 'var(--seri-2)' }} /> Tahfidz</span>
           </div>
         </section>
 
@@ -97,7 +97,7 @@ export default async function GuruStatistikPage() {
                       {h.studentCount} siswa · {h.setorTodayCount} setor hari ini ({pct}%)
                     </p>
                     <div className="h-1.5 rounded-full bg-muted overflow-hidden mt-2">
-                      <div className="h-full rounded-full" style={{ width: `${pct}%`, background: pct === 100 ? '#15803d' : 'var(--primary)' }} />
+                      <div className="h-full rounded-full" style={{ width: `${pct}%`, background: pct === 100 ? 'var(--success)' : 'var(--primary)' }} />
                     </div>
                   </div>
                 )
@@ -109,7 +109,7 @@ export default async function GuruStatistikPage() {
         {/* Siswa perlu perhatian */}
         <section>
           <h2 className="text-sm font-semibold mb-3 flex items-center gap-2">
-            <AlertTriangle className="h-4 w-4 text-amber-600" />
+            <AlertTriangle className="h-4 w-4 text-warning" />
             Perlu Perhatian
             <span className="text-xs font-normal text-muted-foreground">(belum setor ≥ 3 hari)</span>
           </h2>
@@ -135,8 +135,8 @@ export default async function GuruStatistikPage() {
                   <span
                     className="text-[11px] px-2 py-0.5 rounded-full shrink-0"
                     style={s.daysSinceLastSetoran === null
-                      ? { background: '#fee2e2', color: '#b91c1c' }
-                      : { background: '#fef9c3', color: '#a16207' }}
+                      ? { background: 'var(--destructive-wash)', color: 'var(--destructive)' }
+                      : { background: 'var(--warning-wash)', color: 'var(--warning)' }}
                   >
                     {s.daysSinceLastSetoran === null ? 'Belum pernah' : `${s.daysSinceLastSetoran} hari`}
                   </span>
@@ -152,10 +152,10 @@ export default async function GuruStatistikPage() {
 
 function BigStat({ num, label, sub, accent }: { num: number; label: string; sub: string; accent?: boolean }) {
   return (
-    <div className="rounded-xl border bg-white p-4" style={accent && num > 0 ? { background: '#dcfce7', borderColor: '#bbf7d0' } : undefined}>
+    <div className="rounded-xl border bg-white p-4" style={accent && num > 0 ? { background: 'var(--success-wash)', borderColor: 'var(--success)' } : undefined}>
       <div
         className="text-3xl font-extrabold leading-none"
-        style={{ fontFamily: 'var(--font-playfair), serif', color: accent && num > 0 ? '#15803d' : 'var(--foreground)' }}
+        style={{ fontFamily: 'var(--font-playfair), serif', color: accent && num > 0 ? 'var(--success)' : 'var(--foreground)' }}
       >
         {num}
       </div>

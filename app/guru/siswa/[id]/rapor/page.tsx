@@ -101,7 +101,7 @@ export default async function GuruRaporPage({ params, searchParams }: PageProps)
         </div>
 
         {!data.student.wali_phone && (
-          <div className="print:hidden rounded-lg border px-4 py-2.5 text-xs" style={{ background: '#fef9c3', borderColor: '#fde68a', color: '#a16207' }}>
+          <div className="print:hidden rounded-lg border px-4 py-2.5 text-xs" style={{ background: 'var(--warning-wash)', borderColor: 'var(--warning)', color: 'var(--warning)' }}>
             ⚠ No. HP wali belum diisi — tombol WA akan membuka share umum. Tambahkan no. wali di data siswa (admin) untuk kirim langsung.
           </div>
         )}

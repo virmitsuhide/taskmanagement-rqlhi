@@ -90,7 +90,7 @@ export default async function LaporanPage({ searchParams }: PageProps) {
         <div className="print:hidden"><FinanceNav period={period} /></div>
 
         {unallocated > 0 && (
-          <p className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-700 dark:text-amber-400 print:hidden">
+          <p className="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-sm text-warning print:hidden">
             {formatRupiah(unallocated)} pengeluaran belum ditandai sumber dananya — matriks 1.5
             akan tercetak dengan kolom kosong. Lengkapi di tab Transaksi.
           </p>
@@ -377,7 +377,7 @@ export default async function LaporanPage({ searchParams }: PageProps) {
                 subsidi: row.subsidi,
               }))}
             />
-            <p className="mt-1 text-[11px]" style={{ color: '#6b7280' }}>
+            <p className="mt-1 text-[11px]" style={{ color: 'var(--muted-foreground)' }}>
               Rata-rata kebutuhan pemasukan subsidi/bulan{' '}
               {formatRupiah(trend.length ? trend.reduce((t, r) => t + r.subsidi, 0) / trend.length : 0)}
               {' '}({percentOf(

@@ -206,7 +206,7 @@ function TahsinTahfidzView({ unit }: { unit: UnitLearning }) {
                       <div key={l.order_num} className="flex items-center gap-2">
                         <span className="text-[11px] w-24 shrink-0 truncate" title={l.label}>{l.isTerminal ? '🎓 ' : ''}{l.label}</span>
                         <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
-                          <div className="h-full rounded-full" style={{ width: `${(l.count / maxLvl) * 100}%`, background: l.isTerminal ? '#16a34a' : l.isQuran ? '#0ea5e9' : 'var(--primary)' }} />
+                          <div className="h-full rounded-full" style={{ width: `${(l.count / maxLvl) * 100}%`, background: l.isTerminal ? 'var(--success)' : l.isQuran ? 'var(--info)' : 'var(--primary)' }} />
                         </div>
                         <span className="text-[11px] text-muted-foreground w-5 text-right tabular-nums">{l.count}</span>
                       </div>
@@ -404,8 +404,8 @@ function Kpi({ icon, label, value }: { icon: React.ReactNode; label: string; val
 
 function Metric({ label, value, accent }: { label: string; value: number; accent?: boolean }) {
   return (
-    <div className="rounded-lg p-2.5" style={accent && value > 0 ? { background: '#dcfce7' } : { background: 'var(--muted)' }}>
-      <p className="text-xl font-bold leading-none" style={{ color: accent && value > 0 ? '#15803d' : undefined }}>{value}</p>
+    <div className="rounded-lg p-2.5" style={accent && value > 0 ? { background: 'var(--success-wash)' } : { background: 'var(--muted)' }}>
+      <p className="text-xl font-bold leading-none" style={{ color: accent && value > 0 ? 'var(--success)' : undefined }}>{value}</p>
       <p className="text-[11px] text-muted-foreground mt-1">{label}</p>
     </div>
   )
@@ -415,15 +415,17 @@ function Stat({ icon, label, value, accent }: { icon: React.ReactNode; label: st
   return (
     <div className="rounded-lg bg-muted/50 p-2.5">
       <div className="flex items-center gap-1 text-[11px] text-muted-foreground">{icon}<span className="truncate">{label}</span></div>
-      <p className="text-lg font-bold mt-0.5 leading-none" style={accent && value > 0 ? { color: '#15803d' } : undefined}>{value.toLocaleString('id-ID')}</p>
+      <p className="text-lg font-bold mt-0.5 leading-none" style={accent && value > 0 ? { color: 'var(--success)' } : undefined}>{value.toLocaleString('id-ID')}</p>
     </div>
   )
 }
 
+// Nada lencana ikut token status supaya tema gelap ikut benar; namanya tetap
+// warna karena dipakai sebagai nada netral, bukan vonis benar/salah.
 const BADGE_TONE: Record<string, string> = {
-  green: 'bg-green-100 text-green-800',
-  blue: 'bg-blue-100 text-blue-800',
-  amber: 'bg-amber-100 text-amber-800',
+  green: 'bg-success-wash text-success',
+  blue: 'bg-info-wash text-info',
+  amber: 'bg-warning-wash text-warning',
 }
 function Badge({ tone, children }: { tone: keyof typeof BADGE_TONE; children: React.ReactNode }) {
   return <span className={cn('text-[10px] px-1.5 py-0.5 rounded-full font-medium', BADGE_TONE[tone])}>{children}</span>

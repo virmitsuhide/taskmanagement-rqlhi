@@ -3,9 +3,10 @@ import Link from 'next/link'
 import { getSession } from '@/lib/auth/session'
 import { canViewAnalytics, canViewGukarRecap } from '@/lib/auth/permissions'
 import { UNIT_LABELS } from '@/lib/rq/programs'
-import { getRqAnalytics, getUnitHafalanBoards } from '@/lib/data/analytics'
+import { getRqAnalytics, getUnitHafalanBoards, getSetoranTrend } from '@/lib/data/analytics'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { UnitHafalanBoard } from '@/components/dashboard/UnitHafalanBoard'
+import { SetoranTrendChart } from '@/components/dashboard/SetoranTrendChart'
 import { Users, GraduationCap, BookMarked, Sparkles, ClipboardList } from 'lucide-react'
 
 export default async function AnalitikPage() {
@@ -13,7 +14,7 @@ export default async function AnalitikPage() {
   if (!session) redirect('/login')
   if (!canViewAnalytics(session.role)) redirect('/dashboard')
 
-  const [a, boards] = await Promise.all([getRqAnalytics(), getUnitHafalanBoards()])
+  const [a, boards, trend] = await Promise.all([getRqAnalytics(), getUnitHafalanBoards(), getSetoranTrend()])
   const maxJenjang = Math.max(1, ...a.overview.studentsByJenjang.map(j => j.count))
 
   return (
@@ -98,6 +99,10 @@ export default async function AnalitikPage() {
           </p>
         </section>
 
+        {/* Tren setoran: memberi konteks waktu untuk angka "bulan ini" di atas —
+            tanpa ini, satu angka bulanan tidak bisa dinilai naik atau turun. */}
+        <SetoranTrendChart trend={trend} />
+
         {/* Distribusi jenjang */}
         <section className="rounded-xl border bg-card p-5">
           <h2 className="text-sm font-semibold mb-4 flex items-center gap-2">
@@ -142,8 +147,8 @@ function Kpi({ icon, label, value }: { icon: React.ReactNode; label: string; val
 
 function Metric({ label, value, accent }: { label: string; value: number; accent?: boolean }) {
   return (
-    <div className="rounded-lg p-3" style={accent && value > 0 ? { background: '#dcfce7' } : { background: 'var(--muted)' }}>
-      <p className="text-2xl font-bold leading-none" style={{ color: accent && value > 0 ? '#15803d' : undefined }}>{value}</p>
+    <div className="rounded-lg p-3" style={accent && value > 0 ? { background: 'var(--success-wash)' } : { background: 'var(--muted)' }}>
+      <p className="text-2xl font-bold leading-none" style={{ color: accent && value > 0 ? 'var(--success)' : undefined }}>{value}</p>
       <p className="text-[11px] text-muted-foreground mt-1">{label}</p>
     </div>
   )

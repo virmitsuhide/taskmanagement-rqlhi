@@ -96,8 +96,8 @@ export function GukarRecapTable({ rows, target }: Props) {
                     <span
                       className={
                         row.percent >= target
-                          ? 'text-emerald-600 dark:text-emerald-400'
-                          : 'font-medium text-amber-600 dark:text-amber-400'
+                          ? 'text-success'
+                          : 'font-medium text-warning'
                       }
                     >
                       {row.percent}%

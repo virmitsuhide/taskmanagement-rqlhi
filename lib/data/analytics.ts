@@ -630,3 +630,108 @@ export async function getUnitHafalanBoards(): Promise<HafalanBoard[]> {
     }
   })
 }
+
+// ─── Tren setoran bulanan ───────────────────────────────────────────
+
+export interface SetoranTrendPoint {
+  /** 'YYYY-MM' — kunci stabil, bukan untuk ditampilkan. */
+  key: string
+  /** 'Agu' — label sumbu X, sengaja pendek supaya muat di layar HP. */
+  short: string
+  /** 'Agustus 2026' — untuk tooltip & pembacaan layar. */
+  full: string
+  tahsin: number
+  tahfidz: number
+  /** Bulan berjalan: angkanya belum lengkap, jangan dibandingkan setara. */
+  isRunning: boolean
+  /** Sebelum setoran pertama tercatat — beda dari "nol beneran". */
+  isBeforeData: boolean
+}
+
+export interface SetoranTrend {
+  points: SetoranTrendPoint[]
+  /** Nilai tertinggi lintas kedua seri; jadi batas atas sumbu Y. */
+  max: number
+  /** Perbandingan bulan lengkap terakhir vs bulan sebelumnya. */
+  delta: { tahsin: number | null; tahfidz: number | null; fromLabel: string; toLabel: string } | null
+  /** Tidak ada satupun setoran di seluruh rentang. */
+  isEmpty: boolean
+}
+
+/**
+ * Jumlah setoran tahsin & tahfidz per bulan untuk `months` bulan terakhir.
+ *
+ * Dihitung lewat count query per bulan (2 tabel × N bulan, paralel) alih-alih
+ * menarik seluruh baris lalu dikelompokkan di JS. Alasannya: PostgREST memotong
+ * hasil di 1000 baris secara diam-diam — grafik yang terpotong tanpa peringatan
+ * jauh lebih berbahaya daripada beberapa permintaan tambahan yang masing-masing
+ * hanya mengembalikan satu angka.
+ */
+export async function getSetoranTrend(months = 12): Promise<SetoranTrend> {
+  const supabase = createServerClient()
+  const now = new Date()
+
+  // Rentang tiap bulan disiapkan dulu supaya query bisa ditembak sekaligus.
+  const ranges = Array.from({ length: months }, (_, i) => {
+    const offset = months - 1 - i
+    const start = new Date(now.getFullYear(), now.getMonth() - offset, 1)
+    const end = new Date(now.getFullYear(), now.getMonth() - offset + 1, 0)
+    return {
+      key: `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}`,
+      short: MONTH_ID[start.getMonth()].slice(0, 3),
+      full: `${MONTH_ID[start.getMonth()]} ${start.getFullYear()}`,
+      startIso: isoDate(start),
+      endIso: isoDate(end),
+      isRunning: offset === 0,
+    }
+  })
+
+  const counts = await Promise.all(
+    ranges.flatMap(r => (['tahsin_logs', 'tahfidz_logs'] as const).map(table =>
+      supabase.from(table)
+        .select('*', { count: 'exact', head: true })
+        .gte('setoran_date', r.startIso)
+        .lte('setoran_date', r.endIso)
+        .then(res => res.count ?? 0),
+    )),
+  )
+
+  // Bulan-bulan di awal rentang yang masih nol dianggap "belum ada data", bukan
+  // nol beneran — RQ bisa saja baru mulai mencatat di tengah rentang, dan
+  // menggambar garis nol di situ akan terbaca sebagai penurunan kinerja.
+  const raw = ranges.map((r, i) => ({ ...r, tahsin: counts[i * 2], tahfidz: counts[i * 2 + 1] }))
+  const firstWithData = raw.findIndex(p => p.tahsin > 0 || p.tahfidz > 0)
+
+  const points: SetoranTrendPoint[] = raw.map((p, i) => ({
+    key: p.key,
+    short: p.short,
+    full: p.full,
+    tahsin: p.tahsin,
+    tahfidz: p.tahfidz,
+    isRunning: p.isRunning,
+    isBeforeData: firstWithData === -1 || i < firstWithData,
+  }))
+
+  const max = Math.max(1, ...points.map(p => Math.max(p.tahsin, p.tahfidz)))
+
+  // Bulan berjalan dikecualikan dari delta: membandingkan bulan yang baru jalan
+  // seminggu dengan bulan penuh selalu terlihat seperti anjlok.
+  const complete = points.filter(p => !p.isRunning && !p.isBeforeData)
+  const prev = complete.at(-2)
+  const last = complete.at(-1)
+  const pct = (from: number, to: number) => (from === 0 ? null : Math.round(((to - from) / from) * 100))
+
+  return {
+    points,
+    max,
+    delta: prev && last
+      ? {
+          tahsin: pct(prev.tahsin, last.tahsin),
+          tahfidz: pct(prev.tahfidz, last.tahfidz),
+          fromLabel: prev.full,
+          toLabel: last.full,
+        }
+      : null,
+    isEmpty: firstWithData === -1,
+  }
+}

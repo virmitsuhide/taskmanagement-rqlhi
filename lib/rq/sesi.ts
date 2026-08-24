@@ -50,9 +50,16 @@ export function sesiLabel(sesi: number | null): string {
   return `Sesi ${sesi} · ${sesiJam(sesi)}`
 }
 
-/** Kelas apa saja yang masuk sesi ini, mis. 'kelas 3 & 4'. */
+/**
+ * Kelas apa saja yang masuk sesi ini, mis. 'kelas 3 & 4'. String kosong kalau
+ * tidak berlaku.
+ *
+ * PAUD dikecualikan: jenjang itu tidak punya tingkat kelas, dan tanpa
+ * pengecualian ini ia ikut pembagian SD sehingga halaqoh PAUD sesi 1 akan
+ * dilabeli 'kelas 3 & 4' — keterangan yang salah, bukan sekadar kosong.
+ */
 export function sesiKelasLabel(jenjang: Jenjang | string, sesi: number | null): string {
-  if (!sesi) return ''
+  if (!sesi || jenjang === 'paud') return ''
   const group = jenjang === 'smp' || jenjang === 'sma' ? 'smp' : 'sd'
   const list = SESI_KELAS[group][sesi]
   if (!list) return ''

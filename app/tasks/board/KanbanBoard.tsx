@@ -13,23 +13,27 @@ import type { Task, TaskStatus, TaskProblemType, UserRole } from '@/types'
 import type { BoardColumn, BoardColumnKey } from '@/lib/data/board'
 
 const COLUMN_ACCENT: Record<BoardColumnKey, string> = {
-  todo: '#94a3b8',
-  in_progress: '#2563eb',
-  problem: '#dc2626',
-  submitted: '#d97706',
-  done: '#16a34a',
+  todo: 'var(--muted-foreground)',
+  in_progress: 'var(--info)',
+  problem: 'var(--destructive)',
+  submitted: 'var(--warning)',
+  done: 'var(--success)',
 }
 
 const PRIORITY_STYLE: Record<string, { bg: string; color: string }> = {
-  high:   { bg: '#fee2e2', color: '#b91c1c' },
-  middle: { bg: '#dbeafe', color: '#1d4ed8' },
-  low:    { bg: '#f1f5f9', color: '#475569' },
+  high:   { bg: 'var(--destructive-wash)', color: 'var(--destructive)' },
+  middle: { bg: 'var(--info-wash)',        color: 'var(--info)' },
+  low:    { bg: 'var(--muted)',            color: 'var(--muted-foreground)' },
 }
 
+// Bobot sengaja tidak memakai warna yang sama dengan prioritas: keduanya
+// sumbu berbeda dan tidak boleh tertukar. Ungu 'hard' belum punya token brand
+// (palet RQ cuma menyediakan teal & oranye), jadi masih hex — lihat
+// references/palet-chart.md, bagian "Kalau butuh seri ketiga".
 const WEIGHT_STYLE: Record<string, { bg: string; color: string }> = {
   hard:   { bg: '#ede9fe', color: '#6d28d9' },
-  medium: { bg: '#f1f5f9', color: '#475569' },
-  easy:   { bg: '#dcfce7', color: '#15803d' },
+  medium: { bg: 'var(--muted)',        color: 'var(--muted-foreground)' },
+  easy:   { bg: 'var(--success-wash)', color: 'var(--success)' },
 }
 
 /**
@@ -39,10 +43,11 @@ const WEIGHT_STYLE: Record<string, { bg: string; color: string }> = {
 // Dicampur dengan var(--card), bukan transparent, supaya kartu tetap solid di
 // atas kolom yang bertint — dan tetap ikut tema terang/gelap.
 const PROBLEM_STYLE: Record<TaskProblemType, { border: string; bg: string; dot: string }> = {
-  bottleneck: { border: '#f59e0b', bg: 'color-mix(in srgb, #f59e0b 12%, var(--card))', dot: '#f59e0b' },
-  blocked:    { border: '#dc2626', bg: 'color-mix(in srgb, #dc2626 12%, var(--card))', dot: '#dc2626' },
-  wip_limit:  { border: '#7c3aed', bg: 'color-mix(in srgb, #7c3aed 12%, var(--card))', dot: '#7c3aed' },
-  others:     { border: '#64748b', bg: 'color-mix(in srgb, #64748b 12%, var(--card))', dot: '#64748b' },
+  bottleneck: { border: 'var(--warning)',          bg: 'color-mix(in srgb, var(--warning) 12%, var(--card))',          dot: 'var(--warning)' },
+  blocked:    { border: 'var(--destructive)',      bg: 'color-mix(in srgb, var(--destructive) 12%, var(--card))',      dot: 'var(--destructive)' },
+  // Ungu belum punya token brand; lihat catatan pada WEIGHT_STYLE di atas.
+  wip_limit:  { border: '#7c3aed',                 bg: 'color-mix(in srgb, #7c3aed 12%, var(--card))',                 dot: '#7c3aed' },
+  others:     { border: 'var(--muted-foreground)', bg: 'color-mix(in srgb, var(--muted-foreground) 12%, var(--card))', dot: 'var(--muted-foreground)' },
 }
 
 const PROBLEM_ORDER: TaskProblemType[] = ['bottleneck', 'blocked', 'wip_limit', 'others']
@@ -230,7 +235,7 @@ export function KanbanBoard({ columns: initialColumns, currentUserId, currentRol
                 >
                   <div className="flex flex-wrap gap-1 mb-1.5">
                     {task.assignee?.role && (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium" style={{ background: '#fdf6e3', color: '#b8860b' }}>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium" style={{ background: 'var(--accent-warm-wash)', color: 'var(--warning)' }}>
                         {ROLE_LABELS[task.assignee.role]}
                       </span>
                     )}
@@ -241,10 +246,10 @@ export function KanbanBoard({ columns: initialColumns, currentUserId, currentRol
                       {TASK_WEIGHT_LABELS[task.weight] ?? task.weight}
                     </span>
                     {task.status === 'returned' && (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: '#fee2e2', color: '#b91c1c' }}>Dikembalikan</span>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: 'var(--destructive-wash)', color: 'var(--destructive)' }}>Dikembalikan</span>
                     )}
                     {needsMyReview && (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium" style={{ background: '#fef3c7', color: '#92400e' }}>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium" style={{ background: 'var(--warning-wash)', color: 'var(--warning)' }}>
                         Perlu kamu review
                       </span>
                     )}

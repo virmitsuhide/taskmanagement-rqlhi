@@ -81,7 +81,7 @@ export default async function KurikulumPage({ searchParams }: PageProps) {
             </div>
 
             {belumBertarget > 0 && (
-              <p className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-700 dark:text-amber-400">
+              <p className="rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-sm text-warning">
                 {belumBertarget} angkatan belum punya target semester ini — ketercapaiannya
                 terhitung nol sampai Kumik menetapkannya.
               </p>
@@ -114,7 +114,7 @@ export default async function KurikulumPage({ searchParams }: PageProps) {
                             {JENJANG_LABELS[row.jenjang]} {row.tingkat}
                           </td>
                           <td className="py-2 px-2 text-muted-foreground whitespace-nowrap">
-                            {row.targetTahsin || <span className="text-amber-600">belum diatur</span>}
+                            {row.targetTahsin || <span className="text-warning">belum diatur</span>}
                             {row.targetJuz && <span className="text-xs"> · juz {row.targetJuz}</span>}
                           </td>
                           {row.bulanan.map(b => (
@@ -173,9 +173,9 @@ export default async function KurikulumPage({ searchParams }: PageProps) {
                           <div className="h-4 flex-1 overflow-hidden rounded bg-muted">
                             <div
                               className={`h-full rounded ${
-                                status === 'belum' ? 'bg-amber-500/60'
+                                status === 'belum' ? 'bg-warning/60'
                                   : status === 'sesuai' ? 'bg-primary/70'
-                                    : 'bg-emerald-500/60'
+                                    : 'bg-success/60'
                               }`}
                               style={{ width: `${lebar}%` }}
                             />

@@ -108,10 +108,10 @@ export default async function GukarStandarPage({ searchParams }: PageProps) {
             </div>
 
             {data.kelompokTanpaData.length > 0 && (
-              <div className="flex gap-3 rounded-xl border border-amber-500/40 bg-amber-500/10 p-4">
-                <AlertTriangle className="h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" />
+              <div className="flex gap-3 rounded-xl border border-warning/40 bg-warning/10 p-4">
+                <AlertTriangle className="h-5 w-5 shrink-0 text-warning" />
                 <div className="text-sm">
-                  <p className="font-medium text-amber-700 dark:text-amber-400">
+                  <p className="font-medium text-warning">
                     {data.kelompokTanpaData.length} kelompok belum punya catatan capaian sama sekali
                   </p>
                   <p className="mt-0.5 text-muted-foreground">
@@ -148,7 +148,7 @@ export default async function GukarStandarPage({ searchParams }: PageProps) {
                         <td className="py-2 px-2 text-right tabular-nums">{u.total}</td>
                         <td className="py-2 px-2 text-right tabular-nums">{u.terdata}</td>
                         <td className="py-2 px-2 text-right tabular-nums">
-                          <span className={u.persenTerdata >= 100 ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}>
+                          <span className={u.persenTerdata >= 100 ? 'text-success' : 'text-warning'}>
                             {u.persenTerdata}%
                           </span>
                         </td>
@@ -253,7 +253,7 @@ export default async function GukarStandarPage({ searchParams }: PageProps) {
                         <td className="py-2 px-2 text-right tabular-nums">{k.total}</td>
                         <td className="py-2 px-2 text-right tabular-nums">
                           {k.terdata === 0
-                            ? <span className="text-amber-600 dark:text-amber-400">0</span>
+                            ? <span className="text-warning">0</span>
                             : k.terdata}
                         </td>
                         <td className="py-2 px-2 text-right tabular-nums">{k.tahsinAmbang}</td>
@@ -410,7 +410,7 @@ function Sebaran({
             <span className="w-36 shrink-0 text-xs">{b.label}</span>
             <div className="h-4 flex-1 overflow-hidden rounded bg-muted">
               <div
-                className={`h-full rounded ${b.memenuhi ? 'bg-emerald-500/60' : 'bg-primary/50'}`}
+                className={`h-full rounded ${b.memenuhi ? 'bg-success/60' : 'bg-primary/50'}`}
                 style={{ width: `${lebar(b.jumlah, total)}%` }}
               />
             </div>
@@ -476,7 +476,7 @@ function Fokus({
                   <td className="py-2 px-2 text-muted-foreground">{p.tahsin.tahap || '—'}</td>
                   <td className="py-2 px-2 text-muted-foreground">{p.tahfidz.label || '—'}</td>
                   <td className="py-2 pl-2">
-                    <span className={p.status.memenuhi ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}>
+                    <span className={p.status.memenuhi ? 'text-success' : 'text-warning'}>
                       {p.status.teks}
                     </span>
                     <span className="block text-xs text-muted-foreground">acuan: {p.status.acuan}</span>

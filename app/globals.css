@@ -25,6 +25,7 @@
     --color-border: var(--border);
     --color-destructive: var(--destructive);
     --color-destructive-foreground: var(--destructive-foreground);
+    --color-destructive-wash: var(--destructive-wash);
     --color-success: var(--success);
     --color-success-foreground: var(--success-foreground);
     --color-success-wash: var(--success-wash);
@@ -74,6 +75,7 @@
     --accent-foreground: oklch(0.32 0.10 163);
     --destructive: oklch(0.577 0.245 27.325);
     --destructive-foreground: oklch(0.985 0 0);
+    --destructive-wash: oklch(0.95 0.05 27);
     --success: oklch(0.52 0.13 152);
     --success-foreground: oklch(0.985 0 0);
     --success-wash: oklch(0.95 0.04 152);
@@ -95,6 +97,11 @@
     --primary-wash: oklch(0.96 0.04 162);
     --accent-warm: oklch(0.72 0.15 60);
     --accent-warm-wash: oklch(0.96 0.05 80);
+    /* Seri grafik — dari palet brand "Teduh": teal daun-kitab + oranye tunas
+       pada logo. Ditulis hex, bukan oklch, supaya persis nilai brand yang
+       rasio kontrasnya sudah diuji WCAG — konversi ke oklch menggeser sedikit. */
+    --seri-1: #256B60; /* teal 600 · 6.27:1 di putih */
+    --seri-2: #BC5A0B; /* oranye 600 · 4.56:1 di putih */
     --sidebar: oklch(0.985 0.01 160);
     --sidebar-foreground: oklch(0.20 0.02 160);
     --sidebar-primary: oklch(0.42 0.13 163);
@@ -122,6 +129,7 @@
     --accent-foreground: oklch(0.985 0 0);
     --destructive: oklch(0.704 0.191 22.216);
     --destructive-foreground: oklch(0.985 0 0);
+    --destructive-wash: oklch(0.32 0.07 25);
     --success: oklch(0.75 0.14 152);
     --success-foreground: oklch(0.18 0.04 152);
     --success-wash: oklch(0.32 0.06 152);
@@ -142,6 +150,10 @@
     --primary-wash: oklch(0.30 0.05 162);
     --accent-warm: oklch(0.78 0.15 65);
     --accent-warm-wash: oklch(0.30 0.05 70);
+    /* Di latar gelap oranye murni bergetar dan melelahkan mata, jadi turun
+       saturasinya ke emas — sesuai arah "Tilawah Malam" pada palet brand. */
+    --seri-1: #5FBFAE; /* mint · 7.26:1 di kartu gelap */
+    --seri-2: #E3A93C; /* emas · 8.51:1 di kartu gelap */
     --sidebar: oklch(0.20 0.02 162);
     --sidebar-foreground: oklch(0.985 0 0);
     --sidebar-primary: oklch(0.78 0.16 162);
@@ -176,15 +188,24 @@
     --accent-foreground: oklch(0.32 0.10 163);
     --destructive: oklch(0.577 0.245 27.325);
     --destructive-foreground: oklch(0.985 0 0);
+    --destructive-wash: oklch(0.95 0.05 27);
     --success: oklch(0.52 0.13 152);
     --warning: oklch(0.55 0.12 70);
     --info: oklch(0.52 0.13 248);
+    --success-wash: oklch(0.95 0.04 152);
+    --warning-wash: oklch(0.95 0.06 85);
+    --info-wash: oklch(0.95 0.04 248);
     --border: oklch(0.91 0.01 160);
     --input: oklch(0.91 0.01 160);
     --ring: oklch(0.62 0.14 163);
     --primary-wash: oklch(0.96 0.04 162);
     --accent-warm: oklch(0.72 0.15 60);
     --accent-warm-wash: oklch(0.96 0.05 80);
+    /* Seri grafik — dari palet brand "Teduh": teal daun-kitab + oranye tunas
+       pada logo. Ditulis hex, bukan oklch, supaya persis nilai brand yang
+       rasio kontrasnya sudah diuji WCAG — konversi ke oklch menggeser sedikit. */
+    --seri-1: #256B60; /* teal 600 · 6.27:1 di putih */
+    --seri-2: #BC5A0B; /* oranye 600 · 4.56:1 di putih */
 }
 
 @layer base {

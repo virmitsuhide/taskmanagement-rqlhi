@@ -101,7 +101,7 @@ export default async function TeacherHomePage() {
                           {s.current_method_name && s.current_jilid_label
                             ? `${s.current_method_name} ${s.current_jilid_label} · hal. ${s.current_jilid_page ?? '—'}`
                             : 'Belum ada data tahsin'}
-                          {d !== null && d > 3 && <span style={{ color: '#b91c1c' }}> · {d} hari belum setor</span>}
+                          {d !== null && d > 3 && <span style={{ color: 'var(--destructive)' }}> · {d} hari belum setor</span>}
                         </p>
                       </div>
                       <Link
@@ -148,7 +148,7 @@ export default async function TeacherHomePage() {
                           <span className="text-muted-foreground shrink-0 ml-2">{h.setorTodayCount}/{h.studentCount} setor</span>
                         </div>
                         <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-                          <div className="h-full rounded-full" style={{ width: `${pct}%`, background: pct === 100 ? '#15803d' : 'var(--primary)' }} />
+                          <div className="h-full rounded-full" style={{ width: `${pct}%`, background: pct === 100 ? 'var(--success)' : 'var(--primary)' }} />
                         </div>
                       </div>
                     )
@@ -168,17 +168,17 @@ function StatRow({ label, value, accent }: { label: string; value: number; accen
   return (
     <div className="flex items-center justify-between py-1 border-b border-dashed last:border-0" style={{ borderColor: 'var(--border)' }}>
       <span className="text-xs text-muted-foreground">{label}</span>
-      <span className="text-sm font-semibold" style={{ color: accent ? '#15803d' : 'var(--foreground)' }}>{value}</span>
+      <span className="text-sm font-semibold" style={{ color: accent ? 'var(--success)' : 'var(--foreground)' }}>{value}</span>
     </div>
   )
 }
 
 function StatCard({ num, label, tone }: { num: number; label: string; tone?: 'ok' | 'warm' }) {
   const style =
-    tone === 'ok' ? { background: '#dcfce7', borderColor: '#bbf7d0' }
+    tone === 'ok' ? { background: 'var(--success-wash)', borderColor: 'var(--success)' }
     : tone === 'warm' ? { background: 'var(--primary-wash)', borderColor: 'var(--border)' }
     : { background: 'white', borderColor: 'var(--border)' }
-  const numColor = tone === 'ok' ? '#15803d' : tone === 'warm' ? 'var(--primary)' : 'var(--foreground)'
+  const numColor = tone === 'ok' ? 'var(--success)' : tone === 'warm' ? 'var(--primary)' : 'var(--foreground)'
   return (
     <div className="rounded-xl border p-4" style={style}>
       <div className="text-3xl font-extrabold leading-none" style={{ fontFamily: 'var(--font-playfair), serif', color: numColor }}>

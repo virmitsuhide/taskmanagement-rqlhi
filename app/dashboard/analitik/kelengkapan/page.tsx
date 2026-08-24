@@ -182,13 +182,13 @@ function StatusBadge({ terisi, total, percent }: { terisi: number; total: number
   }
   if (terisi < total) {
     return (
-      <span className="rounded bg-amber-500/10 px-1.5 py-0.5 text-xs font-medium text-amber-600 dark:text-amber-400">
+      <span className="rounded bg-warning/10 px-1.5 py-0.5 text-xs font-medium text-warning">
         {percent}%
       </span>
     )
   }
   return (
-    <span className="rounded bg-emerald-500/10 px-1.5 py-0.5 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+    <span className="rounded bg-success/10 px-1.5 py-0.5 text-xs font-medium text-success">
       lengkap
     </span>
   )
@@ -205,8 +205,8 @@ function Kpi({
 }) {
   const toneClass =
     tone === 'danger' ? 'text-destructive'
-      : tone === 'warn' ? 'text-amber-600 dark:text-amber-400'
-        : tone === 'good' ? 'text-emerald-600 dark:text-emerald-400'
+      : tone === 'warn' ? 'text-warning'
+        : tone === 'good' ? 'text-success'
           : ''
 
   return (

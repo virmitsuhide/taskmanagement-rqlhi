@@ -128,7 +128,7 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
         <Link href="/guru/siswa" className="text-xs text-muted-foreground hover:underline">← Daftar Siswa</Link>
 
         {(setoran === 'ok' || setoran === 'tahfidz_ok' || setoran === 'tasmi_ok') && (
-          <div className="rounded-lg border-2 border-green-300 bg-green-50 px-4 py-3 flex items-center gap-2 text-sm text-green-800">
+          <div className="rounded-lg border-2 border-success bg-success-wash px-4 py-3 flex items-center gap-2 text-sm text-success">
             <CheckCircle2 className="h-4 w-4" />
             Setoran {setoran === 'tahfidz_ok' ? 'tahfidz' : setoran === 'tasmi_ok' ? "tasmi'" : 'tahsin'} berhasil disimpan. Barakallahu fiik!
           </div>
@@ -157,7 +157,7 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
               </p>
               <div className="mt-2 flex flex-wrap gap-2">
                 {student.current_jilid?.is_terminal ? (
-                  <span className="inline-flex items-center gap-1.5 text-sm px-2.5 py-1 rounded-lg" style={{ background: '#dcfce7', color: '#15803d' }}>
+                  <span className="inline-flex items-center gap-1.5 text-sm px-2.5 py-1 rounded-lg" style={{ background: 'var(--success-wash)', color: 'var(--success)' }}>
                     🎓 Lulus Tahsin{student.current_method?.name ? ` · ${student.current_method.name}` : ''}
                   </span>
                 ) : (
@@ -168,7 +168,7 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
                       : 'Belum ada data tahsin'}
                   </span>
                 )}
-                <span className="inline-flex items-center gap-1.5 text-sm px-2.5 py-1 rounded-lg" style={{ background: '#dcfce7', color: '#15803d' }}>
+                <span className="inline-flex items-center gap-1.5 text-sm px-2.5 py-1 rounded-lg" style={{ background: 'var(--success-wash)', color: 'var(--success)' }}>
                   <Sparkles className="h-4 w-4" />
                   {juzAktif ? `Tahfidz Juz ${juzAktif} · ${totalAyatHafal} ayat` : 'Belum ada hafalan'}
                 </span>
@@ -201,10 +201,10 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
                 const pct = prog ? Math.min(100, Math.round((prog.ayat_hafal / total) * 100)) : 0
                 const mutqin = prog?.mutqin
                 const style =
-                  mutqin ? { background: '#15803d', color: 'white', borderColor: '#15803d' }
-                  : pct >= 100 ? { background: '#22c55e', color: 'white', borderColor: '#22c55e' }
+                  mutqin ? { background: 'var(--success)', color: 'white', borderColor: 'var(--success)' }
+                  : pct >= 100 ? { background: 'var(--success)', color: 'white', borderColor: 'var(--success)' }
                   : pct > 0 ? { background: 'var(--primary-wash)', color: 'var(--primary)', borderColor: 'var(--primary)' }
-                  : { background: '#f3f1ec', color: '#9ca3af', borderColor: 'var(--border)' }
+                  : { background: '#f3f1ec', color: 'var(--muted-foreground)', borderColor: 'var(--border)' }
                 return (
                   <div
                     key={juz}
@@ -219,8 +219,8 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
               })}
             </div>
             <div className="flex flex-wrap gap-3 mt-3 text-[11px] text-muted-foreground">
-              <span className="inline-flex items-center gap-1"><span className="w-3 h-3 rounded" style={{ background: '#15803d' }} /> Mutqin</span>
-              <span className="inline-flex items-center gap-1"><span className="w-3 h-3 rounded" style={{ background: '#22c55e' }} /> Selesai</span>
+              <span className="inline-flex items-center gap-1"><span className="w-3 h-3 rounded" style={{ background: 'var(--success)' }} /> Mutqin</span>
+              <span className="inline-flex items-center gap-1"><span className="w-3 h-3 rounded" style={{ background: 'var(--success)' }} /> Selesai</span>
               <span className="inline-flex items-center gap-1"><span className="w-3 h-3 rounded border" style={{ background: 'var(--primary-wash)', borderColor: 'var(--primary)' }} /> Proses</span>
               <span className="inline-flex items-center gap-1"><span className="w-3 h-3 rounded" style={{ background: '#f3f1ec' }} /> Belum</span>
             </div>
@@ -253,8 +253,8 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
                       <span
                         className="text-[11px] px-2 py-0.5 rounded-full shrink-0"
                         style={log.status === 'lulus'
-                          ? { background: '#dcfce7', color: '#15803d' }
-                          : { background: '#fef9c3', color: '#a16207' }}
+                          ? { background: 'var(--success-wash)', color: 'var(--success)' }
+                          : { background: 'var(--warning-wash)', color: 'var(--warning)' }}
                       >
                         {log.status === 'lulus' ? 'Lulus' : 'Ulang'}
                       </span>
@@ -285,7 +285,7 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
                 const to = (p.to_jilid as unknown as { label: string } | null)?.label ?? '?'
                 return (
                   <div key={p.id} className="p-3 text-sm flex items-center justify-between">
-                    <span className="font-medium" style={{ color: '#15803d' }}>{from} → {to}</span>
+                    <span className="font-medium" style={{ color: 'var(--success)' }}>{from} → {to}</span>
                     <span className="text-xs text-muted-foreground">
                       {new Date(p.promotion_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
                     </span>
@@ -356,8 +356,8 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
                     <span
                       className="text-[11px] px-2 py-0.5 rounded-full shrink-0"
                       style={log.status === 'lulus'
-                        ? { background: '#dcfce7', color: '#15803d' }
-                        : { background: '#fef9c3', color: '#a16207' }}
+                        ? { background: 'var(--success-wash)', color: 'var(--success)' }
+                        : { background: 'var(--warning-wash)', color: 'var(--warning)' }}
                     >
                       {log.status === 'lulus' ? 'Lulus' : 'Ulang'}
                     </span>
@@ -384,7 +384,7 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
                 <span
                   key={p.id}
                   className="text-xs px-2.5 py-1 rounded-full font-medium"
-                  style={{ background: '#dcfce7', color: '#15803d' }}
+                  style={{ background: 'var(--success-wash)', color: 'var(--success)' }}
                   title={new Date(p.promotion_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
                 >
                   Juz {p.juz_number} ✓

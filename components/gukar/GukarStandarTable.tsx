@@ -144,7 +144,7 @@ function BarisPeserta({
         </p>
       </td>
       <td className="py-2 px-3">
-        <span className={peserta.tahsin.memenuhi ? 'text-emerald-600 dark:text-emerald-400' : ''}>
+        <span className={peserta.tahsin.memenuhi ? 'text-success' : ''}>
           {peserta.tahsin.tahap || '—'}
         </span>
         {peserta.tahsin.tersirat && peserta.tahsin.tahap && (
@@ -152,7 +152,7 @@ function BarisPeserta({
         )}
       </td>
       <td className="py-2 px-3">
-        <span className={peserta.tahfidz.memenuhi ? 'text-emerald-600 dark:text-emerald-400' : ''}>
+        <span className={peserta.tahfidz.memenuhi ? 'text-success' : ''}>
           {peserta.tahfidz.label || '—'}
         </span>
         {peserta.tahfidz.predikat && (
@@ -160,7 +160,7 @@ function BarisPeserta({
         )}
       </td>
       <td className="py-2 px-3">
-        <span className={peserta.status.memenuhi ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}>
+        <span className={peserta.status.memenuhi ? 'text-success' : 'text-warning'}>
           {peserta.terdata ? peserta.status.teks : 'Belum ada catatan'}
         </span>
       </td>

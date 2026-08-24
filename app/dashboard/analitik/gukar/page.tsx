@@ -173,7 +173,7 @@ export default async function GukarAnalitikPage({ searchParams }: PageProps) {
                           {row.groupName} · {row.pengampuName}
                         </p>
                       </div>
-                      <span className="shrink-0 text-sm font-medium tabular-nums text-amber-600 dark:text-amber-400">
+                      <span className="shrink-0 text-sm font-medium tabular-nums text-warning">
                         {row.percent}%
                       </span>
                     </li>
@@ -270,7 +270,7 @@ function Breakdown({
               </td>
               <td className="py-1.5 px-2 text-right tabular-nums">
                 {row.slot ? (
-                  <span className={row.percent >= target ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}>
+                  <span className={row.percent >= target ? 'text-success' : 'text-warning'}>
                     {row.percent}%
                   </span>
                 ) : '—'}

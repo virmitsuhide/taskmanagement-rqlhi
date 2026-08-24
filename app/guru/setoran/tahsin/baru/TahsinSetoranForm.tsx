@@ -167,7 +167,7 @@ export function TahsinSetoranForm({ students, methods, jilidLevels, defaultStude
             onClick={() => setStatus('lulus')}
             className="rounded-lg border p-3 text-left transition-colors"
             style={status === 'lulus'
-              ? { borderColor: '#15803d', background: '#dcfce7' }
+              ? { borderColor: 'var(--success)', background: 'var(--success-wash)' }
               : { borderColor: 'var(--border)', background: 'white' }}
           >
             <p className="font-medium text-sm">✅ Lulus</p>
@@ -178,7 +178,7 @@ export function TahsinSetoranForm({ students, methods, jilidLevels, defaultStude
             onClick={() => setStatus('ulang')}
             className="rounded-lg border p-3 text-left transition-colors"
             style={status === 'ulang'
-              ? { borderColor: '#a16207', background: '#fef9c3' }
+              ? { borderColor: 'var(--warning)', background: 'var(--warning-wash)' }
               : { borderColor: 'var(--border)', background: 'white' }}
           >
             <p className="font-medium text-sm">🔁 Ulang</p>

@@ -94,7 +94,7 @@ export default async function KeuanganPage({ searchParams }: PageProps) {
               {receivables.length > 0 && (
                 <Card>
                   <CardContent className="flex items-start gap-3 p-4">
-                    <ClipboardList className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+                    <ClipboardList className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
                     <div className="min-w-0">
                       <p className="text-sm font-medium">
                         {receivables.length} piutang belum tertunaikan
@@ -115,7 +115,7 @@ export default async function KeuanganPage({ searchParams }: PageProps) {
               {unallocated > 0 && (
                 <Card>
                   <CardContent className="flex items-start gap-3 p-4">
-                    <Wallet className="mt-0.5 h-4 w-4 shrink-0 text-sky-500" />
+                    <Wallet className="mt-0.5 h-4 w-4 shrink-0 text-info" />
                     <div className="min-w-0">
                       <p className="text-sm font-medium">Dana sumber belum lengkap</p>
                       <p className="text-sm text-muted-foreground">
@@ -176,7 +176,7 @@ function SummaryCard({
   tone?: 'neutral' | 'good' | 'danger'
 }) {
   const toneClass =
-    tone === 'danger' ? 'text-destructive' : tone === 'good' ? 'text-emerald-600 dark:text-emerald-400' : ''
+    tone === 'danger' ? 'text-destructive' : tone === 'good' ? 'text-success' : ''
 
   return (
     <Card>

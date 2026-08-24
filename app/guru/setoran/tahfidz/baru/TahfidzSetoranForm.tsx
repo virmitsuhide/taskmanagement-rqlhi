@@ -290,7 +290,7 @@ function TasmiSubForm({ studentId, onCancel }: { studentId: string; onCancel: ()
               onClick={() => setScope(sc)}
               className="rounded-lg border p-3 text-center transition-colors"
               style={scope === sc
-                ? { borderColor: '#b45309', background: '#fef3c7', color: '#b45309' }
+                ? { borderColor: '#b45309', background: 'var(--warning-wash)', color: '#b45309' }
                 : { borderColor: 'var(--border)', background: 'white' }}
             >
               <p className="font-semibold text-sm">{sc} Juz</p>
@@ -318,7 +318,7 @@ function TasmiSubForm({ studentId, onCancel }: { studentId: string; onCancel: ()
           <p className="text-xs text-destructive">Rentang juz di luar 1–30. Periksa juz mulai.</p>
         )}
         {rangeValid && (
-          <div className="text-xs rounded-lg px-3 py-2" style={{ background: '#fef3c7', color: '#b45309' }}>
+          <div className="text-xs rounded-lg px-3 py-2" style={{ background: 'var(--warning-wash)', color: '#b45309' }}>
             Tasmi&apos; {scope} juz: Juz {from} – {to}
           </div>
         )}
@@ -334,7 +334,7 @@ function TasmiSubForm({ studentId, onCancel }: { studentId: string; onCancel: ()
             type="button"
             onClick={() => setStatus('lulus')}
             className="rounded-lg border p-3 text-left transition-colors"
-            style={status === 'lulus' ? { borderColor: '#15803d', background: '#dcfce7' } : { borderColor: 'var(--border)', background: 'white' }}
+            style={status === 'lulus' ? { borderColor: 'var(--success)', background: 'var(--success-wash)' } : { borderColor: 'var(--border)', background: 'white' }}
           >
             <p className="font-medium text-sm">✅ Lulus</p>
             <p className="text-xs text-muted-foreground">Tasmi&apos; tuntas</p>
@@ -343,7 +343,7 @@ function TasmiSubForm({ studentId, onCancel }: { studentId: string; onCancel: ()
             type="button"
             onClick={() => setStatus('ulang')}
             className="rounded-lg border p-3 text-left transition-colors"
-            style={status === 'ulang' ? { borderColor: '#a16207', background: '#fef9c3' } : { borderColor: 'var(--border)', background: 'white' }}
+            style={status === 'ulang' ? { borderColor: 'var(--warning)', background: 'var(--warning-wash)' } : { borderColor: 'var(--border)', background: 'white' }}
           >
             <p className="font-medium text-sm">🔁 Ulang</p>
             <p className="text-xs text-muted-foreground">Perlu diulang</p>

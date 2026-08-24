@@ -64,9 +64,9 @@ function BoardPanel({ board }: { board: HafalanBoard }) {
         ) : (
           <table className="w-full text-sm border rounded-lg overflow-hidden">
             <tbody>
-              <TargetRow icon={<ArrowDown className="h-3.5 w-3.5" />} label="Di bawah target" value={board.target.below} color="#b91c1c" />
-              <TargetRow icon={<Check className="h-3.5 w-3.5" />} label="Sesuai target" value={board.target.on} color="#15803d" />
-              <TargetRow icon={<ArrowUp className="h-3.5 w-3.5" />} label="Di atas target" value={board.target.above} color="#1d4ed8" />
+              <TargetRow icon={<ArrowDown className="h-3.5 w-3.5" />} label="Di bawah target" value={board.target.below} color="var(--destructive)" />
+              <TargetRow icon={<Check className="h-3.5 w-3.5" />} label="Sesuai target" value={board.target.on} color="var(--success)" />
+              <TargetRow icon={<ArrowUp className="h-3.5 w-3.5" />} label="Di atas target" value={board.target.above} color="var(--info)" />
             </tbody>
           </table>
         )}
@@ -86,7 +86,7 @@ function BoardPanel({ board }: { board: HafalanBoard }) {
                 <Link href={`/siswa/${s.id}`} className="flex items-center gap-3 rounded-lg px-2 py-1.5 hover:bg-muted/40 transition-colors">
                   <span
                     className="w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0 text-white"
-                    style={{ background: RANK_COLOR[i] ?? '#cbd5e1', color: i < 3 ? '#fff' : '#475569' }}
+                    style={{ background: RANK_COLOR[i] ?? 'var(--muted)', color: i < 3 ? '#fff' : 'var(--muted-foreground)' }}
                   >
                     {i + 1}
                   </span>
