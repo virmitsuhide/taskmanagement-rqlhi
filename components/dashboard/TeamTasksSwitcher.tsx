@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { LayoutGrid, Users } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { TeamMembersActivity } from './TeamMembersActivity'
@@ -108,6 +109,19 @@ export function TeamTasksSwitcher({ tasks, currentUserId, currentRole, boardColu
       ) : (
         <TeamMembersActivity tasks={visibleTasks} currentUserId={currentUserId} />
       )}
+
+      {/*
+        Papan di sini hanya bercakupan divisi — cakupan pribadi tidak ikut, dan
+        ruangnya sempit karena berbagi halaman dengan analitik. Tautan ini
+        mengantar ke papan penuh yang punya kedua cakupan itu.
+
+        Ditaruh di dalam section, bukan sebagai saudara di halaman, supaya
+        jaraknya rapat ke isi tugas — kalau di luar, jarak antar-section membuat
+        tautannya terbaca sebagai blok tersendiri, bukan lanjutan dari tugas.
+      */}
+      <Link href="/tasks/board" className="text-xs text-primary hover:underline mt-2 inline-block">
+        Buka papan tugas →
+      </Link>
     </section>
   )
 }

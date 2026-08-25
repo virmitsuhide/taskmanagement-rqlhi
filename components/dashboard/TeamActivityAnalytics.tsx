@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { AlertCircle, Clock, CheckCircle2, TrendingUp, MessageSquare } from 'lucide-react'
+import { AlertCircle, Clock, CheckCircle2, AlertTriangle, MessageSquare } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { TaskCard } from '@/components/tasks/TaskCard'
 import { isDueSoon } from '@/lib/tasks/urgency'
@@ -12,7 +12,7 @@ interface Props {
   tasks: Task[]
 }
 
-type CategoryKey = 'mendesak' | 'deadline' | 'verifikasi' | 'dikerjakan'
+type CategoryKey = 'mendesak' | 'deadline' | 'verifikasi' | 'problem'
 
 interface Category {
   key: CategoryKey
@@ -22,11 +22,26 @@ interface Category {
   match: (t: Task) => boolean
 }
 
+/**
+ * Empat kartu ini semuanya bertanya "apa yang butuh perhatian?", jadi isinya
+ * harus keadaan yang menuntut tindakan.
+ *
+ * "Sedang Dikerjakan" dulu menempati petak terakhir, dan itu satu-satunya kartu
+ * yang justru menandakan semuanya baik-baik saja — angkanya naik-turun tanpa
+ * ada yang perlu diperbuat. Tempatnya digantikan tugas berstatus 'problem':
+ * pelaksananya sudah menyatakan tertahan, dan itu justru satu-satunya keadaan
+ * yang tidak bisa selesai sendiri tanpa campur tangan manajemen.
+ *
+ * Warnanya destructive, sama dengan kolom Problem di papan tugas — satu keadaan
+ * sebaiknya berwarna sama di mana pun ia muncul. Ikonnya segitiga, bukan
+ * lingkaran seperti "Prioritas High", supaya keduanya tetap bisa dibedakan
+ * sekilas meski sewarna.
+ */
 const CATEGORIES: Category[] = [
   { key: 'mendesak',   label: 'Prioritas High',   icon: <AlertCircle className="h-4 w-4 text-destructive" />, tone: 'text-destructive', match: t => t.priority === 'high' },
   { key: 'deadline',   label: 'Deadline Dekat',   icon: <Clock className="h-4 w-4 text-warning" />,           tone: 'text-warning',     match: isDueSoon },
   { key: 'verifikasi', label: 'Perlu Verifikasi', icon: <CheckCircle2 className="h-4 w-4 text-info" />,        tone: 'text-info',        match: t => t.status === 'submitted' },
-  { key: 'dikerjakan', label: 'Sedang Dikerjakan', icon: <TrendingUp className="h-4 w-4 text-success" />,      tone: 'text-success',     match: t => t.status === 'in_progress' },
+  { key: 'problem',    label: 'Ada Kendala',      icon: <AlertTriangle className="h-4 w-4 text-destructive" />, tone: 'text-destructive', match: t => t.status === 'problem' },
 ]
 
 export function TeamActivityAnalytics({ tasks }: Props) {
