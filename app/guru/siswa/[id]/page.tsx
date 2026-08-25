@@ -9,6 +9,8 @@ import { BookOpen, CheckCircle2, Sparkles } from 'lucide-react'
 import { AYAT_PER_JUZ } from '@/types'
 import type { Jenjang, TahfidzKind } from '@/types'
 import { TAHFIDZ_KIND_META } from '@/lib/tahsin'
+import { URUTAN_JUZ_TAHFIDZ, type NodeLevel } from '@/lib/rq/peta-belajar'
+import { PetaLevel } from '@/components/siswa/PetaLevel'
 
 interface PageProps {
   params: Promise<{ id: string }>
@@ -19,6 +21,11 @@ const JENJANG_LABELS: Record<string, string> = { paud: 'PAUD', sd: 'SD', sd_juar
 
 // Rata-rata nilai → dibulatkan ke 0.5 terdekat untuk tampilan bintang.
 // Coerce Number karena numeric Postgres bisa datang sebagai string.
+interface JilidRow {
+  id: string; label: string; order_num: number
+  total_pages: number | null; is_quran: boolean; is_terminal: boolean
+}
+
 export default async function GuruStudentDetailPage({ params, searchParams }: PageProps) {
   const session = await getTeacherSession()
   if (!session) redirect('/guru/login')
@@ -60,6 +67,17 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
     .order('created_at', { ascending: false })
     .limit(15)
 
+  // Seluruh jilid metode yang dipakai anak ini — bahan peta belajar tahsin.
+  // Ditarik lengkap, bukan hanya yang sudah dilewati: yang BELUM ditempuh
+  // justru bagian terpenting dari sebuah peta.
+  const { data: jilidAll } = student.current_method
+    ? await supabase
+        .from('jilid_levels')
+        .select('id, label, order_num, total_pages, is_quran, is_terminal')
+        .eq('method_id', student.current_method.id)
+        .order('order_num')
+    : { data: [] as JilidRow[] }
+
   // Riwayat kenaikan jilid
   const { data: promotions } = await supabase
     .from('jilid_promotions')
@@ -94,6 +112,15 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
       .limit(10),
   ])
 
+  // Jumlah tasmi' dihitung terpisah dari riwayatnya: riwayat dibatasi 10 baris
+  // untuk tampilan, dan memakai panjang daftar itu sebagai angka statistik akan
+  // berhenti di 10 selamanya.
+  const { count: tasmiCount } = await supabase
+    .from('tasmi_logs')
+    .select('*', { count: 'exact', head: true })
+    .eq('student_id', id)
+    .eq('status', 'lulus')
+
   // Normalisasi istilah lama (sebelum backfill) → istilah baru
   const normalizeKind = (k: string): TahfidzKind =>
     k === 'hafalan_baru' ? 'ziyadah' : k === 'murojaah' ? 'murojaah_baru' : (k as TahfidzKind)
@@ -115,6 +142,59 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
   for (const j of juzProgress) juzMap.set(j.juz_number, { ayat_hafal: j.ayat_hafal, mutqin: j.mutqin })
   const totalAyatHafal = juzProgress.reduce((sum, j) => sum + j.ayat_hafal, 0)
   const juzAktif = juzProgress.length > 0 ? Math.max(...juzProgress.map(j => j.juz_number)) : null
+
+  // ── Peta belajar ──
+  //
+  // Jilid yang sudah dilewati dikenali dari order_num-nya, bukan dari daftar
+  // jilid_promotions: seorang anak bisa saja ditempatkan langsung di Jilid 4
+  // tanpa pernah tercatat naik dari 1→2→3, dan peta yang membaca riwayat
+  // kenaikan akan menampilkan tiga jilid awalnya sebagai belum ditempuh.
+  const jilidList = (jilidAll ?? []) as JilidRow[]
+  const jilidSekarang = jilidList.find(j => j.id === student.current_jilid?.id)
+  const nodeTahsin: NodeLevel[] = jilidList.map(j => {
+    const status: NodeLevel['status'] =
+      jilidSekarang && j.order_num < jilidSekarang.order_num ? 'selesai'
+      : jilidSekarang && j.order_num === jilidSekarang.order_num ? 'proses'
+      : 'terkunci'
+    const pct = status === 'proses' && j.total_pages && student.current_jilid_page
+      ? Math.min(100, Math.round((student.current_jilid_page / j.total_pages) * 100))
+      : undefined
+    return {
+      key: j.id,
+      label: j.label.replace(/^Jilid /, 'J').replace(/^Al-Qur.an /, 'Q').slice(0, 4),
+      caption: j.label,
+      status,
+      progressPct: pct,
+      badge: j.is_terminal ? '🎓' : undefined,
+      title: status === 'proses'
+        ? `${j.label} — sedang dijalani${student.current_jilid_page ? ` (hal. ${student.current_jilid_page}${j.total_pages ? `/${j.total_pages}` : ''})` : ''}`
+        : status === 'selesai' ? `${j.label} — sudah dilewati` : `${j.label} — belum ditempuh`,
+    }
+  })
+
+  const juzDiuji = new Set(juzPromotions.map(p => p.juz_number))
+  const juzTasmi = new Set(tasmiLogs.filter(t => t.status === 'lulus').flatMap(t =>
+    Array.from({ length: Math.max(0, t.juz_to - t.juz_from + 1) }, (_, i) => t.juz_from + i)))
+
+  const nodeTahfidz: NodeLevel[] = URUTAN_JUZ_TAHFIDZ.map(juz => {
+    const prog = juzMap.get(juz)
+    const total = AYAT_PER_JUZ[juz] ?? 1
+    const pct = prog ? Math.min(100, Math.round((prog.ayat_hafal / total) * 100)) : 0
+    const status: NodeLevel['status'] = pct >= 100 ? 'selesai' : pct > 0 ? 'proses' : 'terkunci'
+    return {
+      key: `juz-${juz}`,
+      label: String(juz),
+      caption: `Juz ${juz}`,
+      status,
+      progressPct: pct,
+      badge: juzTasmi.has(juz) ? '🎤' : juzDiuji.has(juz) ? '✓' : undefined,
+      title: prog
+        ? `Juz ${juz}: ${prog.ayat_hafal}/${total} ayat (${pct}%)${prog.mutqin ? ' · mutqin' : ''}${juzDiuji.has(juz) ? ' · sudah diuji' : ''}${juzTasmi.has(juz) ? ' · lulus tasmi\x27' : ''}`
+        : `Juz ${juz}: belum dimulai`,
+    }
+  })
+
+  const juzHafal = juzProgress.filter(j => j.ayat_hafal >= (AYAT_PER_JUZ[j.juz_number] ?? 1)).length
 
   const initials = student.full_name.split(' ').slice(0, 2).map((w: string) => w[0]).join('').toUpperCase()
   const setoranUrl = `/guru/setoran/tahsin/baru?student=${id}`
@@ -189,42 +269,75 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
         </div>
 
         {/* Peta 30 Juz */}
+        {/* ── Peta belajar tahsin ── */}
+        {nodeTahsin.length > 0 && (
+          <section>
+            <h2 className="text-sm font-semibold mb-3 flex items-center gap-2">
+              <BookOpen className="h-4 w-4" /> Peta Tahsin — {student.current_method?.name}
+            </h2>
+            <PetaLevel
+              nodes={nodeTahsin}
+              perBaris={5}
+              legend={[
+                { warna: 'var(--success)', label: 'Sudah dilewati' },
+                { warna: 'var(--primary-wash)', label: 'Sedang dijalani' },
+                { warna: 'var(--muted)', label: 'Belum ditempuh' },
+              ]}
+            />
+          </section>
+        )}
+
+        {!student.current_method && (
+          <section>
+            <h2 className="text-sm font-semibold mb-3 flex items-center gap-2">
+              <BookOpen className="h-4 w-4" /> Peta Tahsin
+            </h2>
+            <div className="rounded-xl border border-dashed bg-white p-6 text-center">
+              <p className="text-sm font-medium">Murni tahfidz</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Anak ini tidak mengikuti program tahsin, jadi tidak ada peta jilid untuknya.
+              </p>
+            </div>
+          </section>
+        )}
+
+        {/* ── Peta belajar tahfidz ── */}
         <section>
           <h2 className="text-sm font-semibold mb-3 flex items-center gap-2">
-            <Sparkles className="h-4 w-4" /> Peta Hafalan (30 Juz)
+            <Sparkles className="h-4 w-4" /> Peta Tahfidz — 30 Juz
           </h2>
-          <div className="rounded-xl border bg-white p-4">
-            <div className="grid grid-cols-10 gap-1.5">
-              {Array.from({ length: 30 }, (_, i) => i + 1).map(juz => {
-                const prog = juzMap.get(juz)
-                const total = AYAT_PER_JUZ[juz] ?? 1
-                const pct = prog ? Math.min(100, Math.round((prog.ayat_hafal / total) * 100)) : 0
-                const mutqin = prog?.mutqin
-                const style =
-                  mutqin ? { background: 'var(--success)', color: 'white', borderColor: 'var(--success)' }
-                  : pct >= 100 ? { background: 'var(--success)', color: 'white', borderColor: 'var(--success)' }
-                  : pct > 0 ? { background: 'var(--primary-wash)', color: 'var(--primary)', borderColor: 'var(--primary)' }
-                  : { background: '#f3f1ec', color: 'var(--muted-foreground)', borderColor: 'var(--border)' }
-                return (
-                  <div
-                    key={juz}
-                    className="aspect-square rounded-md border flex items-center justify-center text-[11px] font-medium relative"
-                    style={style}
-                    title={prog ? `Juz ${juz}: ${prog.ayat_hafal}/${total} ayat (${pct}%)${mutqin ? ' · Mutqin' : ''}` : `Juz ${juz}: belum`}
-                  >
-                    {juz}
-                    {mutqin && <span className="absolute -top-1 -right-1 text-[8px]">✓</span>}
-                  </div>
-                )
-              })}
-            </div>
-            <div className="flex flex-wrap gap-3 mt-3 text-[11px] text-muted-foreground">
-              <span className="inline-flex items-center gap-1"><span className="w-3 h-3 rounded" style={{ background: 'var(--success)' }} /> Mutqin</span>
-              <span className="inline-flex items-center gap-1"><span className="w-3 h-3 rounded" style={{ background: 'var(--success)' }} /> Selesai</span>
-              <span className="inline-flex items-center gap-1"><span className="w-3 h-3 rounded border" style={{ background: 'var(--primary-wash)', borderColor: 'var(--primary)' }} /> Proses</span>
-              <span className="inline-flex items-center gap-1"><span className="w-3 h-3 rounded" style={{ background: '#f3f1ec' }} /> Belum</span>
-            </div>
+
+          {/* Tiga angka yang paling sering ditanyakan orang tua */}
+          <div className="mb-2 grid grid-cols-3 gap-2">
+            {[
+              { label: 'Juz dihafal', nilai: juzHafal, ket: `dari 30 juz` },
+              { label: 'Juz sudah diuji', nilai: juzDiuji.size, ket: 'lulus kenaikan juz' },
+              { label: "Tasmi' dilalui", nilai: tasmiCount ?? 0, ket: 'sesi lulus' },
+            ].map(k => (
+              <div key={k.label} className="rounded-xl border bg-white px-3 py-2.5">
+                <p className="text-[11px] text-muted-foreground leading-tight">{k.label}</p>
+                <p className="text-2xl font-bold tabular-nums leading-tight">{k.nilai}</p>
+                <p className="text-[10px] text-muted-foreground/80">{k.ket}</p>
+              </div>
+            ))}
           </div>
+
+          <p className="mb-2 text-[11px] text-muted-foreground">
+            Urutan hafalan RQ: juz 30 → 29 → 28 → 27 → 26, lalu 1 → 2 → … → 25.
+          </p>
+
+          <PetaLevel
+            nodes={nodeTahfidz}
+            perBaris={5}
+            legend={[
+              { warna: 'var(--success)', label: 'Hafal penuh' },
+              { warna: 'var(--primary-wash)', label: 'Sedang dihafal' },
+              { warna: 'var(--muted)', label: 'Belum dimulai' },
+            ]}
+          />
+          <p className="mt-2 text-[11px] text-muted-foreground">
+            ✓ = sudah diuji kenaikan juz · 🎤 = sudah lulus tasmi&apos;
+          </p>
         </section>
 
         {/* Riwayat setoran */}
