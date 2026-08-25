@@ -45,7 +45,7 @@ export type TaskStatus = 'todo' | 'in_progress' | 'problem' | 'submitted' | 'don
 /** Jenis hambatan saat task berstatus 'problem' — menentukan warna kartu di papan. */
 export type TaskProblemType = 'bottleneck' | 'blocked' | 'wip_limit' | 'others'
 
-export type TaskSource = 'rapat' | 'mandiri' | 'home_publik'
+export type TaskSource = 'rapat' | 'mandiri' | 'home_publik' | 'humas_request'
 
 export type ContentRequestType = 'flyer_ujian' | 'flyer_lain' | 'video' | 'lain_lain'
 
@@ -241,6 +241,9 @@ export interface ContentRequest {
   status: ContentStatus
   finished_by: string | null
   finished_at: string | null
+  /** Tugas yang memegang kemajuan request ini. Null untuk request pra-0033. */
+  task_id?: string | null
+  task?: Pick<Task, 'id' | 'status' | 'priority' | 'problem_type' | 'assigned_to' | 'assigned_by'> | null
   created_at: string
   updated_at: string
   requester?: User

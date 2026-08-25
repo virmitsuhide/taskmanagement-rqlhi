@@ -9,6 +9,7 @@ import { DivisionStats } from '@/components/dashboard/DivisionStats'
 import { TaskCard } from '@/components/tasks/TaskCard'
 import { ContentRequestCard } from '@/components/humas/ContentRequestCard'
 import { ChevronRight, LayoutTemplate } from 'lucide-react'
+import { requestStatus } from '@/lib/humas/request-status'
 import type { ContentRequest } from '@/types'
 
 export default async function HumasDashboardPage() {
@@ -21,15 +22,19 @@ export default async function HumasDashboardPage() {
     getDashboardStats(session.userId),
     getMyActiveTasks(session.userId),
     getPendingVerifications(session.userId),
+    // Tidak menyaring lewat kolom `status`: sejak 0033 kolom itu tidak lagi
+    // ditulis, jadi request yang tugasnya sudah selesai pun tetap tertinggal
+    // di 'requested' dan akan ikut terhitung sebagai pekerjaan yang menganggur.
+    // Yang menentukan sekarang status tugasnya, dan itu disaring di bawah.
     supabase
       .from('content_requests')
-      .select('*, requester:users!requested_by(id, display_name)')
-      .in('status', ['requested', 'on_process'])
-      .order('created_at', { ascending: false })
-      .limit(5),
+      .select('*, requester:users!requested_by(id, display_name), task:tasks!task_id(id, status, priority, problem_type, assigned_to, assigned_by)')
+      .order('created_at', { ascending: false }),
   ])
 
-  const pendingRequests = (pendingRequestsRes.data ?? []) as ContentRequest[]
+  const pendingRequests = ((pendingRequestsRes.data ?? []) as ContentRequest[])
+    .filter(r => requestStatus(r) !== 'finish')
+    .slice(0, 5)
 
   return (
     <div>

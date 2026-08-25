@@ -1,6 +1,7 @@
 import { Calendar, User } from 'lucide-react'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { requestStatus, requestProgressNote, requestPriority } from '@/lib/humas/request-status'
 import type { ContentRequest } from '@/types'
 
 interface Props {
@@ -35,8 +36,13 @@ function formatDate(dateStr: string) {
 }
 
 export function ContentRequestCard({ request }: Props) {
-  const statusConfig = STATUS_CONFIG[request.status]
-  const priorityConfig = request.priority ? PRIORITY_CONFIG[request.priority] : null
+  // Status & prioritas dibaca dari tugasnya kalau ada — kolom lama di
+  // content_requests tidak lagi ditulis sejak 0033.
+  const statusConfig = STATUS_CONFIG[requestStatus(request)]
+  const note = requestProgressNote(request)
+  const stuck = request.task?.status === 'problem'
+  const prio = requestPriority(request)
+  const priorityConfig = prio ? PRIORITY_CONFIG[prio] : null
 
   return (
     <Card>
@@ -63,6 +69,11 @@ export function ContentRequestCard({ request }: Props) {
         </div>
       </CardHeader>
       <CardContent className="px-4 pb-4">
+        {note && (
+          <p className={`mb-2 text-xs ${stuck ? 'text-destructive' : 'text-muted-foreground'}`}>
+            {note}
+          </p>
+        )}
         <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
           <span className="flex items-center gap-1">
             <Calendar className="h-3 w-3" />

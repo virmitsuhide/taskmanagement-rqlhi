@@ -25,7 +25,7 @@ export const taskStatusEnum = pgEnum('task_status', ['todo', 'in_progress', 'pro
 export const taskProblemTypeEnum = pgEnum('task_problem_type', ['bottleneck', 'blocked', 'wip_limit', 'others'])
 /** Jenis peristiwa di task_history — memisahkan sunting/hapus dari ubah status. */
 export const taskHistoryActionEnum = pgEnum('task_history_action', ['status', 'edited', 'deleted', 'restored'])
-export const taskSourceEnum = pgEnum('task_source', ['rapat', 'mandiri', 'home_publik'])
+export const taskSourceEnum = pgEnum('task_source', ['rapat', 'mandiri', 'home_publik', 'humas_request'])
 export const contentRequestTypeEnum = pgEnum('content_request_type', [
   'flyer_ujian', 'flyer_lain', 'video', 'lain_lain',
 ])
@@ -192,6 +192,8 @@ export const contentRequests = pgTable('content_requests', {
   status: contentStatusEnum('status').default('requested'),
   finished_by: uuid('finished_by').references(() => users.id),
   finished_at: timestamp('finished_at', { withTimezone: true }),
+  /** Tugas pemegang kemajuan request ini (0033). Status diturunkan dari sana. */
+  task_id: uuid('task_id').references(() => tasks.id, { onDelete: 'set null' }),
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
 })

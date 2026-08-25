@@ -3,12 +3,12 @@ import Link from 'next/link'
 import { getSession } from '@/lib/auth/session'
 import { canRequestToHumas, canViewHumasRequests } from '@/lib/auth/permissions'
 import { createServerClient } from '@/lib/supabase/server'
-import { updateContentRequestStatusAction } from '@/app/actions/content-requests'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { ContentRequestCard } from '@/components/humas/ContentRequestCard'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Plus } from 'lucide-react'
+import { Plus, ArrowRight } from 'lucide-react'
+import { requestStatus } from '@/lib/humas/request-status'
 import type { ContentRequest } from '@/types'
 
 export default async function HumasRequestPage() {
@@ -19,7 +19,7 @@ export default async function HumasRequestPage() {
   const supabase = createServerClient()
   const query = supabase
     .from('content_requests')
-    .select('*, requester:users!requested_by(id, display_name, role)')
+    .select('*, requester:users!requested_by(id, display_name, role), task:tasks!task_id(id, status, priority, problem_type, assigned_to, assigned_by)')
     .order('created_at', { ascending: false })
 
   // Humas sees all; others see only their own
@@ -30,8 +30,10 @@ export default async function HumasRequestPage() {
   const { data } = await query
   const requests = (data ?? []) as ContentRequest[]
 
-  const active = requests.filter(r => r.status !== 'finish')
-  const finished = requests.filter(r => r.status === 'finish')
+  // Status dibaca lewat requestStatus(), bukan r.status: sejak 0033 tugaslah
+  // pemegang kemajuan, dan kolom status lama tidak lagi ditulis.
+  const active = requests.filter(r => requestStatus(r) !== 'finish')
+  const finished = requests.filter(r => requestStatus(r) === 'finish')
 
   return (
     <div>
@@ -59,20 +61,24 @@ export default async function HumasRequestPage() {
               active.map(req => (
                 <div key={req.id} className="space-y-2">
                   <ContentRequestCard request={req} />
-                  <div className="flex gap-2 px-1">
-                    {/* Humas: set on process */}
-                    {session.role === 'humas' && req.status === 'requested' && (
-                      <form action={updateContentRequestStatusAction.bind(null, req.id, 'on_process', undefined) as unknown as (fd: FormData) => void}>
-                        <Button size="sm" variant="outline" type="submit">Mulai Proses</Button>
-                      </form>
-                    )}
-                    {/* Requester: mark as finish */}
-                    {req.requested_by === session.userId && req.status === 'on_process' && (
-                      <form action={updateContentRequestStatusAction.bind(null, req.id, 'finish', undefined) as unknown as (fd: FormData) => void}>
-                        <Button size="sm" type="submit">Tandai Selesai</Button>
-                      </form>
-                    )}
-                  </div>
+                  {/*
+                    Tombol "Mulai Proses" & "Tandai Selesai" sudah tidak ada di
+                    sini. Kemajuan dipindahkan sepenuhnya ke papan tugas, jadi
+                    halaman ini murni jendela pemantauan — dua tempat yang
+                    sama-sama bisa mengubah status adalah cara tercepat membuat
+                    keduanya berbeda isi.
+                  */}
+                  {req.task && (
+                    <div className="px-1">
+                      <Link
+                        href={`/tasks/${req.task.id}`}
+                        className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        Buka tugasnya di papan
+                        <ArrowRight className="h-3 w-3" />
+                      </Link>
+                    </div>
+                  )}
                 </div>
               ))
             )}
