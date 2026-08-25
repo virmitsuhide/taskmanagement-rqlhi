@@ -112,8 +112,10 @@ export const tasks = pgTable('tasks', {
   title: text('title').notNull(),
   description: text('description'),
   source_type: taskSourceEnum('source_type').notNull(),
-  source_meeting_id: uuid('source_meeting_id').references(() => meetings.id),
-  source_agenda_id: uuid('source_agenda_id').references(() => agendaItems.id),
+  /** Rapat asal tugas ini. Dilepas jadi NULL kalau rapatnya dihapus (0031). */
+  source_meeting_id: uuid('source_meeting_id').references(() => meetings.id, { onDelete: 'set null' }),
+  /** Poin agenda asal tugas ini. Dilepas jadi NULL kalau agendanya ikut terhapus (0032). */
+  source_agenda_id: uuid('source_agenda_id').references(() => agendaItems.id, { onDelete: 'set null' }),
   assigned_by: uuid('assigned_by').references(() => users.id),
   assigned_to: uuid('assigned_to').references(() => users.id),
   public_target: publicTargetEnum('public_target'),
