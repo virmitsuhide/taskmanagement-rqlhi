@@ -176,6 +176,24 @@ export function RichTextEditor({
         )}
       </div>
 
+      {/*
+        Kotak ikut memanjang mengikuti isi, jadi notulen panjang tidak perlu
+        dibaca lewat jendela sempit sambil menggulir di dalam kotak.
+
+        `rows` tidak lagi menentukan tinggi begitu field-sizing aktif, jadi
+        nilainya dipindah ke min-height — kotak kosong tetap terlihat sebagai
+        kotak, bukan satu baris. Satuan `lh` dipakai supaya tetap benar kalau
+        ukuran fontnya berubah.
+
+        Batas atasnya sengaja ada: satu poin notulen yang sangat panjang, kalau
+        dibiarkan tumbuh bebas, akan mendorong poin berikutnya dan tombol simpan
+        jauh ke bawah layar. Setelah batas itu barulah gulirnya masuk ke dalam
+        kotak.
+
+        Batasnya `dvh`, bukan `vh`: notulis sering mengisi dari HP, dan `vh`
+        tetap memakai tinggi layar penuh walau keyboard sedang menutupi
+        separuhnya — kotaknya jadi lebih tinggi daripada ruang yang tersisa.
+      */}
       <textarea
         ref={textareaRef}
         name={name}
@@ -185,7 +203,8 @@ export function RichTextEditor({
         rows={rows}
         placeholder={placeholder}
         required={required}
-        className="w-full resize-y bg-transparent px-3 py-2 text-sm outline-none placeholder:text-muted-foreground"
+        style={{ minHeight: `calc(${rows} * 1lh + 1rem)` }}
+        className="w-full field-sizing-content max-h-[50dvh] resize-y overflow-y-auto bg-transparent px-3 py-2 text-sm outline-none placeholder:text-muted-foreground"
       />
     </div>
   )
