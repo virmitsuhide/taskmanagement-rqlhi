@@ -325,7 +325,15 @@ export async function updateTaskAction(_: unknown, formData: FormData) {
  * induknya hilang. Dengan deleted_at, jejaknya utuh dan tugas masih bisa
  * dipulihkan lewat restoreTaskAction.
  */
-export async function deleteTaskAction(taskId: string) {
+/**
+ * Inti penghapusan tugas — dipakai dua pembungkus di bawahnya.
+ *
+ * Penghapusannya lunak: baris tugas tetap ada, hanya diberi `deleted_at`.
+ * Riwayatnya ON DELETE CASCADE dan notifikasi diturunkan dari riwayat itu, jadi
+ * hard delete akan menghapus notifikasi "tugas dihapus" bersamaan dengan
+ * pembuatannya.
+ */
+async function softDeleteTask(taskId: string): Promise<{ error?: string }> {
   const session = await getSession()
   if (!session) return { error: 'Sesi tidak valid.' }
 
@@ -361,7 +369,29 @@ export async function deleteTaskAction(taskId: string) {
 
   revalidatePath('/tasks')
   revalidatePath('/tasks/board')
+  return {}
+}
+
+/** Hapus dari halaman detail tugas — berujung kembali ke daftar. */
+export async function deleteTaskAction(taskId: string) {
+  const res = await softDeleteTask(taskId)
+  if (res.error) return res
   redirect('/tasks')
+}
+
+/**
+ * Hapus dari papan tugas — tanpa redirect.
+ *
+ * Papan adalah tempat kerja: menghapus satu kartu tidak boleh melempar orangnya
+ * keluar dari papan yang sedang ia baca. Pemanggilnya yang membereskan
+ * tampilan, lalu router.refresh() menyamakan dengan server.
+ */
+export async function deleteTaskFromBoardAction(
+  taskId: string,
+): Promise<{ error?: string; success?: boolean }> {
+  const res = await softDeleteTask(taskId)
+  if (res.error) return res
+  return { success: true }
 }
 
 /**

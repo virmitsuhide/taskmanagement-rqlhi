@@ -3,10 +3,11 @@
 import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { updateTaskStatusAction, updateTaskProblemAction } from '@/app/actions/tasks'
+import { Trash2 } from 'lucide-react'
+import { updateTaskStatusAction, updateTaskProblemAction, deleteTaskFromBoardAction } from '@/app/actions/tasks'
 import {
   ROLE_LABELS, TASK_PRIORITY_LABELS, TASK_WEIGHT_LABELS, TASK_PROBLEM_LABELS,
-  canMoveTaskOnBoard,
+  canMoveTaskOnBoard, canDeleteTask,
 } from '@/lib/auth/permissions'
 import { cn } from '@/lib/utils'
 import type { Task, TaskStatus, TaskProblemType, UserRole } from '@/types'
@@ -95,6 +96,39 @@ export function KanbanBoard({ columns: initialColumns, currentUserId, currentRol
       task.assigned_to === currentUserId,
       task.assigned_by === currentUserId,
     )
+  }
+
+  /**
+   * Boleh dihapus oleh orang ini? Aturannya sama persis dengan halaman detail:
+   * pemberi tugas atau Kepala RQ. Pelaksana yang menerima delegasi orang lain
+   * tidak bisa menghilangkan tugas yang dibebankan kepadanya.
+   */
+  function canRemove(task: Task): boolean {
+    return canDeleteTask(
+      currentRole,
+      task.assigned_to === currentUserId,
+      task.assigned_by === currentUserId,
+    )
+  }
+
+  async function handleDelete(task: Task) {
+    if (!confirm(
+      `Hapus tugas "${task.title}"?
+
+` +
+      'Tugas disembunyikan dari daftar & papan, tapi riwayat dan diskusinya ' +
+      'tetap tersimpan dan masih bisa dipulihkan oleh manajemen. ' +
+      'Manajemen akan menerima notifikasi penghapusan ini.',
+    )) return
+
+    // Kartu dilepas duluan supaya papan terasa langsung menanggapi; kalau server
+    // menolak, router.refresh() di bawah mengembalikannya apa adanya.
+    setColumns(cols => cols.map(c => ({ ...c, tasks: c.tasks.filter(t => t.id !== task.id) })))
+
+    const res = await deleteTaskFromBoardAction(task.id)
+    if (res?.error) toast.error(res.error)
+    else toast.success('Tugas dihapus')
+    router.refresh()
   }
 
   function findTask(id: string): { task: Task; col: BoardColumnKey } | null {
@@ -290,12 +324,43 @@ export function KanbanBoard({ columns: initialColumns, currentUserId, currentRol
                         : ''}
                     </span>
                     {task.assignee && (
-                      <span
-                        className="w-6 h-6 rounded-full bg-muted flex items-center justify-center text-[10px] font-medium"
-                        title={task.assignee.display_name}
-                      >
-                        {initials(task.assignee.display_name)}
-                      </span>
+                      canRemove(task) ? (
+                        /*
+                          Avatar merangkap tombol hapus: inisial berganti jadi
+                          ikon sampah saat ditunjuk. Bertukar di tempat, bukan
+                          memunculkan tombol baru di sebelahnya — kartu papan
+                          sudah padat, dan tombol yang menyembul akan menggeser
+                          isi kartu tepat saat kursor mendekat.
+
+                          onClick menghentikan rambatan supaya kartu di
+                          belakangnya tidak ikut terbuka, dan draggable={false}
+                          supaya menekan tombolnya tidak malah memulai seretan.
+
+                          Di peranti sentuh tidak ada "menunjuk", jadi ikonnya
+                          ditampilkan sejak awal — tanpa itu tombolnya tidak akan
+                          pernah bisa ditemukan di HP.
+                        */
+                        <button
+                          type="button"
+                          draggable={false}
+                          onClick={e => { e.stopPropagation(); handleDelete(task) }}
+                          title={`Hapus tugas — ditugaskan ke ${task.assignee.display_name}`}
+                          aria-label={`Hapus tugas ${task.title}`}
+                          className="group/av relative w-6 h-6 rounded-full bg-muted flex items-center justify-center text-[10px] font-medium transition-colors hover:bg-destructive/15 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive/50"
+                        >
+                          <span className="group-hover/av:opacity-0 group-focus-visible/av:opacity-0 [@media(hover:none)]:opacity-0">
+                            {initials(task.assignee.display_name)}
+                          </span>
+                          <Trash2 className="absolute h-3.5 w-3.5 opacity-0 group-hover/av:opacity-100 group-focus-visible/av:opacity-100 [@media(hover:none)]:opacity-100" />
+                        </button>
+                      ) : (
+                        <span
+                          className="w-6 h-6 rounded-full bg-muted flex items-center justify-center text-[10px] font-medium"
+                          title={task.assignee.display_name}
+                        >
+                          {initials(task.assignee.display_name)}
+                        </span>
+                      )
                     )}
                   </div>
                 </div>
