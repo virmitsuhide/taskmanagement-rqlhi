@@ -2,7 +2,8 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { ArrowRight, AlertCircle, Info, Bell } from 'lucide-react'
+import { ArrowRight } from 'lucide-react'
+import { POST_ICONS, postIconOf } from '@/lib/home/post-icons'
 import { stripMarkdown } from '@/lib/markdown'
 import type { PublicPost, PostPriority } from '@/types'
 
@@ -21,22 +22,19 @@ const MONTH_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Se
  * Warnanya dipilih dari token tema yang sudah ada, bukan warna mentah, supaya
  * ikut menyesuaikan mode terang & gelap tanpa aturan tambahan.
  */
-const PRIORITY_META: Record<PostPriority, { label: string; icon: typeof Info; badge: string; iconWrap: string }> = {
+const PRIORITY_META: Record<PostPriority, { label: string; badge: string; iconWrap: string }> = {
   penting: {
     label: 'Penting',
-    icon: AlertCircle,
     badge: 'bg-destructive/10 text-destructive',
     iconWrap: 'bg-destructive/10 text-destructive',
   },
   info: {
     label: 'Info',
-    icon: Info,
     badge: 'bg-primary-wash text-primary',
     iconWrap: 'bg-primary-wash text-primary',
   },
   pengingat: {
     label: 'Pengingat',
-    icon: Bell,
     badge: 'bg-accent-warm-wash text-accent-warm',
     iconWrap: 'bg-accent-warm-wash text-accent-warm',
   },
@@ -99,7 +97,9 @@ export function AnnouncementBoard({ posts, title = 'Pengumuman', limit = 6 }: Pr
           {shown.map(post => {
             const [day, mon, year] = displayDate(post)
             const meta = PRIORITY_META[priorityOf(post)]
-            const Icon = meta.icon
+            // Glif dari pilihan penulis, warnanya tetap dari prioritas — dua sumbu
+            // berbeda, dan menyatukannya membuat keduanya tidak terbaca.
+            const Icon = POST_ICONS[postIconOf(post)].icon
             const unit = post.target === 'sd' ? 'SDIT' : post.target === 'smp' ? 'SMPIT' : null
 
             return (

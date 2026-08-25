@@ -204,6 +204,15 @@ export interface MemberCompletion {
 /** Status urgensi pengumuman di beranda. */
 export type PostPriority = 'penting' | 'info' | 'pengingat'
 
+/**
+ * Ikon yang dipilih penulis untuk sebuah post di beranda.
+ *
+ * Sumbu terpisah dari PostPriority: prioritas menentukan warnanya (seberapa
+ * mendesak), ikon menentukan gambarnya (post ini soal apa). Satu post bisa
+ * saja bergambar tugas tapi berstatus penting.
+ */
+export type PostIcon = 'info' | 'pengumuman' | 'pengingat' | 'tugas'
+
 export interface PublicPost {
   id: string
   type: PublicPostType
@@ -213,6 +222,8 @@ export interface PublicPost {
   due_date: string | null
   /** Post lama sebelum migrasi 0017 bisa undefined — perlakukan sebagai 'info'. */
   priority?: PostPriority | null
+  /** Post sebelum migrasi 0030 belum punya ikon — lihat postIconOf(). */
+  icon?: PostIcon | null
   created_by: string
   is_active: boolean
   created_at: string

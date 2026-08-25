@@ -34,6 +34,7 @@ export const contentStatusEnum = pgEnum('content_status', ['requested', 'on_proc
 export const publicPostTypeEnum = pgEnum('public_post_type', ['pengumuman', 'tugas_guru'])
 /** Status urgensi pengumuman — ditentukan penulis, bukan disimpulkan dari tanggal. */
 export const postPriorityEnum = pgEnum('post_priority', ['penting', 'info', 'pengingat'])
+export const postIconEnum = pgEnum('post_icon', ['info', 'pengumuman', 'pengingat', 'tugas'])
 export const publicTargetEnum = pgEnum('public_target', ['all', 'sd', 'smp'])
 export const academicSemesterEnum = pgEnum('academic_semester', ['ganjil', 'genap'])
 /** Jenis kepegawaian guru, selaras dengan pos gaji di laporan keuangan. */
@@ -171,6 +172,8 @@ export const publicPosts = pgTable('public_posts', {
   content: text('content').notNull(),
   due_date: date('due_date'),
   priority: postPriorityEnum('priority').notNull().default('info'),
+  /** Null = post lama pra-0030; ikonnya diturunkan di lib/home/post-icons.ts. */
+  icon: postIconEnum('icon'),
   created_by: uuid('created_by').references(() => users.id),
   is_active: boolean('is_active').default(true),
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),

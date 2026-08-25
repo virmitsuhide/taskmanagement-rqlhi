@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { RichTextEditor } from '@/components/ui/rich-text-editor'
 import { Markdown } from '@/components/ui/markdown'
 import { Eye, EyeOff } from 'lucide-react'
+import { POST_ICONS, POST_ICON_ORDER, DEFAULT_POST_ICON } from '@/lib/home/post-icons'
 
 const CONTENT_PLACEHOLDER =
   'Isi pengumuman atau tugas yang akan tampil di beranda publik...\n\nGunakan **tebal**, *miring*, ~~coret~~, daftar, dan emoji 😊'
@@ -112,6 +113,51 @@ export function PublicPostForm() {
               </div>
             )}
           </div>
+
+          {/*
+            Pemilih ikon. Memakai radio asli, bukan tombol + state: nilainya
+            ikut terkirim lewat FormData tanpa hidden input, dan navigasi panah
+            serta pembacaan layar sudah benar tanpa perlu ditiru ulang.
+
+            Radionya ditumpuk tepat di atas kotak yang terlihat (`inset-0`),
+            bukan disembunyikan dengan `sr-only`. `sr-only` memakai
+            `position:absolute`, jadi radio itu mendarat entah di mana — dan
+            begitu diklik, peramban menggulir layar ke posisi radio yang
+            tersembunyi itu, bukan ke kotak yang barusan ditekan. Dengan
+            ditumpuk, "menggulir ke elemen fokus" jadi tidak memindahkan apa pun
+            karena elemennya memang sudah ada di depan mata.
+
+            Konsekuensinya kotak yang terlihat harus `pointer-events-none`
+            supaya klik tembus ke radio di atasnya — karena itu efek tunjuknya
+            memakai `peer-hover`, bukan `hover` pada kotak itu sendiri.
+          */}
+          <fieldset className="space-y-1.5">
+            <legend className="text-sm font-medium leading-none">Ikon di Beranda</legend>
+            <div className="grid grid-cols-2 gap-2 pt-1 sm:grid-cols-4">
+              {POST_ICON_ORDER.map(value => {
+                const meta = POST_ICONS[value]
+                const Icon = meta.icon
+                return (
+                  <label key={value} className="relative block cursor-pointer" title={meta.hint}>
+                    <input
+                      type="radio"
+                      name="icon"
+                      value={value}
+                      defaultChecked={value === DEFAULT_POST_ICON}
+                      className="peer absolute inset-0 m-0 h-full w-full cursor-pointer appearance-none rounded-lg opacity-0"
+                    />
+                    <span className="pointer-events-none flex flex-col items-center gap-1.5 rounded-lg border bg-background px-2 py-3 text-muted-foreground transition-colors peer-hover:bg-muted/50 peer-checked:border-primary peer-checked:bg-primary-wash peer-checked:text-primary peer-focus-visible:ring-3 peer-focus-visible:ring-ring/50">
+                      <Icon className="h-5 w-5" />
+                      <span className="text-[11px] font-medium">{meta.label}</span>
+                    </span>
+                  </label>
+                )
+              })}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Gambar di sebelah kiri judul. Warnanya tetap mengikuti Status Prioritas di bawah.
+            </p>
+          </fieldset>
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">

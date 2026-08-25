@@ -5,9 +5,11 @@ import { redirect } from 'next/navigation'
 import { createServerClient } from '@/lib/supabase/server'
 import { getSession } from '@/lib/auth/session'
 import { canPostToHome, canPostPengumuman, canPostTugasGuru } from '@/lib/auth/permissions'
-import type { PublicPostType, PublicTarget, PostPriority } from '@/types'
+import type { PublicPostType, PublicTarget, PostPriority, PostIcon } from '@/types'
+import { DEFAULT_POST_ICON, POST_ICON_ORDER } from '@/lib/home/post-icons'
 
 const VALID_PRIORITIES: PostPriority[] = ['penting', 'info', 'pengingat']
+const VALID_ICONS: PostIcon[] = POST_ICON_ORDER
 
 export async function createPublicPostAction(_: unknown, formData: FormData) {
   const session = await getSession()
@@ -32,6 +34,11 @@ export async function createPublicPostAction(_: unknown, formData: FormData) {
     ? (rawPriority as PostPriority)
     : 'info'
 
+  const rawIcon = (formData.get('icon') as string) ?? ''
+  const icon: PostIcon = VALID_ICONS.includes(rawIcon as PostIcon)
+    ? (rawIcon as PostIcon)
+    : DEFAULT_POST_ICON
+
   const supabase = createServerClient()
   const base = {
     type,
@@ -43,14 +50,18 @@ export async function createPublicPostAction(_: unknown, formData: FormData) {
     is_active: true,
   }
 
-  let { error } = await supabase.from('public_posts').insert({ ...base, priority })
+  // `priority` baru ada sejak migrasi 0017, `icon` sejak 0030. Selama migrasi
+  // itu belum dijalankan PostgREST menolak kolom yang tidak dikenal, jadi
+  // dicoba dari baris terlengkap ke yang paling minim — post tetap tersimpan
+  // apa adanya daripada hilang sama sekali. Percobaan berhenti pada galat yang
+  // bukan soal kolom, supaya kesalahan sungguhan tidak tertutupi percobaan
+  // ulang. Seluruh blok ini boleh dihapus begitu 0030 jalan di semua tempat.
+  const attempts = [{ ...base, priority, icon }, { ...base, priority }, base]
 
-  // Kolom `priority` baru ada setelah migrasi 0017. Selama migrasi itu belum
-  // dijalankan, PostgREST menolak kolom yang tidak dikenal — post tetap
-  // disimpan tanpa prioritas daripada gagal sama sekali. Cabang ini boleh
-  // dihapus begitu 0017 sudah jalan di semua lingkungan.
-  if (error && /priority/i.test(error.message)) {
-    ({ error } = await supabase.from('public_posts').insert(base))
+  let error: { message: string } | null = null
+  for (const row of attempts) {
+    ({ error } = await supabase.from('public_posts').insert(row))
+    if (!error || !/priority|icon/i.test(error.message)) break
   }
 
   if (error) return { error: 'Gagal membuat post.' }
