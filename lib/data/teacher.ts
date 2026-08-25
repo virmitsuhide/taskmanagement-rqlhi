@@ -50,6 +50,16 @@ export interface TeacherStudentRow {
   current_jilid_label: string | null
   current_jilid_page: number | null
   last_setoran_date: string | null
+  /** Sesi halaqoh (1-3). Null kalau halaqohnya belum punya sesi. */
+  sesi: number | null
+  /** Nomor HP wali — dipakai mengirim laporan lewat WhatsApp. */
+  wali_phone: string | null
+  wali_name: string | null
+  /** Surat terakhir yang disetorkan, mis. "An-Naba'". Null = belum pernah. */
+  last_tahfidz_surat: string | null
+  last_tahfidz_date: string | null
+  /** Banyaknya setoran tahfidz — ukuran kasar keaktifan hafalan. */
+  tahfidz_count: number
 }
 
 /**
@@ -65,7 +75,8 @@ export async function getTeacherStudents(teacherId: string): Promise<TeacherStud
     .from('students')
     .select(`
       id, full_name, nis, gender, kelas, jenjang, halaqoh_id, current_jilid_page,
-      halaqoh:halaqoh!students_halaqoh_id_fkey(name),
+      wali_name, wali_phone,
+      halaqoh:halaqoh!students_halaqoh_id_fkey(name, sesi),
       current_method:tahsin_methods!students_current_method_id_fkey(name),
       current_jilid:jilid_levels!students_current_jilid_id_fkey(label)
     `)
@@ -76,7 +87,8 @@ export async function getTeacherStudents(teacherId: string): Promise<TeacherStud
   const rows = (students ?? []) as unknown as Array<{
     id: string; full_name: string; nis: string | null; gender: 'L' | 'P' | null
     kelas: string | null; jenjang: string; halaqoh_id: string | null; current_jilid_page: number | null
-    halaqoh: { name: string } | null
+    wali_name: string | null; wali_phone: string | null
+    halaqoh: { name: string; sesi: number | null } | null
     current_method: { name: string } | null
     current_jilid: { label: string } | null
   }>
@@ -96,6 +108,22 @@ export async function getTeacherStudents(teacherId: string): Promise<TeacherStud
     if (!lastMap.has(log.student_id)) lastMap.set(log.student_id, log.setoran_date)
   }
 
+  // Capaian tahfidz: surat terakhir + banyaknya setoran. Diambil dalam satu
+  // query lalu dikelompokkan, bukan per siswa — satu halaqoh bisa berisi
+  // puluhan anak, dan query per anak menjadikannya puluhan perjalanan bolak-balik.
+  const { data: tahfidzLogs } = await supabase
+    .from('tahfidz_logs')
+    .select('student_id, setoran_date, surat:surat_master!tahfidz_logs_surat_id_fkey(name_latin)')
+    .in('student_id', studentIds)
+    .order('setoran_date', { ascending: false })
+
+  const tahfidzMap = new Map<string, { surat: string | null; date: string; count: number }>()
+  for (const log of (tahfidzLogs ?? []) as unknown as Array<{ student_id: string; setoran_date: string; surat: { name_latin: string } | null }>) {
+    const prev = tahfidzMap.get(log.student_id)
+    if (prev) prev.count++
+    else tahfidzMap.set(log.student_id, { surat: log.surat?.name_latin ?? null, date: log.setoran_date, count: 1 })
+  }
+
   return rows.map(r => ({
     id: r.id,
     full_name: r.full_name,
@@ -109,5 +137,11 @@ export async function getTeacherStudents(teacherId: string): Promise<TeacherStud
     current_jilid_label: r.current_jilid?.label ?? null,
     current_jilid_page: r.current_jilid_page,
     last_setoran_date: lastMap.get(r.id) ?? null,
+    sesi: r.halaqoh?.sesi ?? null,
+    wali_phone: r.wali_phone,
+    wali_name: r.wali_name,
+    last_tahfidz_surat: tahfidzMap.get(r.id)?.surat ?? null,
+    last_tahfidz_date: tahfidzMap.get(r.id)?.date ?? null,
+    tahfidz_count: tahfidzMap.get(r.id)?.count ?? 0,
   }))
 }
