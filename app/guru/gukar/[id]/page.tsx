@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
 import { getTeacherSession } from '@/lib/auth/teacher-session'
 import { getCurrentTerm, formatTerm } from '@/lib/data/terms'
-import { getGukarGroup, getGukarMonthly, getGukarParticipants } from '@/lib/data/gukar'
+import { getGukarGroup, getGukarMonthly, getGukarParticipants, bolehMengampuGukar } from '@/lib/data/gukar'
 import { TeacherHeader } from '@/components/layout/TeacherHeader'
 import { GukarMonthBoard } from '@/components/gukar/GukarMonthBoard'
 import { currentPeriod, isValidPeriod } from '@/lib/finance/period'
@@ -28,6 +28,8 @@ export default async function GukarGroupPage({ params, searchParams }: PageProps
   // sekali lagi di server action — halaman bisa dilewati lewat URL, action
   // tidak.
   if (group.pengampu_id !== session.teacherId) redirect('/guru/gukar')
+  // Halaman daftar yang menjelaskan alasannya.
+  if (!(await bolehMengampuGukar(session.teacherId))) redirect('/guru/gukar')
 
   const [term, participants] = await Promise.all([getCurrentTerm(), getGukarParticipants(id)])
   const monthly = await getGukarMonthly(participants.map(p => p.id), period)

@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createServerClient } from '@/lib/supabase/server'
+import { bolehMengampuGukar } from '@/lib/data/gukar'
 import { getTeacherSession } from '@/lib/auth/teacher-session'
 import { getSession } from '@/lib/auth/session'
 import { canManageGukar, canManageGukarSetoran } from '@/lib/auth/permissions'
@@ -52,6 +53,11 @@ async function guardPengampu(
   if (teacher) {
     if (group.pengampu_id !== teacher.teacherId) {
       return { error: 'Anda bukan pengampu kelompok ini.' }
+    }
+    // Batas sesungguhnya ada di sini, bukan di halaman: menyembunyikan menu
+    // tidak menghentikan pengiriman langsung ke server action.
+    if (!(await bolehMengampuGukar(teacher.teacherId))) {
+      return { error: 'Pembinaan gukar hanya diampu guru Tetap Yayasan & Kontrak Yayasan.' }
     }
     return { teacherId: teacher.teacherId, groupId }
   }

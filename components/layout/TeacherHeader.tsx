@@ -1,4 +1,6 @@
 import Link from 'next/link'
+import { getTeacherSession } from '@/lib/auth/teacher-session'
+import { bolehMengampuGukar } from '@/lib/data/gukar'
 import { logoutTeacherAction } from '@/app/actions/teacher-auth'
 import { Button } from '@/components/ui/button'
 import { Logo } from '@/components/brand/Logo'
@@ -15,12 +17,26 @@ const NAV: { key: Props['active']; label: string; href: string }[] = [
   { key: 'tahfidz', label: 'Setor Tahfidz', href: '/guru/setoran/tahfidz/baru' },
   { key: 'capaian', label: 'Capaian Bulanan', href: '/guru/capaian' },
   { key: 'statistik', label: 'Statistik', href: '/guru/statistik' },
-  // Hanya relevan bagi pengampu pembinaan; halamannya sendiri menampilkan
-  // pesan kosong yang jelas bagi guru yang tidak mengampu kelompok.
-  { key: 'gukar', label: 'Pembinaan Gukar', href: '/guru/gukar' },
 ]
 
-export function TeacherHeader({ fullName, active }: Props) {
+/**
+ * Menu yang hanya muncul bagi sebagian guru.
+ *
+ * Pembinaan gukar diampu guru Tetap Yayasan & Kontrak Yayasan saja, jadi
+ * menunya disembunyikan dari yang lain. Ini semata kerapian tampilan —
+ * penjagaan sesungguhnya ada di halaman dan di server action, sebab menu yang
+ * tidak tampil sama sekali tidak menghalangi orang mengetik URL-nya.
+ */
+const NAV_GUKAR = { key: 'gukar' as const, label: 'Pembinaan Gukar', href: '/guru/gukar' }
+
+export async function TeacherHeader({ fullName, active }: Props) {
+  // Sesi dibaca ulang di sini, bukan dioper lewat prop, supaya belasan halaman
+  // yang memakai header ini tidak perlu diubah satu per satu — dan tidak ada
+  // satu pun yang bisa lupa mengopernya lalu diam-diam menampilkan menu itu.
+  const session = await getTeacherSession()
+  const nav = session && (await bolehMengampuGukar(session.teacherId))
+    ? [...NAV, NAV_GUKAR]
+    : NAV
   return (
     <header
       className="flex items-center justify-between px-4 md:px-6 py-3 border-b sticky top-0 z-10"
@@ -42,7 +58,7 @@ export function TeacherHeader({ fullName, active }: Props) {
           Portal Guru
         </span>
         <nav className="hidden md:flex gap-1">
-          {NAV.map(item => (
+          {nav.map(item => (
             <Link
               key={item.key}
               href={item.href}

@@ -1,6 +1,6 @@
 import type {
   UserRole, MeetingType, AgendaTag, TaskStatus, TaskPriority, TaskWeight,
-  TaskProblemType, PublicTarget, Jenjang,
+  TaskProblemType, PublicTarget, Jenjang, TeacherEmployment,
 } from '@/types'
 
 // Dashboard access matrix.
@@ -673,4 +673,25 @@ export function canViewKpi(role: UserRole): boolean {
  */
 export function canManageAllAccounts(role: UserRole): boolean {
   return role === 'kepala_rq'
+}
+
+// ── Pembinaan Gukar ────────────────────────────────────────────────
+
+/**
+ * Boleh mengampu pembinaan Guru & Karyawan?
+ *
+ * Pembinaan gukar adalah amanah yayasan, jadi hanya guru yang terikat langsung
+ * dengan yayasan yang mengampunya — Tetap Yayasan dan Kontrak Yayasan. Guru
+ * Kontrak RQ (OS) tidak, sebab ikatannya lewat pihak ketiga.
+ *
+ * Yang disaring PENGAMPU-nya, bukan peserta. Ke-161 peserta gukar adalah objek
+ * pembinaan yang datang dari seluruh yayasan — PAUD, BPH, musyrif — dan status
+ * kepegawaian mereka tidak menentukan apa pun di sini.
+ *
+ * employment_type null diperlakukan sebagai TIDAK boleh: lebih baik seorang
+ * pengampu yang datanya belum lengkap kehilangan akses dan melapor, daripada
+ * hak ini diberikan diam-diam karena datanya kebetulan kosong.
+ */
+export function canDoGukarPembinaan(employment: TeacherEmployment | null | undefined): boolean {
+  return employment === 'tetap_yayasan' || employment === 'kontrak_yayasan'
 }

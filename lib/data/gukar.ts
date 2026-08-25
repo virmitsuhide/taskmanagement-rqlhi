@@ -1,4 +1,6 @@
 import { createServerClient } from '@/lib/supabase/server'
+import { canDoGukarPembinaan } from '@/lib/auth/permissions'
+import type { TeacherEmployment } from '@/types'
 import { type PeriodKey, periodsYearToDate, toPeriodDate } from '@/lib/finance/period'
 import type { GukarGroup, GukarMonthly, GukarParticipant } from '@/types'
 
@@ -236,4 +238,23 @@ export async function getGukarTrend(termId: string, upTo: PeriodKey): Promise<Gu
   } catch {
     return empty
   }
+}
+
+/**
+ * Apakah guru ini boleh mengampu pembinaan gukar?
+ *
+ * Dibaca dari database tiap kali, bukan dari sesi: status kepegawaian bisa
+ * berubah di tengah masa sesi guru masih login, dan hak yang sudah dicabut
+ * tidak boleh bertahan sampai ia logout.
+ */
+export async function bolehMengampuGukar(teacherId: string): Promise<boolean> {
+  const supabase = createServerClient()
+  const { data } = await supabase
+    .from('teachers')
+    .select('employment_type')
+    .eq('id', teacherId)
+    .is('deleted_at', null)
+    .maybeSingle()
+
+  return canDoGukarPembinaan((data?.employment_type ?? null) as TeacherEmployment | null)
 }

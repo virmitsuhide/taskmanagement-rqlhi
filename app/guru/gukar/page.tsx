@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { ChevronRight, Users } from 'lucide-react'
 import { getTeacherSession } from '@/lib/auth/teacher-session'
 import { getCurrentTerm, formatTerm } from '@/lib/data/terms'
-import { getGukarGroupsFor, getGukarParticipants } from '@/lib/data/gukar'
+import { getGukarGroupsFor, getGukarParticipants, bolehMengampuGukar } from '@/lib/data/gukar'
 import { TeacherHeader } from '@/components/layout/TeacherHeader'
 import { currentPeriod } from '@/lib/finance/period'
 
@@ -16,6 +16,25 @@ import { currentPeriod } from '@/lib/finance/period'
 export default async function GukarGroupsPage() {
   const session = await getTeacherSession()
   if (!session) redirect('/guru/login')
+
+  // Pembinaan gukar hanya diampu guru Tetap Yayasan & Kontrak Yayasan.
+  // Ditolak dengan penjelasan, bukan dialihkan diam-diam — guru yang menekan
+  // menunya berhak tahu kenapa halamannya tidak terbuka.
+  if (!(await bolehMengampuGukar(session.teacherId))) {
+    return (
+      <div>
+        <TeacherHeader fullName={session.fullName} />
+        <div className="p-4 md:p-6 max-w-3xl mx-auto">
+          <h1 className="text-2xl font-bold">Pembinaan Guru &amp; Karyawan</h1>
+          <p className="mt-3 text-sm text-muted-foreground">
+            Pembinaan gukar diampu oleh guru Tetap Yayasan dan Kontrak Yayasan.
+            Kalau status kepegawaianmu semestinya termasuk salah satunya, hubungi SDM
+            untuk memperbaiki datanya.
+          </p>
+        </div>
+      </div>
+    )
+  }
 
   const term = await getCurrentTerm()
   if (!term) {
