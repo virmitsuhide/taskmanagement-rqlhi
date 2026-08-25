@@ -1,6 +1,6 @@
 import {
   pgTable, pgEnum, text, uuid, boolean,
-  timestamp, integer, date, time, numeric, smallint, primaryKey, jsonb,
+  timestamp, integer, date, time, numeric, smallint, primaryKey, jsonb, unique,
 } from 'drizzle-orm/pg-core'
 import { relations } from 'drizzle-orm'
 import type { FooterLink, FooterUnit, HomeSection } from '@/types'
@@ -828,4 +828,65 @@ export const studentMonthly = pgTable('student_monthly', {
   recorded_by: uuid('recorded_by').references(() => teachers.id, { onDelete: 'set null' }),
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+})
+
+/**
+ * KPI bulanan guru Qur'an — satu baris per guru per bulan.
+ *
+ * Hanya bahan mentah yang disimpan; 11 nilai indikatornya dihitung ulang oleh
+ * lib/kpi/hitung.ts saat dibaca. Lihat drizzle/0034 untuk alasannya.
+ */
+export const kpiMonthly = pgTable('kpi_monthly', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  teacher_id: uuid('teacher_id').notNull().references(() => teachers.id, { onDelete: 'cascade' }),
+  year: integer('year').notNull(),
+  month: integer('month').notNull(),
+
+  late_minutes: numeric('late_minutes').notNull().default('0'),
+  db_late_days: numeric('db_late_days').notNull().default('0'),
+  hafalan_juz: numeric('hafalan_juz').notNull().default('0'),
+  hafalan_pages: numeric('hafalan_pages').notNull().default('0'),
+  tuhfatul_bait: numeric('tuhfatul_bait').notNull().default('0'),
+  bacaan_score: numeric('bacaan_score').notNull().default('0'),
+  buku_pegangan_meetings: numeric('buku_pegangan_meetings').notNull().default('0'),
+  izin_wa_cases: numeric('izin_wa_cases').notNull().default('0'),
+  pengganti_cases: numeric('pengganti_cases').notNull().default('0'),
+  pengganti_found: numeric('pengganti_found').notNull().default('0'),
+
+  seragam_daily: integer('seragam_daily').array(),
+  lapor_ortu_daily: integer('lapor_ortu_daily').array(),
+  halaqoh_hadir: integer('halaqoh_hadir').array(),
+  halaqoh_akhiri: integer('halaqoh_akhiri').array(),
+
+  /** NULL = pakai grid harian; terisi = SDM sengaja melewati rinciannya. */
+  seragam_total: numeric('seragam_total'),
+  lapor_ortu_total: numeric('lapor_ortu_total'),
+  halaqoh_total: numeric('halaqoh_total'),
+
+  /**
+   * Unit guru SAAT dinilai — bukan unit sekarang. Rubrik SD dan SMP berbeda
+   * tiga parameter, jadi tanpa ini memindahkan guru akan menghitung ulang
+   * seluruh riwayatnya dengan rubrik yang keliru. Lihat drizzle/0035.
+   */
+  unit: jenjangEnum('unit'),
+
+  notes: text('notes'),
+  created_by: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+  updated_by: uuid('updated_by').references(() => users.id, { onDelete: 'set null' }),
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+}, (t) => [unique('kpi_monthly_guru_periode_unik').on(t.teacher_id, t.year, t.month)])
+
+/** Catatan tiap perpindahan unit seorang guru — SD ↔ SMP dan sebagainya. */
+export const teacherUnitMoves = pgTable('teacher_unit_moves', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  teacher_id: uuid('teacher_id').notNull().references(() => teachers.id, { onDelete: 'cascade' }),
+  /** NULL kalau guru sebelumnya memang belum punya unit. */
+  from_unit: jenjangEnum('from_unit'),
+  to_unit: jenjangEnum('to_unit').notNull(),
+  /** Tanggal mutasi berlaku — bukan tanggal pencatatan. */
+  effective_date: date('effective_date').notNull(),
+  notes: text('notes'),
+  moved_by: uuid('moved_by').references(() => users.id, { onDelete: 'set null' }),
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
 })

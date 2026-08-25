@@ -8,10 +8,11 @@ import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { Button } from '@/components/ui/button'
 import { Pencil, KeyRound, Mail, Phone, BookOpen } from 'lucide-react'
 import { DeleteTeacherButton, RestoreTeacherButton } from '../TeacherActions'
+import { UnitMovePanel } from './UnitMovePanel'
 import { PasswordBanner } from './PasswordBanner'
 import { contractDaysLeft } from '@/lib/auth/contract'
 import { getCurrentTerm, getTeacherSessionLoad } from '@/lib/data/terms'
-import { TEACHER_EMPLOYMENT_LABELS, type Jenjang, type TeacherEmployment } from '@/types'
+import { TEACHER_EMPLOYMENT_LABELS, type Jenjang, type TeacherEmployment, type TeacherUnitMove } from '@/types'
 
 interface PageProps {
   params: Promise<{ id: string }>
@@ -69,6 +70,16 @@ export default async function TeacherDetailPage({ params, searchParams }: PagePr
   }
 
   const canEdit = canManageTeachers(session.role)
+
+  // Riwayat mutasi hanya diperlukan oleh yang boleh memindahkan; guru dan koor
+  // tidak melihat panelnya, jadi tidak perlu ikut ditarik.
+  const { data: moveRows } = canEdit
+    ? await supabase
+        .from('teacher_unit_moves')
+        .select('*')
+        .eq('teacher_id', id)
+        .order('effective_date', { ascending: false })
+    : { data: [] as TeacherUnitMove[] }
 
   // Beban sesi semester berjalan — dasar angka "2 sesi"/"3 sesi" pada MPP.
   const currentTerm = await getCurrentTerm()
@@ -194,6 +205,15 @@ export default async function TeacherDetailPage({ params, searchParams }: PagePr
             )}
           </div>
         </div>
+
+        {canEdit && (
+          <UnitMovePanel
+            teacherId={id}
+            teacherName={teacher.full_name}
+            currentUnit={(teacher.unit ?? null) as Jenjang | null}
+            riwayat={(moveRows ?? []) as TeacherUnitMove[]}
+          />
+        )}
 
         {/* Halaqoh yang diampu */}
         <section>

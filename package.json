@@ -25,7 +25,8 @@
     "seed:gukar": "tsx scripts/seed-gukar.ts",
     "seed:siswa": "tsx scripts/seed-siswa.ts",
     "seed:capaian": "tsx scripts/seed-capaian-sd.ts",
-    "uji:gukar": "tsx scripts/uji-gukar-standar.ts"
+    "uji:gukar": "tsx scripts/uji-gukar-standar.ts",
+    "uji:kpi": "tsx scripts/uji-kpi.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",

@@ -640,3 +640,37 @@ export function canManageSetoran(role: UserRole, jenjang?: Jenjang | null): bool
 export function canManageGukarSetoran(role: UserRole): boolean {
   return role === 'sdm' || role === 'kepala_rq'
 }
+
+// ── KPI bulanan guru Qur'an ────────────────────────────────────────
+
+/**
+ * Siapa yang mengisi nilai KPI: SDM.
+ *
+ * Kepala RQ ikut diberi hak tulis karena ia atasan langsung fungsi SDM dan
+ * perlu bisa membetulkan kalau SDM berhalangan — bukan supaya rutin mengisi.
+ */
+export function canInputKpi(role: UserRole): boolean {
+  return role === 'sdm' || role === 'kepala_rq'
+}
+
+/**
+ * Siapa yang boleh melihat hasil KPI.
+ *
+ * Sengaja lebih sempit daripada papan tugas: ini penilaian perorangan atas
+ * kinerja, bukan informasi kerja harian. Koordinator unit ikut dimasukkan
+ * karena merekalah yang menjalankan tindak lanjut pada level 1-3.
+ */
+export function canViewKpi(role: UserRole): boolean {
+  return canInputKpi(role) || role === 'kumik' || role === 'koor_sd' || role === 'koor_smp'
+}
+
+/**
+ * Kelola akun & password seluruh pengguna — khusus Kepala RQ.
+ *
+ * Tidak diberikan ke SDM meski SDM mengelola kepegawaian: hak ini mencakup
+ * mengganti password Kepala RQ sendiri, jadi memberikannya ke peran lain
+ * membuat siapa pun pemegangnya bisa mengambil alih akun tertinggi.
+ */
+export function canManageAllAccounts(role: UserRole): boolean {
+  return role === 'kepala_rq'
+}

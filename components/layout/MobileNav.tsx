@@ -7,6 +7,7 @@ import {
   Menu, X, LayoutDashboard, CheckSquare, BookOpen,
   ImageIcon, Megaphone, FileText, User, LogOut, GraduationCap, Newspaper, LayoutGrid,
   Users, UserCog, BookMarked, BarChart3, LayoutTemplate, Info, Wallet, CalendarRange,
+  ClipboardCheck, KeyRound,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
@@ -15,6 +16,7 @@ import {
   canAccessProgramMenu, canEditAbout,
   canViewStudents, canViewHalaqoh, canViewTeachers, canViewAnalytics, canViewUnitAnalytics,
   canManageHomepage,
+  canViewKpi, canManageAllAccounts,
 } from '@/lib/auth/permissions'
 import type { UserRole } from '@/types'
 import { logoutAction } from '@/app/actions/auth'
@@ -209,7 +211,7 @@ export function MobileNav({ role, displayName, username }: Props) {
             </ul>
           </div>
 
-          {(canViewStudents(role) || canViewHalaqoh(role) || canViewTeachers(role) || canViewTerms(role)) && (
+          {(canViewStudents(role) || canViewHalaqoh(role) || canViewTeachers(role) || canViewTerms(role) || canViewKpi(role)) && (
             <div>
               <p className="px-2 mb-2 text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/50">Tahsin &amp; Tahfidz</p>
               <ul className="space-y-1">
@@ -225,6 +227,9 @@ export function MobileNav({ role, displayName, username }: Props) {
                 {canViewTeachers(role) && (
                   <DrawerLink href="/ustadz" icon={<UserCog className="h-4 w-4" />} label="Ustadz / Guru" active={isActive('/ustadz')} onNavigate={close} />
                 )}
+                {canViewKpi(role) && (
+                  <DrawerLink href="/kpi" icon={<ClipboardCheck className="h-4 w-4" />} label="KPI Guru" active={isActive('/kpi')} onNavigate={close} />
+                )}
                 {canViewGukarRecap(role) && (
                   <DrawerLink href="/dashboard/analitik/gukar" icon={<BarChart3 className="h-4 w-4" />} label="Analitik Gukar" active={isActive('/dashboard/analitik/gukar')} onNavigate={close} />
                 )}
@@ -234,6 +239,9 @@ export function MobileNav({ role, displayName, username }: Props) {
         </nav>
 
         <div className="border-t px-3 py-3 space-y-1">
+          {canManageAllAccounts(role) && (
+            <DrawerLink href="/akun" icon={<KeyRound className="h-4 w-4" />} label="Akun & Password" active={isActive('/akun')} onNavigate={close} />
+          )}
           <Link
             href="/profil"
             onClick={close}

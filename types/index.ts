@@ -877,3 +877,64 @@ export interface StudentMonthly {
   capaian_halaman: number
   catatan: string
 }
+
+// ── KPI bulanan guru Qur'an ────────────────────────────────────────
+
+/** Satu baris KPI: bahan mentahnya saja, nilainya dihitung lib/kpi/hitung.ts. */
+export interface KpiMonthly {
+  id: string
+  teacher_id: string
+  year: number
+  month: number
+  late_minutes: number
+  db_late_days: number
+  hafalan_juz: number
+  hafalan_pages: number
+  tuhfatul_bait: number
+  bacaan_score: number
+  buku_pegangan_meetings: number
+  izin_wa_cases: number
+  pengganti_cases: number
+  pengganti_found: number
+  seragam_daily: number[] | null
+  lapor_ortu_daily: number[] | null
+  halaqoh_hadir: number[] | null
+  halaqoh_akhiri: number[] | null
+  seragam_total: number | null
+  lapor_ortu_total: number | null
+  halaqoh_total: number | null
+  /** Unit guru SAAT dinilai. Rubrik SD & SMP berbeda — lihat drizzle/0035. */
+  unit: Jenjang | null
+  notes: string | null
+  created_by: string | null
+  updated_by: string | null
+  created_at: string
+  updated_at: string
+}
+
+/** Guru + baris KPI-nya (kalau sudah ada) untuk satu periode. */
+export interface KpiRow {
+  teacherId: string
+  fullName: string
+  unit: Jenjang | null
+  employmentType: string | null
+  /** Null = belum pernah diisi untuk periode ini. */
+  entry: KpiMonthly | null
+  /**
+   * Guru ini dinilai di unit ini, tapi sekarang sudah pindah ke unit lain.
+   * Barisnya tetap ditampilkan karena penilaiannya memang terjadi di sini.
+   */
+  pindahKe?: Jenjang | null
+}
+
+/** Satu perpindahan unit seorang guru. */
+export interface TeacherUnitMove {
+  id: string
+  teacher_id: string
+  from_unit: Jenjang | null
+  to_unit: Jenjang
+  effective_date: string
+  notes: string | null
+  moved_by: string | null
+  created_at: string
+}
