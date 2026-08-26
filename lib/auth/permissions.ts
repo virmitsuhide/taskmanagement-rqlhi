@@ -41,6 +41,7 @@ const MEETING_CREATE: Record<MeetingType, UserRole[]> = {
   koor_x_boarding: ['koor_smp'],
   rq_x_quls: ['kumik'],
   humas_yayasan: ['humas'],
+  tahsin_rekomendasi: ['koor_sd'],
 }
 
 const MEETING_EDIT: Record<MeetingType, UserRole[]> = {
@@ -54,6 +55,7 @@ const MEETING_EDIT: Record<MeetingType, UserRole[]> = {
   koor_x_boarding: ['koor_smp'],
   rq_x_quls: ['kumik'],
   humas_yayasan: ['humas'],
+  tahsin_rekomendasi: ['koor_sd'],
 }
 
 const MEETING_DELETE: Record<MeetingType, UserRole[]> = {
@@ -67,6 +69,7 @@ const MEETING_DELETE: Record<MeetingType, UserRole[]> = {
   koor_x_boarding: ['koor_smp'],
   rq_x_quls: ['kumik'],
   humas_yayasan: ['humas'],
+  tahsin_rekomendasi: ['koor_sd'],
 }
 
 const MEETING_VIEW: Record<MeetingType, UserRole[]> = {
@@ -83,6 +86,9 @@ const MEETING_VIEW: Record<MeetingType, UserRole[]> = {
   rq_x_quls: ['kumik', 'kepala_rq', 'sdm', 'bendahara'],
   // Rapat Humas dengan Yayasan — dipegang Humas, dipantau manajemen.
   humas_yayasan: ['humas', 'kepala_rq', 'kumik', 'sdm', 'bendahara'],
+  // Rapat Tahsin Rekomendasi — dipegang koor SD, dipantau manajemen. Koor SMP
+  // sengaja di luar: rekomendasi tahsin di sini menyangkut siswa SD saja.
+  tahsin_rekomendasi: ['kepala_rq', 'kumik', 'sdm', 'bendahara', 'koor_sd'],
 }
 
 export function canCreateMeeting(role: UserRole, type: MeetingType): boolean {
@@ -564,6 +570,7 @@ export const MEETING_TYPE_LABELS: Record<MeetingType, string> = {
   koor_x_boarding: 'Rapat Koor x Boarding',
   rq_x_quls: 'Rapat RQ x QULS',
   humas_yayasan: 'Rapat Humas Yayasan',
+  tahsin_rekomendasi: 'Rapat Tahsin Rekomendasi',
 }
 
 export const DASHBOARD_LABELS: Record<string, string> = {

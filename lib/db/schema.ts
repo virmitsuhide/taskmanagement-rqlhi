@@ -14,6 +14,7 @@ export const userRoleEnum = pgEnum('user_role', [
 export const meetingTypeEnum = pgEnum('meeting_type', [
   'manajemen', 'kumik', 'new_squad', 'koor_sd', 'koor_smp',
   'koor_x_sd', 'koor_x_smp', 'koor_x_boarding', 'rq_x_quls', 'humas_yayasan',
+  'tahsin_rekomendasi',
 ])
 export const agendaTagEnum = pgEnum('agenda_tag', [
   'keputusan', 'informasi', 'perlu_diskusi', 'tindak_lanjut', 'approval',

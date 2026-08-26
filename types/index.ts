@@ -26,6 +26,8 @@ export type MeetingType =
   | 'rq_x_quls'
   /** Rapat Humas Yayasan — dibuat humas, dipantau manajemen */
   | 'humas_yayasan'
+  /** Rapat Tahsin Rekomendasi — dibuat koor SD, dipantau manajemen */
+  | 'tahsin_rekomendasi'
 
 export type AgendaTag = 'keputusan' | 'informasi' | 'perlu_diskusi' | 'tindak_lanjut' | 'approval'
 
