@@ -20,14 +20,22 @@ const SESI_KELAS: Record<'sd' | 'smp', Record<number, number[]>> = {
 }
 
 /**
+ * Tingkat kelas dari teks kelas: '1A' → 1, '9C' → 9, '4.0' → 4.
+ *
+ * Kelas ditulis bebas di sumber data — selain '1A' ada juga '4.0' yang lolos
+ * dari Excel — jadi yang dipakai hanya angka pertamanya. null kalau tak ada
+ * angka sama sekali: PAUD tidak bertingkat, dan kolomnya boleh kosong.
+ */
+export function tingkatOf(kelas: string | null | undefined): number | null {
+  return Number(String(kelas ?? '').match(/\d+/)?.[0]) || null
+}
+
+/**
  * Sesi seorang siswa dari jenjang & kelasnya. Mengembalikan null kalau
  * kelasnya tidak terbaca — pemanggil yang memutuskan apa artinya.
- *
- * Kelas ditulis bebas di sumber data ('1A', '9C', bahkan '4.0' dari Excel),
- * jadi yang dipakai hanya angka pertamanya.
  */
 export function sesiOf(jenjang: Jenjang | string, kelas: string | null): number | null {
-  const tingkat = Number(String(kelas ?? '').match(/\d+/)?.[0])
+  const tingkat = tingkatOf(kelas)
   if (!tingkat) return null
 
   // SD Juara mengikuti pembagian SD.
