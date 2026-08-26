@@ -9,6 +9,7 @@ import { TaskCard } from '@/components/tasks/TaskCard'
 import { MeetingCard } from '@/components/rapat/MeetingCard'
 import { Button } from '@/components/ui/button'
 import { Plus } from 'lucide-react'
+import { UjianDashboardCards } from '@/components/ujian/UjianDashboardCards'
 
 export default async function KumikDashboardPage() {
   const session = await getSession()
@@ -27,6 +28,8 @@ export default async function KumikDashboardPage() {
       <DashboardHeader displayName={session.displayName} role={session.role} title="Dashboard Kumik" showBack />
       <div className="p-4 md:p-6 space-y-6 max-w-4xl">
         <DivisionStats {...stats} />
+
+        <UjianDashboardCards role={session.role} userId={session.userId} />
 
         {pendingVerif.length > 0 && (
           <section>

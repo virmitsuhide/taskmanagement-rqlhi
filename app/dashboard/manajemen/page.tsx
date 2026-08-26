@@ -11,6 +11,7 @@ import { CompletionHistory } from '@/components/dashboard/CompletionHistory'
 import { MeetingCard } from '@/components/rapat/MeetingCard'
 import { Button } from '@/components/ui/button'
 import { Plus } from 'lucide-react'
+import { UjianDashboardCards } from '@/components/ujian/UjianDashboardCards'
 
 export default async function ManajemenDashboardPage() {
   const session = await getSession()
@@ -33,6 +34,8 @@ export default async function ManajemenDashboardPage() {
           <h2 className="text-sm font-semibold mb-3">Analitik Aktivitas Pengurus</h2>
           <TeamActivityAnalytics tasks={teamTasks} />
         </section>
+
+        <UjianDashboardCards role={session.role} userId={session.userId} />
 
         {/* Tugas tim: bisa ditukar antara daftar pengurus & papan kanban in-place */}
         <TeamTasksSwitcher

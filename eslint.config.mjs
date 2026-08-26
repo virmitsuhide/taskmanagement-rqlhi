@@ -12,6 +12,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Salinan project pengajuan-ujian yang sudah diporting ke modul /ujian.
+    // Ditinggal sementara sebagai rujukan; bukan bagian aplikasi ini.
+    "pengajuan-ujian/**",
   ]),
 ]);
 

@@ -57,6 +57,8 @@ export const users = pgTable('users', {
   can_change_password: boolean('can_change_password').default(true),
   /** Kapan dropdown notifikasi terakhir dibuka — mengendalikan badge lonceng. */
   notifications_seen_at: timestamp('notifications_seen_at', { withTimezone: true }),
+  /** Kapan halaman kelola pengajuan ujian terakhir dibuka — mengendalikan badge "pengajuan baru". */
+  ujian_seen_at: timestamp('ujian_seen_at', { withTimezone: true }),
 
   // ── Profil pengurus (semua role kecuali new_squad) ──────────────
   /** 'ust' | 'usth' — menentukan sapaan "Ust." atau "Usth." */
@@ -889,4 +891,63 @@ export const teacherUnitMoves = pgTable('teacher_unit_moves', {
   notes: text('notes'),
   moved_by: uuid('moved_by').references(() => users.id, { onDelete: 'set null' }),
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
+})
+
+// ─── Pengajuan ujian tahsin & tahfidz ────────────────────────────────────────
+//
+// Terpisah dari tahsinLogs/tahfidzLogs: setoran mencatat yang sudah terjadi di
+// halaqoh, pengajuan mencatat permintaan yang menunggu dijadwalkan. Lihat
+// drizzle/0036 untuk alasan lengkapnya.
+
+/** Daftar nama penguji, dipakai bersama SD & SMP. */
+export const ujianPengujis = pgTable('ujian_pengujis', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  nama: text('nama').notNull().unique(),
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
+})
+
+export const ujianTahfidz = pgTable('ujian_tahfidz', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  /** 'SD' | 'SMP' — hanya dua unit ini yang menjalankan ujian. */
+  unit: text('unit').notNull(),
+  /** '1_juz' | '3_juz' | '5_juz' */
+  tipe: text('tipe').notNull(),
+  /** Nomor juz ('7') atau rentangnya ('28-30') — bentuknya tergantung tipe. */
+  juz: text('juz').notNull(),
+  nama_siswa: text('nama_siswa').notNull(),
+  nama_ayah: text('nama_ayah').notNull(),
+  kelas: text('kelas').notNull(),
+  is_quls: boolean('is_quls').notNull().default(false),
+  jadwal: timestamp('jadwal', { withTimezone: true }),
+  penguji: text('penguji'),
+  /** 'mumtaz' | 'jayyid_jiddan' | 'jayyid' | 'maqbul' | 'mengulang' */
+  predikat: text('predikat'),
+  catatan: text('catatan'),
+  /** 'diajukan' | 'dijadwalkan' | 'selesai' */
+  status: text('status').notNull().default('diajukan'),
+  /** Terisi bila pengaju masuk lewat portal guru. */
+  created_by_teacher: uuid('created_by_teacher').references(() => teachers.id, { onDelete: 'set null' }),
+  /** Terisi bila pengaju masuk lewat dashboard pengurus. */
+  created_by_user: uuid('created_by_user').references(() => users.id, { onDelete: 'set null' }),
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+})
+
+export const ujianTahsin = pgTable('ujian_tahsin', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  unit: text('unit').notNull(),
+  nama_kelompok: text('nama_kelompok').notNull(),
+  sesi: text('sesi').notNull(),
+  /** Ringkasan level kelompok, mis. "Jilid 3, Al-Qur'an". Level tiap anak ada di siswa. */
+  level: text('level').notNull(),
+  /** [{ nama, predikat: 'lulus'|'mengulang'|null, level }] */
+  siswa: jsonb('siswa').notNull().default([]),
+  jadwal: timestamp('jadwal', { withTimezone: true }),
+  penguji: text('penguji'),
+  catatan: text('catatan'),
+  status: text('status').notNull().default('diajukan'),
+  created_by_teacher: uuid('created_by_teacher').references(() => teachers.id, { onDelete: 'set null' }),
+  created_by_user: uuid('created_by_user').references(() => users.id, { onDelete: 'set null' }),
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
 })

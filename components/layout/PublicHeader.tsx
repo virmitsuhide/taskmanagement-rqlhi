@@ -35,6 +35,22 @@ const NAV: NavItem[] = [
       },
     ],
   },
+  {
+    label: 'Ujian',
+    href: '/ujian',
+    children: [
+      {
+        label: 'Antrian Ujian',
+        href: '/ujian',
+        description: 'Pengajuan yang menunggu jadwal & yang sudah dijadwalkan',
+      },
+      {
+        label: 'Rekap Hasil',
+        href: '/ujian/rekap',
+        description: 'Hasil ujian tahsin & tahfidz yang sudah terlaksana',
+      },
+    ],
+  },
 ]
 
 const LINK_CLASS =

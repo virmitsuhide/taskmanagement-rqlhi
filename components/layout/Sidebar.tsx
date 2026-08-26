@@ -7,14 +7,14 @@ import {
   LayoutDashboard, BookOpen, CheckSquare, ImageIcon,
   FileText, User, Megaphone, LogOut, ChevronRight, GraduationCap, Newspaper, LayoutGrid,
   Users, UserCog, BookMarked, BarChart3, LayoutTemplate, Info, Wallet, CalendarRange,
-  ClipboardCheck, KeyRound,
+  ClipboardCheck, KeyRound, ScrollText,
 } from 'lucide-react'
 import { DASHBOARD_LABELS, getAccessibleDashboards, ROLE_LABELS } from '@/lib/auth/permissions'
 import {
   canViewTerms, canViewGukarRecap, canViewFinance, canViewFinanceNotes, canPostToHome, canViewHumasRequests, canCreateNews,
   canAccessProgramMenu, canEditAbout,
   canViewStudents, canViewHalaqoh, canViewTeachers, canViewAnalytics, canViewUnitAnalytics,
-  canManageHomepage, canViewKpi, canManageAllAccounts,
+  canManageHomepage, canViewKpi, canManageAllAccounts, canViewUjian,
 } from '@/lib/auth/permissions'
 import type { UserRole } from '@/types'
 import { logoutAction } from '@/app/actions/auth'
@@ -93,6 +93,12 @@ export function Sidebar({ role, displayName, username }: Props) {
                 active={isActive('/dashboard/analitik')}
               />
             )}
+            {/* Ditaruh menempel di bawah Analitik RQ: KPI adalah penilaian
+                kinerja, sekelompok dengan angka-angka pemantauan — bukan dengan
+                menu Tahsin & Tahfidz yang isinya pekerjaan harian. */}
+            {canViewKpi(role) && (
+              <NavItem href="/kpi" icon={<ClipboardCheck className="h-4 w-4" />} label="KPI Guru" active={isActive('/kpi')} />
+            )}
           </ul>
         </div>
 
@@ -136,7 +142,7 @@ export function Sidebar({ role, displayName, username }: Props) {
         </div>
 
         {/* Tahsin & Tahfidz section */}
-        {(canViewStudents(role) || canViewHalaqoh(role) || canViewTeachers(role) || canViewTerms(role) || canViewKpi(role)) && (
+        {(canViewStudents(role) || canViewHalaqoh(role) || canViewTeachers(role) || canViewTerms(role) || canViewUjian(role)) && (
           <div>
             <p className="px-2 mb-2 text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/50">
               Tahsin &amp; Tahfidz
@@ -154,8 +160,8 @@ export function Sidebar({ role, displayName, username }: Props) {
               {canViewTeachers(role) && (
                 <NavItem href="/ustadz" icon={<UserCog className="h-4 w-4" />} label="Ustadz / Guru" active={isActive('/ustadz')} />
               )}
-              {canViewKpi(role) && (
-                <NavItem href="/kpi" icon={<ClipboardCheck className="h-4 w-4" />} label="KPI Guru" active={isActive('/kpi')} />
+              {canViewUjian(role) && (
+                <NavItem href="/ujian/kelola" icon={<ScrollText className="h-4 w-4" />} label="Pengajuan Ujian" active={isActive('/ujian')} />
               )}
               {canViewGukarRecap(role) && (
                 <NavItem

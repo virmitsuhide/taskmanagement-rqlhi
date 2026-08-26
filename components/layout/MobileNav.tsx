@@ -7,7 +7,7 @@ import {
   Menu, X, LayoutDashboard, CheckSquare, BookOpen,
   ImageIcon, Megaphone, FileText, User, LogOut, GraduationCap, Newspaper, LayoutGrid,
   Users, UserCog, BookMarked, BarChart3, LayoutTemplate, Info, Wallet, CalendarRange,
-  ClipboardCheck, KeyRound,
+  ClipboardCheck, KeyRound, ScrollText,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
@@ -16,7 +16,7 @@ import {
   canAccessProgramMenu, canEditAbout,
   canViewStudents, canViewHalaqoh, canViewTeachers, canViewAnalytics, canViewUnitAnalytics,
   canManageHomepage,
-  canViewKpi, canManageAllAccounts,
+  canViewKpi, canManageAllAccounts, canViewUjian,
 } from '@/lib/auth/permissions'
 import type { UserRole } from '@/types'
 import { logoutAction } from '@/app/actions/auth'
@@ -173,6 +173,12 @@ export function MobileNav({ role, displayName, username }: Props) {
                   onNavigate={close}
                 />
               )}
+              {/* Urutannya disamakan dengan sidebar — menu yang sama berpindah
+                  tempat antara layar lebar dan HP membuat orang harus mencari
+                  ulang tiap ganti perangkat. */}
+              {canViewKpi(role) && (
+                <DrawerLink href="/kpi" icon={<ClipboardCheck className="h-4 w-4" />} label="KPI Guru" active={isActive('/kpi')} onNavigate={close} />
+              )}
             </ul>
           </div>
 
@@ -211,7 +217,7 @@ export function MobileNav({ role, displayName, username }: Props) {
             </ul>
           </div>
 
-          {(canViewStudents(role) || canViewHalaqoh(role) || canViewTeachers(role) || canViewTerms(role) || canViewKpi(role)) && (
+          {(canViewStudents(role) || canViewHalaqoh(role) || canViewTeachers(role) || canViewTerms(role) || canViewUjian(role)) && (
             <div>
               <p className="px-2 mb-2 text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/50">Tahsin &amp; Tahfidz</p>
               <ul className="space-y-1">
@@ -227,8 +233,8 @@ export function MobileNav({ role, displayName, username }: Props) {
                 {canViewTeachers(role) && (
                   <DrawerLink href="/ustadz" icon={<UserCog className="h-4 w-4" />} label="Ustadz / Guru" active={isActive('/ustadz')} onNavigate={close} />
                 )}
-                {canViewKpi(role) && (
-                  <DrawerLink href="/kpi" icon={<ClipboardCheck className="h-4 w-4" />} label="KPI Guru" active={isActive('/kpi')} onNavigate={close} />
+                {canViewUjian(role) && (
+                  <DrawerLink href="/ujian/kelola" icon={<ScrollText className="h-4 w-4" />} label="Pengajuan Ujian" active={isActive('/ujian')} onNavigate={close} />
                 )}
                 {canViewGukarRecap(role) && (
                   <DrawerLink href="/dashboard/analitik/gukar" icon={<BarChart3 className="h-4 w-4" />} label="Analitik Gukar" active={isActive('/dashboard/analitik/gukar')} onNavigate={close} />

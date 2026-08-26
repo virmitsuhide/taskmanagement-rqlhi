@@ -1,13 +1,14 @@
 import Link from 'next/link'
 import { getTeacherSession } from '@/lib/auth/teacher-session'
 import { bolehMengampuGukar } from '@/lib/data/gukar'
+import { getUnitUjianGuru } from '@/lib/data/ujian'
 import { logoutTeacherAction } from '@/app/actions/teacher-auth'
 import { Button } from '@/components/ui/button'
 import { Logo } from '@/components/brand/Logo'
 
 interface Props {
   fullName: string
-  active?: 'dashboard' | 'setoran' | 'tahfidz' | 'siswa' | 'statistik' | 'jadwal' | 'rapor' | 'gukar' | 'capaian'
+  active?: 'dashboard' | 'setoran' | 'tahfidz' | 'siswa' | 'statistik' | 'jadwal' | 'rapor' | 'gukar' | 'capaian' | 'ujian'
 }
 
 const NAV: { key: Props['active']; label: string; href: string }[] = [
@@ -29,14 +30,31 @@ const NAV: { key: Props['active']; label: string; href: string }[] = [
  */
 const NAV_GUKAR = { key: 'gukar' as const, label: 'Pembinaan Gukar', href: '/guru/gukar' }
 
+/**
+ * Pengajuan ujian hanya berjalan di SDIT & SMPIT — di situlah ada
+ * koordinator yang menjadwalkannya. Guru SD Juara, PAUD, dan SMA tidak
+ * melihat menunya; penjagaan sesungguhnya tetap ada di halaman dan di
+ * server action, sebab menu yang disembunyikan tidak menghalangi siapa pun
+ * mengetik URL-nya.
+ */
+const NAV_UJIAN = { key: 'ujian' as const, label: 'Pengajuan Ujian', href: '/guru/ujian' }
+
 export async function TeacherHeader({ fullName, active }: Props) {
   // Sesi dibaca ulang di sini, bukan dioper lewat prop, supaya belasan halaman
   // yang memakai header ini tidak perlu diubah satu per satu — dan tidak ada
   // satu pun yang bisa lupa mengopernya lalu diam-diam menampilkan menu itu.
   const session = await getTeacherSession()
-  const nav = session && (await bolehMengampuGukar(session.teacherId))
-    ? [...NAV, NAV_GUKAR]
-    : NAV
+  const [bolehGukar, unitUjian] = session
+    ? await Promise.all([
+        bolehMengampuGukar(session.teacherId),
+        getUnitUjianGuru(session.teacherId),
+      ])
+    : [false, null]
+  const nav = [
+    ...NAV,
+    ...(unitUjian ? [NAV_UJIAN] : []),
+    ...(bolehGukar ? [NAV_GUKAR] : []),
+  ]
   return (
     <header
       className="flex items-center justify-between px-4 md:px-6 py-3 border-b sticky top-0 z-10"

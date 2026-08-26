@@ -1,6 +1,6 @@
 import type {
   UserRole, MeetingType, AgendaTag, TaskStatus, TaskPriority, TaskWeight,
-  TaskProblemType, PublicTarget, Jenjang, TeacherEmployment,
+  TaskProblemType, PublicTarget, Jenjang, TeacherEmployment, UjianUnit,
 } from '@/types'
 
 // Dashboard access matrix.
@@ -694,4 +694,47 @@ export function canManageAllAccounts(role: UserRole): boolean {
  */
 export function canDoGukarPembinaan(employment: TeacherEmployment | null | undefined): boolean {
   return employment === 'tetap_yayasan' || employment === 'kontrak_yayasan'
+}
+
+// ── Pengajuan ujian tahsin & tahfidz ───────────────────────────────
+
+/**
+ * Unit mana yang ujiannya boleh dikelola seorang pengurus.
+ *
+ * Kepala RQ dan Kumik memegang keduanya karena merekalah yang memantau
+ * capaian lintas unit; koordinator hanya unitnya sendiri, sama persis dengan
+ * cakupannya di getManageableJenjang(). Daftar kosong berarti menu ujian
+ * tidak muncul sama sekali untuk role itu.
+ */
+export function getUjianUnits(role: UserRole): UjianUnit[] {
+  if (role === 'kepala_rq' || role === 'kumik') return ['SD', 'SMP']
+  if (role === 'koor_sd') return ['SD']
+  if (role === 'koor_smp') return ['SMP']
+  return []
+}
+
+/** Boleh membuka modul ujian (kelola, riwayat, daftar penguji). */
+export function canViewUjian(role: UserRole): boolean {
+  return getUjianUnits(role).length > 0
+}
+
+/**
+ * Boleh menjadwalkan, menilai, dan menghapus pengajuan di unit tertentu.
+ *
+ * Dipisah dari canViewUjian supaya pemeriksaannya selalu menyertakan unit —
+ * koor SD tidak boleh menyentuh antrian SMP walau kedua daftar itu tampil di
+ * halaman yang sama. Unit datang dari baris di database, bukan dari form.
+ */
+export function canManageUjian(role: UserRole, unit: UjianUnit): boolean {
+  return getUjianUnits(role).includes(unit)
+}
+
+/**
+ * Boleh mengajukan ujian lewat dashboard pengurus.
+ *
+ * Pengaju utamanya guru lewat portal /guru; koordinator diberi hak yang sama
+ * karena ia kerap mengajukan untuk anak yang gurunya berhalangan.
+ */
+export function canSubmitUjian(role: UserRole): boolean {
+  return canViewUjian(role)
 }

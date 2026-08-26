@@ -16,6 +16,12 @@ const ADMIN_PREFIXES = [
   '/halaqoh',
   '/siswa',
   '/ustadz',
+  // Hanya sisi pengurus modul ujian. /ujian dan /ujian/rekap sengaja tidak
+  // masuk — keduanya halaman publik yang boleh dibuka tanpa login.
+  '/ujian/kelola',
+  '/ujian/ajukan',
+  '/ujian/riwayat',
+  '/ujian/penguji',
 ]
 
 // Route guru (pakai cookie rqlhi-teacher-session)
@@ -82,6 +88,10 @@ export const config: ProxyConfig = {
     '/halaqoh/:path*',
     '/siswa/:path*',
     '/ustadz/:path*',
+    '/ujian/kelola/:path*',
+    '/ujian/ajukan/:path*',
+    '/ujian/riwayat/:path*',
+    '/ujian/penguji/:path*',
     '/guru/:path*',
   ],
 }

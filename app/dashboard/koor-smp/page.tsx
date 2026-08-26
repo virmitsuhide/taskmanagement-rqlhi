@@ -7,6 +7,7 @@ import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { DivisionStats } from '@/components/dashboard/DivisionStats'
 import { TaskCard } from '@/components/tasks/TaskCard'
 import { MeetingCard } from '@/components/rapat/MeetingCard'
+import { UjianDashboardCards } from '@/components/ujian/UjianDashboardCards'
 
 export default async function KoorSmpDashboardPage() {
   const session = await getSession()
@@ -25,6 +26,8 @@ export default async function KoorSmpDashboardPage() {
       <DashboardHeader displayName={session.displayName} role={session.role} title="Dashboard Koor SMP" showBack />
       <div className="p-4 md:p-6 space-y-6 max-w-4xl">
         <DivisionStats {...stats} />
+
+        <UjianDashboardCards role={session.role} userId={session.userId} />
 
         {pendingVerif.length > 0 && (
           <section>

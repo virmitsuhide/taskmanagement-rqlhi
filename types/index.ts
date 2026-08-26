@@ -938,3 +938,80 @@ export interface TeacherUnitMove {
   moved_by: string | null
   created_at: string
 }
+
+// ─── Pengajuan ujian tahsin & tahfidz ────────────────────────────────────────
+
+/**
+ * Unit penyelenggara ujian. Sengaja bukan Jenjang: hanya SD & SMP yang
+ * menjalankan antrian ujian, jadi tipe lima nilai justru membuka baris yang
+ * tidak punya koordinator.
+ */
+export type UjianUnit = 'SD' | 'SMP'
+
+export type UjianStatus = 'diajukan' | 'dijadwalkan' | 'selesai'
+
+export type UjianPredikat = 'mumtaz' | 'jayyid_jiddan' | 'jayyid' | 'maqbul' | 'mengulang'
+
+export type TahfidzTipe = '1_juz' | '3_juz' | '5_juz'
+
+export interface UjianTahfidz {
+  id: string
+  unit: UjianUnit
+  tipe: TahfidzTipe
+  juz: string
+  nama_siswa: string
+  nama_ayah: string
+  kelas: string
+  is_quls: boolean
+  jadwal: string | null
+  penguji: string | null
+  predikat: UjianPredikat | null
+  catatan: string | null
+  status: UjianStatus
+  created_by_teacher: string | null
+  created_by_user: string | null
+  created_at: string
+  updated_at: string
+}
+
+/** Satu anak di dalam pengajuan tahsin. */
+export interface UjianSiswa {
+  nama: string
+  predikat: 'lulus' | 'mengulang' | null
+  /**
+   * Level anak ini. Opsional demi data lama — kalau kosong, pakai `level`
+   * pada pengajuannya.
+   */
+  level?: string
+}
+
+export interface UjianTahsin {
+  id: string
+  unit: UjianUnit
+  nama_kelompok: string
+  sesi: string
+  level: string
+  siswa: UjianSiswa[]
+  jadwal: string | null
+  penguji: string | null
+  catatan: string | null
+  status: UjianStatus
+  created_by_teacher: string | null
+  created_by_user: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface UjianPenguji {
+  id: string
+  nama: string
+  created_at: string
+}
+
+/** Angka ringkas untuk kartu dashboard & badge. */
+export interface UjianStats {
+  diajukan: number
+  dijadwalkan: number
+  selesai: number
+  total: number
+}
