@@ -7,7 +7,7 @@ import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { SearchInput } from '@/components/ui/search-input'
 import { Pagination } from '@/components/ui/pagination'
 import { Button } from '@/components/ui/button'
-import { Plus, Users } from 'lucide-react'
+import { Plus, Users, Upload } from 'lucide-react'
 import { tingkatOf } from '@/lib/rq/sesi'
 import { cn } from '@/lib/utils'
 import type { Jenjang, Student, Halaqoh } from '@/types'
@@ -144,9 +144,14 @@ export default async function SiswaListPage({ searchParams }: PageProps) {
             </p>
           </div>
           {canCreate && (
-            <Button asChild size="sm">
-              <Link href="/siswa/baru"><Plus className="h-4 w-4 mr-1" />Tambah Siswa</Link>
-            </Button>
+            <div className="flex gap-2">
+              <Button asChild size="sm" variant="outline">
+                <Link href="/siswa/impor"><Upload className="h-4 w-4 mr-1" />Impor Excel</Link>
+              </Button>
+              <Button asChild size="sm">
+                <Link href="/siswa/baru"><Plus className="h-4 w-4 mr-1" />Tambah Siswa</Link>
+              </Button>
+            </div>
           )}
         </div>
 

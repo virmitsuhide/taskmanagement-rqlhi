@@ -4,7 +4,8 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createServerClient } from '@/lib/supabase/server'
 import { getSession } from '@/lib/auth/session'
-import { canManageStudents } from '@/lib/auth/permissions'
+import { canManageStudents, getManageableJenjang } from '@/lib/auth/permissions'
+import { periksaBaris, tandaiNisKembar, type BarisSiswa, type RujukanImpor } from '@/lib/rq/siswa-impor'
 import type { Gender, Jenjang } from '@/types'
 
 /** Ubah string kosong atau sentinel 'none' (dari Radix Select) menjadi null. */
@@ -107,6 +108,152 @@ export async function updateStudentAction(_: unknown, formData: FormData) {
   revalidatePath('/siswa')
   revalidatePath(`/siswa/${id}`)
   redirect(`/siswa/${id}`)
+}
+
+// ─── Impor massal ───────────────────────────────────────────────────
+//
+// Baris sudah diperiksa di peramban sebelum sampai ke sini, tapi pemeriksaan
+// itu tidak dipercaya: yang dikirim adalah JSON biasa yang bisa disusun siapa
+// saja. Karena itu seluruh aturan dijalankan ULANG di server, memakai fungsi
+// yang sama persis (periksaBaris) sehingga tidak ada dua versi aturan yang
+// bisa berbeda diam-diam.
+
+/** Sekali unggah dibatasi supaya satu berkas keliru tidak menyandera koneksi. */
+const MAKS_BARIS_IMPOR = 1000
+
+/** Baris dikirim per potongan agar satu INSERT tidak melebihi batas payload. */
+const UKURAN_POTONGAN = 100
+
+export interface BarisGagal {
+  baris: number
+  nama: string
+  alasan: string
+}
+
+export interface HasilImpor {
+  masuk: number
+  gagal: BarisGagal[]
+  error?: string
+}
+
+/**
+ * Baris mentah dari berkas Excel — persis seperti yang dibaca peramban,
+ * BUKAN hasil olahannya. Server menerjemahkan sendiri nama → id.
+ */
+export type BarisMentah = Record<string, string | number | boolean | null>
+
+export async function importStudentsAction(rows: BarisMentah[]): Promise<HasilImpor> {
+  const session = await getSession()
+  if (!session) return { masuk: 0, gagal: [], error: 'Sesi tidak valid.' }
+
+  const allowed = getManageableJenjang(session.role).filter(j => canManageStudents(session.role, j))
+  if (allowed.length === 0) {
+    return { masuk: 0, gagal: [], error: 'Anda tidak memiliki izin menambah siswa.' }
+  }
+  if (!Array.isArray(rows) || rows.length === 0) {
+    return { masuk: 0, gagal: [], error: 'Tidak ada baris untuk diimpor.' }
+  }
+  if (rows.length > MAKS_BARIS_IMPOR) {
+    return { masuk: 0, gagal: [], error: `Sekali impor maksimal ${MAKS_BARIS_IMPOR} baris.` }
+  }
+
+  const supabase = createServerClient()
+  const [halaqohResult, methodsResult, jilidResult] = await Promise.all([
+    supabase.from('halaqoh').select('id, name, jenjang').eq('is_active', true),
+    supabase.from('tahsin_methods').select('id, name').eq('is_active', true),
+    supabase.from('jilid_levels').select('id, label, method_id'),
+  ])
+  const rujukan: RujukanImpor = {
+    allowedJenjang: allowed,
+    halaqohList: halaqohResult.data ?? [],
+    methods: methodsResult.data ?? [],
+    jilidLevels: jilidResult.data ?? [],
+  }
+
+  const gagal: BarisGagal[] = []
+  // Nomor baris ikut dikirim di kolom cadangan `__baris` supaya pesan galat
+  // menunjuk ke baris Excel yang dilihat operator, bukan ke indeks array.
+  const hasil = tandaiNisKembar(
+    rows.map((r, i) => periksaBaris(r, Number(r.__baris) || i + 2, rujukan)),
+  )
+
+  for (const h of hasil) {
+    if (!h.data) gagal.push({ baris: h.baris, nama: h.nama, alasan: h.galat.join(' ') })
+  }
+  const siap = hasil.filter(h => h.data)
+  if (siap.length === 0) {
+    return { masuk: 0, gagal, error: 'Tidak ada baris yang lolos pemeriksaan.' }
+  }
+
+  // NIS yang sudah terpakai disaring lebih dulu. Tanpa ini satu bentrok akan
+  // menggagalkan seluruh potongan 100 baris, bukan satu barisnya sendiri.
+  const nisList = siap.map(h => h.data!.nis).filter((n): n is string => !!n)
+  const terpakai = new Set<string>()
+  for (let i = 0; i < nisList.length; i += 200) {
+    const { data } = await supabase
+      .from('students').select('nis').in('nis', nisList.slice(i, i + 200))
+    for (const row of data ?? []) if (row.nis) terpakai.add(row.nis)
+  }
+
+  const lolos = siap.filter(h => {
+    if (h.data!.nis && terpakai.has(h.data!.nis)) {
+      gagal.push({ baris: h.baris, nama: h.nama, alasan: `NIS ${h.data!.nis} sudah dipakai siswa lain.` })
+      return false
+    }
+    return true
+  })
+
+  // Id dibuat di sini, bukan diserahkan ke default kolom: keanggotaan halaqoh
+  // harus dipasangkan kembali ke baris asalnya, dan urutan kembalian INSERT
+  // bukan janji yang layak digantungi.
+  // Kolom tabel dipisah dari keterangan baris supaya yang dikirim ke INSERT
+  // adalah persis kolom students — tidak ada 'baris'/'nama' yang menyelinap.
+  const siapSimpan = lolos.map(h => ({
+    baris: h.baris,
+    nama: h.nama,
+    kolom: { id: crypto.randomUUID(), ...(h.data as BarisSiswa) },
+  }))
+
+  let masuk = 0
+  const tersimpan: typeof siapSimpan = []
+  for (let i = 0; i < siapSimpan.length; i += UKURAN_POTONGAN) {
+    const potongan = siapSimpan.slice(i, i + UKURAN_POTONGAN)
+    const { error } = await supabase
+      .from('students')
+      .insert(potongan.map(p => p.kolom))
+    if (error) {
+      for (const p of potongan) {
+        gagal.push({ baris: p.baris, nama: p.nama, alasan: `Gagal disimpan: ${error.message}` })
+      }
+      continue
+    }
+    masuk += potongan.length
+    tersimpan.push(...potongan)
+  }
+
+  // Keanggotaan halaqoh dicatat sekali untuk semua, mengikuti alasan yang sama
+  // dengan syncHalaqohMembership: penempatan adalah riwayat, bukan pointer.
+  const anggota = tersimpan
+    .filter(s => s.kolom.halaqoh_id)
+    .map(s => ({
+      halaqoh_id: s.kolom.halaqoh_id as string,
+      student_id: s.kolom.id,
+      joined_at: hariIni(),
+      left_at: null,
+    }))
+  for (let i = 0; i < anggota.length; i += UKURAN_POTONGAN) {
+    await supabase
+      .from('halaqoh_members')
+      .upsert(anggota.slice(i, i + UKURAN_POTONGAN), { onConflict: 'halaqoh_id,student_id' })
+  }
+
+  if (masuk > 0) revalidatePath('/siswa')
+  return { masuk, gagal: gagal.sort((a, b) => a.baris - b.baris) }
+}
+
+function hariIni(): string {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
 export async function deleteStudentAction(id: string) {
