@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { getSession } from '@/lib/auth/session'
 import { canViewHalaqoh, canManageHalaqoh, getManageableJenjang, JENJANG_LABELS } from '@/lib/auth/permissions'
 import { createServerClient } from '@/lib/supabase/server'
-import { DashboardHeader } from '@/components/layout/DashboardHeader'
+import { DashboardHeader, HEADER_STICKY_TOP } from '@/components/layout/DashboardHeader'
 import { SearchInput } from '@/components/ui/search-input'
 import { Button } from '@/components/ui/button'
 import { Plus, Users, ChevronRight, Pencil, MapPin } from 'lucide-react'
@@ -29,8 +29,11 @@ interface HalaqohWithStats extends HalaqohWithStatsBase {
  * Sesi dan jam sengaja tidak punya kolom: keduanya seragam di dalam satu
  * kelompok, jadi tempatnya di kepala kelompok. Mengulangnya 26 kali hanya
  * menambah tinta tanpa menambah keterangan.
+ *
+ * Kolom pertama nomor urut wali di dalam sesinya — bukan nomor global, karena
+ * yang dirujuk saat rapat adalah 'guru ke-4 sesi 2', bukan 'guru ke-30'.
  */
-const COLS = 'grid-cols-[2fr_1.4fr_0.6fr_0.5fr_104px]'
+const COLS = 'grid-cols-[34px_2fr_1.4fr_0.6fr_0.5fr_104px]'
 
 /** Sesi 1–3 lebih dulu, lalu halaqoh yang belum punya sesi. */
 const GROUP_ORDER: (number | null)[] = [1, 2, 3, null]
@@ -185,6 +188,7 @@ export default async function HalaqohListPage({ searchParams }: PageProps) {
             {/* ── Layar lebar: tabel padat ── */}
             <div className="hidden md:block">
               <div className={cn('grid px-5 bg-muted/40 border-b', COLS)}>
+                <HeadCell className="text-right pr-3">#</HeadCell>
                 <HeadCell>Wali</HeadCell>
                 <HeadCell>Tempat</HeadCell>
                 <HeadCell>Unit</HeadCell>
@@ -194,8 +198,8 @@ export default async function HalaqohListPage({ searchParams }: PageProps) {
               {groups.map(g => (
                 <div key={g.sesi ?? 'none'}>
                   <GroupHeader sesi={g.sesi} count={g.rows.length} kelas={g.kelas} />
-                  {g.rows.map(h => (
-                    <DesktopRow key={h.id} h={h} role={session.role} />
+                  {g.rows.map((h, i) => (
+                    <DesktopRow key={h.id} h={h} no={i + 1} role={session.role} />
                   ))}
                 </div>
               ))}
@@ -206,8 +210,8 @@ export default async function HalaqohListPage({ searchParams }: PageProps) {
               {groups.map(g => (
                 <div key={g.sesi ?? 'none'}>
                   <GroupHeader sesi={g.sesi} count={g.rows.length} kelas={g.kelas} />
-                  {g.rows.map(h => (
-                    <MobileRow key={h.id} h={h} />
+                  {g.rows.map((h, i) => (
+                    <MobileRow key={h.id} h={h} no={i + 1} />
                   ))}
                 </div>
               ))}
@@ -228,13 +232,13 @@ function HeadCell({ children, className }: { children?: React.ReactNode; classNa
 }
 
 /**
- * Kepala kelompok sesi. Menempel di bawah DashboardHeader (h-14) supaya saat
+ * Kepala kelompok sesi. Menempel tepat di bawah DashboardHeader supaya saat
  * daftar digulir, sesi yang sedang dibaca tetap terlihat — itu inti dari
  * mengelompokkan per sesi.
  */
 function GroupHeader({ sesi, count, kelas }: { sesi: number | null; count: number; kelas: string }) {
   return (
-    <div className="sticky top-14 z-10 flex flex-wrap items-center gap-x-2.5 gap-y-0.5 border-y border-primary/15 bg-primary-wash px-4 md:px-5 py-2">
+    <div className={cn(HEADER_STICKY_TOP, 'sticky z-10 flex flex-wrap items-center gap-x-2.5 gap-y-0.5 border-y border-primary/15 bg-primary-wash px-4 md:px-5 py-2')}>
       <span className="text-xs font-bold text-primary">{sesiLabel(sesi)}</span>
       <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[11px] font-semibold text-primary tabular-nums">
         {count}
@@ -287,7 +291,7 @@ function Avatar({ name, className }: { name: string | null; className?: string }
   )
 }
 
-function DesktopRow({ h, role }: { h: HalaqohWithStats; role: UserRole }) {
+function DesktopRow({ h, no, role }: { h: HalaqohWithStats; no: number; role: UserRole }) {
   const wali = h.wali_teacher?.full_name ?? null
   return (
     // `group` + tautan meregang: barisnya bisa diklik seluruhnya tanpa
@@ -302,6 +306,7 @@ function DesktopRow({ h, role }: { h: HalaqohWithStats; role: UserRole }) {
       )}
     >
       <Link href={`/halaqoh/${h.id}`} className="absolute inset-0" aria-label={`Buka ${h.name}`} />
+      <span className="pr-3 text-right text-xs font-medium text-muted-foreground tabular-nums">{no}</span>
       {/* Identitas jadi satu blok: nama lengkap yang dicari orang di atas,
           nama panggilan yang dipakai sehari-hari di bawahnya. */}
       <span className="flex items-center gap-2.5 min-w-0 pr-3">
@@ -346,7 +351,7 @@ function DesktopRow({ h, role }: { h: HalaqohWithStats; role: UserRole }) {
   )
 }
 
-function MobileRow({ h }: { h: HalaqohWithStats }) {
+function MobileRow({ h, no }: { h: HalaqohWithStats; no: number }) {
   const wali = h.wali_teacher?.full_name
   return (
     <Link
@@ -356,6 +361,7 @@ function MobileRow({ h }: { h: HalaqohWithStats }) {
         !h.is_active && 'opacity-55',
       )}
     >
+      <span className="w-4 shrink-0 text-right text-xs font-medium text-muted-foreground tabular-nums">{no}</span>
       <Avatar name={wali ?? null} className="w-9 h-9 rounded-xl text-xs" />
       <span className="flex-1 min-w-0">
         <span className="flex items-center gap-1.5">

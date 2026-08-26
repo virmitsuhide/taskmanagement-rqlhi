@@ -24,6 +24,16 @@ interface Props {
   ownH1?: boolean
 }
 
+/**
+ * Offset sticky untuk elemen yang harus parkir tepat di bawah header ini.
+ *
+ * Headernya dua baris, bukan satu: baris utama h-14 (56px) + baris breadcrumb
+ * (py-1.5 mengapit teks 16px = 28px) + garis bawah 1px. Konten yang memakai
+ * `top-14` akan menyelip di belakang breadcrumb dan menabrak baris pertama
+ * di bawahnya, jadi angkanya dijaga di sini — di sebelah sumbernya.
+ */
+export const HEADER_STICKY_TOP = 'top-[85px]'
+
 // `displayName` masih diterima agar pemanggil lama tidak perlu diubah, tapi
 // identitas kini tampil di sidebar dan di kartu profil header beranda.
 export function DashboardHeader({ role, title, showBack, breadcrumbs, ownH1 }: Props) {
