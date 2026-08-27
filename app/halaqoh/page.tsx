@@ -6,8 +6,9 @@ import { createServerClient } from '@/lib/supabase/server'
 import { DashboardHeader, HEADER_STICKY_TOP } from '@/components/layout/DashboardHeader'
 import { SearchInput } from '@/components/ui/search-input'
 import { Button } from '@/components/ui/button'
-import { Plus, Users, ChevronRight, Pencil, MapPin } from 'lucide-react'
+import { Plus, Users, ChevronRight, Pencil, MapPin, Upload } from 'lucide-react'
 import { sesiLabel, sesiKelasLabel } from '@/lib/rq/sesi'
+import { programLabel } from '@/lib/rq/programs'
 import { initials, cn } from '@/lib/utils'
 import type { Halaqoh, Jenjang, Teacher, UserRole } from '@/types'
 
@@ -73,11 +74,18 @@ export default async function HalaqohListPage({ searchParams }: PageProps) {
   // Pencarian disaring di memori: himpunannya puluhan baris, dan menyaring di
   // sini membuat angka pada tab sesi ikut menyusut mengikuti kata kunci —
   // tab yang tetap menunjukkan 26 padahal hasilnya 2 justru menyesatkan.
-  const allInScope = ((halaqohData ?? []) as HalaqohWithStats[]).filter(h =>
-    !q ||
-    h.name.toLowerCase().includes(q) ||
-    (h.wali_teacher?.full_name ?? '').toLowerCase().includes(q),
-  )
+  //
+  // Penyaringan program ikut di sini, sebab aturannya milik canViewHalaqoh:
+  // koor QULS SD hanya melihat kelompok QULS, sementara koor SD melihat
+  // seluruh SD. Menyalin aturan itu jadi kondisi SQL berarti dua tempat yang
+  // harus sepakat selamanya.
+  const allInScope = ((halaqohData ?? []) as HalaqohWithStats[])
+    .filter(h => canViewHalaqoh(session.role, h.jenjang, h.program))
+    .filter(h =>
+      !q ||
+      h.name.toLowerCase().includes(q) ||
+      (h.wali_teacher?.full_name ?? '').toLowerCase().includes(q),
+    )
 
   const sesiCount = new Map<number, number>()
   for (const h of allInScope) {
@@ -125,9 +133,17 @@ export default async function HalaqohListPage({ searchParams }: PageProps) {
             </p>
           </div>
           {canCreateAny && (
-            <Button asChild size="sm">
-              <Link href="/halaqoh/baru"><Plus className="h-4 w-4 mr-1" />Buat Halaqoh</Link>
-            </Button>
+            <div className="flex gap-2">
+              {/* Impor kelompok ditaruh berdampingan dengan Buat Halaqoh: yang
+                  satu menyiapkan wadahnya, yang lain mengisinya — dan urutan
+                  itulah yang harus dikerjakan saat pembagian semester baru. */}
+              <Button asChild size="sm" variant="outline">
+                <Link href="/halaqoh/impor"><Upload className="h-4 w-4 mr-1" />Impor Kelompok</Link>
+              </Button>
+              <Button asChild size="sm">
+                <Link href="/halaqoh/baru"><Plus className="h-4 w-4 mr-1" />Buat Halaqoh</Link>
+              </Button>
+            </div>
           )}
         </div>
 
@@ -277,6 +293,22 @@ function namaRingkas(name: string): string {
   return name.replace(/^Sesi\s*\d+\s*[—–-]\s*/i, '').trim() || name
 }
 
+/**
+ * Penanda program kelompok, mis. 'QULS'.
+ *
+ * Hanya muncul kalau programnya ditandai. Sebagian besar halaqoh reguler dan
+ * programnya NULL; melabeli semuanya 'Reguler' berarti menambah 70 lencana
+ * yang tidak membedakan apa pun.
+ */
+function ProgramChip({ h }: { h: HalaqohWithStats }) {
+  if (!h.program) return null
+  return (
+    <span className="shrink-0 rounded bg-primary-wash px-1.5 py-px text-[10px] font-semibold text-primary">
+      {programLabel(h.jenjang, h.program)}
+    </span>
+  )
+}
+
 function Avatar({ name, className }: { name: string | null; className?: string }) {
   return (
     <span
@@ -320,7 +352,10 @@ function DesktopRow({ h, no, role }: { h: HalaqohWithStats; no: number; role: Us
               </span>
             )}
           </span>
-          <span className="block text-[11.5px] text-muted-foreground truncate" title={h.name}>{namaRingkas(h.name)}</span>
+          <span className="flex min-w-0 items-center gap-1.5">
+            <ProgramChip h={h} />
+            <span className="block truncate text-[11.5px] text-muted-foreground" title={h.name}>{namaRingkas(h.name)}</span>
+          </span>
         </span>
       </span>
       {/* Sebagian tempat panjang ('Perpustakaan bagian depan meja pak Har',
@@ -338,7 +373,7 @@ function DesktopRow({ h, no, role }: { h: HalaqohWithStats; no: number; role: Us
       {/* Aksi muncul saat hover; `focus-within` menjaganya tetap terjangkau
           lewat keyboard, yang tidak bisa diungkapkan mockup statis. */}
       <span className="relative z-10 flex justify-end opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
-        {canManageHalaqoh(role, h.jenjang) && (
+        {canManageHalaqoh(role, h.jenjang, h.program) && (
           <Link
             href={`/halaqoh/${h.id}/edit`}
             className="inline-flex items-center gap-1.5 rounded-lg border border-primary/30 px-2.5 py-1 text-[11.5px] font-semibold text-primary hover:bg-primary-wash transition-colors"
@@ -375,6 +410,7 @@ function MobileRow({ h, no }: { h: HalaqohWithStats; no: number }) {
         {/* Tanpa kepala kolom, ikon lokasi yang menandai mana yang tempat —
             di tabel ikon itu justru mubazir karena kolomnya sudah berlabel. */}
         <span className="flex items-center gap-1 text-[11.5px] text-muted-foreground min-w-0">
+          <ProgramChip h={h} />
           <MapPin className="h-3 w-3 shrink-0" />
           <span className="truncate">{h.tempat || '—'}</span>
           <span className="shrink-0">· {h.student_count ?? 0} siswa</span>

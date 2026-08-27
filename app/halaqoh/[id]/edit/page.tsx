@@ -1,6 +1,6 @@
 import { redirect, notFound } from 'next/navigation'
 import { getSession } from '@/lib/auth/session'
-import { canManageHalaqoh, getManageableJenjang } from '@/lib/auth/permissions'
+import { canManageHalaqoh, getManageableJenjang, programScopeFor } from '@/lib/auth/permissions'
 import { createServerClient } from '@/lib/supabase/server'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { HalaqohForm } from '../../baru/HalaqohForm'
@@ -18,12 +18,14 @@ export default async function EditHalaqohPage({ params }: PageProps) {
   const supabase = createServerClient()
   const { data: halaqoh } = await supabase
     .from('halaqoh')
-    .select('id, name, jenjang, wali_teacher_id, schedule_note, sesi, tempat, is_active')
+    .select('id, name, jenjang, program, wali_teacher_id, schedule_note, sesi, tempat, is_active')
     .eq('id', id)
     .maybeSingle()
 
   if (!halaqoh) notFound()
-  if (!canManageHalaqoh(session.role, halaqoh.jenjang as Jenjang)) redirect(`/halaqoh/${id}`)
+  if (!canManageHalaqoh(session.role, halaqoh.jenjang as Jenjang, halaqoh.program as string | null)) {
+    redirect(`/halaqoh/${id}`)
+  }
 
   const { data: teachers } = await supabase
     .from('teachers')
@@ -50,11 +52,13 @@ export default async function EditHalaqohPage({ params }: PageProps) {
         <HalaqohForm
           mode="edit"
           allowedJenjang={getManageableJenjang(session.role)}
+          allowedPrograms={programScopeFor(session.role, getManageableJenjang(session.role))}
           teachers={teachers ?? []}
           initial={{
             id: halaqoh.id,
             name: halaqoh.name,
             jenjang: halaqoh.jenjang as Jenjang,
+            program: halaqoh.program,
             wali_teacher_id: halaqoh.wali_teacher_id,
             schedule_note: halaqoh.schedule_note,
             sesi: halaqoh.sesi,

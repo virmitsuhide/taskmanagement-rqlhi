@@ -1,3 +1,4 @@
+import { getProgramsForJenjang, isQulsSdProgram, QULS_SD_PROGRAMS } from '@/lib/rq/programs'
 import type {
   UserRole, MeetingType, AgendaTag, TaskStatus, TaskPriority, TaskWeight,
   TaskProblemType, PublicTarget, Jenjang, TeacherEmployment, UjianUnit,
@@ -13,6 +14,7 @@ const DASHBOARD_ACCESS: Record<string, UserRole[]> = {
   sdm: ['sdm'],
   'koor-sd': ['koor_sd'],
   'koor-smp': ['koor_smp'],
+  'koor-qulssd': ['koor_qulssd'],
   'koor-ekstra': ['koor_ekstra'],
   humas: ['humas'],
   'div-training': ['div_training'],
@@ -74,10 +76,12 @@ const MEETING_DELETE: Record<MeetingType, UserRole[]> = {
 
 const MEETING_VIEW: Record<MeetingType, UserRole[]> = {
   manajemen: ['kepala_rq', 'kumik', 'sdm', 'bendahara'],
-  kumik: ['kepala_rq', 'kumik', 'sdm', 'bendahara', 'koor_sd', 'koor_smp', 'koor_ekstra'],
+  kumik: ['kepala_rq', 'kumik', 'sdm', 'bendahara', 'koor_sd', 'koor_smp', 'koor_ekstra', 'koor_qulssd'],
   // Para koor & Humas ikut memantau notulen New Squad.
-  new_squad: ['kepala_rq', 'kumik', 'sdm', 'bendahara', 'div_training', 'new_squad', 'koor_sd', 'koor_smp', 'koor_ekstra', 'humas'],
-  koor_sd: ['kepala_rq', 'kumik', 'sdm', 'bendahara', 'koor_sd'],
+  new_squad: ['kepala_rq', 'kumik', 'sdm', 'bendahara', 'div_training', 'new_squad', 'koor_sd', 'koor_smp', 'koor_ekstra', 'koor_qulssd', 'humas'],
+  // Koor QULS SD ikut membaca: kelompoknya duduk di sesi & unit yang sama,
+  // jadi keputusan rapat koor SD kerap menyangkut anak-anaknya juga.
+  koor_sd: ['kepala_rq', 'kumik', 'sdm', 'bendahara', 'koor_sd', 'koor_qulssd'],
   koor_smp: ['kepala_rq', 'kumik', 'sdm', 'bendahara', 'koor_smp'],
   koor_x_sd: ['kepala_rq', 'kumik', 'sdm', 'bendahara', 'koor_sd'],
   koor_x_smp: ['kepala_rq', 'kumik', 'sdm', 'bendahara', 'koor_smp'],
@@ -117,11 +121,12 @@ export function getViewableMeetingTypes(role: UserRole): MeetingType[] {
 
 // Task assignment — who can assign to whom
 const TASK_ASSIGN_TO: Record<UserRole, UserRole[]> = {
-  kepala_rq: ['kepala_rq', 'kumik', 'sdm', 'bendahara', 'koor_ekstra', 'koor_sd', 'koor_smp', 'humas', 'div_training', 'new_squad'],
-  kumik: ['koor_sd', 'koor_smp', 'koor_ekstra', 'humas', 'bendahara'],
+  kepala_rq: ['kepala_rq', 'kumik', 'sdm', 'bendahara', 'koor_ekstra', 'koor_sd', 'koor_smp', 'koor_qulssd', 'humas', 'div_training', 'new_squad'],
+  kumik: ['koor_sd', 'koor_smp', 'koor_qulssd', 'koor_ekstra', 'humas', 'bendahara'],
   sdm: ['new_squad', 'div_training', 'humas', 'bendahara'],
   koor_sd: ['koor_sd'],
   koor_smp: ['koor_smp'],
+  koor_qulssd: ['koor_qulssd'],
   koor_ekstra: ['humas'],
   bendahara: [],
   humas: [],
@@ -144,7 +149,7 @@ export function canAssignAnyTask(role: UserRole): boolean {
 // Kanban board — divisi mana yang bisa user lihat di papan.
 // Divisi sebuah task = role penerima (assignee).
 const ALL_ROLES: UserRole[] = [
-  'kepala_rq', 'kumik', 'sdm', 'bendahara', 'koor_sd', 'koor_smp',
+  'kepala_rq', 'kumik', 'sdm', 'bendahara', 'koor_sd', 'koor_smp', 'koor_qulssd',
   'koor_ekstra', 'humas', 'div_training', 'new_squad',
 ]
 
@@ -153,6 +158,7 @@ export function getBoardDivisions(role: UserRole): UserRole[] {
   // Para koor memantau divisinya sendiri plus New Squad & Humas.
   if (role === 'koor_sd') return ['koor_sd', 'new_squad', 'humas']
   if (role === 'koor_smp') return ['koor_smp', 'new_squad', 'humas']
+  if (role === 'koor_qulssd') return ['koor_qulssd', 'new_squad', 'humas']
   if (role === 'koor_ekstra') return ['koor_ekstra', 'new_squad', 'humas']
   // Humas memantau papannya sendiri plus New Squad.
   if (role === 'humas') return ['humas', 'new_squad']
@@ -401,43 +407,156 @@ export function canManageHomepage(role: UserRole): boolean {
 
 // ─── PHASE 1B — Manajemen siswa, halaqoh, ustadz ────────────────────
 
+// ── Penyempitan berbasis program ────────────────────────────────────
+//
+// Sampai sini seluruh RBAC tahsin/tahfidz berpijak pada JENJANG saja: satu
+// koordinator memegang satu unit, habis perkara. Koor QULS SD memecah asumsi
+// itu — anaknya sejenjang penuh dengan anak koor SD (sama-sama 'sd', kelas
+// yang sama, sesi yang sama), dan yang memisahkan hanya kolom `program`.
+//
+// Karena itu jenjang tetap menjadi saringan pertama, dan program menjadi
+// saringan kedua yang HANYA MENYEMPITKAN. Tidak ada role yang mendapat
+// jenjang baru lewat jalur ini.
+
+/**
+ * Arti `program` pada fungsi-fungsi di bawah — tiga keadaan, bukan dua:
+ *
+ *   undefined → pertanyaannya tingkat jenjang: "ada sesuatu di unit ini yang
+ *               boleh saya sentuh?" Dipakai untuk memutuskan apakah menu,
+ *               tombol, atau halaman ditampilkan sama sekali.
+ *   null      → barisnya nyata dan programnya belum ditandai. Itu berarti
+ *               reguler, bukan QULS.
+ *   string    → program baris itu apa adanya.
+ *
+ * Membedakan undefined dari null penting: tanpa itu, tombol "Tambah Siswa"
+ * milik koor QULS SD akan hilang hanya karena pertanyaannya belum menyebut
+ * program apa pun.
+ */
+type ProgramArg = string | null | undefined
+
+/** Program yang menjadi wewenang KELOLA sebuah role di satu jenjang. */
+function programBolehDikelola(role: UserRole, jenjang: Jenjang, program: ProgramArg): boolean {
+  if (program === undefined) return true
+  const quls = isQulsSdProgram(jenjang, program)
+  if (role === 'koor_qulssd') return quls
+  if (role === 'koor_sd') return !quls
+  return true
+}
+
+/**
+ * Program mana yang boleh DILIHAT role ini — dipakai menyaring kueri daftar.
+ *
+ * `null` berarti tanpa penyempitan. Hanya koor QULS SD yang dipersempit:
+ * koor SD sengaja tetap melihat seluruh SD termasuk QULS (pemantauan tanpa
+ * hak ubah), sesuai keputusan pembagian wewenangnya.
+ */
+export function getViewableProgramScope(role: UserRole, jenjang: Jenjang): readonly string[] | null {
+  if (role === 'koor_qulssd' && jenjang === 'sd') return QULS_SD_PROGRAMS
+  return null
+}
+
+/**
+ * Penyempitan program yang bisa dipasang sebagai SATU filter pada kueri daftar
+ * lintas unit — `.in('program', …)`.
+ *
+ * Mengembalikan null kecuali seluruh unit yang boleh dilihat menyempit ke
+ * daftar yang sama persis. Itu keadaan koor QULS SD, yang unitnya hanya SD.
+ * Kalau kelak ada role yang menyempit berbeda-beda per unit, fungsi ini
+ * menyerah dengan jujur alih-alih memasang filter yang salah untuk salah satu
+ * unitnya — pemanggilnya lalu harus menyaring per baris.
+ */
+export function getListProgramScope(role: UserRole, jenjangList: Jenjang[]): readonly string[] | null {
+  if (jenjangList.length === 0) return null
+  const scopes = jenjangList.map(j => getViewableProgramScope(role, j))
+  if (scopes.some(s => s === null)) return null
+  const kunci = new Set(scopes.map(s => [...s!].sort().join('|')))
+  return kunci.size === 1 ? scopes[0] : null
+}
+
+/**
+ * Program yang boleh DIPILIH role ini saat membuat/menyunting siswa atau
+ * halaqoh di satu jenjang. Daftar kosong berarti unit itu memang tak punya
+ * program (mis. PAUD).
+ */
+export function getSelectableProgramCodes(role: UserRole, jenjang: Jenjang): string[] {
+  return getProgramsForJenjang(jenjang)
+    .map(p => p.code)
+    .filter(code => programBolehDikelola(role, jenjang, code))
+}
+
+/**
+ * Semua NILAI program yang boleh disentuh role ini di satu jenjang, `null`
+ * termasuk — dan null di sini berarti "belum ditandai / reguler", satu pilihan
+ * yang sah seperti yang lain.
+ *
+ * Dipakai berkas impor dan pemindahan kelompok, yang perlu tahu bukan cuma
+ * "program apa yang boleh dipilih" tapi juga "boleh tidak barisnya dibiarkan
+ * kosong". Koor QULS SD adalah satu-satunya yang tidak boleh: baginya kolom
+ * program kosong berarti anak itu bukan miliknya.
+ */
+export function getManageableProgramValues(role: UserRole, jenjang: Jenjang): (string | null)[] {
+  const semua: (string | null)[] = [null, ...getProgramsForJenjang(jenjang).map(p => p.code)]
+  return semua.filter(v => programBolehDikelola(role, jenjang, v))
+}
+
+/**
+ * Wewenang program operator dibekukan menjadi tabel biasa, agar bisa
+ * menyeberang ke peramban.
+ *
+ * Berkas contoh impor disusun di peramban sementara pemeriksaan barisnya
+ * dijalankan ulang di server; keduanya harus membaca daftar yang sama persis,
+ * dan tabel inilah bentuk yang bisa dikirimkan apa adanya.
+ */
+export function programScopeFor(
+  role: UserRole,
+  jenjangList: Jenjang[],
+): Partial<Record<Jenjang, (string | null)[]>> {
+  const out: Partial<Record<Jenjang, (string | null)[]>> = {}
+  for (const j of jenjangList) out[j] = getManageableProgramValues(role, j)
+  return out
+}
+
 /**
  * Bisa manage siswa untuk jenjang tertentu (atau semua jika jenjang null).
- * - kepala_rq: semua jenjang
- * - koor_sd:   hanya jenjang 'sd' atau 'paud'
- * - koor_smp:  hanya jenjang 'smp' atau 'sma'
+ * - kepala_rq:   semua jenjang
+ * - koor_sd:     jenjang 'sd', kecuali siswa berprogram QULS
+ * - koor_qulssd: jenjang 'sd', hanya siswa berprogram QULS
+ * - koor_smp:    hanya jenjang 'smp'
  */
-export function canManageStudents(role: UserRole, jenjang?: Jenjang | null): boolean {
+export function canManageStudents(role: UserRole, jenjang?: Jenjang | null, program?: ProgramArg): boolean {
   if (role === 'kepala_rq') return true
-  if (role === 'koor_sd')  return !jenjang || jenjang === 'sd'
   if (role === 'koor_smp') return !jenjang || jenjang === 'smp'
+  if (role === 'koor_sd' || role === 'koor_qulssd') {
+    if (!jenjang) return true
+    if (jenjang !== 'sd') return false
+    return programBolehDikelola(role, jenjang, program)
+  }
   return false
 }
 
 /**
  * Bisa lihat list siswa (read-only). Lebih luas dari manage.
  * - kepala_rq, kumik, sdm, bendahara: lihat semua
- * - koor_sd/smp: lihat jenjang masing-masing
+ * - koor_sd:     seluruh SD, QULS termasuk — memantau, tanpa hak ubah
+ * - koor_qulssd: hanya SD berprogram QULS
+ * - koor_smp:    jenjang masing-masing
  */
-export function canViewStudents(role: UserRole, jenjang?: Jenjang | null): boolean {
+export function canViewStudents(role: UserRole, jenjang?: Jenjang | null, program?: ProgramArg): boolean {
   if (['kepala_rq', 'kumik', 'sdm', 'bendahara'].includes(role)) return true
-  return canManageStudents(role, jenjang)
+  if (role === 'koor_sd') return !jenjang || jenjang === 'sd'
+  return canManageStudents(role, jenjang, program)
 }
 
 /**
  * Bisa manage halaqoh untuk jenjang tertentu.
- * Pattern sama dengan students.
+ * Pattern sama dengan students — termasuk pemisahan QULS SD-nya.
  */
-export function canManageHalaqoh(role: UserRole, jenjang?: Jenjang | null): boolean {
-  if (role === 'kepala_rq') return true
-  if (role === 'koor_sd')  return !jenjang || jenjang === 'sd'
-  if (role === 'koor_smp') return !jenjang || jenjang === 'smp'
-  return false
+export function canManageHalaqoh(role: UserRole, jenjang?: Jenjang | null, program?: ProgramArg): boolean {
+  return canManageStudents(role, jenjang, program)
 }
 
-export function canViewHalaqoh(role: UserRole, jenjang?: Jenjang | null): boolean {
-  if (['kepala_rq', 'kumik', 'sdm', 'bendahara'].includes(role)) return true
-  return canManageHalaqoh(role, jenjang)
+export function canViewHalaqoh(role: UserRole, jenjang?: Jenjang | null, program?: ProgramArg): boolean {
+  return canViewStudents(role, jenjang, program)
 }
 
 /**
@@ -453,7 +572,7 @@ export function canManageTerms(role: UserRole): boolean {
 
 /** Boleh membuka panel tahun ajaran (baca). */
 export function canViewTerms(role: UserRole): boolean {
-  return canManageTerms(role) || role === 'koor_sd' || role === 'koor_smp' || role === 'sdm'
+  return canManageTerms(role) || role === 'koor_sd' || role === 'koor_smp' || role === 'koor_qulssd' || role === 'sdm'
 }
 
 /**
@@ -470,7 +589,7 @@ export function canManageTeachers(role: UserRole): boolean {
  * untuk assign ke halaqoh.
  */
 export function canViewTeachers(role: UserRole): boolean {
-  return ['kepala_rq', 'sdm', 'kumik', 'koor_sd', 'koor_smp'].includes(role)
+  return ['kepala_rq', 'sdm', 'kumik', 'koor_sd', 'koor_smp', 'koor_qulssd'].includes(role)
 }
 
 /**
@@ -483,6 +602,9 @@ export function canViewTeachers(role: UserRole): boolean {
 export function getManageableJenjang(role: UserRole): Jenjang[] {
   if (role === 'kepala_rq') return ['paud', 'sd', 'sd_juara', 'smp', 'sma']
   if (role === 'koor_sd')   return ['sd']
+  // Koor QULS SD berbagi unit dengan koor SD; yang memisahkan keduanya adalah
+  // program, disaring lewat canManageStudents / getViewableProgramScope.
+  if (role === 'koor_qulssd') return ['sd']
   if (role === 'koor_smp')  return ['smp']
   return []
 }
@@ -527,6 +649,7 @@ export const ROLE_LABELS: Record<UserRole, string> = {
   koor_ekstra: 'Koor Ekstra',
   koor_sd: 'Koor SD',
   koor_smp: 'Koor SMP',
+  koor_qulssd: 'Koor QULS SD',
   humas: 'Humas',
   div_training: 'Div Training',
   new_squad: 'New Squad',
@@ -579,6 +702,7 @@ export const DASHBOARD_LABELS: Record<string, string> = {
   sdm: 'SDM',
   'koor-sd': 'Koor SD',
   'koor-smp': 'Koor SMP',
+  'koor-qulssd': 'Koor QULS SD',
   'koor-ekstra': 'Koor Ekstra',
   humas: 'Humas',
   'div-training': 'Div Training',
@@ -592,6 +716,7 @@ export const DEFAULT_DASHBOARD: Record<UserRole, string> = {
   bendahara: 'pribadi',
   koor_sd: 'koor-sd',
   koor_smp: 'koor-smp',
+  koor_qulssd: 'koor-qulssd',
   koor_ekstra: 'koor-ekstra',
   humas: 'humas',
   div_training: 'div-training',
@@ -630,11 +755,9 @@ export function canManageGukar(role: UserRole): boolean {
  * Kepala RQ dan Kumik untuk semua jenjang; koor hanya unitnya sendiri —
  * cakupan yang sama dengan wewenangnya mengelola siswa.
  */
-export function canManageSetoran(role: UserRole, jenjang?: Jenjang | null): boolean {
+export function canManageSetoran(role: UserRole, jenjang?: Jenjang | null, program?: ProgramArg): boolean {
   if (role === 'kepala_rq' || role === 'kumik') return true
-  if (role === 'koor_sd') return !jenjang || jenjang === 'sd'
-  if (role === 'koor_smp') return !jenjang || jenjang === 'smp'
-  return false
+  return canManageStudents(role, jenjang, program)
 }
 
 /**

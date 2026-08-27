@@ -4,7 +4,8 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createServerClient } from '@/lib/supabase/server'
 import { getSession } from '@/lib/auth/session'
-import { canManageStudents, getManageableJenjang } from '@/lib/auth/permissions'
+import { canManageStudents, getManageableJenjang, programScopeFor } from '@/lib/auth/permissions'
+import { hariIni, syncHalaqohMembership, syncHalaqohMemberships } from '@/lib/data/halaqoh-membership'
 import { periksaBaris, tandaiNisKembar, type BarisSiswa, type RujukanImpor } from '@/lib/rq/siswa-impor'
 import type { Gender, Jenjang } from '@/types'
 
@@ -44,8 +45,10 @@ export async function createStudentAction(_: unknown, formData: FormData) {
   if (!fields.full_name || !fields.jenjang) {
     return { error: 'Nama lengkap dan jenjang wajib diisi.' }
   }
-  if (!canManageStudents(session.role, fields.jenjang)) {
-    return { error: 'Anda tidak memiliki izin untuk siswa jenjang ini.' }
+  // Program ikut diperiksa, bukan cuma jenjang: sejak ada koor QULS SD, dua
+  // pengurus berbagi jenjang 'sd' dan hanya programnya yang memisahkan.
+  if (!canManageStudents(session.role, fields.jenjang, fields.program)) {
+    return { error: 'Anda tidak memiliki izin untuk siswa program ini.' }
   }
 
   const supabase = createServerClient()
@@ -80,14 +83,17 @@ export async function updateStudentAction(_: unknown, formData: FormData) {
   if (!fields.full_name || !fields.jenjang) {
     return { error: 'Nama lengkap dan jenjang wajib diisi.' }
   }
-  if (!canManageStudents(session.role, fields.jenjang)) {
-    return { error: 'Anda tidak memiliki izin untuk siswa jenjang ini.' }
+  if (!canManageStudents(session.role, fields.jenjang, fields.program)) {
+    return { error: 'Anda tidak memiliki izin untuk siswa program ini.' }
   }
 
   const supabase = createServerClient()
   const { data: existing } = await supabase
-    .from('students').select('jenjang, halaqoh_id').eq('id', id).single()
-  if (!existing || !canManageStudents(session.role, existing.jenjang as Jenjang)) {
+    .from('students').select('jenjang, program, halaqoh_id').eq('id', id).single()
+  // Keadaan LAMA diperiksa terpisah dari yang baru. Tanpa itu, seorang koor
+  // bisa menarik siswa milik koor lain ke lingkupnya sendiri hanya dengan
+  // mengganti kolom program di formulir.
+  if (!existing || !canManageStudents(session.role, existing.jenjang as Jenjang, existing.program as string | null)) {
     return { error: 'Anda tidak memiliki izin untuk siswa ini.' }
   }
 
@@ -159,12 +165,13 @@ export async function importStudentsAction(rows: BarisMentah[]): Promise<HasilIm
 
   const supabase = createServerClient()
   const [halaqohResult, methodsResult, jilidResult] = await Promise.all([
-    supabase.from('halaqoh').select('id, name, jenjang').eq('is_active', true),
+    supabase.from('halaqoh').select('id, name, jenjang, program').eq('is_active', true),
     supabase.from('tahsin_methods').select('id, name').eq('is_active', true),
     supabase.from('jilid_levels').select('id, label, method_id'),
   ])
   const rujukan: RujukanImpor = {
     allowedJenjang: allowed,
+    allowedPrograms: programScopeFor(session.role, allowed),
     halaqohList: halaqohResult.data ?? [],
     methods: methodsResult.data ?? [],
     jilidLevels: jilidResult.data ?? [],
@@ -233,27 +240,14 @@ export async function importStudentsAction(rows: BarisMentah[]): Promise<HasilIm
 
   // Keanggotaan halaqoh dicatat sekali untuk semua, mengikuti alasan yang sama
   // dengan syncHalaqohMembership: penempatan adalah riwayat, bukan pointer.
-  const anggota = tersimpan
-    .filter(s => s.kolom.halaqoh_id)
-    .map(s => ({
-      halaqoh_id: s.kolom.halaqoh_id as string,
-      student_id: s.kolom.id,
-      joined_at: hariIni(),
-      left_at: null,
-    }))
-  for (let i = 0; i < anggota.length; i += UKURAN_POTONGAN) {
-    await supabase
-      .from('halaqoh_members')
-      .upsert(anggota.slice(i, i + UKURAN_POTONGAN), { onConflict: 'halaqoh_id,student_id' })
-  }
+  await syncHalaqohMemberships(
+    supabase,
+    tersimpan.map(s => ({ student_id: s.kolom.id, ke: s.kolom.halaqoh_id, dari: null })),
+    hariIni(),
+  )
 
   if (masuk > 0) revalidatePath('/siswa')
   return { masuk, gagal: gagal.sort((a, b) => a.baris - b.baris) }
-}
-
-function hariIni(): string {
-  const d = new Date()
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
 export async function deleteStudentAction(id: string) {
@@ -262,9 +256,9 @@ export async function deleteStudentAction(id: string) {
 
   const supabase = createServerClient()
   const { data: existing } = await supabase
-    .from('students').select('jenjang').eq('id', id).single()
+    .from('students').select('jenjang, program').eq('id', id).single()
   if (!existing) return { error: 'Siswa tidak ditemukan.' }
-  if (!canManageStudents(session.role, existing.jenjang as Jenjang)) {
+  if (!canManageStudents(session.role, existing.jenjang as Jenjang, existing.program as string | null)) {
     return { error: 'Anda tidak memiliki izin.' }
   }
 
@@ -278,49 +272,4 @@ export async function deleteStudentAction(id: string) {
 
   revalidatePath('/siswa')
   redirect('/siswa')
-}
-
-/**
- * Catat perpindahan halaqoh sebagai riwayat, bukan sekadar mengganti pointer.
- *
- * `students.halaqoh_id` tetap dipertahankan sebagai penunjuk penempatan yang
- * berlaku sekarang — puluhan layar memakainya untuk pertanyaan "halaqoh anak
- * ini apa?", dan menjadikannya JOIN di semua tempat tidak sepadan. Sumber
- * kebenaran riwayatnya ada di `halaqoh_members`, yang disegarkan di sini.
- *
- * Karena halaqoh sendiri milik satu semester (halaqoh.term_id), keanggotaan
- * ini ikut bersemester dengan sendirinya. Jadi setelah pengacakan semester
- * berikutnya, pertanyaan "anak ini di halaqoh mana pada Semester 1" tetap
- * terjawab — dan rapor bulan lampau tetap menyebut ustadz yang benar.
- */
-async function syncHalaqohMembership(
-  supabase: ReturnType<typeof createServerClient>,
-  studentId: string,
-  nextHalaqohId: string | null,
-  previousHalaqohId?: string | null,
-) {
-  const today = new Date()
-  const iso = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
-
-  // Keanggotaan lama ditutup, bukan dihapus: kepindahan di tengah semester
-  // adalah fakta yang perlu terbaca saat rapor bulan itu disusun.
-  if (previousHalaqohId) {
-    await supabase
-      .from('halaqoh_members')
-      .update({ left_at: iso })
-      .eq('halaqoh_id', previousHalaqohId)
-      .eq('student_id', studentId)
-      .is('left_at', null)
-  }
-
-  if (!nextHalaqohId) return
-
-  // Kembali ke halaqoh yang pernah ditinggalkan: buka lagi barisnya alih-alih
-  // membuat baris kedua — kunci utamanya sepasang (halaqoh, santri).
-  await supabase
-    .from('halaqoh_members')
-    .upsert(
-      { halaqoh_id: nextHalaqohId, student_id: studentId, joined_at: iso, left_at: null },
-      { onConflict: 'halaqoh_id,student_id' },
-    )
 }

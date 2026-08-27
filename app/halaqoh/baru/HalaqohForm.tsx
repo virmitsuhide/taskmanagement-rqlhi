@@ -1,6 +1,6 @@
 'use client'
 
-import { useActionState } from 'react'
+import { useActionState, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createHalaqohAction, updateHalaqohAction } from '@/app/actions/halaqoh'
 import { Button } from '@/components/ui/button'
@@ -10,16 +10,27 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { JENJANG_LABELS } from '@/lib/auth/permissions'
 import { sesiLabel } from '@/lib/rq/sesi'
+import { getProgramsForJenjang } from '@/lib/rq/programs'
 import type { Jenjang, Teacher } from '@/types'
+
+// Radix Select melarang SelectItem value="". Pakai sentinel ini untuk opsi
+// "kosong"; server action mengubah 'none' kembali menjadi null.
+const NONE = 'none'
 
 interface Props {
   mode: 'create' | 'edit'
   allowedJenjang: Jenjang[]
+  /**
+   * Nilai program yang boleh dipilih pengurus ini, per jenjang. `null` di
+   * dalam daftar berarti "boleh reguler / tanpa program".
+   */
+  allowedPrograms: Partial<Record<Jenjang, (string | null)[]>>
   teachers: Pick<Teacher, 'id' | 'full_name'>[]
   initial?: {
     id: string
     name: string
     jenjang: Jenjang
+    program: string | null
     wali_teacher_id: string | null
     schedule_note: string | null
     sesi?: number | null
@@ -28,10 +39,33 @@ interface Props {
   }
 }
 
-export function HalaqohForm({ mode, allowedJenjang, teachers, initial }: Props) {
+export function HalaqohForm({ mode, allowedJenjang, allowedPrograms, teachers, initial }: Props) {
   const router = useRouter()
   const action = mode === 'create' ? createHalaqohAction : updateHalaqohAction
   const [state, formAction, isPending] = useActionState(action, null)
+
+  const [jenjang, setJenjang] = useState<Jenjang>(initial?.jenjang ?? allowedJenjang[0] ?? 'sd')
+  const [program, setProgram] = useState<string>(initial?.program ?? NONE)
+
+  // Pilihan program disaring dua kali: taksonomi unitnya, lalu wewenang
+  // pengurus. Menawarkan yang pasti ditolak server hanya membuang waktu.
+  const bolehProgram = allowedPrograms[jenjang] ?? [null]
+  const programOptions = useMemo(
+    () => getProgramsForJenjang(jenjang).filter(p => bolehProgram.includes(p.code)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [jenjang, allowedPrograms],
+  )
+  const bolehTanpaProgram = bolehProgram.includes(null)
+
+  function onJenjangChange(v: Jenjang) {
+    setJenjang(v)
+    const boleh = allowedPrograms[v] ?? [null]
+    if (program !== NONE && !boleh.includes(program)) {
+      setProgram(boleh.find((x): x is string => x !== null) ?? NONE)
+    } else if (program === NONE && !boleh.includes(null)) {
+      setProgram(boleh.find((x): x is string => x !== null) ?? NONE)
+    }
+  }
 
   return (
     <form action={formAction} className="space-y-4 max-w-xl">
@@ -49,16 +83,36 @@ export function HalaqohForm({ mode, allowedJenjang, teachers, initial }: Props) 
         />
       </div>
 
-      <div className="space-y-1.5">
-        <Label htmlFor="jenjang">Jenjang *</Label>
-        <Select name="jenjang" defaultValue={initial?.jenjang ?? allowedJenjang[0]}>
-          <SelectTrigger id="jenjang"><SelectValue placeholder="Pilih jenjang" /></SelectTrigger>
-          <SelectContent>
-            {allowedJenjang.map(j => (
-              <SelectItem key={j} value={j}>{JENJANG_LABELS[j]}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="space-y-1.5">
+          <Label htmlFor="jenjang">Jenjang *</Label>
+          <Select name="jenjang" value={jenjang} onValueChange={v => onJenjangChange(v as Jenjang)}>
+            <SelectTrigger id="jenjang"><SelectValue placeholder="Pilih jenjang" /></SelectTrigger>
+            <SelectContent>
+              {allowedJenjang.map(j => (
+                <SelectItem key={j} value={j}>{JENJANG_LABELS[j]}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {programOptions.length > 0 && (
+          <div className="space-y-1.5">
+            <Label htmlFor="program">Program</Label>
+            <Select name="program" value={program} onValueChange={setProgram}>
+              <SelectTrigger id="program"><SelectValue placeholder="— Reguler —" /></SelectTrigger>
+              <SelectContent>
+                {bolehTanpaProgram && <SelectItem value={NONE}>— Reguler —</SelectItem>}
+                {programOptions.map(p => (
+                  <SelectItem key={p.code} value={p.code}>{p.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-[11px] text-muted-foreground">
+              Menentukan siapa yang berwenang atas kelompok ini.
+            </p>
+          </div>
+        )}
       </div>
 
       <div className="space-y-1.5">

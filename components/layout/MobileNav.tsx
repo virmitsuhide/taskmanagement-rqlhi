@@ -28,6 +28,7 @@ const DASHBOARD_ICONS: Record<string, React.ReactNode> = {
   sdm: <User className="h-4 w-4" />,
   'koor-sd': <GraduationCap className="h-4 w-4" />,
   'koor-smp': <GraduationCap className="h-4 w-4" />,
+  'koor-qulssd': <GraduationCap className="h-4 w-4" />,
   'koor-ekstra': <GraduationCap className="h-4 w-4" />,
   humas: <Megaphone className="h-4 w-4" />,
   'div-training': <BookOpen className="h-4 w-4" />,
@@ -193,9 +194,7 @@ export function MobileNav({ role, displayName, username }: Props) {
               )}
               <DrawerLink href="/rapat" icon={<BookOpen className="h-4 w-4" />} label="Rapat & Notulen" active={isActive('/rapat')} onNavigate={close} />
               <DrawerLink href="/tasks" icon={<CheckSquare className="h-4 w-4" />} label="Tugas" active={isActive('/tasks')} onNavigate={close} />
-              {role !== 'kepala_rq' && (
-                <DrawerLink href="/tasks/board" icon={<LayoutGrid className="h-4 w-4" />} label="Papan Tugas" active={isActive('/tasks/board')} onNavigate={close} />
-              )}
+              <DrawerLink href="/tasks/board" icon={<LayoutGrid className="h-4 w-4" />} label="Papan Tugas" active={isActive('/tasks/board')} onNavigate={close} />
               {canViewHumasRequests(role) && (
                 <DrawerLink href="/humas-request" icon={<ImageIcon className="h-4 w-4" />} label="Request Humas" active={isActive('/humas-request')} onNavigate={close} />
               )}

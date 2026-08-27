@@ -31,9 +31,11 @@ export default async function StudentDetailPage({ params }: PageProps) {
     .maybeSingle()
 
   if (!student) notFound()
-  if (!canViewStudents(session.role, student.jenjang as Jenjang)) redirect('/siswa')
+  const jenjang = student.jenjang as Jenjang
+  const program = student.program as string | null
+  if (!canViewStudents(session.role, jenjang, program)) redirect('/siswa')
 
-  const canEdit = canManageStudents(session.role, student.jenjang as Jenjang)
+  const canEdit = canManageStudents(session.role, jenjang, program)
 
   // Hitung agregat sederhana
   const { count: tahsinCount } = await supabase
@@ -45,7 +47,7 @@ export default async function StudentDetailPage({ params }: PageProps) {
 
   // Riwayat setoran hanya diambil untuk yang berwenang mengoreksinya —
   // bagi yang lain, tiga query ini sia-sia.
-  const canKoreksi = canManageSetoran(session.role, student.jenjang as Jenjang)
+  const canKoreksi = canManageSetoran(session.role, jenjang, program)
   const setoranItems: SetoranItem[] = canKoreksi ? await ambilSetoran(supabase, id) : []
 
   const initials = student.full_name.split(' ').slice(0, 2).map((w: string) => w[0]).join('').toUpperCase()

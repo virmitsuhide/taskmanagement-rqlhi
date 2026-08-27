@@ -32,6 +32,7 @@ const DASHBOARD_ICONS: Record<string, React.ReactNode> = {
   sdm: <User className="h-4 w-4" />,
   'koor-sd': <GraduationCap className="h-4 w-4" />,
   'koor-smp': <GraduationCap className="h-4 w-4" />,
+  'koor-qulssd': <GraduationCap className="h-4 w-4" />,
   'koor-ekstra': <GraduationCap className="h-4 w-4" />,
   humas: <Megaphone className="h-4 w-4" />,
   'div-training': <BookOpen className="h-4 w-4" />,
@@ -116,9 +117,7 @@ export function Sidebar({ role, displayName, username }: Props) {
             )}
             <NavItem href="/rapat" icon={<BookOpen className="h-4 w-4" />} label="Rapat & Notulen" active={isActive('/rapat')} />
             <NavItem href="/tasks" icon={<CheckSquare className="h-4 w-4" />} label="Tugas" active={isActive('/tasks') && !pathname.startsWith('/tasks/board')} />
-            {role !== 'kepala_rq' && (
-              <NavItem href="/tasks/board" icon={<LayoutGrid className="h-4 w-4" />} label="Papan Tugas" active={pathname.startsWith('/tasks/board')} />
-            )}
+            <NavItem href="/tasks/board" icon={<LayoutGrid className="h-4 w-4" />} label="Papan Tugas" active={pathname.startsWith('/tasks/board')} />
             {canViewHumasRequests(role) && (
               <NavItem href="/humas-request" icon={<ImageIcon className="h-4 w-4" />} label="Request Humas" active={isActive('/humas-request')} />
             )}

@@ -117,13 +117,13 @@ async function guardHalaqoh(halaqohId: string): Promise<{ ok: true } | { error: 
   const supabase = createServerClient()
   const { data: halaqoh } = await supabase
     .from('halaqoh')
-    .select('jenjang')
+    .select('jenjang, program')
     .eq('id', halaqohId)
     .maybeSingle()
 
   if (!halaqoh) return { error: 'Halaqoh tidak ditemukan.' }
-  if (!canManageHalaqoh(session.role, halaqoh.jenjang as Jenjang)) {
-    return { error: 'Tidak memiliki izin untuk halaqoh jenjang ini.' }
+  if (!canManageHalaqoh(session.role, halaqoh.jenjang as Jenjang, halaqoh.program as string | null)) {
+    return { error: 'Tidak memiliki izin untuk halaqoh ini.' }
   }
   return { ok: true }
 }

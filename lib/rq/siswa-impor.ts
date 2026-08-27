@@ -11,7 +11,7 @@
  * dikosongkan. Impor 700 baris adalah tempat kesalahan sunyi paling mahal.
  */
 import { JENJANG_LABELS } from '@/lib/auth/permissions'
-import { getProgramsForJenjang, UNIT_LABELS } from '@/lib/rq/programs'
+import { getProgramsForJenjang, programLabel as programLabelOf, UNIT_LABELS } from '@/lib/rq/programs'
 import { methodsForJenjang } from '@/lib/tahsin'
 import type { Jenjang } from '@/types'
 
@@ -49,7 +49,16 @@ export interface HasilBaris {
 
 export interface RujukanImpor {
   allowedJenjang: Jenjang[]
-  halaqohList: { id: string; name: string; jenjang: Jenjang }[]
+  /**
+   * Nilai program yang boleh dipakai operator, per jenjang. `null` di dalam
+   * daftar berarti "boleh dibiarkan kosong" (reguler / belum ditandai).
+   *
+   * Datang dari getManageableProgramValues(). Untuk koor QULS SD daftarnya
+   * tidak memuat null, dan dari situlah aturan "kolom Program wajib" lahir
+   * dengan sendirinya — tanpa menyebut role mana pun di file ini.
+   */
+  allowedPrograms: Partial<Record<Jenjang, (string | null)[]>>
+  halaqohList: { id: string; name: string; jenjang: Jenjang; program?: string | null }[]
   methods: { id: string; name: string }[]
   jilidLevels: { id: string; label: string; method_id: string; order_num?: number }[]
 }
@@ -278,14 +287,33 @@ export function periksaBaris(
   if (tgl.galat) galat.push(tgl.galat)
 
   // ── Program ──
+  //
+  // Diperiksa dua lapis: harus ada di taksonomi jenjangnya, LALU harus masuk
+  // wewenang operator. Lapis kedua itu yang menjaga koor QULS SD tidak
+  // memasukkan anak CLIL, dan koor SD tidak memasukkan anak QULS.
+  const bolehProgram = rujukan.allowedPrograms[jenjang] ?? [null]
   const programTeks = str('program')
   let program: string | null = null
   if (programTeks) {
     const opsi = getProgramsForJenjang(jenjang)
     const cocok = opsi.find(p => normal(p.code) === normal(programTeks) || normal(p.label) === normal(programTeks))
-    if (cocok) program = cocok.code
-    else if (opsi.length === 0) galat.push(`Jenjang ${JENJANG_LABELS[jenjang]} tidak punya program.`)
-    else galat.push(`Program '${programTeks}' tidak berlaku untuk ${JENJANG_LABELS[jenjang]}.`)
+    if (!cocok && opsi.length === 0) galat.push(`Jenjang ${JENJANG_LABELS[jenjang]} tidak punya program.`)
+    else if (!cocok) galat.push(`Program '${programTeks}' tidak berlaku untuk ${JENJANG_LABELS[jenjang]}.`)
+    else if (!bolehProgram.includes(cocok.code)) {
+      galat.push(`Anda tidak berwenang menambah siswa program ${cocok.label}.`)
+    } else program = cocok.code
+  } else if (!bolehProgram.includes(null)) {
+    // Operator yang lingkupnya hanya satu-dua program tidak boleh membiarkan
+    // kolom ini kosong — baris tanpa program berarti siswa reguler, yang di
+    // luar wewenangnya. Diisikan otomatis dengan pilihan pertamanya, dan
+    // dicatat supaya terlihat di layar pratinjau, bukan terjadi diam-diam.
+    const bawaan = bolehProgram.find((v): v is string => v !== null)
+    if (bawaan) {
+      program = bawaan
+      catatan.push(`Program dikosongkan — diisi ${programLabelOf(jenjang, bawaan)}.`)
+    } else {
+      galat.push(`Kolom Program wajib diisi untuk ${JENJANG_LABELS[jenjang]}.`)
+    }
   }
 
   // ── Halaqoh ── dicocokkan di dalam jenjangnya saja: nama halaqoh berulang
@@ -295,16 +323,20 @@ export function periksaBaris(
   if (halaqohTeks) {
     const sejenjang = rujukan.halaqohList.filter(h => h.jenjang === jenjang)
     const cocok = sejenjang.filter(h => normal(h.name) === normal(halaqohTeks))
-    if (cocok.length === 1) halaqoh_id = cocok[0].id
-    else if (cocok.length > 1) galat.push(`Ada ${cocok.length} halaqoh bernama '${halaqohTeks}' di ${JENJANG_LABELS[jenjang]}.`)
-    else galat.push(`Halaqoh '${halaqohTeks}' tidak ada di ${JENJANG_LABELS[jenjang]}.`)
+    if (cocok.length > 1) galat.push(`Ada ${cocok.length} halaqoh bernama '${halaqohTeks}' di ${JENJANG_LABELS[jenjang]}.`)
+    else if (cocok.length === 0) galat.push(`Halaqoh '${halaqohTeks}' tidak ada di ${JENJANG_LABELS[jenjang]}.`)
+    else if (!bolehProgram.includes(cocok[0].program ?? null)) {
+      galat.push(`Halaqoh '${halaqohTeks}' di luar wewenang Anda.`)
+    } else halaqoh_id = cocok[0].id
   }
 
   // ── Metode & jilid ──
   const metodeTeks = str('current_method_id')
   let current_method_id: string | null = null
   if (metodeTeks) {
-    const berlaku = methodsForJenjang(jenjang, rujukan.methods)
+    // Program ikut disertakan: kelompok QULS SD seluruhnya KIBAR walau SD
+    // secara umum juga memakai UMMI.
+    const berlaku = methodsForJenjang(jenjang, rujukan.methods, program)
     const cocok = berlaku.find(m => normal(m.name) === normal(metodeTeks))
     if (cocok) current_method_id = cocok.id
     else {

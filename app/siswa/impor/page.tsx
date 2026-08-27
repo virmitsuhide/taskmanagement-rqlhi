@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/auth/session'
-import { canManageStudents, getManageableJenjang } from '@/lib/auth/permissions'
+import { canManageStudents, getManageableJenjang, programScopeFor } from '@/lib/auth/permissions'
 import { createServerClient } from '@/lib/supabase/server'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { ImportSiswa } from './ImportSiswa'
@@ -17,7 +17,7 @@ export default async function ImportStudentsPage() {
   // ditulis di Excel selalu sama dengan apa yang muncul di dropdown.
   const supabase = createServerClient()
   const [halaqohResult, methodsResult, jilidResult] = await Promise.all([
-    supabase.from('halaqoh').select('id, name, jenjang').eq('is_active', true).order('name'),
+    supabase.from('halaqoh').select('id, name, jenjang, program').eq('is_active', true).order('name'),
     supabase.from('tahsin_methods').select('id, name').eq('is_active', true).order('name'),
     supabase.from('jilid_levels').select('id, label, method_id, order_num').order('order_num'),
   ])
@@ -37,6 +37,7 @@ export default async function ImportStudentsPage() {
         </p>
         <ImportSiswa
           allowedJenjang={allowed}
+          allowedPrograms={programScopeFor(session.role, allowed)}
           halaqohList={halaqohResult.data ?? []}
           methods={methodsResult.data ?? []}
           jilidLevels={jilidResult.data ?? []}

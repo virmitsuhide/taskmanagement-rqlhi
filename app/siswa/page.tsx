@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { getSession } from '@/lib/auth/session'
-import { canViewStudents, getManageableJenjang, JENJANG_LABELS } from '@/lib/auth/permissions'
+import { canViewStudents, getListProgramScope, getManageableJenjang, JENJANG_LABELS } from '@/lib/auth/permissions'
 import { createServerClient } from '@/lib/supabase/server'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { SearchInput } from '@/components/ui/search-input'
@@ -63,8 +63,16 @@ export default async function SiswaListPage({ searchParams }: PageProps) {
   // penyaring menghitung angkanya. Satu ambilan ~700 baris dua kolom lebih
   // murah daripada tiga query hitung terpisah, dan menjaga angka pada tab
   // tetap jujur terhadap pencarian yang sedang aktif.
+
+  // Penyempitan program — koor QULS SD hanya melihat siswa QULS, sementara
+  // koor SD melihat seluruh SD termasuk QULS (memantau, tanpa hak ubah).
+  // Dipasang pada KEDUA kueri di bawah: kalau hanya salah satu, angka pada
+  // tab unit akan menghitung anak yang tidak muncul di daftarnya.
+  const programScope = getListProgramScope(session.role, viewableJenjang)
+
   let scopeQuery = supabase.from('students').select('jenjang, kelas')
   if (viewableJenjang.length > 0) scopeQuery = scopeQuery.in('jenjang', viewableJenjang)
+  if (programScope) scopeQuery = scopeQuery.in('program', programScope as string[])
   if (halaqohFilter) scopeQuery = scopeQuery.eq('halaqoh_id', halaqohFilter)
   if (query) scopeQuery = scopeQuery.or(`full_name.ilike.%${query}%,nis.ilike.%${query}%`)
   const { data: scopeData } = await scopeQuery
@@ -110,6 +118,7 @@ export default async function SiswaListPage({ searchParams }: PageProps) {
   if (viewableJenjang.length > 0) {
     q = q.in('jenjang', viewableJenjang)
   }
+  if (programScope) q = q.in('program', programScope as string[])
   if (jenjangFilter && viewableJenjang.includes(jenjangFilter)) {
     q = q.eq('jenjang', jenjangFilter)
   }

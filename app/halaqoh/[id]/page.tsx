@@ -9,7 +9,9 @@ import { Pencil, Users, Calendar, MapPin, UserCog } from 'lucide-react'
 import { sesiLabel } from '@/lib/rq/sesi'
 import { getHalaqohSessions } from '@/lib/data/terms'
 import { SessionEditor } from '@/components/halaqoh/SessionEditor'
-import type { Jenjang } from '@/types'
+import { PindahSiswa, type HalaqohTujuanOpsi } from '@/components/halaqoh/PindahSiswa'
+import { programLabel } from '@/lib/rq/programs'
+import type { Jenjang, UserRole } from '@/types'
 
 interface PageProps {
   params: Promise<{ id: string }>
@@ -29,7 +31,9 @@ export default async function HalaqohDetailPage({ params }: PageProps) {
     .maybeSingle()
 
   if (!halaqoh) notFound()
-  if (!canViewHalaqoh(session.role, halaqoh.jenjang as Jenjang)) redirect('/halaqoh')
+  if (!canViewHalaqoh(session.role, halaqoh.jenjang as Jenjang, halaqoh.program as string | null)) {
+    redirect('/halaqoh')
+  }
 
   const { data: students } = await supabase
     .from('students')
@@ -37,10 +41,15 @@ export default async function HalaqohDetailPage({ params }: PageProps) {
     .eq('halaqoh_id', id)
     .order('full_name')
 
-  const canEdit = canManageHalaqoh(session.role, halaqoh.jenjang as Jenjang)
+  const canEdit = canManageHalaqoh(session.role, halaqoh.jenjang as Jenjang, halaqoh.program as string | null)
   const sessions = await getHalaqohSessions(id)
   const activeStudents = (students ?? []).filter(s => s.is_active)
   const inactiveStudents = (students ?? []).filter(s => !s.is_active)
+
+  // Halaqoh lain sejenjang yang boleh diisi pengurus ini — calon tujuan
+  // pemindahan. Jumlah anggotanya ikut dibawa: memindahkan anak ke kelompok
+  // yang sudah 30 orang adalah keputusan berbeda dari ke kelompok berisi 12.
+  const tujuan = canEdit ? await muatTujuanPindah(supabase, session.role, halaqoh) : []
 
   return (
     <div>
@@ -61,6 +70,11 @@ export default async function HalaqohDetailPage({ params }: PageProps) {
                 <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-muted">
                   {JENJANG_LABELS[halaqoh.jenjang as Jenjang]}
                 </span>
+                {halaqoh.program && (
+                  <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-primary-wash text-primary">
+                    {programLabel(halaqoh.jenjang as Jenjang, halaqoh.program)}
+                  </span>
+                )}
                 {!halaqoh.is_active && (
                   <span className="text-xs text-warning">⚠ Nonaktif</span>
                 )}
@@ -112,31 +126,12 @@ export default async function HalaqohDetailPage({ params }: PageProps) {
             )}
           </div>
 
-          {activeStudents.length === 0 ? (
-            <div className="rounded-lg border border-dashed py-8 text-center text-sm text-muted-foreground">
-              Belum ada siswa di halaqoh ini.
-            </div>
-          ) : (
-            <div className="rounded-lg border divide-y bg-card">
-              {activeStudents.map(s => (
-                <Link
-                  key={s.id}
-                  href={`/siswa/${s.id}`}
-                  className="flex items-center justify-between p-3 hover:bg-muted/30 transition-colors"
-                >
-                  <div className="min-w-0">
-                    <p className="font-medium text-sm truncate">{s.full_name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {s.kelas ? `Kelas ${s.kelas}` : '—'} {s.nis && `· NIS ${s.nis}`}
-                    </p>
-                  </div>
-                  <span className="text-xs text-muted-foreground">
-                    {s.gender === 'L' ? '👦' : s.gender === 'P' ? '👧' : ''}
-                  </span>
-                </Link>
-              ))}
-            </div>
-          )}
+          <PindahSiswa
+            siswa={activeStudents}
+            tujuan={tujuan}
+            sesiSekarang={halaqoh.sesi}
+            canManage={canEdit}
+          />
 
           {inactiveStudents.length > 0 && (
             <details className="mt-3 text-sm text-muted-foreground">
@@ -158,4 +153,59 @@ export default async function HalaqohDetailPage({ params }: PageProps) {
       </div>
     </div>
   )
+}
+
+/**
+ * Halaqoh lain yang sah dijadikan tujuan pemindahan.
+ *
+ * Disaring tiga lapis: sejenjang (anak SD tidak bisa masuk kelompok SMP),
+ * masih aktif (memindahkan ke kelompok yang sudah ditutup hanya memindahkan
+ * masalah), dan dalam wewenang pengurus ini — lapis terakhir itulah yang
+ * menjaga koor SD tidak menitipkan anaknya ke kelompok QULS, dan sebaliknya.
+ *
+ * Penyaringan wewenangnya dikerjakan di sini, bukan sebagai filter kueri:
+ * aturannya milik canManageHalaqoh, dan menyalinnya jadi kondisi SQL berarti
+ * dua tempat yang harus sepakat selamanya.
+ */
+async function muatTujuanPindah(
+  supabase: ReturnType<typeof createServerClient>,
+  role: UserRole,
+  halaqoh: { id: string; jenjang: string },
+): Promise<HalaqohTujuanOpsi[]> {
+  const { data } = await supabase
+    .from('halaqoh')
+    .select('id, name, jenjang, program, sesi, wali_teacher:teachers!halaqoh_wali_teacher_id_fkey(full_name)')
+    .eq('jenjang', halaqoh.jenjang)
+    .eq('is_active', true)
+    .neq('id', halaqoh.id)
+    .order('sesi')
+    .order('name')
+
+  type Row = {
+    id: string; name: string; jenjang: Jenjang; program: string | null; sesi: number | null
+    wali_teacher: { full_name: string } | null
+  }
+  const boleh = ((data ?? []) as unknown as Row[])
+    .filter(h => canManageHalaqoh(role, h.jenjang, h.program))
+  if (boleh.length === 0) return []
+
+  const { data: counts } = await supabase
+    .from('students')
+    .select('halaqoh_id')
+    .in('halaqoh_id', boleh.map(h => h.id))
+    .eq('is_active', true)
+  const jumlah = new Map<string, number>()
+  for (const row of counts ?? []) {
+    jumlah.set(row.halaqoh_id, (jumlah.get(row.halaqoh_id) ?? 0) + 1)
+  }
+
+  return boleh.map(h => ({
+    id: h.id,
+    // Nama lengkapnya menyimpan awalan sesi yang sudah tampil terpisah, jadi
+    // yang ditawarkan adalah nama walinya — itulah yang dipakai saat rapat.
+    name: h.name,
+    sesi: h.sesi,
+    wali: h.wali_teacher?.full_name ?? null,
+    jumlah: jumlah.get(h.id) ?? 0,
+  }))
 }

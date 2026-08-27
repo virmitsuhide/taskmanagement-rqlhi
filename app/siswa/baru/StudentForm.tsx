@@ -19,7 +19,12 @@ const NONE = 'none'
 interface Props {
   mode: 'create' | 'edit'
   allowedJenjang: Jenjang[]
-  halaqohList: Pick<Halaqoh, 'id' | 'name' | 'jenjang'>[]
+  /**
+   * Nilai program yang boleh dipilih pengurus ini, per jenjang. `null` di
+   * dalam daftar berarti "boleh dibiarkan kosong".
+   */
+  allowedPrograms: Partial<Record<Jenjang, (string | null)[]>>
+  halaqohList: Pick<Halaqoh, 'id' | 'name' | 'jenjang' | 'program'>[]
   methods: Pick<TahsinMethod, 'id' | 'name'>[]
   jilidLevels: Pick<JilidLevel, 'id' | 'label' | 'method_id' | 'order_num'>[]
   initial?: {
@@ -44,42 +49,72 @@ interface Props {
 }
 
 export function StudentForm({
-  mode, allowedJenjang, halaqohList, methods, jilidLevels, initial, defaultHalaqohId,
+  mode, allowedJenjang, allowedPrograms, halaqohList, methods, jilidLevels, initial, defaultHalaqohId,
 }: Props) {
   const router = useRouter()
   const action = mode === 'create' ? createStudentAction : updateStudentAction
   const [state, formAction, isPending] = useActionState(action, null)
 
+  const bolehProgramUntuk = (j: Jenjang) => allowedPrograms[j] ?? [null]
+  const programAwal = (j: Jenjang, sekarang: string | null | undefined): string => {
+    const boleh = bolehProgramUntuk(j)
+    if (sekarang && boleh.includes(sekarang)) return sekarang
+    if (!sekarang && boleh.includes(null)) return NONE
+    return boleh.find((x): x is string => x !== null) ?? NONE
+  }
+
   const [jenjang, setJenjang] = useState<Jenjang>(initial?.jenjang ?? allowedJenjang[0] ?? 'sd')
-  const [methodId, setMethodId] = useState<string>(initial?.current_method_id ?? NONE)
-  const [program, setProgram] = useState<string>(initial?.program ?? NONE)
-
-  const programOptions = useMemo(() => getProgramsForJenjang(jenjang), [jenjang])
-
-  const halaqohOptions = useMemo(
-    () => halaqohList.filter(h => h.jenjang === jenjang),
-    [halaqohList, jenjang],
+  const [program, setProgram] = useState<string>(
+    programAwal(initial?.jenjang ?? allowedJenjang[0] ?? 'sd', initial?.program),
   )
-  // Metode tahsin yang berlaku untuk jenjang/unit terpilih (kebijakan RQ LHI)
+  const [methodId, setMethodId] = useState<string>(initial?.current_method_id ?? NONE)
+
+  const bolehProgram = bolehProgramUntuk(jenjang)
+  const programOptions = useMemo(
+    () => getProgramsForJenjang(jenjang).filter(p => bolehProgram.includes(p.code)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [jenjang, allowedPrograms],
+  )
+  const bolehTanpaProgram = bolehProgram.includes(null)
+
+  // Halaqoh disaring ikut programnya juga: kelompok QULS dan kelompok reguler
+  // duduk di unit dan sesi yang sama, jadi jenjang saja tidak memisahkannya.
+  const halaqohOptions = useMemo(
+    () => halaqohList.filter(h => h.jenjang === jenjang && bolehProgram.includes(h.program ?? null)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [halaqohList, jenjang, allowedPrograms],
+  )
+
+  // Metode tahsin yang berlaku untuk unit DAN program terpilih (kebijakan RQ
+  // LHI). SD memakai UMMI & KIBAR, tapi kelompok QULS SD seluruhnya KIBAR —
+  // jadi mengganti program bisa menyempitkan pilihan ini.
+  const programKini = program === NONE ? null : program
   const availableMethods = useMemo(
-    () => methodsForJenjang(jenjang, methods),
-    [jenjang, methods],
+    () => methodsForJenjang(jenjang, methods, programKini),
+    [jenjang, methods, programKini],
   )
   const jilidOptions = useMemo(
     () => (methodId === NONE ? [] : jilidLevels.filter(j => j.method_id === methodId).sort((a, b) => a.order_num - b.order_num)),
     [jilidLevels, methodId],
   )
 
-  // Ganti jenjang → reset metode bila tak berlaku untuk jenjang baru
-  function onJenjangChange(v: Jenjang) {
-    setJenjang(v)
-    if (methodId !== NONE && !methodsForJenjang(v, methods).some(m => m.id === methodId)) {
+  /** Buang metode terpilih kalau ia tak lagi berlaku untuk unit/program baru. */
+  function rapikanMetode(j: Jenjang, p: string | null) {
+    if (methodId !== NONE && !methodsForJenjang(j, methods, p).some(m => m.id === methodId)) {
       setMethodId(NONE)
     }
-    // Reset program bila tak berlaku untuk unit baru.
-    if (program !== NONE && !getProgramsForJenjang(v).some(p => p.code === program)) {
-      setProgram(NONE)
-    }
+  }
+
+  function onJenjangChange(v: Jenjang) {
+    setJenjang(v)
+    const programBaru = programAwal(v, programKini)
+    setProgram(programBaru)
+    rapikanMetode(v, programBaru === NONE ? null : programBaru)
+  }
+
+  function onProgramChange(v: string) {
+    setProgram(v)
+    rapikanMetode(jenjang, v === NONE ? null : v)
   }
 
   return (
@@ -144,16 +179,21 @@ export function StudentForm({
 
         {programOptions.length > 0 && (
           <div className="space-y-1.5">
-            <Label htmlFor="program">Program</Label>
-            <Select name="program" value={program} onValueChange={setProgram}>
+            <Label htmlFor="program">Program{!bolehTanpaProgram && ' *'}</Label>
+            <Select name="program" value={program} onValueChange={onProgramChange}>
               <SelectTrigger id="program"><SelectValue placeholder="— Belum ditandai —" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value={NONE}>— Belum ditandai —</SelectItem>
+                {bolehTanpaProgram && <SelectItem value={NONE}>— Belum ditandai —</SelectItem>}
                 {programOptions.map(p => (
                   <SelectItem key={p.code} value={p.code}>{p.label}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
+            {availableMethods.length === 1 && (
+              <p className="text-[11px] text-muted-foreground">
+                Program ini memakai metode {availableMethods[0].name}.
+              </p>
+            )}
           </div>
         )}
 

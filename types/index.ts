@@ -6,6 +6,8 @@ export type UserRole =
   | 'koor_ekstra'
   | 'koor_sd'
   | 'koor_smp'
+  /** Koor QULS SD — siswa SD berprogram QULS, seluruhnya metode KIBAR. */
+  | 'koor_qulssd'
   | 'humas'
   | 'div_training'
   | 'new_squad'
@@ -450,6 +452,8 @@ export interface Halaqoh {
   id: string
   name: string
   jenjang: Jenjang
+  /** Program pemilik kelompok, mis. 'quls'. null = reguler / belum ditandai. */
+  program: string | null
   wali_teacher_id: string | null
   schedule_note: string | null
   /** Sesi belajar 1–3; jamnya ada di lib/rq/sesi.ts, tidak disimpan per baris. */

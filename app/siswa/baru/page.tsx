@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/auth/session'
-import { getManageableJenjang } from '@/lib/auth/permissions'
+import { getManageableJenjang, programScopeFor } from '@/lib/auth/permissions'
 import { createServerClient } from '@/lib/supabase/server'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { StudentForm } from './StudentForm'
@@ -21,7 +21,7 @@ export default async function NewStudentPage({ searchParams }: PageProps) {
 
   const supabase = createServerClient()
   const [halaqohResult, methodsResult, jilidResult] = await Promise.all([
-    supabase.from('halaqoh').select('id, name, jenjang').eq('is_active', true).order('name'),
+    supabase.from('halaqoh').select('id, name, jenjang, program').eq('is_active', true).order('name'),
     supabase.from('tahsin_methods').select('id, name').eq('is_active', true).order('name'),
     supabase.from('jilid_levels').select('id, label, method_id, order_num').order('order_num'),
   ])
@@ -40,6 +40,7 @@ export default async function NewStudentPage({ searchParams }: PageProps) {
         <StudentForm
           mode="create"
           allowedJenjang={allowed}
+          allowedPrograms={programScopeFor(session.role, allowed)}
           halaqohList={halaqohResult.data ?? []}
           methods={methodsResult.data ?? []}
           jilidLevels={jilidResult.data ?? []}

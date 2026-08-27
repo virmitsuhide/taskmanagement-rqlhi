@@ -43,6 +43,28 @@ export const UNIT_LABELS: Record<Jenjang, string> = {
 
 export const UNIT_ORDER: Jenjang[] = ['paud', 'sd', 'sd_juara', 'smp', 'sma']
 
+/**
+ * Program SD yang menjadi wewenang Koor QULS SD.
+ *
+ * QULS SD bukan unit tersendiri — anaknya tetap siswa SDIT LHI di kelas dan
+ * sesi yang sama. Yang memisahkannya cuma program, jadi daftar inilah yang
+ * dipakai lib/auth/permissions.ts untuk menyempitkan wewenang koor QULS SD
+ * dan lib/tahsin.ts untuk mengunci metodenya ke KIBAR.
+ */
+export const QULS_SD_PROGRAMS = ['quls', 'quls_takhassus'] as const
+
+/**
+ * Apakah pasangan (jenjang, program) ini masuk lingkup QULS SD?
+ *
+ * program null diperlakukan sebagai BUKAN QULS — 493 siswa SD yang programnya
+ * belum ditandai tetap menjadi wewenang koor SD, bukan berpindah diam-diam ke
+ * koor QULS SD hanya karena kolomnya kosong.
+ */
+export function isQulsSdProgram(jenjang: Jenjang, program: string | null | undefined): boolean {
+  if (jenjang !== 'sd' || !program) return false
+  return (QULS_SD_PROGRAMS as readonly string[]).includes(program)
+}
+
 export function getProgramsForJenjang(jenjang: Jenjang): ProgramOption[] {
   return PROGRAMS_BY_JENJANG[jenjang] ?? []
 }

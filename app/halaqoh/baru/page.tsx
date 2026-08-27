@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/auth/session'
-import { getManageableJenjang } from '@/lib/auth/permissions'
+import { getManageableJenjang, programScopeFor } from '@/lib/auth/permissions'
 import { createServerClient } from '@/lib/supabase/server'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { HalaqohForm } from './HalaqohForm'
@@ -33,7 +33,12 @@ export default async function NewHalaqohPage() {
         <p className="text-sm text-muted-foreground mb-6">
           Halaqoh akan menampung siswa dengan jenjang yang sama.
         </p>
-        <HalaqohForm mode="create" allowedJenjang={allowed} teachers={teachers ?? []} />
+        <HalaqohForm
+          mode="create"
+          allowedJenjang={allowed}
+          allowedPrograms={programScopeFor(session.role, allowed)}
+          teachers={teachers ?? []}
+        />
       </div>
     </div>
   )

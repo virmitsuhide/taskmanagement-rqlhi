@@ -7,12 +7,19 @@ import { getSession } from '@/lib/auth/session'
 import { canManageHalaqoh } from '@/lib/auth/permissions'
 import type { Jenjang } from '@/types'
 
+/** Ubah string kosong atau sentinel 'none' (dari Radix Select) menjadi null. */
+function bacaProgram(formData: FormData): string | null {
+  const s = ((formData.get('program') as string) ?? '').trim()
+  return !s || s === 'none' ? null : s
+}
+
 export async function createHalaqohAction(_: unknown, formData: FormData) {
   const session = await getSession()
   if (!session) return { error: 'Sesi tidak valid.' }
 
   const name = (formData.get('name') as string)?.trim()
   const jenjang = formData.get('jenjang') as Jenjang
+  const program = bacaProgram(formData)
   const waliRaw = (formData.get('wali_teacher_id') as string) || ''
   const wali_teacher_id = (!waliRaw || waliRaw === 'none') ? null : waliRaw
   const schedule_note = (formData.get('schedule_note') as string)?.trim() || null
@@ -22,8 +29,8 @@ export async function createHalaqohAction(_: unknown, formData: FormData) {
   const tempat = ((formData.get('tempat') as string) ?? '').trim()
 
   if (!name || !jenjang) return { error: 'Nama dan jenjang wajib diisi.' }
-  if (!canManageHalaqoh(session.role, jenjang)) {
-    return { error: 'Anda tidak memiliki izin untuk halaqoh jenjang ini.' }
+  if (!canManageHalaqoh(session.role, jenjang, program)) {
+    return { error: 'Anda tidak memiliki izin untuk halaqoh program ini.' }
   }
 
   const supabase = createServerClient()
@@ -44,7 +51,7 @@ export async function createHalaqohAction(_: unknown, formData: FormData) {
 
   const { data, error } = await supabase
     .from('halaqoh')
-    .insert({ name, jenjang, wali_teacher_id, schedule_note, sesi, tempat, term_id: term.id })
+    .insert({ name, jenjang, program, wali_teacher_id, schedule_note, sesi, tempat, term_id: term.id })
     .select('id')
     .single()
 
@@ -61,6 +68,7 @@ export async function updateHalaqohAction(_: unknown, formData: FormData) {
   const id = formData.get('id') as string
   const name = (formData.get('name') as string)?.trim()
   const jenjang = formData.get('jenjang') as Jenjang
+  const program = bacaProgram(formData)
   const waliRaw = (formData.get('wali_teacher_id') as string) || ''
   const wali_teacher_id = (!waliRaw || waliRaw === 'none') ? null : waliRaw
   const schedule_note = (formData.get('schedule_note') as string)?.trim() || null
@@ -71,22 +79,24 @@ export async function updateHalaqohAction(_: unknown, formData: FormData) {
   const is_active = formData.get('is_active') === 'on'
 
   if (!id || !name || !jenjang) return { error: 'Data tidak lengkap.' }
-  if (!canManageHalaqoh(session.role, jenjang)) {
-    return { error: 'Anda tidak memiliki izin untuk halaqoh jenjang ini.' }
+  if (!canManageHalaqoh(session.role, jenjang, program)) {
+    return { error: 'Anda tidak memiliki izin untuk halaqoh program ini.' }
   }
 
   const supabase = createServerClient()
 
-  // Pastikan record existing juga dalam scope user
+  // Pastikan record existing juga dalam scope user — keadaan lama diperiksa
+  // terpisah dari yang baru, supaya halaqoh milik koor lain tidak bisa ditarik
+  // ke lingkup sendiri hanya dengan mengganti kolom program.
   const { data: existing } = await supabase
-    .from('halaqoh').select('jenjang').eq('id', id).single()
-  if (!existing || !canManageHalaqoh(session.role, existing.jenjang as Jenjang)) {
+    .from('halaqoh').select('jenjang, program').eq('id', id).single()
+  if (!existing || !canManageHalaqoh(session.role, existing.jenjang as Jenjang, existing.program as string | null)) {
     return { error: 'Anda tidak memiliki izin untuk halaqoh ini.' }
   }
 
   const { error } = await supabase
     .from('halaqoh')
-    .update({ name, jenjang, wali_teacher_id, schedule_note, sesi, tempat, is_active })
+    .update({ name, jenjang, program, wali_teacher_id, schedule_note, sesi, tempat, is_active })
     .eq('id', id)
 
   if (error) return { error: 'Gagal memperbarui halaqoh.' }
@@ -102,9 +112,9 @@ export async function deleteHalaqohAction(id: string) {
 
   const supabase = createServerClient()
   const { data: existing } = await supabase
-    .from('halaqoh').select('jenjang').eq('id', id).single()
+    .from('halaqoh').select('jenjang, program').eq('id', id).single()
   if (!existing) return { error: 'Halaqoh tidak ditemukan.' }
-  if (!canManageHalaqoh(session.role, existing.jenjang as Jenjang)) {
+  if (!canManageHalaqoh(session.role, existing.jenjang as Jenjang, existing.program as string | null)) {
     return { error: 'Anda tidak memiliki izin.' }
   }
 

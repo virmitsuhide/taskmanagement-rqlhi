@@ -1,6 +1,6 @@
 import { redirect, notFound } from 'next/navigation'
 import { getSession } from '@/lib/auth/session'
-import { canManageStudents, getManageableJenjang } from '@/lib/auth/permissions'
+import { canManageStudents, getManageableJenjang, programScopeFor } from '@/lib/auth/permissions'
 import { createServerClient } from '@/lib/supabase/server'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { StudentForm } from '../../baru/StudentForm'
@@ -23,10 +23,12 @@ export default async function EditStudentPage({ params }: PageProps) {
     .maybeSingle()
 
   if (!student) notFound()
-  if (!canManageStudents(session.role, student.jenjang as Jenjang)) redirect(`/siswa/${id}`)
+  if (!canManageStudents(session.role, student.jenjang as Jenjang, student.program as string | null)) {
+    redirect(`/siswa/${id}`)
+  }
 
   const [halaqohResult, methodsResult, jilidResult] = await Promise.all([
-    supabase.from('halaqoh').select('id, name, jenjang').order('name'),
+    supabase.from('halaqoh').select('id, name, jenjang, program').order('name'),
     supabase.from('tahsin_methods').select('id, name').eq('is_active', true).order('name'),
     supabase.from('jilid_levels').select('id, label, method_id, order_num').order('order_num'),
   ])
@@ -49,6 +51,7 @@ export default async function EditStudentPage({ params }: PageProps) {
         <StudentForm
           mode="edit"
           allowedJenjang={getManageableJenjang(session.role)}
+          allowedPrograms={programScopeFor(session.role, getManageableJenjang(session.role))}
           halaqohList={halaqohResult.data ?? []}
           methods={methodsResult.data ?? []}
           jilidLevels={jilidResult.data ?? []}

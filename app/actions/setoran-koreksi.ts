@@ -43,13 +43,13 @@ async function guard(
 
   const { data: student } = await supabase
     .from('students')
-    .select('id, jenjang')
+    .select('id, jenjang, program')
     .eq('id', log.student_id)
     .maybeSingle()
 
   if (!student) return { error: 'Siswa tidak ditemukan.' }
-  if (!canManageSetoran(session.role, student.jenjang as Jenjang)) {
-    return { error: 'Anda tidak memiliki izin untuk siswa jenjang ini.' }
+  if (!canManageSetoran(session.role, student.jenjang as Jenjang, student.program as string | null)) {
+    return { error: 'Anda tidak memiliki izin untuk siswa ini.' }
   }
 
   return { studentId: student.id }

@@ -6,11 +6,12 @@ import * as XLSX from 'xlsx'
 import { importStudentsAction, type BarisMentah, type HasilImpor } from '@/app/actions/students'
 import { Button } from '@/components/ui/button'
 import { JENJANG_LABELS } from '@/lib/auth/permissions'
-import { getProgramsForJenjang } from '@/lib/rq/programs'
+import { getProgramsForJenjang, programLabel } from '@/lib/rq/programs'
 import { methodsForJenjang } from '@/lib/tahsin'
 import { KOLOM_IMPOR, periksaBaris, tandaiNisKembar, type HasilBaris, type RujukanImpor } from '@/lib/rq/siswa-impor'
 import { cn } from '@/lib/utils'
 import { Download, Upload, FileSpreadsheet, CheckCircle2, AlertTriangle, X } from 'lucide-react'
+import type { Jenjang } from '@/types'
 
 type Props = RujukanImpor
 
@@ -176,7 +177,7 @@ export function ImportSiswa(props: Props) {
 }
 
 /** ── 1. Berkas contoh ─────────────────────────────────────────────── */
-function LangkahTemplate({ allowedJenjang, halaqohList, methods, jilidLevels }: Props) {
+function LangkahTemplate({ allowedJenjang, allowedPrograms, halaqohList, methods, jilidLevels }: Props) {
   function unduh() {
     const wb = XLSX.utils.book_new()
 
@@ -202,16 +203,28 @@ function LangkahTemplate({ allowedJenjang, halaqohList, methods, jilidLevels }: 
     // halaqoh baru dibuat pagi ini, berkas contoh sore ini sudah memuatnya.
     const pilihan: string[][] = [['DAFTAR PILIHAN YANG SAH'], []]
     pilihan.push(['Jenjang', ...allowedJenjang.map(j => JENJANG_LABELS[j])])
+    // Daftar program & metode dipersempit ke wewenang operator, bukan ke
+    // seluruh taksonomi unit. Menawarkan pilihan yang pasti ditolak server
+    // hanya membuat orang mengisi 300 baris lalu mengulanginya.
     pilihan.push([])
     for (const j of allowedJenjang) {
-      const label = JENJANG_LABELS[j]
-      const program = getProgramsForJenjang(j).map(p => p.label)
-      pilihan.push([`Program — ${label}`, ...(program.length ? program : ['(tidak ada program)'])])
+      const boleh = allowedPrograms[j] ?? [null]
+      const program = getProgramsForJenjang(j)
+        .filter(p => boleh.includes(p.code))
+        .map(p => p.label)
+      pilihan.push([`Program — ${JENJANG_LABELS[j]}`, ...(program.length ? program : ['(tidak ada program)'])])
+      if (program.length > 0 && !boleh.includes(null)) {
+        pilihan.push(['', `wajib diisi — kosong akan diisi "${program[0]}"`])
+      }
     }
     pilihan.push([])
     for (const j of allowedJenjang) {
-      const berlaku = methodsForJenjang(j, methods)
-      pilihan.push([`Metode — ${JENJANG_LABELS[j]}`, ...berlaku.map(m => m.name)])
+      // Satu program bisa lebih sempit daripada unitnya (QULS SD hanya KIBAR),
+      // jadi metodenya didaftar per program, bukan per jenjang saja.
+      for (const p of programVarian(j, allowedPrograms[j] ?? [null])) {
+        const berlaku = methodsForJenjang(j, methods, p.code)
+        pilihan.push([`Metode — ${JENJANG_LABELS[j]}${p.suffix}`, ...berlaku.map(m => m.name)])
+      }
     }
     pilihan.push([])
     for (const m of methods) {
@@ -222,10 +235,11 @@ function LangkahTemplate({ allowedJenjang, halaqohList, methods, jilidLevels }: 
       if (jilid.length) pilihan.push([`Jilid — ${m.name}`, ...jilid])
     }
     pilihan.push([])
-    pilihan.push(['Halaqoh (tulis persis)', 'Jenjang'])
+    pilihan.push(['Halaqoh (tulis persis)', 'Jenjang', 'Program'])
     for (const j of allowedJenjang) {
-      for (const h of halaqohList.filter(h => h.jenjang === j)) {
-        pilihan.push([h.name, JENJANG_LABELS[j]])
+      const boleh = allowedPrograms[j] ?? [null]
+      for (const h of halaqohList.filter(h => h.jenjang === j && boleh.includes(h.program ?? null))) {
+        pilihan.push([h.name, JENJANG_LABELS[j], programLabel(j, h.program ?? null)])
       }
     }
     const wsPilihan = XLSX.utils.aoa_to_sheet(pilihan)
@@ -386,6 +400,29 @@ function Angka({ n, nada }: { n: number; nada: 'ok' | 'galat' | 'netral' }) {
       {n}
     </span>
   )
+}
+
+/**
+ * Program mana saja yang perlu didaftar metodenya secara terpisah.
+ *
+ * Selama satu unit memakai metode yang sama untuk semua programnya, satu baris
+ * sudah cukup — dan itu keadaan normalnya. Rinciannya baru dipecah kalau
+ * memang ada program yang lebih sempit, yang sekarang hanya QULS SD.
+ */
+function programVarian(
+  jenjang: Jenjang,
+  boleh: (string | null)[],
+): { code: string | null; suffix: string }[] {
+  const varian = boleh.map(code => ({
+    code,
+    suffix: code ? ` (${programLabel(jenjang, code)})` : '',
+    metode: methodsForJenjang(jenjang, [{ name: 'UMMI' }, { name: 'KIBAR' }, { name: 'Syajaroh' }], code)
+      .map(m => m.name)
+      .join(','),
+  }))
+  const seragam = new Set(varian.map(v => v.metode)).size <= 1
+  if (seragam) return [{ code: boleh[0] ?? null, suffix: '' }]
+  return varian.map(({ code, suffix }) => ({ code, suffix }))
 }
 
 function isoDari(d: Date): string {

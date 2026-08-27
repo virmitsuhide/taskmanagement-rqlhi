@@ -8,7 +8,7 @@ import type { FooterLink, FooterUnit, HomeSection } from '@/types'
 // ─── Enums ───────────────────────────────────────────────────────────────────
 export const userRoleEnum = pgEnum('user_role', [
   'kepala_rq', 'kumik', 'sdm', 'bendahara',
-  'koor_ekstra', 'koor_sd', 'koor_smp',
+  'koor_ekstra', 'koor_sd', 'koor_smp', 'koor_qulssd',
   'humas', 'div_training', 'new_squad',
 ])
 export const meetingTypeEnum = pgEnum('meeting_type', [
@@ -336,6 +336,8 @@ export const halaqoh = pgTable('halaqoh', {
   id: uuid('id').primaryKey().defaultRandom(),
   name: text('name').notNull(),
   jenjang: jenjangEnum('jenjang').notNull(),
+  /** Program pemilik kelompok, mis. 'quls'. NULL = reguler — lihat drizzle/0038. */
+  program: text('program'),
   /** Semester pemilik halaqoh ini — pengacakan tiap semester membuat baris baru. */
   term_id: uuid('term_id'),
   wali_teacher_id: uuid('wali_teacher_id').references(() => teachers.id, { onDelete: 'set null' }),

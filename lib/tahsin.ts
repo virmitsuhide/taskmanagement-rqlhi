@@ -6,6 +6,7 @@
  * jilid_levels, di-seed via scripts/seed-phase0.ts). Di sini hanya aturan
  * bisnis statis: pemetaan jenjang→metode dan label tampilan.
  */
+import { isQulsSdProgram } from '@/lib/rq/programs'
 import type { Jenjang, TahfidzKind, TasmiScope } from '@/types'
 
 // Nama metode — harus sama persis dengan kolom `name` di tabel tahsin_methods.
@@ -31,17 +32,37 @@ export const JENJANG_METHODS: Record<Jenjang, string[]> = {
 }
 
 /**
+ * Metode yang berlaku untuk satu program di dalam jenjangnya.
+ *
+ * Sejauh ini hanya QULS SD yang lebih sempit daripada unitnya: SD secara umum
+ * memakai UMMI dan KIBAR, tapi kelompok QULS SD seluruhnya KIBAR. Aturannya
+ * ditaruh di sini, satu tempat, supaya formulir siswa, berkas impor, dan
+ * pemeriksaan di server tidak bisa berbeda pendapat.
+ */
+export function methodsForProgram(jenjang: Jenjang, program: string | null | undefined): string[] | null {
+  if (isQulsSdProgram(jenjang, program)) return [METHOD.KIBAR]
+  return null
+}
+
+/**
  * Saring daftar metode (dari DB) menjadi hanya yang relevan untuk satu jenjang.
  * Jika jenjang tak dikenal, kembalikan semua (fallback aman).
+ *
+ * `program` opsional: diisi kalau pemanggilnya tahu program siswa/kelompoknya,
+ * dan hanya bisa MENYEMPITKAN hasilnya — tidak pernah menambah metode yang
+ * tidak berlaku untuk jenjang itu.
  */
 export function methodsForJenjang<T extends { name: string }>(
   jenjang: Jenjang | null | undefined,
   methods: T[],
+  program?: string | null,
 ): T[] {
   if (!jenjang) return methods
   const allowed = JENJANG_METHODS[jenjang]
   if (!allowed) return methods
-  return methods.filter(m => allowed.includes(m.name))
+  const perProgram = methodsForProgram(jenjang, program)
+  const berlaku = perProgram ? allowed.filter(n => perProgram.includes(n)) : allowed
+  return methods.filter(m => berlaku.includes(m.name))
 }
 
 // ─── Tampilan jenis setoran tahfidz ─────────────────────────────────
