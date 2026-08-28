@@ -5,7 +5,9 @@ import { updatePengurusProfileAction } from '@/app/actions/profile'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Plus, Trash2, UserRound } from 'lucide-react'
+import { Plus, Trash2 } from 'lucide-react'
+import { PhotoAdjuster } from '@/components/profil/PhotoAdjuster'
+import { parseFocus } from '@/lib/profil/foto'
 import {
   EDUCATION_LEVELS,
   hasMajorField,
@@ -68,13 +70,20 @@ export function PengurusProfileForm({ profile }: { profile: PengurusProfile }) {
 
   const [photoPreview, setPhotoPreview] = useState<string | null>(profile.photo_url)
 
+  // Foto baru berarti bingkai lama tidak berlaku lagi: posisi yang pas untuk
+  // foto sebelumnya hampir pasti salah untuk gambar yang komposisinya beda.
+  // Mengganti key memaksa PhotoAdjuster memulai dari posisi tengah.
+  const [adjusterKey, setAdjusterKey] = useState(0)
+
   function patchEducation(index: number, patch: Partial<EducationRow>) {
     setEducation(rows => rows.map((r, i) => (i === index ? { ...r, ...patch } : r)))
   }
 
   function onPhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
-    if (file) setPhotoPreview(URL.createObjectURL(file))
+    if (!file) return
+    setPhotoPreview(URL.createObjectURL(file))
+    setAdjusterKey(k => k + 1)
   }
 
   return (
@@ -83,15 +92,14 @@ export function PengurusProfileForm({ profile }: { profile: PengurusProfile }) {
       <section className="space-y-4">
         <h2 className="text-sm font-semibold">Identitas</h2>
 
-        <div className="flex items-center gap-4">
-          <div className="h-20 w-20 rounded-full overflow-hidden bg-muted flex items-center justify-center shrink-0 border">
-            {photoPreview ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={photoPreview} alt="" className="h-full w-full object-cover" />
-            ) : (
-              <UserRound className="h-8 w-8 text-muted-foreground" />
-            )}
-          </div>
+        <div className="flex items-start gap-4">
+          <PhotoAdjuster
+            key={adjusterKey}
+            name="photo_focus"
+            src={photoPreview}
+            initial={adjusterKey === 0 ? parseFocus(profile.photo_focus) : undefined}
+            size={88}
+          />
           <div className="space-y-1.5">
             <Label htmlFor="photo">Foto Profil</Label>
             <Input

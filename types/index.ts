@@ -74,7 +74,17 @@ export interface User {
 /** 'ust' → "Ust. Habib", 'usth' → "Usth. Aul" */
 export type Sapaan = 'ust' | 'usth'
 
-export type EducationLevel = 'SD' | 'SMP' | 'SMA' | 'S1' | 'S2' | 'S3'
+export type EducationLevel = 'SD' | 'SMP' | 'SMA' | 'D3' | 'S1' | 'S2' | 'S3'
+
+/**
+ * Titik fokus foto di dalam lingkaran. x/y persen untuk CSS object-position,
+ * zoom persen (100 = tanpa perbesaran). Berkas aslinya tidak pernah dipotong.
+ */
+export interface PhotoFocus {
+  x: number
+  y: number
+  zoom: number
+}
 
 /**
  * Satu jenjang pendidikan formal. Pengurus memilih jenjangnya lebih dulu,
@@ -117,6 +127,7 @@ export interface PengurusProfile extends User {
   education_level: EducationLevel | null
   education_history: EducationEntry[] | null
   photo_url: string | null
+  photo_focus: PhotoFocus | null
   competencies: string[] | null
   trainings: TrainingEntry[] | null
   amanah_history: AmanahEntry[] | null
@@ -686,9 +697,16 @@ export interface PublicTeacher {
   id: string
   full_name: string
   photo_url: string | null
+  photo_focus: PhotoFocus | null
   public_title: string | null
   public_bio: string | null
   display_order: number
+  /**
+   * true kalau photo_url dipinjam dari akun pengurus lewat teachers.linked_user_id
+   * — guru ini belum punya fotonya sendiri. Panel Humas memakainya untuk
+   * menjelaskan kenapa foto muncul padahal belum pernah diunggah di sana.
+   */
+  photo_from_user?: boolean
 }
 
 // ─── Keuangan Bendahara ──────────────────────────────────────────────────────
@@ -789,7 +807,7 @@ export type TeacherEmployment = 'tetap_yayasan' | 'kontrak_yayasan' | 'kontrak_r
 export const TEACHER_EMPLOYMENT_LABELS: Record<TeacherEmployment, string> = {
   tetap_yayasan: 'Guru Tetap Yayasan',
   kontrak_yayasan: 'Guru Kontrak Yayasan',
-  kontrak_rq: 'Guru Kontrak RQ (OS)',
+  kontrak_rq: 'Guru Kontrak RQ',
 }
 
 export interface AcademicTerm {

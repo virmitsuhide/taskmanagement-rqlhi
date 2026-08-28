@@ -4,6 +4,8 @@ import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
 import { ChevronDown, LayoutDashboard, UserRound, LogOut } from 'lucide-react'
 import { logoutAction } from '@/app/actions/auth'
+import { parseFocus, photoStyle } from '@/lib/profil/foto'
+import type { PhotoFocus } from '@/types'
 
 interface Props {
   /** Sudah dalam bentuk "Ust. Habib" / "Usth. Aul". */
@@ -11,6 +13,7 @@ interface Props {
   /** Label jabatan, mis. "Kepala RQ". */
   roleLabel: string
   photoUrl: string | null
+  photoFocus?: PhotoFocus | null
   dashboardHref: string
 }
 
@@ -19,7 +22,7 @@ interface Props {
  * menggantikan tombol "Masuk". Bagian kiri (foto + nama) menuju profil,
  * chevron di kanan membuka dropdown berisi jalan kembali ke dashboard.
  */
-export function HeaderUserCard({ name, roleLabel, photoUrl, dashboardHref }: Props) {
+export function HeaderUserCard({ name, roleLabel, photoUrl, photoFocus, dashboardHref }: Props) {
   const [open, setOpen] = useState(false)
   const wrapRef = useRef<HTMLDivElement>(null)
   const btnRef = useRef<HTMLButtonElement>(null)
@@ -51,7 +54,7 @@ export function HeaderUserCard({ name, roleLabel, photoUrl, dashboardHref }: Pro
           <span className="h-9 w-9 rounded-full overflow-hidden bg-muted flex items-center justify-center shrink-0">
             {photoUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={photoUrl} alt="" className="h-full w-full object-cover" />
+              <img src={photoUrl} alt="" className="h-full w-full" style={photoStyle(parseFocus(photoFocus))} />
             ) : (
               <UserRound className="h-4 w-4 text-muted-foreground" />
             )}

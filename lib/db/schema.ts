@@ -75,6 +75,8 @@ export const users = pgTable('users', {
   /** [{ level, institution, major, graduation_year }] — urut dari jenjang terendah. */
   education_history: jsonb('education_history'),
   photo_url: text('photo_url'),
+  /** { x, y, zoom } — posisi foto di dalam lingkaran, lihat lib/profil/foto.ts. */
+  photo_focus: jsonb('photo_focus'),
   competencies: text('competencies').array(),
   /** [{ name, year, organizer }] */
   trainings: jsonb('trainings'),
@@ -312,6 +314,8 @@ export const teachers = pgTable('teachers', {
   email: text('email'),
   phone: text('phone'),
   photo_url: text('photo_url'),
+  /** { x, y, zoom } — posisi foto di dalam lingkaran, lihat lib/profil/foto.ts. */
+  photo_focus: jsonb('photo_focus'),
   is_active: boolean('is_active').default(true),
   // Profil publik — dikelola Humas, tampil di /profil-guru
   public_title: text('public_title'),

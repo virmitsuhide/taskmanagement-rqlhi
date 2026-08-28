@@ -5,10 +5,10 @@ import type { EducationEntry, EducationLevel } from '@/types'
  * mengurutkan riwayat saat disimpan, dan menentukan jenjang tertinggi
  * yang tetap ditulis ke kolom lama `users.education_level`.
  */
-export const EDUCATION_LEVELS = ['SD', 'SMP', 'SMA', 'S1', 'S2', 'S3'] as const
+export const EDUCATION_LEVELS = ['SD', 'SMP', 'SMA', 'D3', 'S1', 'S2', 'S3'] as const
 
 /** Jenjang yang lazim punya jurusan/program studi. */
-const LEVELS_WITH_MAJOR: readonly string[] = ['SMA', 'S1', 'S2', 'S3']
+const LEVELS_WITH_MAJOR: readonly string[] = ['SMA', 'D3', 'S1', 'S2', 'S3']
 
 export function isEducationLevel(value: string): value is EducationLevel {
   return (EDUCATION_LEVELS as readonly string[]).includes(value)
@@ -23,7 +23,7 @@ export function hasMajorField(level: string): boolean {
  * SD–SMA, "Nama perguruan tinggi" untuk S1 ke atas.
  */
 export function institutionPlaceholder(level: string): string {
-  if (level === 'S1' || level === 'S2' || level === 'S3') return 'Nama perguruan tinggi'
+  if (level === 'D3' || level === 'S1' || level === 'S2' || level === 'S3') return 'Nama perguruan tinggi'
   if (!level) return 'Nama lembaga'
   return 'Nama sekolah'
 }

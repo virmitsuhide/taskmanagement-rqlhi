@@ -5,6 +5,7 @@ import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { ProfileForm } from './ProfileForm'
 import { PengurusProfileForm } from './PengurusProfileForm'
 import { ROLE_LABELS, canHavePengurusProfile, sapaanName } from '@/lib/auth/permissions'
+import { parseFocus, photoStyle } from '@/lib/profil/foto'
 import type { PengurusProfile } from '@/types'
 
 // Kolom profil dari migrasi 0014.
@@ -14,7 +15,7 @@ const PROFILE_COLUMNS =
   ' education_level, photo_url, competencies, trainings, amanah_history, awards'
 
 // + riwayat pendidikan dari migrasi 0039.
-const PROFILE_COLUMNS_FULL = `${PROFILE_COLUMNS}, education_history`
+const PROFILE_COLUMNS_FULL = `${PROFILE_COLUMNS}, education_history, photo_focus`
 
 const BASIC_COLUMNS = 'id, username, role, display_name, email, can_change_password, created_at'
 
@@ -54,7 +55,12 @@ export default async function ProfilPage() {
           <div className="h-14 w-14 rounded-full overflow-hidden bg-muted flex items-center justify-center shrink-0 border">
             {profile.photo_url ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={profile.photo_url} alt="" className="h-full w-full object-cover" />
+              <img
+                src={profile.photo_url}
+                alt=""
+                className="h-full w-full"
+                style={photoStyle(parseFocus(profile.photo_focus))}
+              />
             ) : (
               <span className="text-lg font-bold text-muted-foreground">
                 {profile.display_name.slice(0, 2).toUpperCase()}

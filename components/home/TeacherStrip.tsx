@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { parseFocus, photoStyle } from '@/lib/profil/foto'
 import type { PublicTeacher } from '@/types'
 
 interface Props {
@@ -39,8 +40,10 @@ export function TeacherStrip({ title, teachers }: Props) {
             href="/profil-guru"
             className="rounded-xl border bg-card p-4 flex flex-col items-center text-center hover:border-primary/40 hover:shadow-sm transition-all"
           >
-            <Avatar className="size-14 mb-2.5">
-              {teacher.photo_url && <AvatarImage src={teacher.photo_url} alt="" />}
+            <Avatar className="size-14 mb-2.5 overflow-hidden">
+              {teacher.photo_url && (
+                <AvatarImage src={teacher.photo_url} alt="" style={photoStyle(parseFocus(teacher.photo_focus))} />
+              )}
               <AvatarFallback className="text-sm font-semibold">
                 {initials(teacher.full_name)}
               </AvatarFallback>

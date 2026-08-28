@@ -8,6 +8,7 @@ import { PublicHeader } from '@/components/layout/PublicHeader'
 import { PublicFooter } from '@/components/home/PublicFooter'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
+import { parseFocus, photoStyle } from '@/lib/profil/foto'
 import type { PublicTeacher } from '@/types'
 
 export const metadata: Metadata = {
@@ -90,8 +91,10 @@ export default async function ProfilGuruPage() {
 function TeacherCard({ teacher }: { teacher: PublicTeacher }) {
   return (
     <article className="rounded-xl border bg-card p-5 flex flex-col items-center text-center">
-      <Avatar className="size-20 mb-3.5">
-        {teacher.photo_url && <AvatarImage src={teacher.photo_url} alt="" />}
+      <Avatar className="size-20 mb-3.5 overflow-hidden">
+        {teacher.photo_url && (
+          <AvatarImage src={teacher.photo_url} alt="" style={photoStyle(parseFocus(teacher.photo_focus))} />
+        )}
         <AvatarFallback className="text-lg font-semibold">{initials(teacher.full_name)}</AvatarFallback>
       </Avatar>
 

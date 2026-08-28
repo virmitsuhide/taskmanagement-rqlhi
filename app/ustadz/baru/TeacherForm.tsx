@@ -98,7 +98,7 @@ export function TeacherForm({ mode, initial }: Props) {
       </div>
 
       {/* Kepegawaian — menentukan pos gaji sekaligus apakah aksesnya bisa
-          kedaluwarsa. Guru OS berganti tiap tahun ajaran, jadi tanggal
+          kedaluwarsa. Guru kontrak RQ berganti tiap tahun ajaran, jadi tanggal
           kontraknya yang mencabut akses, bukan ingatan admin. */}
       <fieldset className="rounded-md border p-3 space-y-3">
         <legend className="px-1 text-sm font-medium">Kepegawaian</legend>

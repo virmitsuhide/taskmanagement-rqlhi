@@ -6,6 +6,7 @@ import { createServerClient } from '@/lib/supabase/server'
 import { getSession } from '@/lib/auth/session'
 import { canHavePengurusProfile } from '@/lib/auth/permissions'
 import { highestLevel, isEducationLevel, sortEducation } from '@/lib/profil/pendidikan'
+import { focusFromFormData } from '@/lib/profil/foto'
 import type { EducationEntry, TrainingEntry, AmanahEntry, AwardEntry } from '@/types'
 
 const PHOTO_BUCKET = 'profile-photos'
@@ -127,6 +128,9 @@ export async function updatePengurusProfileAction(_: unknown, formData: FormData
     current_amanah: (formData.get('current_amanah') as string)?.trim() || null,
     education_history: educationHistory,
     education_level: highestLevel(educationHistory),
+    // Posisi foto ikut tersimpan tiap kali profil disimpan, termasuk saat
+    // fotonya tidak diganti — menggeser bingkai saja sudah pantas disimpan.
+    photo_focus: focusFromFormData(formData, 'photo_focus'),
     competencies,
     trainings,
     amanah_history: amanahHistory,
@@ -153,6 +157,12 @@ export async function updatePengurusProfileAction(_: unknown, formData: FormData
       return {
         error:
           'Riwayat pendidikan belum bisa disimpan: jalankan drizzle/0039_riwayat_pendidikan_PASTE_TO_SUPABASE.sql di Supabase.',
+      }
+    }
+    if (error.message?.includes('photo_focus')) {
+      return {
+        error:
+          'Posisi foto belum bisa disimpan: jalankan drizzle/0040_foto_geser_dan_foto_guru_PASTE_TO_SUPABASE.sql di Supabase.',
       }
     }
     return { error: 'Gagal menyimpan profil.' }

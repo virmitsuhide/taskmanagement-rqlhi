@@ -254,7 +254,7 @@ function StatusChip({ href, active, children }: { href: string; active: boolean;
 const EMPLOYMENT_SHORT: Record<TeacherEmployment, string> = {
   tetap_yayasan: 'Tetap YYS',
   kontrak_yayasan: 'Kontrak YYS',
-  kontrak_rq: 'OS',
+  kontrak_rq: 'Kontrak RQ',
 }
 
 /**

@@ -5,6 +5,7 @@ import { createServerClient } from '@/lib/supabase/server'
 import { getSession } from '@/lib/auth/session'
 import { canManageHomepage } from '@/lib/auth/permissions'
 import { DEFAULT_SECTIONS } from '@/lib/data/site'
+import { focusFromFormData } from '@/lib/profil/foto'
 import type { FooterLink, FooterUnit, HomeSection } from '@/types'
 
 type FormState = { error?: string; success?: string } | null
@@ -22,6 +23,36 @@ async function guard() {
 }
 
 const str = (fd: FormData, key: string) => ((fd.get(key) as string) ?? '').trim()
+
+const PHOTO_BUCKET = 'profile-photos'
+const MAX_PHOTO_BYTES = 2 * 1024 * 1024
+
+/**
+ * Unggah foto guru. Berbagi bucket dengan foto pengurus — keduanya sama-sama
+ * foto orang berukuran kecil, dan bucket tambahan berarti satu langkah manual
+ * lagi di Supabase yang gampang terlupa. Awalan `teacher-` pada nama berkas
+ * yang memisahkannya.
+ *
+ * Mengembalikan null kalau gagal; pemanggil tetap menyimpan sisa profilnya.
+ */
+async function uploadTeacherPhoto(
+  supabase: ReturnType<typeof createServerClient>,
+  file: File,
+  teacherId: string,
+): Promise<string | null> {
+  try {
+    const bytes = await file.arrayBuffer()
+    const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg'
+    const filename = `teacher-${teacherId}-${Date.now()}.${ext}`
+    const { data, error } = await supabase.storage
+      .from(PHOTO_BUCKET)
+      .upload(filename, Buffer.from(bytes), { contentType: file.type, upsert: true })
+    if (error || !data) return null
+    return supabase.storage.from(PHOTO_BUCKET).getPublicUrl(data.path).data.publicUrl
+  } catch {
+    return null
+  }
+}
 
 /**
  * Baris site_settings selalu id = 1. Upsert dipakai (bukan update) supaya
@@ -146,28 +177,57 @@ export async function updateTeacherProfilesAction(_: unknown, formData: FormData
 
   const supabase = createServerClient()
 
+  // Foto diunggah lebih dulu, berurutan per guru yang memang mengirim berkas.
+  // Biasanya hanya satu-dua guru diganti fotonya dalam sekali simpan, jadi
+  // tidak perlu diparalelkan seperti update barisnya.
+  const uploadedPhotos = new Map<string, string>()
+  let photoWarning: string | null = null
+  for (const id of ids) {
+    const file = formData.get(`photo_${id}`) as File | null
+    if (!file || file.size === 0) continue
+    if (file.size > MAX_PHOTO_BYTES) {
+      return { error: `Foto guru maksimal 2 MB — ada berkas yang lebih besar.` }
+    }
+    const url = await uploadTeacherPhoto(supabase, file, id)
+    if (url) uploadedPhotos.set(id, url)
+    else photoWarning = 'Sebagian foto gagal diunggah. Pastikan bucket "profile-photos" sudah dibuat di Supabase.'
+  }
+
   // Supabase tidak punya update massal multi-nilai, jadi satu update per guru.
   // Jumlah guru RQ berada di orde puluhan, masih wajar untuk dijalankan paralel.
   const results = await Promise.all(
     ids.map((id, i) => {
       const rawOrder = Number(formData.get(`order_${id}`))
-      return supabase
-        .from('teachers')
-        .update({
-          is_public: formData.get(`public_${id}`) === 'on',
-          public_title: ((formData.get(`title_${id}`) as string) ?? '').trim() || null,
-          public_bio: ((formData.get(`bio_${id}`) as string) ?? '').trim() || null,
-          display_order: Number.isFinite(rawOrder) ? rawOrder : i,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', id)
+      const patch: Record<string, unknown> = {
+        is_public: formData.get(`public_${id}`) === 'on',
+        public_title: ((formData.get(`title_${id}`) as string) ?? '').trim() || null,
+        public_bio: ((formData.get(`bio_${id}`) as string) ?? '').trim() || null,
+        display_order: Number.isFinite(rawOrder) ? rawOrder : i,
+        photo_focus: focusFromFormData(formData, `focus_${id}`),
+        updated_at: new Date().toISOString(),
+      }
+      // photo_url hanya disentuh kalau ada berkas baru — guru yang fotonya
+      // sedang dipinjam dari akun pengurus tidak boleh ikut terkunci di sini.
+      const uploaded = uploadedPhotos.get(id)
+      if (uploaded) patch.photo_url = uploaded
+
+      return supabase.from('teachers').update(patch).eq('id', id)
     }),
   )
 
   const failed = results.find(r => r.error)
-  if (failed?.error) return { error: failed.error.message }
+  if (failed?.error) {
+    if (failed.error.message?.includes('photo_focus')) {
+      return {
+        error:
+          'Posisi foto belum bisa disimpan: jalankan drizzle/0040_foto_geser_dan_foto_guru_PASTE_TO_SUPABASE.sql di Supabase.',
+      }
+    }
+    return { error: failed.error.message }
+  }
 
   revalidatePath('/profil-guru')
   revalidatePublicPages()
+  if (photoWarning) return { success: `Profil guru tersimpan. ${photoWarning}` }
   return { success: 'Profil guru tersimpan.' }
 }

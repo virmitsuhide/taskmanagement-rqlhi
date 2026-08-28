@@ -112,22 +112,77 @@ export function findSection(settings: SiteSettings, key: HomeSectionKey): HomeSe
   )
 }
 
+const TEACHER_PUBLIC_COLUMNS =
+  'id, full_name, photo_url, photo_focus, public_title, public_bio, display_order, linked_user_id'
+
+/** Tanpa kolom dari migrasi 0040 — cadangan kalau migrasinya belum dijalankan. */
+const TEACHER_PUBLIC_COLUMNS_LEGACY =
+  'id, full_name, photo_url, public_title, public_bio, display_order'
+
+type TeacherRow = PublicTeacher & { linked_user_id?: string | null; is_public?: boolean }
+
+/**
+ * Guru yang belum punya foto sendiri meminjam foto akun pengurusnya.
+ *
+ * Tujuh dari guru RQ adalah pengurus dan sudah punya foto di /profil, sementara
+ * teachers.photo_url baru terisi kalau Humas mengunggahnya. Tautannya sudah ada
+ * sejak awal di teachers.linked_user_id — sebelum ini kolom itu diisi tapi tidak
+ * pernah dibaca. Peminjaman hanya berlaku satu arah dan hanya saat kosong: begitu
+ * Humas mengunggah foto guru, foto itu yang menang.
+ */
+async function borrowUserPhotos<T extends TeacherRow>(
+  supabase: ReturnType<typeof createServerClient>,
+  rows: T[],
+): Promise<T[]> {
+  const ids = [...new Set(rows.filter(r => !r.photo_url && r.linked_user_id).map(r => r.linked_user_id as string))]
+  if (ids.length === 0) return rows
+
+  type UserPhoto = { id: string; photo_url: string | null; photo_focus?: unknown }
+
+  const withFocus = await supabase.from('users').select('id, photo_url, photo_focus').in('id', ids)
+  const users: UserPhoto[] = withFocus.data
+    ? (withFocus.data as UserPhoto[])
+    : (((await supabase.from('users').select('id, photo_url').in('id', ids)).data ?? []) as UserPhoto[])
+
+  const byId = new Map(users.map(u => [u.id, u]))
+
+  return rows.map(r => {
+    if (r.photo_url || !r.linked_user_id) return r
+    const u = byId.get(r.linked_user_id)
+    if (!u?.photo_url) return r
+    return {
+      ...r,
+      photo_url: u.photo_url,
+      photo_focus: (u.photo_focus ?? null) as PublicTeacher['photo_focus'],
+      photo_from_user: true,
+    }
+  })
+}
+
 /** Guru yang ditandai tampil publik, untuk /profil-guru dan seksi beranda. */
 export const getPublicTeachers = cache(async (limit?: number): Promise<PublicTeacher[]> => {
   try {
     const supabase = createServerClient()
-    let query = supabase
-      .from('teachers')
-      .select('id, full_name, photo_url, public_title, public_bio, display_order')
-      .eq('is_active', true)
-      .is('deleted_at', null)
-      .eq('is_public', true)
-      .order('display_order', { ascending: true })
-      .order('full_name', { ascending: true })
-    if (limit && limit > 0) query = query.limit(limit)
+    const run = (columns: string) => {
+      let q = supabase
+        .from('teachers')
+        .select(columns)
+        .eq('is_active', true)
+        .is('deleted_at', null)
+        .eq('is_public', true)
+        .order('display_order', { ascending: true })
+        .order('full_name', { ascending: true })
+      if (limit && limit > 0) q = q.limit(limit)
+      return q
+    }
 
-    const { data } = await query
-    return (data ?? []) as PublicTeacher[]
+    // photo_focus baru ada setelah migrasi 0040. Tanpa cadangan ini seksi guru
+    // di beranda hilang total, bukan sekadar tampil tanpa foto.
+    // eslint-disable-next-line prefer-const
+    let { data, error } = await run(TEACHER_PUBLIC_COLUMNS)
+    if (error) ({ data } = await run(TEACHER_PUBLIC_COLUMNS_LEGACY))
+
+    return await borrowUserPhotos(supabase, (data ?? []) as unknown as TeacherRow[])
   } catch {
     return []
   }
@@ -137,14 +192,21 @@ export const getPublicTeachers = cache(async (limit?: number): Promise<PublicTea
 export async function getTeachersForCuration() {
   try {
     const supabase = createServerClient()
-    const { data } = await supabase
-      .from('teachers')
-      .select('id, full_name, photo_url, public_title, public_bio, is_public, display_order')
-      .eq('is_active', true)
-      .is('deleted_at', null)
-      .order('display_order', { ascending: true })
-      .order('full_name', { ascending: true })
-    return (data ?? []) as (PublicTeacher & { is_public: boolean })[]
+    const run = (columns: string) =>
+      supabase
+        .from('teachers')
+        .select(columns)
+        .eq('is_active', true)
+        .is('deleted_at', null)
+        .order('display_order', { ascending: true })
+        .order('full_name', { ascending: true })
+
+    // eslint-disable-next-line prefer-const
+    let { data, error } = await run(`${TEACHER_PUBLIC_COLUMNS}, is_public`)
+    if (error) ({ data } = await run(`${TEACHER_PUBLIC_COLUMNS_LEGACY}, is_public`))
+
+    const rows = await borrowUserPhotos(supabase, (data ?? []) as unknown as TeacherRow[])
+    return rows as (PublicTeacher & { is_public: boolean })[]
   } catch {
     return []
   }

@@ -8,6 +8,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { PhotoAdjuster } from '@/components/profil/PhotoAdjuster'
+import { parseFocus, photoStyle } from '@/lib/profil/foto'
 import type { PublicTeacher } from '@/types'
 import { FormFeedback } from './FormFeedback'
 
@@ -16,6 +18,71 @@ type Row = PublicTeacher & { is_public: boolean }
 
 function initials(name: string) {
   return name.split(/\s+/).slice(0, 2).map(w => w[0]?.toUpperCase() ?? '').join('')
+}
+
+/**
+ * Kolom foto satu guru: unggah berkas + atur posisinya di lingkaran.
+ *
+ * Guru yang fotonya dipinjam dari akun pengurus (lihat borrowUserPhotos) sengaja
+ * TIDAK diberi pengatur posisi. Posisi foto pinjaman ikut pemiliknya di /profil,
+ * jadi slider di sini akan tampak tersimpan padahal tidak berpengaruh apa-apa —
+ * lebih jujur menjelaskan asal fotonya dan menawarkan unggahan sendiri.
+ */
+function TeacherPhotoField({ teacher }: { teacher: Row }) {
+  const [preview, setPreview] = useState<string | null>(teacher.photo_url)
+  const [picked, setPicked] = useState(false)
+  const borrowed = Boolean(teacher.photo_from_user) && !picked
+
+  function onChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setPreview(URL.createObjectURL(file))
+    setPicked(true)
+  }
+
+  return (
+    <div className="shrink-0 w-[116px] space-y-1.5">
+      {borrowed ? (
+        <Avatar className="size-14 overflow-hidden">
+          {teacher.photo_url && (
+            <AvatarImage
+              src={teacher.photo_url}
+              alt=""
+              style={photoStyle(parseFocus(teacher.photo_focus))}
+            />
+          )}
+          <AvatarFallback className="text-xs font-semibold">
+            {initials(teacher.full_name)}
+          </AvatarFallback>
+        </Avatar>
+      ) : (
+        <PhotoAdjuster
+          key={picked ? 'baru' : 'awal'}
+          name={`focus_${teacher.id}`}
+          src={preview}
+          initial={picked ? undefined : parseFocus(teacher.photo_focus)}
+          size={56}
+          compact
+          label={teacher.full_name}
+        />
+      )}
+
+      <Input
+        type="file"
+        name={`photo_${teacher.id}`}
+        accept="image/png,image/jpeg,image/webp"
+        onChange={onChange}
+        className="h-7 text-[10px] px-1.5 py-0 file:text-[10px]"
+        aria-label={`Foto ${teacher.full_name}`}
+      />
+
+      {borrowed && (
+        <p className="text-[10px] leading-tight text-muted-foreground">
+          Foto dipinjam dari akun pengurus.
+        </p>
+      )}
+    </div>
+  )
 }
 
 export function TeacherProfilesForm({ teachers }: { teachers: Row[] }) {
@@ -78,12 +145,7 @@ export function TeacherProfilesForm({ teachers }: { teachers: Row[] }) {
               <input type="hidden" name="teacher_id" value={teacher.id} />
 
               <div className="flex items-start gap-3.5">
-                <Avatar className="size-11 mt-0.5">
-                  {teacher.photo_url && <AvatarImage src={teacher.photo_url} alt="" />}
-                  <AvatarFallback className="text-xs font-semibold">
-                    {initials(teacher.full_name)}
-                  </AvatarFallback>
-                </Avatar>
+                <TeacherPhotoField teacher={teacher} />
 
                 <div className="flex-1 min-w-0 space-y-3">
                   <div className="flex items-center justify-between gap-3 flex-wrap">

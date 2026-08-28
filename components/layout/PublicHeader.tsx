@@ -7,6 +7,7 @@ import { getSession } from '@/lib/auth/session'
 import { createServerClient } from '@/lib/supabase/server'
 import { ROLE_LABELS, DEFAULT_DASHBOARD, sapaanName } from '@/lib/auth/permissions'
 import { HeaderUserCard } from './HeaderUserCard'
+import type { PhotoFocus } from '@/types'
 
 interface NavItem {
   label: string
@@ -64,10 +65,15 @@ async function getHeaderProfile(userId: string) {
   const supabase = createServerClient()
   const { data } = await supabase
     .from('users')
-    .select('sapaan, nickname, photo_url')
+    .select('sapaan, nickname, photo_url, photo_focus')
     .eq('id', userId)
     .maybeSingle()
-  return data as { sapaan: string | null; nickname: string | null; photo_url: string | null } | null
+  return data as {
+    sapaan: string | null
+    nickname: string | null
+    photo_url: string | null
+    photo_focus: PhotoFocus | null
+  } | null
 }
 
 export async function PublicHeader() {
@@ -105,6 +111,7 @@ export async function PublicHeader() {
             name={sapaanName(profile?.sapaan, profile?.nickname, session.displayName)}
             roleLabel={ROLE_LABELS[session.role]}
             photoUrl={profile?.photo_url ?? null}
+            photoFocus={profile?.photo_focus ?? null}
             dashboardHref={`/dashboard/${DEFAULT_DASHBOARD[session.role]}`}
           />
         ) : (
