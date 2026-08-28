@@ -5,11 +5,11 @@ import bcrypt from 'bcryptjs'
 import { createServerClient } from '@/lib/supabase/server'
 import { getSession } from '@/lib/auth/session'
 import { canHavePengurusProfile } from '@/lib/auth/permissions'
-import type { TrainingEntry, AmanahEntry, AwardEntry } from '@/types'
+import { highestLevel, isEducationLevel, sortEducation } from '@/lib/profil/pendidikan'
+import type { EducationEntry, TrainingEntry, AmanahEntry, AwardEntry } from '@/types'
 
 const PHOTO_BUCKET = 'profile-photos'
 const MAX_PHOTO_BYTES = 2 * 1024 * 1024
-const EDUCATION_LEVELS = ['SD', 'SMP', 'SMA', 'S1', 'S2', 'S3']
 
 /**
  * Unggah foto profil. Mengembalikan null kalau gagal — pemanggil memilih untuk
@@ -68,7 +68,21 @@ export async function updatePengurusProfileAction(_: unknown, formData: FormData
   const supabase = createServerClient()
 
   const sapaan = formData.get('sapaan') as string
-  const educationLevel = formData.get('education_level') as string
+
+  // Riwayat pendidikan: baris tanpa jenjang terpilih dibuang, sisanya diurutkan
+  // dari jenjang terendah. `education_level` menyusul sebagai jenjang tertinggi.
+  const educationHistory = sortEducation(
+    collectRows<EducationEntry>(
+      formData,
+      [
+        { key: 'level', field: 'edu_level' },
+        { key: 'institution', field: 'edu_institution' },
+        { key: 'major', field: 'edu_major' },
+        { key: 'graduation_year', field: 'edu_year' },
+      ],
+      'level',
+    ).filter(row => isEducationLevel(row.level)),
+  )
 
   const competencies = formData
     .getAll('competency')
@@ -111,7 +125,8 @@ export async function updatePengurusProfileAction(_: unknown, formData: FormData
     birth_place: (formData.get('birth_place') as string)?.trim() || null,
     birth_date: (formData.get('birth_date') as string) || null,
     current_amanah: (formData.get('current_amanah') as string)?.trim() || null,
-    education_level: EDUCATION_LEVELS.includes(educationLevel) ? educationLevel : null,
+    education_history: educationHistory,
+    education_level: highestLevel(educationHistory),
     competencies,
     trainings,
     amanah_history: amanahHistory,
@@ -131,7 +146,17 @@ export async function updatePengurusProfileAction(_: unknown, formData: FormData
   }
 
   const { error } = await supabase.from('users').update(patch).eq('id', session.userId)
-  if (error) return { error: 'Gagal menyimpan profil.' }
+  if (error) {
+    // Kolom baru belum ada → beri tahu migrasinya, jangan diam-diam membuang
+    // riwayat yang barusan diketik pengurus.
+    if (error.message?.includes('education_history')) {
+      return {
+        error:
+          'Riwayat pendidikan belum bisa disimpan: jalankan drizzle/0039_riwayat_pendidikan_PASTE_TO_SUPABASE.sql di Supabase.',
+      }
+    }
+    return { error: 'Gagal menyimpan profil.' }
+  }
 
   revalidatePath('/profil')
   revalidatePath('/', 'layout')

@@ -6,14 +6,38 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Plus, Trash2, UserRound } from 'lucide-react'
+import {
+  EDUCATION_LEVELS,
+  hasMajorField,
+  institutionPlaceholder,
+} from '@/lib/profil/pendidikan'
 import type { PengurusProfile, TrainingEntry, AmanahEntry, AwardEntry } from '@/types'
-
-const EDUCATION_LEVELS = ['SD', 'SMP', 'SMA', 'S1', 'S2', 'S3'] as const
 
 /** Baris kosong dipakai saat pengguna menekan "Tambah". */
 const EMPTY_TRAINING: TrainingEntry = { name: '', year: '', organizer: '' }
 const EMPTY_AMANAH: AmanahEntry = { position: '', period: '' }
 const EMPTY_AWARD: AwardEntry = { name: '', year: '' }
+
+/**
+ * Baris riwayat pendidikan disimpan sebagai state terkendali dan diberi `uid`
+ * sendiri. Empat daftar lain di form ini memakai defaultValue dengan key indeks
+ * — itu cukup selama isian barisnya sejenis, tapi di sini jenjang yang dipilih
+ * menentukan tampilan baris (placeholder lembaga & jurusan), jadi nilainya
+ * harus dibaca React, bukan hanya oleh DOM. Sebagai efek sampingnya, menghapus
+ * baris tengah tidak menggeser isi baris di bawahnya.
+ */
+type EducationRow = {
+  uid: number
+  level: string
+  institution: string
+  major: string
+  graduation_year: string
+}
+
+let eduUid = 0
+function newEducationRow(init?: Partial<EducationRow>): EducationRow {
+  return { uid: ++eduUid, level: '', institution: '', major: '', graduation_year: '', ...init }
+}
 
 const inputCls =
   'flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring'
@@ -23,6 +47,12 @@ export function PengurusProfileForm({ profile }: { profile: PengurusProfile }) {
 
   // Daftar dikelola sebagai state supaya baris bisa ditambah/dihapus. Nilainya
   // tetap dikirim lewat name= biasa, jadi server action membacanya dari FormData.
+  const [education, setEducation] = useState<EducationRow[]>(() =>
+    profile.education_history?.length
+      ? profile.education_history.map(e => newEducationRow(e))
+      : [newEducationRow()],
+  )
+
   const [competencies, setCompetencies] = useState<string[]>(
     profile.competencies?.length ? profile.competencies : [''],
   )
@@ -37,6 +67,10 @@ export function PengurusProfileForm({ profile }: { profile: PengurusProfile }) {
   )
 
   const [photoPreview, setPhotoPreview] = useState<string | null>(profile.photo_url)
+
+  function patchEducation(index: number, patch: Partial<EducationRow>) {
+    setEducation(rows => rows.map((r, i) => (i === index ? { ...r, ...patch } : r)))
+  }
 
   function onPhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -124,19 +158,53 @@ export function PengurusProfileForm({ profile }: { profile: PengurusProfile }) {
           </div>
         </div>
 
-        <div className="space-y-1.5">
-          <Label htmlFor="education_level">Jenjang Pendidikan Formal</Label>
-          <select
-            id="education_level"
-            name="education_level"
-            defaultValue={profile.education_level ?? ''}
-            className={inputCls}
-          >
-            <option value="">— pilih —</option>
-            {EDUCATION_LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
-          </select>
-        </div>
       </section>
+
+      {/* ── Riwayat pendidikan formal ─────────────────────────── */}
+      <RowSection
+        title="Riwayat Pendidikan Formal"
+        desc="Pilih jenjangnya, isi datanya, lalu tekan Tambah untuk jenjang berikutnya. Urutan bebas — tersimpan otomatis dari jenjang terendah."
+        onAdd={() => setEducation([...education, newEducationRow()])}
+      >
+        {education.map((row, i) => (
+          <RowShell key={row.uid} onRemove={() => setEducation(education.filter((_, x) => x !== i))}>
+            <div className="grid gap-2 sm:grid-cols-[104px_1fr_1fr_88px]">
+              <select
+                name="edu_level"
+                value={row.level}
+                onChange={e => patchEducation(i, { level: e.target.value })}
+                className={inputCls}
+                aria-label={`Jenjang pendidikan ${i + 1}`}
+              >
+                <option value="">— jenjang —</option>
+                {EDUCATION_LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
+              </select>
+              <Input
+                name="edu_institution"
+                value={row.institution}
+                onChange={e => patchEducation(i, { institution: e.target.value })}
+                placeholder={institutionPlaceholder(row.level)}
+                aria-label={`Nama lembaga ${i + 1}`}
+              />
+              <Input
+                name="edu_major"
+                value={row.major}
+                onChange={e => patchEducation(i, { major: e.target.value })}
+                placeholder={hasMajorField(row.level) ? 'Jurusan' : 'Jurusan (opsional)'}
+                aria-label={`Jurusan ${i + 1}`}
+              />
+              <Input
+                name="edu_year"
+                value={row.graduation_year}
+                onChange={e => patchEducation(i, { graduation_year: e.target.value })}
+                placeholder="Lulus"
+                inputMode="numeric"
+                aria-label={`Tahun lulus ${i + 1}`}
+              />
+            </div>
+          </RowShell>
+        ))}
+      </RowSection>
 
       {/* ── Kompetensi ────────────────────────────────────────── */}
       <RowSection
@@ -214,13 +282,16 @@ export function PengurusProfileForm({ profile }: { profile: PengurusProfile }) {
 }
 
 function RowSection({
-  title, onAdd, children,
-}: { title: string; onAdd: () => void; children: React.ReactNode }) {
+  title, desc, onAdd, children,
+}: { title: string; desc?: string; onAdd: () => void; children: React.ReactNode }) {
   return (
     <section className="space-y-3">
-      <div className="flex items-center justify-between gap-3">
-        <h2 className="text-sm font-semibold">{title}</h2>
-        <Button type="button" size="sm" variant="outline" onClick={onAdd}>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="text-sm font-semibold">{title}</h2>
+          {desc && <p className="mt-0.5 text-[11px] text-muted-foreground">{desc}</p>}
+        </div>
+        <Button type="button" size="sm" variant="outline" onClick={onAdd} className="shrink-0">
           <Plus className="h-3.5 w-3.5 mr-1" />Tambah
         </Button>
       </div>

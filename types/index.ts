@@ -76,6 +76,18 @@ export type Sapaan = 'ust' | 'usth'
 
 export type EducationLevel = 'SD' | 'SMP' | 'SMA' | 'S1' | 'S2' | 'S3'
 
+/**
+ * Satu jenjang pendidikan formal. Pengurus memilih jenjangnya lebih dulu,
+ * lalu mengisi lembaga/jurusan/tahun lulus; barisnya bisa ditambah untuk
+ * jenjang berikutnya.
+ */
+export interface EducationEntry {
+  level: EducationLevel
+  institution: string
+  major: string
+  graduation_year: string
+}
+
 export interface TrainingEntry {
   name: string
   year: string
@@ -101,7 +113,9 @@ export interface PengurusProfile extends User {
   birth_place: string | null
   birth_date: string | null
   current_amanah: string | null
+  /** Jenjang tertinggi — turunan dari education_history, disimpan untuk kueri lama. */
   education_level: EducationLevel | null
+  education_history: EducationEntry[] | null
   photo_url: string | null
   competencies: string[] | null
   trainings: TrainingEntry[] | null

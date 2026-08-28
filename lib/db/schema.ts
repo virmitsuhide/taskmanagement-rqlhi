@@ -70,8 +70,10 @@ export const users = pgTable('users', {
   birth_place: text('birth_place'),
   birth_date: date('birth_date'),
   current_amanah: text('current_amanah'),
-  /** SD | SMP | SMA | S1 | S2 | S3 */
+  /** SD | SMP | SMA | S1 | S2 | S3 — jenjang tertinggi, turunan education_history. */
   education_level: text('education_level'),
+  /** [{ level, institution, major, graduation_year }] — urut dari jenjang terendah. */
+  education_history: jsonb('education_history'),
   photo_url: text('photo_url'),
   competencies: text('competencies').array(),
   /** [{ name, year, organizer }] */
