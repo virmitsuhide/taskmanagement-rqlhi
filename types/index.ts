@@ -109,6 +109,18 @@ export interface AmanahEntry {
   period: string
 }
 
+/**
+ * Satu kompetensi beserta lembaga yang menjaminnya.
+ *
+ * institution kosong = kompetensinya diakui tapi belum tersertifikasi. Sengaja
+ * tidak ada bendera "certified" terpisah: satu kolom menjawab dua pertanyaan
+ * sekaligus, jadi keduanya mustahil bertentangan.
+ */
+export interface CompetencyEntry {
+  name: string
+  institution: string
+}
+
 export interface AwardEntry {
   name: string
   year: string
@@ -128,7 +140,10 @@ export interface PengurusProfile extends User {
   education_history: EducationEntry[] | null
   photo_url: string | null
   photo_focus: PhotoFocus | null
-  competencies: string[] | null
+  quran_competencies: CompetencyEntry[] | null
+  other_competencies: CompetencyEntry[] | null
+  /** Nama ijazah/sanad saja — tanpa tahun, tanpa lembaga. */
+  ijazah_sanad: string[] | null
   trainings: TrainingEntry[] | null
   amanah_history: AmanahEntry[] | null
   awards: AwardEntry[] | null

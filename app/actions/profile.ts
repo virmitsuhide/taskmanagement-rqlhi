@@ -7,7 +7,7 @@ import { getSession } from '@/lib/auth/session'
 import { canHavePengurusProfile } from '@/lib/auth/permissions'
 import { highestLevel, isEducationLevel, sortEducation } from '@/lib/profil/pendidikan'
 import { focusFromFormData } from '@/lib/profil/foto'
-import type { EducationEntry, TrainingEntry, AmanahEntry, AwardEntry } from '@/types'
+import type { EducationEntry, TrainingEntry, AmanahEntry, AwardEntry, CompetencyEntry } from '@/types'
 
 const PHOTO_BUCKET = 'profile-photos'
 const MAX_PHOTO_BYTES = 2 * 1024 * 1024
@@ -85,8 +85,29 @@ export async function updatePengurusProfileAction(_: unknown, formData: FormData
     ).filter(row => isEducationLevel(row.level)),
   )
 
-  const competencies = formData
-    .getAll('competency')
+  // Dua daftar kompetensi berbentuk sama; yang membedakan hanya awalan
+  // fieldnya. Lembaga yang kosong dibiarkan kosong — itulah cara menyatakan
+  // "belum tersertifikasi" (lihat CompetencyEntry).
+  const quranCompetencies = collectRows<CompetencyEntry>(
+    formData,
+    [
+      { key: 'name', field: 'quran_comp_name' },
+      { key: 'institution', field: 'quran_comp_institution' },
+    ],
+    'name',
+  )
+
+  const otherCompetencies = collectRows<CompetencyEntry>(
+    formData,
+    [
+      { key: 'name', field: 'other_comp_name' },
+      { key: 'institution', field: 'other_comp_institution' },
+    ],
+    'name',
+  )
+
+  const ijazahSanad = formData
+    .getAll('ijazah_sanad')
     .map(v => String(v).trim())
     .filter(Boolean)
 
@@ -131,7 +152,9 @@ export async function updatePengurusProfileAction(_: unknown, formData: FormData
     // Posisi foto ikut tersimpan tiap kali profil disimpan, termasuk saat
     // fotonya tidak diganti — menggeser bingkai saja sudah pantas disimpan.
     photo_focus: focusFromFormData(formData, 'photo_focus'),
-    competencies,
+    quran_competencies: quranCompetencies,
+    other_competencies: otherCompetencies,
+    ijazah_sanad: ijazahSanad,
     trainings,
     amanah_history: amanahHistory,
     awards,
@@ -157,6 +180,12 @@ export async function updatePengurusProfileAction(_: unknown, formData: FormData
       return {
         error:
           'Riwayat pendidikan belum bisa disimpan: jalankan drizzle/0039_riwayat_pendidikan_PASTE_TO_SUPABASE.sql di Supabase.',
+      }
+    }
+    if (error.message?.includes('quran_competencies') || error.message?.includes('ijazah_sanad')) {
+      return {
+        error:
+          'Kompetensi & ijazah belum bisa disimpan: jalankan drizzle/0042_kompetensi_quran_ijazah_sanad_PASTE_TO_SUPABASE.sql di Supabase.',
       }
     }
     if (error.message?.includes('photo_focus')) {

@@ -82,7 +82,12 @@ export const users = pgTable('users', {
   photo_url: text('photo_url'),
   /** { x, y, zoom } — posisi foto di dalam lingkaran, lihat lib/profil/foto.ts. */
   photo_focus: jsonb('photo_focus'),
-  competencies: text('competencies').array(),
+  /** [{ name, institution }] — lembaga kosong = belum tersertifikasi (0042). */
+  quran_competencies: jsonb('quran_competencies'),
+  /** [{ name, institution }] — kompetensi di luar Al-Qur'an (0042). */
+  other_competencies: jsonb('other_competencies'),
+  /** Nama ijazah/sanad yang dimiliki, tanpa tahun (0042). */
+  ijazah_sanad: text('ijazah_sanad').array(),
   /** [{ name, year, organizer }] */
   trainings: jsonb('trainings'),
   /** [{ position, period }] */

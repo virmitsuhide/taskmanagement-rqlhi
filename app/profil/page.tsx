@@ -9,13 +9,21 @@ import { parseFocus, photoStyle } from '@/lib/profil/foto'
 import type { PengurusProfile } from '@/types'
 
 // Kolom profil dari migrasi 0014.
+//
+// `competencies` sudah tidak ada di sini: migrasi 0042 memindahkan isinya ke
+// quran_competencies lalu melepas kolomnya, jadi menyebutnya akan menggagalkan
+// tingkat ini justru pada database yang paling mutakhir.
 const PROFILE_COLUMNS =
   'id, username, role, display_name, email, can_change_password, created_at,' +
   ' sapaan, nickname, full_name, nip, birth_place, birth_date, current_amanah,' +
-  ' education_level, photo_url, competencies, trainings, amanah_history, awards'
+  ' education_level, photo_url, trainings, amanah_history, awards'
 
-// + riwayat pendidikan dari migrasi 0039.
+// + riwayat pendidikan dari migrasi 0039 & posisi foto dari 0040.
 const PROFILE_COLUMNS_FULL = `${PROFILE_COLUMNS}, education_history, photo_focus`
+
+// + kompetensi terpilah & ijazah/sanad dari migrasi 0042.
+const PROFILE_COLUMNS_0042 =
+  `${PROFILE_COLUMNS_FULL}, quran_competencies, other_competencies, ijazah_sanad`
 
 const BASIC_COLUMNS = 'id, username, role, display_name, email, can_change_password, created_at'
 
@@ -27,10 +35,14 @@ export default async function ProfilPage() {
   const supabase = createServerClient()
 
   // Kolom profil baru bisa belum ada kalau migrasinya belum dijalankan. Turun
-  // bertingkat — 0039, lalu 0014, lalu kolom dasar — supaya database yang
-  // tertinggal satu migrasi tidak membuat seluruh form profil hilang.
+  // bertingkat — 0042, lalu 0039, lalu 0014, lalu kolom dasar — supaya database
+  // yang tertinggal satu migrasi tidak membuat seluruh form profil hilang.
   let data: Record<string, unknown> | null = null
   if (full) {
+    const res = await supabase.from('users').select(PROFILE_COLUMNS_0042).eq('id', session.userId).maybeSingle()
+    data = res.data as Record<string, unknown> | null
+  }
+  if (full && !data) {
     const res = await supabase.from('users').select(PROFILE_COLUMNS_FULL).eq('id', session.userId).maybeSingle()
     data = res.data as Record<string, unknown> | null
   }

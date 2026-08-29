@@ -13,12 +13,15 @@ import {
   hasMajorField,
   institutionPlaceholder,
 } from '@/lib/profil/pendidikan'
-import type { PengurusProfile, TrainingEntry, AmanahEntry, AwardEntry } from '@/types'
+import type {
+  PengurusProfile, TrainingEntry, AmanahEntry, AwardEntry, CompetencyEntry,
+} from '@/types'
 
 /** Baris kosong dipakai saat pengguna menekan "Tambah". */
 const EMPTY_TRAINING: TrainingEntry = { name: '', year: '', organizer: '' }
 const EMPTY_AMANAH: AmanahEntry = { position: '', period: '' }
 const EMPTY_AWARD: AwardEntry = { name: '', year: '' }
+const EMPTY_COMPETENCY: CompetencyEntry = { name: '', institution: '' }
 
 /**
  * Baris riwayat pendidikan disimpan sebagai state terkendali dan diberi `uid`
@@ -55,8 +58,14 @@ export function PengurusProfileForm({ profile }: { profile: PengurusProfile }) {
       : [newEducationRow()],
   )
 
-  const [competencies, setCompetencies] = useState<string[]>(
-    profile.competencies?.length ? profile.competencies : [''],
+  const [quranComps, setQuranComps] = useState<CompetencyEntry[]>(
+    profile.quran_competencies?.length ? profile.quran_competencies : [EMPTY_COMPETENCY],
+  )
+  const [otherComps, setOtherComps] = useState<CompetencyEntry[]>(
+    profile.other_competencies?.length ? profile.other_competencies : [EMPTY_COMPETENCY],
+  )
+  const [ijazahSanad, setIjazahSanad] = useState<string[]>(
+    profile.ijazah_sanad?.length ? profile.ijazah_sanad : [''],
   )
   const [trainings, setTrainings] = useState<TrainingEntry[]>(
     profile.trainings?.length ? profile.trainings : [EMPTY_TRAINING],
@@ -214,19 +223,54 @@ export function PengurusProfileForm({ profile }: { profile: PengurusProfile }) {
         ))}
       </RowSection>
 
-      {/* ── Kompetensi ────────────────────────────────────────── */}
+      {/* ── Kompetensi Al-Qur'an ──────────────────────────────── */}
       <RowSection
-        title="Kompetensi yang Dimiliki"
-        onAdd={() => setCompetencies([...competencies, ''])}
+        title="Kompetensi Al-Qur'an yang Dimiliki"
+        desc="Isi lembaga penjaminnya bila sudah tersertifikasi; kosongkan bila belum."
+        onAdd={() => setQuranComps([...quranComps, EMPTY_COMPETENCY])}
       >
-        {competencies.map((c, i) => (
-          <RowShell key={i} onRemove={() => setCompetencies(competencies.filter((_, x) => x !== i))}>
-            <Input
-              name="competency"
-              defaultValue={c}
-              placeholder="Tahsin metode UMMI"
-              aria-label={`Kompetensi ${i + 1}`}
-            />
+        {quranComps.map((c, i) => (
+          <RowShell key={i} onRemove={() => setQuranComps(quranComps.filter((_, x) => x !== i))}>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <Input
+                name="quran_comp_name"
+                defaultValue={c.name}
+                placeholder="Tahsin metode UMMI"
+                aria-label={`Kompetensi Al-Qur'an ${i + 1}`}
+              />
+              <Input
+                name="quran_comp_institution"
+                defaultValue={c.institution}
+                placeholder="Lembaga penjamin (kosongkan bila belum)"
+                aria-label={`Lembaga penjamin kompetensi Al-Qur'an ${i + 1}`}
+              />
+            </div>
+          </RowShell>
+        ))}
+      </RowSection>
+
+      {/* ── Kompetensi lain ───────────────────────────────────── */}
+      <RowSection
+        title="Kompetensi Lain yang Dimiliki"
+        desc="Kompetensi di luar Al-Qur'an. Lembaga diisi hanya bila tersertifikasi."
+        onAdd={() => setOtherComps([...otherComps, EMPTY_COMPETENCY])}
+      >
+        {otherComps.map((c, i) => (
+          <RowShell key={i} onRemove={() => setOtherComps(otherComps.filter((_, x) => x !== i))}>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <Input
+                name="other_comp_name"
+                defaultValue={c.name}
+                placeholder="Kurikulum PHI"
+                aria-label={`Kompetensi lain ${i + 1}`}
+              />
+              <Input
+                name="other_comp_institution"
+                defaultValue={c.institution}
+                placeholder="Lembaga penjamin (kosongkan bila belum)"
+                aria-label={`Lembaga penjamin kompetensi lain ${i + 1}`}
+              />
+            </div>
           </RowShell>
         ))}
       </RowSection>
@@ -273,6 +317,24 @@ export function PengurusProfileForm({ profile }: { profile: PengurusProfile }) {
               <Input name="award_name" defaultValue={a.name} placeholder="Nama penghargaan" aria-label={`Penghargaan ${i + 1}`} />
               <Input name="award_year" defaultValue={a.year} placeholder="Tahun" aria-label={`Tahun penghargaan ${i + 1}`} />
             </div>
+          </RowShell>
+        ))}
+      </RowSection>
+
+      {/* ── Ijazah & sanad ────────────────────────────────────── */}
+      <RowSection
+        title="Ijazah & Sanad yang Dimiliki"
+        desc="Cukup nama ijazah atau sanadnya — tahun tidak perlu dicatat."
+        onAdd={() => setIjazahSanad([...ijazahSanad, ''])}
+      >
+        {ijazahSanad.map((v, i) => (
+          <RowShell key={i} onRemove={() => setIjazahSanad(ijazahSanad.filter((_, x) => x !== i))}>
+            <Input
+              name="ijazah_sanad"
+              defaultValue={v}
+              placeholder="Sanad Qira'ah Ashim riwayat Hafsh"
+              aria-label={`Ijazah atau sanad ${i + 1}`}
+            />
           </RowShell>
         ))}
       </RowSection>
