@@ -72,7 +72,7 @@ export function TaskEditForm({ task }: { task: Task }) {
           <CardDescription>Menentukan urutan dan warna kartu di papan tugas.</CardDescription>
         </CardHeader>
         <CardContent className="py-5">
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <div className="space-y-1.5">
               <Label htmlFor="priority">Prioritas</Label>
               <Select name="priority" defaultValue={task.priority}>
@@ -98,6 +98,10 @@ export function TaskEditForm({ task }: { task: Task }) {
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="start_date">Mulai (opsional)</Label>
+              <Input id="start_date" name="start_date" type="date" defaultValue={task.start_date ?? ''} />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="due_date">Deadline (opsional)</Label>

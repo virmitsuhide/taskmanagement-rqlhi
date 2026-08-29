@@ -2,7 +2,7 @@ import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
 import { getSession } from '@/lib/auth/session'
 import {
-  canChangeTaskStatus, canEditTask, canDeleteTask, isManagement,
+  canChangeTaskStatus, canEditTask, canDeleteTask, canManageSubtasks, isManagement,
   ROLE_LABELS, TASK_PROBLEM_LABELS,
 } from '@/lib/auth/permissions'
 import { createServerClient } from '@/lib/supabase/server'
@@ -10,12 +10,16 @@ import { updateTaskStatusFromFormAction } from '@/app/actions/tasks'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { TaskStatusBadge, TaskPriorityBadge, TaskWeightBadge } from '@/components/tasks/TaskStatusBadge'
 import { TaskComments } from '@/components/tasks/TaskComments'
+import { SubtaskPanel } from '@/components/tasks/SubtaskPanel'
+import { GanttChart, GanttLegend } from '@/components/tasks/GanttChart'
+import { getSubtasks } from '@/lib/data/gantt'
+import { taskRange, taskProgress, parseScale, GANTT_SCALES, shortDate } from '@/lib/tasks/gantt'
 import { TaskRowActions } from '@/components/tasks/TaskRowActions'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
-import { ArrowLeft, Calendar, Clock } from 'lucide-react'
+import { ArrowLeft, Calendar, Clock, GanttChartSquare, PlayCircle } from 'lucide-react'
 import type { Task, TaskHistory, TaskStatus, TaskComment } from '@/types'
 
 function formatDateTime(dateStr: string) {
@@ -39,8 +43,14 @@ const STATUS_FLOW: Record<TaskStatus, TaskStatus[]> = {
   returned: ['in_progress', 'problem'],
 }
 
-export default async function TaskDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function TaskDetailPage({
+  params, searchParams,
+}: {
+  params: Promise<{ id: string }>
+  searchParams: Promise<{ skala?: string }>
+}) {
   const { id } = await params
+  const { skala } = await searchParams
   const session = await getSession()
   if (!session) redirect('/login')
 
@@ -84,6 +94,13 @@ export default async function TaskDetailPage({ params }: { params: Promise<{ id:
     .eq('task_id', id)
     .order('created_at', { ascending: true })
   const comments = (commentData ?? []) as TaskComment[]
+
+  // Rincian tugas — sumber batang anak pada mini-Gantt di bawah.
+  const subtasks = await getSubtasks(id)
+  const mayManageSubtasks = !isDeleted && canManageSubtasks(session.role, isAssignee, isAssigner)
+  const ganttScale = parseScale(skala)
+  const range = taskRange(task, subtasks)
+  const progress = taskProgress(task, subtasks)
 
   // Peserta untuk quick-mention (assignee + assigner, tanpa duplikat)
   const participants = [task.assigner, task.assignee]
@@ -165,12 +182,83 @@ export default async function TaskDetailPage({ params }: { params: Promise<{ id:
             </div>
           )}
 
+          {task.start_date && (
+            <div className="flex items-center gap-1.5 mt-2 text-sm text-muted-foreground">
+              <PlayCircle className="h-4 w-4" />
+              <span>Mulai: {formatDate(task.start_date)}</span>
+            </div>
+          )}
+
+          {/* Bilah kemajuan hanya muncul kalau tugas benar-benar dirinci —
+              persentase yang ditebak dari status kanban (lihat taskProgress)
+              tidak layak ditampilkan seakurat angka hasil hitungan. */}
+          {!progress.fromStatus && (
+            <div className="mt-4">
+              <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
+                <span>Kemajuan rincian</span>
+                <span className="tabular-nums font-medium">{progress.percent}%</span>
+              </div>
+              <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+                <div
+                  className="h-full rounded-full bg-primary transition-[width]"
+                  style={{ width: `${progress.percent}%` }}
+                />
+              </div>
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                {progress.done} dari {progress.total} langkah selesai
+                {' · '}rentang {shortDate(range.start)} – {shortDate(range.end)}
+              </p>
+            </div>
+          )}
+
           {task.return_notes && task.status === 'returned' && (
             <div className="mt-4 p-3 rounded-md bg-destructive/10 border border-destructive/20">
               <p className="text-xs font-medium text-destructive mb-1">Catatan Pengembalian:</p>
               <p className="text-sm">{task.return_notes}</p>
             </div>
           )}
+        </div>
+
+        <SubtaskPanel taskId={id} subtasks={subtasks} canManage={mayManageSubtasks} />
+
+        {/* Garis waktu tugas ini saja. Sengaja dipasang tepat di bawah daftar
+            rincian: itulah tempat orang baru saja mengetik tanggal, dan akibat
+            dari tanggal itu harus terlihat tanpa berpindah halaman. */}
+        <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
+          <div className="flex flex-wrap items-center gap-2 border-b bg-muted/40 px-5 py-3">
+            <GanttChartSquare className="h-4 w-4 text-muted-foreground" />
+            <h2 className="text-sm font-semibold">Gantt Chart Tugas Ini</h2>
+            <div className="ml-auto flex items-center gap-2">
+              <div className="inline-flex rounded-lg bg-background p-0.5">
+                {GANTT_SCALES.map(sc => (
+                  <Link
+                    key={sc.key}
+                    href={sc.key === 'hari' ? `/tasks/${id}` : `/tasks/${id}?skala=${sc.key}`}
+                    scroll={false}
+                    className={`rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors ${
+                      ganttScale === sc.key ? 'bg-card shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    {sc.label}
+                  </Link>
+                ))}
+              </div>
+              <Button asChild size="sm" variant="ghost" className="h-7">
+                <Link href="/tasks/gantt">Semua tugas saya</Link>
+              </Button>
+            </div>
+          </div>
+          <div className="p-4">
+            <GanttChart
+              rows={[{ task, subtasks, range, progress }]}
+              scale={ganttScale}
+              linkTasks={false}
+              emptyLabel="Tugas ini belum punya tanggal apa pun."
+            />
+            <div className="mt-3">
+              <GanttLegend hasOverdue={!!task.due_date && task.status !== 'done'} />
+            </div>
+          </div>
         </div>
 
         {/* Status change actions */}

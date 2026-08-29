@@ -23,6 +23,11 @@ export const taskPriorityEnum = pgEnum('task_priority', ['low', 'middle', 'high'
 export const taskWeightEnum = pgEnum('task_weight', ['easy', 'medium', 'hard'])
 export const taskHorizonEnum = pgEnum('task_horizon', ['pendek', 'panjang'])
 export const taskStatusEnum = pgEnum('task_status', ['todo', 'in_progress', 'problem', 'submitted', 'done', 'returned'])
+/**
+ * Status rincian tugas. Sengaja jauh lebih pendek dari task_status: rincian
+ * adalah langkah pengerjaan, bukan penugasan — tidak ada review/verifikasi.
+ */
+export const subtaskStatusEnum = pgEnum('subtask_status', ['todo', 'in_progress', 'done'])
 export const taskProblemTypeEnum = pgEnum('task_problem_type', ['bottleneck', 'blocked', 'wip_limit', 'others'])
 /** Jenis peristiwa di task_history — memisahkan sunting/hapus dari ubah status. */
 export const taskHistoryActionEnum = pgEnum('task_history_action', ['status', 'edited', 'deleted', 'restored'])
@@ -132,6 +137,8 @@ export const tasks = pgTable('tasks', {
   status: taskStatusEnum('status').default('todo'),
   problem_type: taskProblemTypeEnum('problem_type'),
   problem_notes: text('problem_notes'),
+  /** Ujung kiri batang Gantt (0041). Kosong = tanggal tugas dibuat. */
+  start_date: date('start_date'),
   due_date: date('due_date'),
   return_notes: text('return_notes'),
   verified_by: uuid('verified_by').references(() => users.id),
@@ -145,6 +152,30 @@ export const tasks = pgTable('tasks', {
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
 })
+
+/**
+ * Rincian sebuah tugas (migrasi 0041) — langkah kecil yang masing-masing boleh
+ * punya tanggal mulai & tenggat sendiri. Inilah sumber batang anak pada Gantt.
+ */
+export const taskSubtasks = pgTable('task_subtasks', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  task_id: uuid('task_id').notNull().references(() => tasks.id, { onDelete: 'cascade' }),
+  title: text('title').notNull(),
+  /** Urutan tampil — bukan diturunkan dari tanggal; rincian boleh tak bertanggal. */
+  order_num: integer('order_num').notNull().default(0),
+  start_date: date('start_date'),
+  due_date: date('due_date'),
+  status: subtaskStatusEnum('status').notNull().default('todo'),
+  created_by: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+  completed_at: timestamp('completed_at', { withTimezone: true }),
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+})
+
+export const taskSubtasksRelations = relations(taskSubtasks, ({ one }) => ({
+  task: one(tasks, { fields: [taskSubtasks.task_id], references: [tasks.id] }),
+  creator: one(users, { fields: [taskSubtasks.created_by], references: [users.id] }),
+}))
 
 export const taskHistory = pgTable('task_history', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -252,6 +283,7 @@ export const tasksRelations = relations(tasks, ({ one, many }) => ({
   assignee: one(users, { fields: [tasks.assigned_to], references: [users.id], relationName: 'assignee' }),
   assigner: one(users, { fields: [tasks.assigned_by], references: [users.id], relationName: 'assigner' }),
   history: many(taskHistory),
+  subtasks: many(taskSubtasks),
 }))
 
 export const taskHistoryRelations = relations(taskHistory, ({ one }) => ({

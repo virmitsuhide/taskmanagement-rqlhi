@@ -120,7 +120,7 @@ export function TaskForm({ assignableUsers, defaults, personalMode }: Props) {
           <CardDescription>Menentukan urutan dan warna kartu di papan tugas.</CardDescription>
         </CardHeader>
         <CardContent className="py-5">
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <div className="space-y-1.5">
           <Label htmlFor="priority">Prioritas</Label>
           <Select name="priority" defaultValue="middle">
@@ -146,6 +146,11 @@ export function TaskForm({ assignableUsers, defaults, personalMode }: Props) {
               ))}
             </SelectContent>
           </Select>
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="start_date">Mulai (opsional)</Label>
+          <Input id="start_date" name="start_date" type="date" />
+          <p className="text-[11px] text-muted-foreground">Awal batang di Gantt. Kosong = tanggal dibuat.</p>
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="due_date">Deadline (opsional)</Label>

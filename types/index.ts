@@ -177,6 +177,8 @@ export interface Task {
   status: TaskStatus
   problem_type: TaskProblemType | null
   problem_notes: string | null
+  /** Tanggal mulai — ujung kiri batang Gantt. Kosong = pakai created_at. */
+  start_date: string | null
   due_date: string | null
   return_notes: string | null
   verified_by: string | null
@@ -203,6 +205,27 @@ export interface TaskHistory {
   notes: string | null
   created_at: string
   changer?: User
+}
+
+/** Status rincian tugas — lihat migrasi 0041. */
+export type SubtaskStatus = 'todo' | 'in_progress' | 'done'
+
+/**
+ * Rincian (sub-tugas) dari sebuah tugas. Bukan tugas tersendiri: tidak masuk
+ * papan kanban, tidak diverifikasi, tidak punya notifikasi sendiri.
+ */
+export interface TaskSubtask {
+  id: string
+  task_id: string
+  title: string
+  order_num: number
+  start_date: string | null
+  due_date: string | null
+  status: SubtaskStatus
+  created_by: string | null
+  completed_at: string | null
+  created_at: string
+  updated_at: string
 }
 
 export interface TaskComment {

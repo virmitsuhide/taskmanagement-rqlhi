@@ -3,8 +3,10 @@ import Link from 'next/link'
 import { getSession } from '@/lib/auth/session'
 import { canViewDivisiBoard, getBoardDivisions, canAssignAnyTask, ROLE_LABELS } from '@/lib/auth/permissions'
 import { getBoardTasks, type BoardScope } from '@/lib/data/board'
+import { getGanttPeople } from '@/lib/data/gantt'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { NewTaskMenu } from '@/components/tasks/NewTaskMenu'
+import { GanttNavMenu, GanttPeopleStrip } from '@/components/tasks/GanttNavMenu'
 import { KanbanBoard } from './KanbanBoard'
 import { List } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -27,7 +29,12 @@ export default async function TaskBoardPage({ searchParams }: PageProps) {
     ? (params.divisi as UserRole)
     : null
 
-  const columns = await getBoardTasks({ session, scope, divisi: divisiFilter })
+  // Papan dan Gantt memakai izin yang sama (getBoardDivisions), jadi daftar
+  // orang untuk navigasi garis waktu bisa diambil berbarengan di sini.
+  const [columns, ganttPeople] = await Promise.all([
+    getBoardTasks({ session, scope, divisi: divisiFilter }),
+    getGanttPeople(session),
+  ])
 
   function scopeHref(s: BoardScope): string {
     return s === 'personal' ? '/tasks/board' : '/tasks/board?scope=divisi'
@@ -55,6 +62,7 @@ export default async function TaskBoardPage({ searchParams }: PageProps) {
             <Button asChild size="sm" variant="outline">
               <Link href="/tasks"><List className="h-4 w-4 mr-1" />Tampilan List</Link>
             </Button>
+            <GanttNavMenu people={ganttPeople} selfName={session.displayName} />
             {/*
               Menu yang sama dengan tampilan list. Tautan polos ke /tasks/baru
               tidak cukup: halaman itu menolak role yang tidak boleh
@@ -97,6 +105,8 @@ export default async function TaskBoardPage({ searchParams }: PageProps) {
             ))}
           </div>
         )}
+
+        <GanttPeopleStrip people={ganttPeople} selfName={session.displayName} />
 
         <KanbanBoard columns={columns} currentUserId={session.userId} currentRole={session.role} />
 

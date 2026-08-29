@@ -45,6 +45,7 @@ export async function createTaskAction(_: unknown, formData: FormData) {
   const priority = (formData.get('priority') as TaskPriority) || 'middle'
   const weight = (formData.get('weight') as TaskWeight) || 'medium'
   const horizon = (formData.get('horizon') as TaskHorizon) || 'pendek'
+  const startDate = formData.get('start_date') as string | null
   const dueDate = formData.get('due_date') as string | null
   const publicTarget = formData.get('public_target') as PublicTarget | null
 
@@ -62,6 +63,7 @@ export async function createTaskAction(_: unknown, formData: FormData) {
       priority,
       weight,
       horizon,
+      start_date: startDate || null,
       due_date: dueDate || null,
       status: 'todo',
     })
@@ -238,6 +240,7 @@ const FIELD_LABELS: Record<string, string> = {
   priority:    'prioritas',
   weight:      'bobot',
   horizon:     'jangka',
+  start_date:  'tanggal mulai',
   due_date:    'tenggat',
 }
 
@@ -264,7 +267,7 @@ export async function updateTaskAction(_: unknown, formData: FormData) {
   const supabase = createServerClient()
   const { data: task } = await supabase
     .from('tasks')
-    .select('title, description, priority, weight, horizon, due_date, status, assigned_by, assigned_to, deleted_at')
+    .select('title, description, priority, weight, horizon, start_date, due_date, status, assigned_by, assigned_to, deleted_at')
     .eq('id', taskId)
     .maybeSingle()
 
@@ -285,6 +288,7 @@ export async function updateTaskAction(_: unknown, formData: FormData) {
     priority: (formData.get('priority') as TaskPriority) || task.priority,
     weight: (formData.get('weight') as TaskWeight) || task.weight,
     horizon: (formData.get('horizon') as TaskHorizon) || task.horizon,
+    start_date: ((formData.get('start_date') as string) ?? '') || null,
     due_date: ((formData.get('due_date') as string) ?? '') || null,
   }
 

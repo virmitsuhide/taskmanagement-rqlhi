@@ -3,9 +3,11 @@ import Link from 'next/link'
 import { getSession } from '@/lib/auth/session'
 import { canAssignAnyTask } from '@/lib/auth/permissions'
 import { createServerClient } from '@/lib/supabase/server'
+import { getGanttPeople } from '@/lib/data/gantt'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { TaskCard } from '@/components/tasks/TaskCard'
 import { NewTaskMenu } from '@/components/tasks/NewTaskMenu'
+import { GanttNavMenu } from '@/components/tasks/GanttNavMenu'
 import { Button } from '@/components/ui/button'
 import { CheckSquare, Clock, AlertCircle, CheckCircle2, LayoutGrid, Zap, Target, Users, ClipboardList } from 'lucide-react'
 import { SearchInput } from '@/components/ui/search-input'
@@ -117,6 +119,7 @@ export default async function TasksPage({ searchParams }: PageProps) {
   const totalDelegated = delegatedCountRes.count ?? 0
   const overdueCount = overdueRes.count ?? 0
   const showDelegated = canAssignAnyTask(session.role)
+  const ganttPeople = await getGanttPeople(session)
 
   // ── Bagi tugas aktif ke bucket ─────────────────────────────────
   const buckets = {
@@ -156,6 +159,7 @@ export default async function TasksPage({ searchParams }: PageProps) {
             <Button asChild size="sm" variant="outline">
               <Link href="/tasks/board"><LayoutGrid className="h-4 w-4 mr-1" />Papan</Link>
             </Button>
+            <GanttNavMenu people={ganttPeople} selfName={session.displayName} />
             <NewTaskMenu canDelegate={canAssignAnyTask(session.role)} />
           </div>
         </div>

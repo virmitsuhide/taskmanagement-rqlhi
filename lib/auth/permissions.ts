@@ -170,6 +170,28 @@ export function canViewDivisiBoard(role: UserRole): boolean {
 }
 
 /**
+ * Boleh membuka garis waktu (Gantt) milik pengguna lain?
+ *
+ * Sengaja diturunkan dari getBoardDivisions, bukan dari daftar izin baru:
+ * papan kanban dan Gantt memperlihatkan kumpulan tugas yang sama persis, hanya
+ * berbeda sumbu — kanban menyusunnya per status, Gantt per tanggal. Kalau
+ * keduanya punya aturan sendiri-sendiri, cepat atau lambat salah satu akan
+ * bocor lebih luas dari yang lain tanpa ada yang menyadarinya.
+ *
+ * Diri sendiri selalu boleh, termasuk untuk role yang tidak memantau divisi
+ * mana pun (bendahara, div_training, new_squad) — Gantt pribadi adalah alat
+ * kerja, bukan wewenang pengawasan.
+ */
+export function canViewUserGantt(
+  viewerRole: UserRole,
+  viewerId: string,
+  target: { id: string; role: UserRole },
+): boolean {
+  if (viewerId === target.id) return true
+  return getBoardDivisions(viewerRole).includes(target.role)
+}
+
+/**
  * Lapisan manajemen RQ.
  *
  * Ketiganya sudah memantau papan seluruh divisi (getBoardDivisions) dan
@@ -247,6 +269,19 @@ export function canChangeTaskStatus(
  */
 export function canMoveTaskOnBoard(role: UserRole, isAssignee: boolean, isAssigner: boolean): boolean {
   return role === 'kepala_rq' || isAssignee || isAssigner
+}
+
+/**
+ * Boleh menambah, menyunting, atau menghapus rincian (sub-tugas) sebuah tugas?
+ *
+ * Sengaja sama persis dengan izin menggeser kartu di papan. Merinci tugas
+ * adalah cara pelaksana mengatur pekerjaannya sendiri, dan pemberi tugas perlu
+ * bisa ikut memecahnya saat mendelegasikan. Orang lain yang kebetulan bisa
+ * MELIHAT tugas ini di papan divisi atau di Gantt bawahannya tetap tidak boleh
+ * mengubah rencana kerja orang lain — melihat dan menyunting dua hal berbeda.
+ */
+export function canManageSubtasks(role: UserRole, isAssignee: boolean, isAssigner: boolean): boolean {
+  return canMoveTaskOnBoard(role, isAssignee, isAssigner)
 }
 
 /**
