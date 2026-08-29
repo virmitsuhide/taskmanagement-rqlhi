@@ -265,9 +265,54 @@ export function KpiForm({ teacherId, teacherName, year, month, monthLabel, backH
         </CardContent>
       </Card>
 
+      {/*
+        Dua kotak ini yang tercetak di rapor bulanan guru. Dibiarkan kosong pun
+        rapornya tetap terisi — lembar cetak jatuh ke kalimat turunan dari nilai
+        indikator (lib/kpi/rapor-bulanan.ts). Yang diketik di sini menggantikan
+        kalimat turunan itu, per bagian.
+      */}
       <Card className="gap-0 border py-0 shadow-sm ring-0">
         <CardHeader className="border-b bg-muted/40 py-3.5">
-          <CardTitle>Catatan</CardTitle>
+          <CardTitle>Catatan untuk Rapor Guru</CardTitle>
+          <CardDescription>
+            Tercetak di rapor KPI bulanan yang diserahkan kepada guru. Satu butir per
+            baris. Dikosongkan = rapor memakai kalimat yang disusun otomatis dari
+            nilainya.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4 py-5">
+          <div className="space-y-1.5">
+            <Label htmlFor="apresiasi">Apresiasi &amp; Catatan Positif</Label>
+            <Textarea
+              id="apresiasi"
+              name="apresiasi"
+              rows={4}
+              defaultValue={(existing?.apresiasi ?? []).join('\n')}
+              placeholder={'Sangat disiplin hadir dan konsisten tepat waktu.'+'\n'+'Seragam rapi dan sesuai ketentuan setiap hari.'+'\n'+'Komunikasi dengan orang tua sangat baik.'}
+            />
+            <p className="text-[11px] text-muted-foreground">Satu apresiasi per baris.</p>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="pengembangan">Area Pengembangan (Action Plan)</Label>
+            <Textarea
+              id="pengembangan"
+              name="pengembangan"
+              rows={4}
+              defaultValue={(existing?.pengembangan ?? []).join('\n')}
+              placeholder={'Pengisian buku pegangan guru perlu selesai tepat waktu setiap hari.'+'\n'+'Tingkatkan variasi metode agar seluruh murid terlibat aktif.'}
+            />
+            <p className="text-[11px] text-muted-foreground">
+              Satu rencana perbaikan per baris — sebutkan yang bisa dikerjakan, bukan sifatnya.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="gap-0 border py-0 shadow-sm ring-0">
+        <CardHeader className="border-b bg-muted/40 py-3.5">
+          <CardTitle>Catatan Internal</CardTitle>
+          <CardDescription>Untuk pengurus saja — tidak ikut tercetak di rapor guru.</CardDescription>
         </CardHeader>
         <CardContent className="py-5">
           <Textarea name="notes" defaultValue={existing?.notes ?? ''} placeholder="Catatan pembinaan, konteks, atau kesepakatan dengan guru..." />

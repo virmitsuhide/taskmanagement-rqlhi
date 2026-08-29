@@ -1,12 +1,12 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { getSession } from '@/lib/auth/session'
-import { canViewKpi, canInputKpi, JENJANG_LABELS } from '@/lib/auth/permissions'
+import { canViewKpi, canInputKpi, canPrintKpiRapor, JENJANG_LABELS } from '@/lib/auth/permissions'
 import { getKpiRows, nilaiDari, KPI_UNITS, MONTH_NAMES } from '@/lib/data/kpi'
 import { KPI_INDIKATOR } from '@/lib/kpi/hitung'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { Button } from '@/components/ui/button'
-import { Pencil, FileText } from 'lucide-react'
+import { Pencil, FileText, Printer } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { Jenjang } from '@/types'
 
@@ -45,6 +45,9 @@ export default async function KpiPage({ searchParams }: PageProps) {
 
   const rows = await getKpiRows(unit, year, month)
   const mayInput = canInputKpi(session.role)
+  // Mencetak rapor lebih sempit daripada mengisinya: dokumennya diserahkan ke
+  // guru dengan kolom tanda tangan, dan SDM yang menerbitkannya.
+  const mayPrint = canPrintKpiRapor(session.role)
 
   // Rata-rata hanya dari guru yang sudah dinilai. Memasukkan yang belum diisi
   // sebagai nol akan menyeret angka unit ke bawah hanya karena SDM belum
@@ -154,7 +157,9 @@ export default async function KpiPage({ searchParams }: PageProps) {
                   <th className="px-2 py-2 text-center font-medium">Total</th>
                   <th className="px-2 py-2 text-center font-medium">Rapot</th>
                   <th className="px-2 py-2 text-center font-medium">Predikat</th>
-                  {mayInput && <th className="px-2 py-2 w-10" />}
+                  {(mayInput || mayPrint) && (
+                    <th className="px-2 py-2 text-center font-medium w-16">Aksi</th>
+                  )}
                 </tr>
               </thead>
               <tbody>
@@ -199,15 +204,36 @@ export default async function KpiPage({ searchParams }: PageProps) {
                           </span>
                         ) : '—'}
                       </td>
-                      {mayInput && (
-                        <td className="px-2 py-2 text-center">
-                          <Link
-                            href={`/kpi/isi?teacher=${r.teacherId}&unit=${unit}&year=${year}&month=${month}`}
-                            aria-label={`Isi KPI ${r.fullName}`}
-                            className="inline-flex p-1 rounded text-muted-foreground hover:text-primary hover:bg-muted"
-                          >
-                            <Pencil className="h-3.5 w-3.5" />
-                          </Link>
+                      {(mayInput || mayPrint) && (
+                        <td className="px-2 py-2">
+                          <div className="flex items-center justify-center gap-0.5">
+                            {mayInput && (
+                              <Link
+                                href={`/kpi/isi?teacher=${r.teacherId}&unit=${unit}&year=${year}&month=${month}`}
+                                aria-label={`Isi KPI ${r.fullName}`}
+                                title="Isi / sunting nilai"
+                                className="inline-flex p-1 rounded text-muted-foreground hover:text-primary hover:bg-muted"
+                              >
+                                <Pencil className="h-3.5 w-3.5" />
+                              </Link>
+                            )}
+                            {/*
+                              Hanya muncul kalau gurunya memang sudah dinilai.
+                              Tautan cetak pada baris kosong akan mengantar ke
+                              halaman yang cuma bisa berkata "belum ada nilai" —
+                              lebih baik tombolnya tidak ada sejak awal.
+                            */}
+                            {mayPrint && h && (
+                              <Link
+                                href={`/kpi/cetak?teacher=${r.teacherId}&unit=${unit}&year=${year}&month=${month}`}
+                                aria-label={`Cetak rapor KPI ${r.fullName}`}
+                                title="Cetak rapor bulanan (PDF)"
+                                className="inline-flex p-1 rounded text-muted-foreground hover:text-primary hover:bg-muted"
+                              >
+                                <Printer className="h-3.5 w-3.5" />
+                              </Link>
+                            )}
+                          </div>
                         </td>
                       )}
                     </tr>

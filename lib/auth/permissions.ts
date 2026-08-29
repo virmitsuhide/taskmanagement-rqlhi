@@ -44,6 +44,7 @@ const MEETING_CREATE: Record<MeetingType, UserRole[]> = {
   rq_x_quls: ['kumik'],
   humas_yayasan: ['humas'],
   tahsin_rekomendasi: ['koor_sd'],
+  quls_sd: ['koor_qulssd'],
 }
 
 const MEETING_EDIT: Record<MeetingType, UserRole[]> = {
@@ -58,6 +59,7 @@ const MEETING_EDIT: Record<MeetingType, UserRole[]> = {
   rq_x_quls: ['kumik'],
   humas_yayasan: ['humas'],
   tahsin_rekomendasi: ['koor_sd'],
+  quls_sd: ['koor_qulssd'],
 }
 
 const MEETING_DELETE: Record<MeetingType, UserRole[]> = {
@@ -72,6 +74,7 @@ const MEETING_DELETE: Record<MeetingType, UserRole[]> = {
   rq_x_quls: ['kumik'],
   humas_yayasan: ['humas'],
   tahsin_rekomendasi: ['koor_sd'],
+  quls_sd: ['koor_qulssd'],
 }
 
 const MEETING_VIEW: Record<MeetingType, UserRole[]> = {
@@ -86,13 +89,20 @@ const MEETING_VIEW: Record<MeetingType, UserRole[]> = {
   koor_x_sd: ['kepala_rq', 'kumik', 'sdm', 'bendahara', 'koor_sd'],
   koor_x_smp: ['kepala_rq', 'kumik', 'sdm', 'bendahara', 'koor_smp'],
   koor_x_boarding: ['kepala_rq', 'kumik', 'sdm', 'bendahara', 'koor_smp'],
-  // Rapat RQ x QULS sengaja dibatasi — koor & divisi lain tidak melihatnya.
-  rq_x_quls: ['kumik', 'kepala_rq', 'sdm', 'bendahara'],
+  // Rapat RQ x QULS dibatasi — koor & divisi lain tidak melihatnya. Koor QULS
+  // SD dikecualikan sejak jabatannya ada: dialah yang menjalankan hasil rapat
+  // ini di lapangan, dan sebelumnya ia hanya bisa mendengarnya dari orang lain.
+  rq_x_quls: ['kumik', 'kepala_rq', 'sdm', 'bendahara', 'koor_qulssd'],
   // Rapat Humas dengan Yayasan — dipegang Humas, dipantau manajemen.
   humas_yayasan: ['humas', 'kepala_rq', 'kumik', 'sdm', 'bendahara'],
   // Rapat Tahsin Rekomendasi — dipegang koor SD, dipantau manajemen. Koor SMP
   // sengaja di luar: rekomendasi tahsin di sini menyangkut siswa SD saja.
   tahsin_rekomendasi: ['kepala_rq', 'kumik', 'sdm', 'bendahara', 'koor_sd'],
+  // Rapat internal guru QULS SD. Koor SD sengaja di luar: arah bacanya memang
+  // satu arah — koor QULS SD membaca notulen koor SD karena kelompoknya duduk
+  // di sesi & unit yang sama, tapi forum pembinaan tim sendiri tidak dibuka,
+  // sama seperti rapat koor SMP yang tertutup bagi koor SD.
+  quls_sd: ['kepala_rq', 'kumik', 'sdm', 'bendahara', 'koor_qulssd'],
 }
 
 export function canCreateMeeting(role: UserRole, type: MeetingType): boolean {
@@ -620,6 +630,23 @@ export function canManageTeachers(role: UserRole): boolean {
 }
 
 /**
+ * Mengelola profil kepegawaian & data diri guru — menu "Profil Guru".
+ *
+ * SDM saja. Yang disunting di sana bukan cuma data diri: unit penugasan, TMT,
+ * dan jenis kepegawaian ikut di dalamnya, dan ketiganya menentukan rubrik KPI
+ * mana yang dipakai serta masa kerja yang tercetak di rapor. Itu wewenang
+ * kepegawaian, bukan wewenang siapa pun yang kebetulan boleh melihat daftar
+ * guru.
+ *
+ * Guru sendiri tetap bisa melengkapi data dirinya lewat portal guru
+ * (/guru/profil) — tapi hanya bagian pribadinya, tidak menyentuh ketiga kolom
+ * kepegawaian di atas.
+ */
+export function canManageTeacherProfiles(role: UserRole): boolean {
+  return role === 'sdm'
+}
+
+/**
  * View list guru (read-only). Lebih luas: kumik & koor juga butuh lihat
  * untuk assign ke halaqoh.
  */
@@ -650,6 +677,24 @@ export const JENJANG_LABELS: Record<Jenjang, string> = {
   sd_juara: 'SD Juara',
   smp:      'SMP',
   sma:      'SMA',
+}
+
+/**
+ * Nama satuan pendidikan selengkapnya — untuk dokumen yang keluar dari
+ * lingkaran pengurus, mis. rapor KPI yang diserahkan kepada guru.
+ *
+ * Terpisah dari JENJANG_LABELS dan bukan penggantinya. Label pendek dipakai di
+ * chip filter, kepala tabel, dan lencana, tempat "SDIT LHI" akan memaksa
+ * kolomnya melebar tanpa menambah keterangan apa pun bagi pengurus yang sudah
+ * tahu konteksnya. Dokumen resmi justru sebaliknya: pembacanya guru yang
+ * memegang selembar kertas tanpa konteks apa-apa.
+ */
+export const UNIT_PENUGASAN_LABELS: Record<Jenjang, string> = {
+  paud:     'TPAIT LHI',
+  sd:       'SDIT LHI',
+  sd_juara: 'SD LHI Juara',
+  smp:      'SMPIT LHI',
+  sma:      'SMA LHI',
 }
 
 /**
@@ -729,6 +774,7 @@ export const MEETING_TYPE_LABELS: Record<MeetingType, string> = {
   rq_x_quls: 'Rapat RQ x QULS',
   humas_yayasan: 'Rapat Humas Yayasan',
   tahsin_rekomendasi: 'Rapat Tahsin Rekomendasi',
+  quls_sd: 'Rapat QULS SD',
 }
 
 export const DASHBOARD_LABELS: Record<string, string> = {
@@ -827,6 +873,21 @@ export function canInputKpi(role: UserRole): boolean {
  */
 export function canViewKpi(role: UserRole): boolean {
   return canInputKpi(role) || role === 'kumik' || role === 'koor_sd' || role === 'koor_smp'
+}
+
+/**
+ * Siapa yang boleh mencetak rapor KPI bulanan seorang guru: SDM saja.
+ *
+ * Lebih sempit daripada canViewKpi, dan itu disengaja. Halaman KPI adalah
+ * pemantauan internal; rapor cetak adalah dokumen yang keluar dari lingkaran
+ * pengurus dan diserahkan kepada guru yang bersangkutan, lengkap dengan kolom
+ * tanda tangan. Yang menerbitkan dokumen kepegawaian di RQ adalah SDM, jadi
+ * satu peran itu pula yang memegang tombolnya — termasuk tidak Kepala RQ,
+ * supaya tidak ada dua pihak yang menerbitkan rapor yang sama dengan tanggal
+ * terbit berbeda.
+ */
+export function canPrintKpiRapor(role: UserRole): boolean {
+  return role === 'sdm'
 }
 
 /**

@@ -599,3 +599,81 @@
     break-after: avoid;
   }
 }
+
+/* ── Lembar Rapor KPI Bulanan ───────────────────────────────────────────────
+ *
+ * Dokumen satu halaman A4 potret yang diserahkan kepada guru Qur'an
+ * (/kpi/cetak). Di layar ia tampil selebar A4 agar pratinjaunya jujur; saat
+ * dicetak, lebarnya diserahkan ke @page dan seluruh chrome aplikasi hilang
+ * lewat print:hidden.
+ */
+.kpi-sheet {
+  /* 210mm dikurangi margin @page 12mm di kiri-kanan. */
+  width: 186mm;
+  max-width: 100%;
+  font-size: 10px;
+  line-height: 1.35;
+}
+
+.kpi-band {
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+
+.kpi-chip {
+  background: color-mix(in srgb, var(--primary-foreground) 22%, transparent);
+  color: var(--primary-foreground);
+}
+
+.kpi-subhead {
+  background: color-mix(in srgb, var(--primary) 12%, var(--card));
+  color: var(--primary);
+}
+
+.kpi-table th,
+.kpi-table td {
+  border-color: var(--border);
+}
+
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 10mm;
+  }
+
+  /* Lembar rapor membawa paletnya sendiri — jangan dipaksa hitam putih oleh
+     normalisasi mode gelap di blok cetak umum di atas. */
+  .dark .kpi-sheet,
+  .dark .kpi-sheet * {
+    color: revert !important;
+    background-color: revert !important;
+    border-color: revert !important;
+  }
+
+  /* Band biru, kepala tabel, dan lencana predikat harus ikut tercetak —
+     tanpa ini kebanyakan peramban membuang latar berwarna. */
+  .kpi-sheet,
+  .kpi-sheet * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .kpi-sheet {
+    width: 100%;
+    /* Satu halaman, apa pun isinya: rapor yang tumpah akan tercetak sebagai
+       lembar kedua berisi tanda tangan sendirian. */
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* Tabel indikator tidak boleh dipecah oleh aturan cetak umum. */
+  .kpi-sheet table,
+  .kpi-sheet tr,
+  .kpi-sheet section {
+    break-inside: avoid;
+  }
+
+  .kpi-sheet table {
+    font-size: 8.5px !important;
+  }
+}

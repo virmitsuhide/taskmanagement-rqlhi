@@ -36,6 +36,20 @@ function grid(fd: FormData, prefix: string, len: number, max: number): number[] 
   return ada ? out : null
 }
 
+/**
+ * Textarea berbutir → text[].
+ *
+ * Baris kosong dan spasi di ujung dibuang di sini, bukan saat mencetak: baris
+ * kosong yang lolos ke database akan muncul sebagai butir bernomor tanpa isi
+ * di rapor yang sudah terlanjur diserahkan kepada guru. Daftar yang seluruhnya
+ * kosong disimpan sebagai null, yang berarti "pakai kalimat turunan".
+ */
+function butir(fd: FormData, key: string): string[] | null {
+  const raw = (fd.get(key) as string | null) ?? ''
+  const list = raw.split('\n').map(t => t.trim()).filter(Boolean)
+  return list.length ? list : null
+}
+
 /** Nilai total opsional: kosong berarti pakai grid harian. */
 function totalOpsional(fd: FormData, key: string): number | null {
   const raw = (fd.get(key) as string | null)?.trim()
@@ -92,6 +106,8 @@ export async function simpanKpiAction(_: unknown, formData: FormData) {
     seragam_total: totalOpsional(formData, 'seragam_total'),
     lapor_ortu_total: totalOpsional(formData, 'lapor_ortu_total'),
     halaqoh_total: totalOpsional(formData, 'halaqoh_total'),
+    apresiasi: butir(formData, 'apresiasi'),
+    pengembangan: butir(formData, 'pengembangan'),
     notes: ((formData.get('notes') as string) || '').trim() || null,
     updated_by: session.userId,
     updated_at: new Date().toISOString(),
@@ -103,8 +119,19 @@ export async function simpanKpiAction(_: unknown, formData: FormData) {
     .from('kpi_monthly')
     .upsert({ ...row, created_by: session.userId }, { onConflict: 'teacher_id,year,month' })
 
-  if (error) return { error: 'Gagal menyimpan KPI.' }
+  if (error) {
+    // Kolom catatan rapor baru ada setelah 0044 — sebutkan migrasinya alih-alih
+    // membuang penilaian yang barusan diketik SDM tanpa penjelasan.
+    if (error.message?.includes('apresiasi') || error.message?.includes('pengembangan')) {
+      return {
+        error:
+          'Catatan rapor belum bisa disimpan: jalankan drizzle/0044_profil_guru_dan_catatan_kpi_PASTE_TO_SUPABASE.sql di Supabase.',
+      }
+    }
+    return { error: 'Gagal menyimpan KPI.' }
+  }
 
   revalidatePath('/kpi')
+  revalidatePath('/kpi/cetak')
   return { success: true }
 }
