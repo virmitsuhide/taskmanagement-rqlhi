@@ -7,9 +7,9 @@ import {
   LayoutDashboard, BookOpen, CheckSquare, ImageIcon,
   FileText, User, Megaphone, LogOut, ChevronRight, GraduationCap, Newspaper, LayoutGrid,
   Users, UserCog, BookMarked, BarChart3, LayoutTemplate, Info, Wallet, CalendarRange,
-  ClipboardCheck, KeyRound, ScrollText,
+  ClipboardCheck, KeyRound, ScrollText, Repeat, IdCard,
 } from 'lucide-react'
-import { DASHBOARD_LABELS, getAccessibleDashboards, ROLE_LABELS } from '@/lib/auth/permissions'
+import { DASHBOARD_LABELS, getAccessibleDashboards, ROLE_LABELS , canManageTeacherProfiles } from '@/lib/auth/permissions'
 import {
   canViewTerms, canViewGukarRecap, canViewFinance, canViewFinanceNotes, canPostToHome, canViewHumasRequests, canCreateNews,
   canAccessProgramMenu, canEditAbout,
@@ -116,6 +116,9 @@ export function Sidebar({ role, displayName, username }: Props) {
               <NavItem href="/humas/tentang" icon={<Info className="h-4 w-4" />} label="Tentang RQ" active={isActive('/humas/tentang')} />
             )}
             <NavItem href="/rapat" icon={<BookOpen className="h-4 w-4" />} label="Rapat & Notulen" active={isActive('/rapat')} />
+            {/* Menempel di bawah Rapat & Notulen: keduanya irama kerja yang
+                berulang menurut kalender, bukan pekerjaan yang ditugaskan. */}
+            <NavItem href="/tugas-rutin" icon={<Repeat className="h-4 w-4" />} label="Tugas Rutin" active={isActive('/tugas-rutin')} />
             <NavItem href="/tasks" icon={<CheckSquare className="h-4 w-4" />} label="Tugas" active={isActive('/tasks') && !pathname.startsWith('/tasks/board')} />
             <NavItem href="/tasks/board" icon={<LayoutGrid className="h-4 w-4" />} label="Papan Tugas" active={pathname.startsWith('/tasks/board')} />
             {canViewHumasRequests(role) && (
@@ -157,7 +160,13 @@ export function Sidebar({ role, displayName, username }: Props) {
                 <NavItem href="/siswa" icon={<Users className="h-4 w-4" />} label="Siswa" active={isActive('/siswa')} />
               )}
               {canViewTeachers(role) && (
-                <NavItem href="/ustadz" icon={<UserCog className="h-4 w-4" />} label="Ustadz / Guru" active={isActive('/ustadz')} />
+                <NavItem href="/ustadz" icon={<UserCog className="h-4 w-4" />} label="Ustadz / Guru" active={isActive('/ustadz') && !pathname.startsWith('/ustadz/profil')} />
+              )}
+              {/* Menempel di bawah daftar guru: keduanya bicara tentang orang
+                  yang sama, hanya berbeda sisi — daftar untuk operasional,
+                  profil untuk arsip kepegawaian. */}
+              {canManageTeacherProfiles(role) && (
+                <NavItem href="/ustadz/profil" icon={<IdCard className="h-4 w-4" />} label="Profil Guru" active={pathname.startsWith('/ustadz/profil')} />
               )}
               {canViewUjian(role) && (
                 <NavItem href="/ujian/kelola" icon={<ScrollText className="h-4 w-4" />} label="Pengajuan Ujian" active={isActive('/ujian')} />

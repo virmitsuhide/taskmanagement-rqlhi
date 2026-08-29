@@ -7,7 +7,7 @@ import {
   Menu, X, LayoutDashboard, CheckSquare, BookOpen,
   ImageIcon, Megaphone, FileText, User, LogOut, GraduationCap, Newspaper, LayoutGrid,
   Users, UserCog, BookMarked, BarChart3, LayoutTemplate, Info, Wallet, CalendarRange,
-  ClipboardCheck, KeyRound, ScrollText,
+  ClipboardCheck, KeyRound, ScrollText, Repeat, IdCard,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
@@ -16,8 +16,7 @@ import {
   canAccessProgramMenu, canEditAbout,
   canViewStudents, canViewHalaqoh, canViewTeachers, canViewAnalytics, canViewUnitAnalytics,
   canManageHomepage,
-  canViewKpi, canManageAllAccounts, canViewUjian,
-} from '@/lib/auth/permissions'
+  canViewKpi, canManageAllAccounts, canViewUjian, canManageTeacherProfiles } from '@/lib/auth/permissions'
 import type { UserRole } from '@/types'
 import { logoutAction } from '@/app/actions/auth'
 import { Logo } from '@/components/brand/Logo'
@@ -193,6 +192,7 @@ export function MobileNav({ role, displayName, username }: Props) {
                 <DrawerLink href="/humas/tentang" icon={<Info className="h-4 w-4" />} label="Tentang RQ" active={isActive('/humas/tentang')} onNavigate={close} />
               )}
               <DrawerLink href="/rapat" icon={<BookOpen className="h-4 w-4" />} label="Rapat & Notulen" active={isActive('/rapat')} onNavigate={close} />
+              <DrawerLink href="/tugas-rutin" icon={<Repeat className="h-4 w-4" />} label="Tugas Rutin" active={isActive('/tugas-rutin')} onNavigate={close} />
               <DrawerLink href="/tasks" icon={<CheckSquare className="h-4 w-4" />} label="Tugas" active={isActive('/tasks')} onNavigate={close} />
               <DrawerLink href="/tasks/board" icon={<LayoutGrid className="h-4 w-4" />} label="Papan Tugas" active={isActive('/tasks/board')} onNavigate={close} />
               {canViewHumasRequests(role) && (
@@ -231,6 +231,9 @@ export function MobileNav({ role, displayName, username }: Props) {
                 )}
                 {canViewTeachers(role) && (
                   <DrawerLink href="/ustadz" icon={<UserCog className="h-4 w-4" />} label="Ustadz / Guru" active={isActive('/ustadz')} onNavigate={close} />
+                )}
+                {canManageTeacherProfiles(role) && (
+                  <DrawerLink href="/ustadz/profil" icon={<IdCard className="h-4 w-4" />} label="Profil Guru" active={isActive('/ustadz/profil')} onNavigate={close} />
                 )}
                 {canViewUjian(role) && (
                   <DrawerLink href="/ujian/kelola" icon={<ScrollText className="h-4 w-4" />} label="Pengajuan Ujian" active={isActive('/ujian')} onNavigate={close} />

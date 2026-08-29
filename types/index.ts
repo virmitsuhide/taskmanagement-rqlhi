@@ -30,6 +30,8 @@ export type MeetingType =
   | 'humas_yayasan'
   /** Rapat Tahsin Rekomendasi — dibuat koor SD, dipantau manajemen */
   | 'tahsin_rekomendasi'
+  /** Rapat internal seluruh guru QULS SD — lihat migrasi 0045. */
+  | 'quls_sd'
 
 export type AgendaTag = 'keputusan' | 'informasi' | 'perlu_diskusi' | 'tindak_lanjut' | 'approval'
 
@@ -48,6 +50,29 @@ export type TaskStatus = 'todo' | 'in_progress' | 'problem' | 'submitted' | 'don
 
 /** Jenis hambatan saat task berstatus 'problem' — menentukan warna kartu di papan. */
 export type TaskProblemType = 'bottleneck' | 'blocked' | 'wip_limit' | 'others'
+
+/** Irama pengulangan tugas rutin — lihat migrasi 0043. */
+export type RoutineCadence = 'pekanan' | 'bulanan'
+
+/** Tugas rutin milik seorang pengurus. */
+export interface RoutineTask {
+  id: string
+  owner_id: string
+  description: string
+  cadence: RoutineCadence
+  order_num: number
+  created_at: string
+  updated_at: string
+}
+
+/** Satu tugas rutin beserta keadaannya pada periode yang sedang berjalan. */
+export interface RoutineTaskState {
+  task: RoutineTask
+  /** Sudah dicentang untuk periode berjalan? */
+  done: boolean
+  /** Kapan dicentang — null bila belum. */
+  checkedAt: string | null
+}
 
 export type TaskSource = 'rapat' | 'mandiri' | 'home_publik' | 'humas_request'
 
@@ -485,6 +510,38 @@ export interface SuratMaster {
   juz_start: number
   juz_end: number
   is_makkiyah: boolean
+}
+
+/**
+ * Profil lengkap seorang guru Qur'an — kolom kepegawaian yang sudah ada di
+ * teachers, ditambah data diri dari migrasi 0044.
+ *
+ * Bentuk data dirinya sengaja sama persis dengan PengurusProfile supaya satu
+ * komponen form melayani keduanya. Yang berbeda hanya siapa yang boleh
+ * menyunting bagian mana — lihat app/actions/teacher-profile.ts.
+ */
+export interface GuruProfile {
+  id: string
+  full_name: string
+  nip: string | null
+  photo_url: string | null
+  photo_focus: PhotoFocus | null
+  unit: Jenjang | null
+  employment_type: TeacherEmployment | null
+  /** TMT — terhitung mulai tanggal bertugas. Null = belum diisi (0044). */
+  joined_at: string | null
+  sapaan: Sapaan | null
+  nickname: string | null
+  birth_place: string | null
+  birth_date: string | null
+  education_level: EducationLevel | null
+  education_history: EducationEntry[] | null
+  quran_competencies: CompetencyEntry[] | null
+  other_competencies: CompetencyEntry[] | null
+  ijazah_sanad: string[] | null
+  trainings: TrainingEntry[] | null
+  amanah_history: AmanahEntry[] | null
+  awards: AwardEntry[] | null
 }
 
 export interface Teacher {
@@ -981,6 +1038,10 @@ export interface KpiMonthly {
   halaqoh_total: number | null
   /** Unit guru SAAT dinilai. Rubrik SD & SMP berbeda — lihat drizzle/0035. */
   unit: Jenjang | null
+  /** Butir apresiasi tulisan SDM; kosong/null = rapor memakai kalimat turunan. */
+  apresiasi: string[] | null
+  /** Butir area pengembangan tulisan SDM; kosong/null = kalimat turunan. */
+  pengembangan: string[] | null
   notes: string | null
   created_by: string | null
   updated_by: string | null

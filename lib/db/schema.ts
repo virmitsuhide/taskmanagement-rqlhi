@@ -14,7 +14,7 @@ export const userRoleEnum = pgEnum('user_role', [
 export const meetingTypeEnum = pgEnum('meeting_type', [
   'manajemen', 'kumik', 'new_squad', 'koor_sd', 'koor_smp',
   'koor_x_sd', 'koor_x_smp', 'koor_x_boarding', 'rq_x_quls', 'humas_yayasan',
-  'tahsin_rekomendasi',
+  'tahsin_rekomendasi', 'quls_sd',
 ])
 export const agendaTagEnum = pgEnum('agenda_tag', [
   'keputusan', 'informasi', 'perlu_diskusi', 'tindak_lanjut', 'approval',
@@ -31,6 +31,8 @@ export const subtaskStatusEnum = pgEnum('subtask_status', ['todo', 'in_progress'
 export const taskProblemTypeEnum = pgEnum('task_problem_type', ['bottleneck', 'blocked', 'wip_limit', 'others'])
 /** Jenis peristiwa di task_history — memisahkan sunting/hapus dari ubah status. */
 export const taskHistoryActionEnum = pgEnum('task_history_action', ['status', 'edited', 'deleted', 'restored'])
+/** Irama pengulangan tugas rutin (0043). */
+export const routineCadenceEnum = pgEnum('routine_cadence', ['pekanan', 'bulanan'])
 export const taskSourceEnum = pgEnum('task_source', ['rapat', 'mandiri', 'home_publik', 'humas_request'])
 export const contentRequestTypeEnum = pgEnum('content_request_type', [
   'flyer_ujian', 'flyer_lain', 'video', 'lain_lain',
@@ -209,6 +211,45 @@ export const notificationReads = pgTable('notification_reads', {
   read_at: timestamp('read_at', { withTimezone: true }).defaultNow(),
 }, (t) => [primaryKey({ columns: [t.user_id, t.history_id] })])
 
+/**
+ * Tugas rutin milik seorang pengurus (migrasi 0043) — pekerjaan yang berulang
+ * tiap pekan atau tiap bulan. Bukan baris tasks: tidak masuk papan kanban,
+ * tidak didelegasikan, tidak diverifikasi siapa pun.
+ */
+export const routineTasks = pgTable('routine_tasks', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  owner_id: uuid('owner_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  description: text('description').notNull(),
+  cadence: routineCadenceEnum('cadence').notNull(),
+  order_num: integer('order_num').notNull().default(0),
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+})
+
+/**
+ * Satu baris per (tugas rutin, periode) yang sudah dicentang.
+ *
+ * Kunci primer gabungan membuat mencentang tahan diulang dan membatalkan
+ * centang cukup DELETE — lihat migrasi 0043 untuk alasan lengkapnya.
+ */
+export const routineTaskChecks = pgTable('routine_task_checks', {
+  task_id: uuid('task_id').notNull().references(() => routineTasks.id, { onDelete: 'cascade' }),
+  /** '2026-W36' (pekan ISO) atau '2026-08' — lihat lib/rutin/periode.ts. */
+  period: text('period').notNull(),
+  checked_by: uuid('checked_by').references(() => users.id, { onDelete: 'set null' }),
+  checked_at: timestamp('checked_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [primaryKey({ columns: [t.task_id, t.period] })])
+
+export const routineTasksRelations = relations(routineTasks, ({ one, many }) => ({
+  owner: one(users, { fields: [routineTasks.owner_id], references: [users.id] }),
+  checks: many(routineTaskChecks),
+}))
+
+export const routineTaskChecksRelations = relations(routineTaskChecks, ({ one }) => ({
+  task: one(routineTasks, { fields: [routineTaskChecks.task_id], references: [routineTasks.id] }),
+  checker: one(users, { fields: [routineTaskChecks.checked_by], references: [users.id] }),
+}))
+
 export const publicPosts = pgTable('public_posts', {
   id: uuid('id').primaryKey().defaultRandom(),
   type: publicPostTypeEnum('type').notNull(),
@@ -360,7 +401,8 @@ export const teachers = pgTable('teachers', {
   is_public: boolean('is_public').default(false),
   display_order: integer('display_order').default(0),
   can_change_password: boolean('can_change_password').default(true),
-  joined_at: date('joined_at').defaultNow(),
+  /** TMT — terhitung mulai tanggal bertugas. Default dilepas di 0044. */
+  joined_at: date('joined_at'),
   /** Unit penempatan: sd = SDIT LHI, smp = SMPIT LHI, sd_juara = SD LHI Juara. */
   unit: jenjangEnum('unit'),
   /** Jenis kepegawaian — menentukan pos gaji & apakah kontraknya bisa habis. */
@@ -370,6 +412,21 @@ export const teachers = pgTable('teachers', {
   contract_end: date('contract_end'),
   /** Penanda hapus lunak — lihat drizzle/0020_teacher_soft_delete. */
   deleted_at: timestamp('deleted_at', { withTimezone: true }),
+  // ── Profil guru (0044) — bentuknya sama persis dengan kolom sejenis di
+  // users, supaya satu komponen form melayani pengurus maupun guru.
+  sapaan: text('sapaan'),
+  nickname: text('nickname'),
+  birth_place: text('birth_place'),
+  birth_date: date('birth_date'),
+  education_level: text('education_level'),
+  education_history: jsonb('education_history'),
+  quran_competencies: jsonb('quran_competencies'),
+  other_competencies: jsonb('other_competencies'),
+  ijazah_sanad: text('ijazah_sanad').array(),
+  trainings: jsonb('trainings'),
+  amanah_history: jsonb('amanah_history'),
+  awards: jsonb('awards'),
+
   linked_user_id: uuid('linked_user_id').references(() => users.id, { onDelete: 'set null' }),
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
@@ -918,6 +975,10 @@ export const kpiMonthly = pgTable('kpi_monthly', {
    */
   unit: jenjangEnum('unit'),
 
+  /** Butir apresiasi yang ditulis SDM; kosong = rapor pakai kalimat turunan. */
+  apresiasi: text('apresiasi').array(),
+  /** Butir area pengembangan; kosong = rapor pakai kalimat turunan. */
+  pengembangan: text('pengembangan').array(),
   notes: text('notes'),
   created_by: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
   updated_by: uuid('updated_by').references(() => users.id, { onDelete: 'set null' }),
