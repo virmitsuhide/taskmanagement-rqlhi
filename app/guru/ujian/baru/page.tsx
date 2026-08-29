@@ -1,7 +1,6 @@
 import { redirect } from 'next/navigation'
 import { getTeacherSession } from '@/lib/auth/teacher-session'
 import { getUnitUjianGuru } from '@/lib/data/ujian'
-import { TeacherHeader } from '@/components/layout/TeacherHeader'
 import { FormPengajuan } from '@/components/ujian/FormPengajuan'
 
 export default async function AjukanUjianGuruPage() {
@@ -16,9 +15,7 @@ export default async function AjukanUjianGuruPage() {
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--secondary)' }}>
-      <TeacherHeader fullName={session.fullName} active="ujian" />
-
-      <main className="max-w-2xl mx-auto px-4 md:px-6 py-6">
+      <div className="max-w-2xl mx-auto px-4 md:px-6 py-6">
         <div className="mb-6">
           <h1
             className="text-2xl font-extrabold tracking-tight"
@@ -33,7 +30,7 @@ export default async function AjukanUjianGuruPage() {
         </div>
 
         <FormPengajuan units={[unit]} redirectTo="/guru/ujian" />
-      </main>
+      </div>
     </div>
   )
 }

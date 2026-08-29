@@ -4,7 +4,6 @@ import { getTeacherSession } from '@/lib/auth/teacher-session'
 import { canTeacherAccessStudent } from '@/lib/data/teacher'
 import { getStudentRaporData } from '@/lib/data/rapor'
 import { createRaporToken } from '@/lib/rapor-token'
-import { TeacherHeader } from '@/components/layout/TeacherHeader'
 import { RaporDocument } from '@/components/rapor/RaporDocument'
 import { RaporShareButton } from './RaporShareButton'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
@@ -62,10 +61,9 @@ export default async function GuruRaporPage({ params, searchParams }: PageProps)
   return (
     <div className="min-h-screen" style={{ background: 'var(--secondary)' }}>
       <div className="print:hidden">
-        <TeacherHeader fullName={session.fullName} active="siswa" />
       </div>
 
-      <main className="max-w-3xl mx-auto px-4 md:px-6 py-6 space-y-5">
+      <div className="max-w-3xl mx-auto px-4 md:px-6 py-6 space-y-5">
         <div className="print:hidden">
           <Link href={`/guru/siswa/${id}`} className="text-xs text-muted-foreground hover:underline">← Detail Siswa</Link>
         </div>
@@ -108,7 +106,7 @@ export default async function GuruRaporPage({ params, searchParams }: PageProps)
 
         {/* Dokumen rapor */}
         <RaporDocument data={data} />
-      </main>
+      </div>
     </div>
   )
 }

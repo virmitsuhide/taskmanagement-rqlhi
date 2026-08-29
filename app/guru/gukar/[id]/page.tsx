@@ -4,7 +4,6 @@ import { ArrowLeft } from 'lucide-react'
 import { getTeacherSession } from '@/lib/auth/teacher-session'
 import { getCurrentTerm, formatTerm } from '@/lib/data/terms'
 import { getGukarGroup, getGukarMonthly, getGukarParticipants, bolehMengampuGukar } from '@/lib/data/gukar'
-import { TeacherHeader } from '@/components/layout/TeacherHeader'
 import { GukarMonthBoard } from '@/components/gukar/GukarMonthBoard'
 import { currentPeriod, isValidPeriod } from '@/lib/finance/period'
 
@@ -36,7 +35,6 @@ export default async function GukarGroupPage({ params, searchParams }: PageProps
 
   return (
     <div>
-      <TeacherHeader fullName={session.fullName} />
       <div className="p-4 md:p-6 max-w-5xl mx-auto">
         <Link
           href="/guru/gukar"

@@ -1,7 +1,6 @@
 import { redirect } from 'next/navigation'
 import { getTeacherSession } from '@/lib/auth/teacher-session'
 import { getTeacherStudents } from '@/lib/data/teacher'
-import { TeacherHeader } from '@/components/layout/TeacherHeader'
 import { Users } from 'lucide-react'
 import { StudentBrowser } from './StudentBrowser'
 
@@ -14,9 +13,7 @@ export default async function GuruSiswaPage() {
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--secondary)' }}>
-      <TeacherHeader fullName={session.fullName} active="siswa" />
-
-      <main className="max-w-4xl mx-auto px-4 md:px-6 py-6">
+      <div className="max-w-4xl mx-auto px-4 md:px-6 py-6">
         <div className="mb-5">
           <h1
             className="text-2xl font-extrabold tracking-tight"
@@ -46,7 +43,7 @@ export default async function GuruSiswaPage() {
           */
           <StudentBrowser students={students} />
         )}
-      </main>
+      </div>
     </div>
   )
 }

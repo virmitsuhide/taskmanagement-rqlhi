@@ -3,7 +3,6 @@ import Link from 'next/link'
 import { getTeacherSession } from '@/lib/auth/teacher-session'
 import { getTeacherStudents } from '@/lib/data/teacher'
 import { getTeacherWeeklyStats, getTeacherHalaqohSummary } from '@/lib/data/teacher-stats'
-import { TeacherHeader } from '@/components/layout/TeacherHeader'
 
 const MONTH_ID = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember']
 const DAY_ID = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu']
@@ -41,9 +40,7 @@ export default async function TeacherHomePage() {
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--secondary)' }}>
-      <TeacherHeader fullName={session.fullName} active="dashboard" />
-
-      <main className="max-w-4xl mx-auto px-4 md:px-6 py-8">
+      <div className="max-w-4xl mx-auto px-4 md:px-6 py-8">
         <div className="mb-6">
           <p className="text-[11px] uppercase tracking-[1.8px] text-muted-foreground">{dateLabel}</p>
           <h1
@@ -159,7 +156,7 @@ export default async function TeacherHomePage() {
           </aside>
         </div>
 
-      </main>
+      </div>
     </div>
   )
 }

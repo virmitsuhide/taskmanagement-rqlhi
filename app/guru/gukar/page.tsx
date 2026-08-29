@@ -4,7 +4,6 @@ import { ChevronRight, Users } from 'lucide-react'
 import { getTeacherSession } from '@/lib/auth/teacher-session'
 import { getCurrentTerm, formatTerm } from '@/lib/data/terms'
 import { getGukarGroupsFor, getGukarParticipants, bolehMengampuGukar } from '@/lib/data/gukar'
-import { TeacherHeader } from '@/components/layout/TeacherHeader'
 import { currentPeriod } from '@/lib/finance/period'
 
 /**
@@ -23,7 +22,6 @@ export default async function GukarGroupsPage() {
   if (!(await bolehMengampuGukar(session.teacherId))) {
     return (
       <div>
-        <TeacherHeader fullName={session.fullName} />
         <div className="p-4 md:p-6 max-w-3xl mx-auto">
           <h1 className="text-2xl font-bold">Pembinaan Guru &amp; Karyawan</h1>
           <p className="mt-3 text-sm text-muted-foreground">
@@ -40,7 +38,6 @@ export default async function GukarGroupsPage() {
   if (!term) {
     return (
       <div>
-        <TeacherHeader fullName={session.fullName} />
         <div className="p-4 md:p-6 max-w-3xl mx-auto">
           <h1 className="text-2xl font-bold">Pembinaan Guru & Karyawan</h1>
           <p className="mt-3 text-sm text-muted-foreground">
@@ -57,7 +54,6 @@ export default async function GukarGroupsPage() {
 
   return (
     <div>
-      <TeacherHeader fullName={session.fullName} />
       <div className="p-4 md:p-6 max-w-3xl mx-auto">
         <h1 className="text-2xl font-bold leading-tight">Pembinaan Guru &amp; Karyawan</h1>
         <p className="text-sm text-muted-foreground mt-0.5">{formatTerm(term)}</p>

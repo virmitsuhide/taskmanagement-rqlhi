@@ -3,7 +3,6 @@ import Link from 'next/link'
 import { getTeacherSession } from '@/lib/auth/teacher-session'
 import { canTeacherAccessStudent } from '@/lib/data/teacher'
 import { createServerClient } from '@/lib/supabase/server'
-import { TeacherHeader } from '@/components/layout/TeacherHeader'
 import { Button } from '@/components/ui/button'
 import { BookOpen, CheckCircle2, Sparkles } from 'lucide-react'
 import { AYAT_PER_JUZ } from '@/types'
@@ -202,9 +201,7 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--secondary)' }}>
-      <TeacherHeader fullName={session.fullName} active="siswa" />
-
-      <main className="max-w-4xl mx-auto px-4 md:px-6 py-6 space-y-5">
+      <div className="max-w-4xl mx-auto px-4 md:px-6 py-6 space-y-5">
         <Link href="/guru/siswa" className="text-xs text-muted-foreground hover:underline">← Daftar Siswa</Link>
 
         {(setoran === 'ok' || setoran === 'tahfidz_ok' || setoran === 'tasmi_ok') && (
@@ -506,7 +503,7 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
             </div>
           </section>
         )}
-      </main>
+      </div>
     </div>
   )
 }

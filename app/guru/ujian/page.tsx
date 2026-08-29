@@ -3,7 +3,6 @@ import Link from 'next/link'
 import { Plus } from 'lucide-react'
 import { getTeacherSession } from '@/lib/auth/teacher-session'
 import { getPengajuanGuru, getUnitUjianGuru } from '@/lib/data/ujian'
-import { TeacherHeader } from '@/components/layout/TeacherHeader'
 import { Button } from '@/components/ui/button'
 import { PengajuanGuru } from '@/components/ujian/PengajuanGuru'
 
@@ -18,9 +17,7 @@ export default async function UjianGuruPage() {
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--secondary)' }}>
-      <TeacherHeader fullName={session.fullName} active="ujian" />
-
-      <main className="max-w-4xl mx-auto px-4 md:px-6 py-6">
+      <div className="max-w-4xl mx-auto px-4 md:px-6 py-6">
         <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
           <div>
             <h1
@@ -56,7 +53,7 @@ export default async function UjianGuruPage() {
         ) : (
           <PengajuanGuru tahfidz={tahfidz} tahsin={tahsin} />
         )}
-      </main>
+      </div>
     </div>
   )
 }

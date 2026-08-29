@@ -2,7 +2,6 @@ import { redirect } from 'next/navigation'
 import { getTeacherSession } from '@/lib/auth/teacher-session'
 import { createServerClient } from '@/lib/supabase/server'
 import { getTeacherHalaqohIds } from '@/lib/data/teacher'
-import { TeacherHeader } from '@/components/layout/TeacherHeader'
 import { StudentMonthBoard } from '@/components/setoran/StudentMonthBoard'
 import { currentPeriod, isValidPeriod, shiftPeriod, toPeriodDate } from '@/lib/finance/period'
 import type { StudentMonthly } from '@/types'
@@ -60,9 +59,7 @@ export default async function CapaianBulananPage({ searchParams }: PageProps) {
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--secondary)' }}>
-      <TeacherHeader fullName={session.fullName} active="capaian" />
-
-      <main className="max-w-5xl mx-auto px-4 md:px-6 py-6">
+      <div className="max-w-5xl mx-auto px-4 md:px-6 py-6">
         <h1
           className="text-2xl font-extrabold tracking-tight"
           style={{ fontFamily: 'var(--font-playfair), Georgia, serif' }}
@@ -87,7 +84,7 @@ export default async function CapaianBulananPage({ searchParams }: PageProps) {
             monthly={monthly}
           />
         )}
-      </main>
+      </div>
     </div>
   )
 }

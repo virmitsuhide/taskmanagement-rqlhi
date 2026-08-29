@@ -7,7 +7,6 @@ import {
   getTeacherDailyActivity,
   getStudentsNeedingAttention,
 } from '@/lib/data/teacher-stats'
-import { TeacherHeader } from '@/components/layout/TeacherHeader'
 import { AlertTriangle } from 'lucide-react'
 
 const JENJANG_LABELS: Record<string, string> = { paud: 'PAUD', sd: 'SD', sd_juara: 'SD Juara', smp: 'SMP', sma: 'SMA' }
@@ -27,9 +26,7 @@ export default async function GuruStatistikPage() {
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--secondary)' }}>
-      <TeacherHeader fullName={session.fullName} active="statistik" />
-
-      <main className="max-w-4xl mx-auto px-4 md:px-6 py-6 space-y-6">
+      <div className="max-w-4xl mx-auto px-4 md:px-6 py-6 space-y-6">
         <div>
           <p className="text-[11px] uppercase tracking-[1.8px] text-muted-foreground">Statistik</p>
           <h1
@@ -145,7 +142,7 @@ export default async function GuruStatistikPage() {
             </div>
           )}
         </section>
-      </main>
+      </div>
     </div>
   )
 }

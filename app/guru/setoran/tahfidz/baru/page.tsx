@@ -2,7 +2,6 @@ import { redirect } from 'next/navigation'
 import { getTeacherSession } from '@/lib/auth/teacher-session'
 import { getTeacherHalaqohIds } from '@/lib/data/teacher'
 import { createServerClient } from '@/lib/supabase/server'
-import { TeacherHeader } from '@/components/layout/TeacherHeader'
 import { TahfidzSetoranForm } from './TahfidzSetoranForm'
 
 interface PageProps {
@@ -56,9 +55,7 @@ export default async function NewTahfidzSetoranPage({ searchParams }: PageProps)
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--secondary)' }}>
-      <TeacherHeader fullName={session.fullName} active="tahfidz" />
-
-      <main className="max-w-4xl mx-auto px-4 md:px-6 py-6">
+      <div className="max-w-4xl mx-auto px-4 md:px-6 py-6">
         <div className="mb-5">
           <p className="text-[11px] uppercase tracking-[1.8px] text-muted-foreground">Setoran Harian</p>
           <h1
@@ -81,7 +78,7 @@ export default async function NewTahfidzSetoranPage({ searchParams }: PageProps)
             defaultStudentId={defaultStudentId}
           />
         )}
-      </main>
+      </div>
     </div>
   )
 }
