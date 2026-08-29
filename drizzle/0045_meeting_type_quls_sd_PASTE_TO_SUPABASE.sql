@@ -1,0 +1,37 @@
+-- ============================================================
+-- Jenis rapat baru — Rapat QULS SD
+-- ============================================================
+-- 📋 CARA PAKAI: Supabase SQL Editor → paste seluruh file → Run.
+--    Idempoten (boleh dijalankan ulang).
+--
+-- Yang berubah:
+--   • enum meeting_type : + quls_sd
+--
+-- Rapat internal seluruh guru QULS SD, dipegang Koor QULS SD.
+--
+-- Pemetaan izin ada di lib/auth/permissions.ts:
+--   • quls_sd   → dibuat/disunting/dihapus koor QULS SD
+--                 dilihat koor QULS SD + manajemen (kepala, kumik, SDM, bendahara)
+--   • rq_x_quls → koor QULS SD DITAMBAHKAN sebagai pembaca
+--
+-- Kenapa rq_x_quls perlu dibuka untuk koor QULS SD: rapat itu adalah forum RQ
+-- dengan QULS, dan sejak ada koor QULS SD, dialah yang menjalankan hasilnya di
+-- lapangan. Sebelumnya ia hanya bisa mendengar keputusannya dari orang lain.
+--
+-- Koor SD sengaja TIDAK dimasukkan sebagai pembaca quls_sd. Arah bacanya memang
+-- satu arah: koor QULS SD membaca notulen koor SD (kelompoknya duduk di sesi &
+-- unit yang sama), tapi rapat internal guru QULS adalah forum pembinaan tim
+-- sendiri — sama seperti rapat koor SMP yang tidak dibuka untuk koor SD.
+--
+-- ⚠️ Jalankan SQL ini SEBELUM men-deploy kodenya. Kode sudah menawarkan jenis
+--    rapat ini di formulir; tanpa nilai enum-nya, penyimpanan akan ditolak
+--    dengan 'invalid input value for enum meeting_type'.
+--
+-- ⚠️ Nilai enum tidak bisa dihapus di Postgres. Kalau perlu rollback,
+--    harus membuat type baru.
+-- ============================================================
+
+ALTER TYPE "meeting_type" ADD VALUE IF NOT EXISTS 'quls_sd';
+
+-- Verifikasi (opsional) — harus mengembalikan 12 baris:
+-- SELECT unnest(enum_range(NULL::meeting_type));
