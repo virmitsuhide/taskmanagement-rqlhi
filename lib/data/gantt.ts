@@ -1,5 +1,5 @@
 import { createServerClient } from '@/lib/supabase/server'
-import { getBoardDivisions, canViewUserGantt } from '@/lib/auth/permissions'
+import { getBoardDivisions, canViewUserGantt, ROLE_LABELS } from '@/lib/auth/permissions'
 import { taskRange, taskProgress, type DayRange, type Progress } from '@/lib/tasks/gantt'
 import type { SessionData, Task, TaskSubtask, UserRole } from '@/types'
 
@@ -19,13 +19,42 @@ export interface GanttRow {
   progress: Progress
 }
 
-/** Pengguna yang Gantt-nya boleh dibuka oleh pemirsa saat ini. */
+/**
+ * Pemegang jabatan yang Gantt-nya boleh dibuka pemirsa saat ini.
+ *
+ * SENGAJA TIDAK MEMBAWA display_name.
+ *
+ * Yang dipantau di Gantt adalah amanah, bukan orangnya: jabatan berpindah
+ * tangan, dan Gantt "Koor SD" tetap berarti hal yang sama setelah pergantian
+ * itu sementara Gantt atas nama seseorang jadi menyesatkan. Nama dijatuhkan di
+ * lapisan ini, bukan disembunyikan di komponen, supaya tidak bisa bocor lagi
+ * lewat tampilan baru yang kebetulan ikut memakai tipe ini.
+ */
 export interface GanttPerson {
   id: string
-  display_name: string
   role: UserRole
+  /** Jabatannya — inilah yang muncul di layar. */
+  label: string
   /** Jumlah tugas aktif — dipakai sebagai angka kecil di menu navigasi. */
   activeTasks: number
+}
+
+/**
+ * Label satu pemegang jabatan.
+ *
+ * Hampir selalu cukup nama jabatannya saja. Yang jarang tapi mungkin: satu
+ * amanah dipegang dua orang sekaligus — di situ dua baris menu yang bunyinya
+ * sama persis tidak bisa dibedakan sama sekali, jadi inisial ditambahkan
+ * seperlunya. Pembeda ini hanya muncul saat benar-benar ada duplikat.
+ */
+function ganttLabel(
+  orang: { display_name: string; role: UserRole },
+  jumlahPemegang: number,
+): string {
+  const jabatan = ROLE_LABELS[orang.role]
+  if (jumlahPemegang < 2) return jabatan
+  const inisial = orang.display_name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase()
+  return `${jabatan} (${inisial})`
 }
 
 const SELECT_TASK =
@@ -117,6 +146,7 @@ export async function getGanttPeople(session: SessionData): Promise<GanttPerson[
     .select('id, display_name, role')
     .in('role', divisions)
     .neq('id', session.userId)
+    .order('role', { ascending: true })
     .order('display_name', { ascending: true })
 
   const people = (data ?? []) as { id: string; display_name: string; role: UserRole }[]
@@ -137,7 +167,15 @@ export async function getGanttPeople(session: SessionData): Promise<GanttPerson[
     counts.set(t.assigned_to, (counts.get(t.assigned_to) ?? 0) + 1)
   }
 
-  return people.map(p => ({ ...p, activeTasks: counts.get(p.id) ?? 0 }))
+  const pemegangPerJabatan = new Map<UserRole, number>()
+  for (const p of people) pemegangPerJabatan.set(p.role, (pemegangPerJabatan.get(p.role) ?? 0) + 1)
+
+  return people.map(p => ({
+    id: p.id,
+    role: p.role,
+    label: ganttLabel(p, pemegangPerJabatan.get(p.role) ?? 1),
+    activeTasks: counts.get(p.id) ?? 0,
+  }))
 }
 
 /**
@@ -151,9 +189,9 @@ export async function getGanttPeople(session: SessionData): Promise<GanttPerson[
 export async function resolveGanttTarget(
   session: SessionData,
   userId: string | undefined,
-): Promise<{ id: string; display_name: string; role: UserRole } | null> {
+): Promise<{ id: string; role: UserRole; label: string } | null> {
   if (!userId || userId === session.userId) {
-    return { id: session.userId, display_name: session.displayName, role: session.role }
+    return { id: session.userId, role: session.role, label: ROLE_LABELS[session.role] }
   }
 
   const supabase = createServerClient()
@@ -166,5 +204,13 @@ export async function resolveGanttTarget(
   const target = data as { id: string; display_name: string; role: UserRole } | null
   if (!target) return null
   if (!canViewUserGantt(session.role, session.userId, target)) return null
-  return target
+
+  // Satu query hitungan pemegang jabatan yang sama — menentukan perlu tidaknya
+  // pembeda inisial, dengan aturan yang sama seperti di getGanttPeople.
+  const { count } = await supabase
+    .from('users')
+    .select('id', { count: 'exact', head: true })
+    .eq('role', target.role)
+
+  return { id: target.id, role: target.role, label: ganttLabel(target, count ?? 1) }
 }

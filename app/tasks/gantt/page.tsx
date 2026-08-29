@@ -82,12 +82,12 @@ export default async function GanttPage({ searchParams }: PageProps) {
           <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
             <div>
               <h1 className="text-2xl font-bold leading-tight">
-                {isSelf ? 'Gantt Chart Saya' : `Gantt Chart · ${target.display_name}`}
+                {isSelf ? 'Gantt Chart Saya' : `Gantt Chart · ${target.label}`}
               </h1>
               <p className="mt-0.5 text-sm text-muted-foreground">
                 {isSelf
                   ? 'Semua tugas Anda beserta rinciannya, tersusun menurut tanggal.'
-                  : `Tugas ${ROLE_LABELS[target.role]} — hanya bisa dibaca.`}
+                  : 'Tugas yang diemban jabatan ini — hanya bisa dibaca.'}
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
@@ -99,7 +99,7 @@ export default async function GanttPage({ searchParams }: PageProps) {
               </Button>
               <GanttNavMenu
                 people={people}
-                selfName={session.displayName}
+                selfLabel={ROLE_LABELS[session.role]}
                 activeUserId={isSelf ? undefined : target.id}
                 scale={scale}
               />
@@ -111,7 +111,7 @@ export default async function GanttPage({ searchParams }: PageProps) {
             <div className="mb-4 flex items-start gap-2 rounded-lg border border-info/30 bg-info-wash px-4 py-2.5 text-sm text-info">
               <Eye className="mt-0.5 h-4 w-4 shrink-0" />
               <p>
-                Anda melihat Gantt Chart <strong>{target.display_name}</strong> lewat izin papan
+                Anda melihat Gantt Chart <strong>{target.label}</strong> lewat izin papan
                 kanban. Tampilan ini hanya baca — rincian tugas hanya bisa diubah oleh
                 pelaksana dan pemberi tugasnya.
               </p>
@@ -169,7 +169,7 @@ export default async function GanttPage({ searchParams }: PageProps) {
             emptyLabel={
               isSelf
                 ? 'Buat tugas lalu beri tanggal mulai & tenggat — atau rinci tugas yang ada — supaya batangnya muncul di sini.'
-                : `${target.display_name} belum punya tugas aktif untuk digambar.`
+                : `${target.label} belum punya tugas aktif untuk digambar.`
             }
           />
 

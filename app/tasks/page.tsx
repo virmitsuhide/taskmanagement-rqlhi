@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { getSession } from '@/lib/auth/session'
-import { canAssignAnyTask } from '@/lib/auth/permissions'
+import { canAssignAnyTask, ROLE_LABELS } from '@/lib/auth/permissions'
 import { createServerClient } from '@/lib/supabase/server'
 import { getGanttPeople } from '@/lib/data/gantt'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
@@ -159,7 +159,7 @@ export default async function TasksPage({ searchParams }: PageProps) {
             <Button asChild size="sm" variant="outline">
               <Link href="/tasks/board"><LayoutGrid className="h-4 w-4 mr-1" />Papan</Link>
             </Button>
-            <GanttNavMenu people={ganttPeople} selfName={session.displayName} />
+            <GanttNavMenu people={ganttPeople} selfLabel={ROLE_LABELS[session.role]} />
             <NewTaskMenu canDelegate={canAssignAnyTask(session.role)} />
           </div>
         </div>

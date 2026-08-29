@@ -62,7 +62,7 @@ export default async function TaskBoardPage({ searchParams }: PageProps) {
             <Button asChild size="sm" variant="outline">
               <Link href="/tasks"><List className="h-4 w-4 mr-1" />Tampilan List</Link>
             </Button>
-            <GanttNavMenu people={ganttPeople} selfName={session.displayName} />
+            <GanttNavMenu people={ganttPeople} selfLabel={ROLE_LABELS[session.role]} />
             {/*
               Menu yang sama dengan tampilan list. Tautan polos ke /tasks/baru
               tidak cukup: halaman itu menolak role yang tidak boleh
@@ -106,7 +106,7 @@ export default async function TaskBoardPage({ searchParams }: PageProps) {
           </div>
         )}
 
-        <GanttPeopleStrip people={ganttPeople} selfName={session.displayName} />
+        <GanttPeopleStrip people={ganttPeople} selfLabel={ROLE_LABELS[session.role]} />
 
         <KanbanBoard columns={columns} currentUserId={session.userId} currentRole={session.role} />
 
