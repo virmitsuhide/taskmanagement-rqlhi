@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { getSession } from '@/lib/auth/session'
-import { canManageTeachers, canViewTeachers, getManageableJenjang, JENJANG_LABELS } from '@/lib/auth/permissions'
+import { canManageTeachers, canViewTeachers, getManageableJenjang, JENJANG_LABELS , canManageTeacherProfiles } from '@/lib/auth/permissions'
 import { createServerClient } from '@/lib/supabase/server'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { SearchInput } from '@/components/ui/search-input'
@@ -38,6 +38,12 @@ export default async function UstadzListPage({ searchParams }: PageProps) {
     params.status === 'inactive' ? 'inactive'
       : params.status === 'deleted' && canCreate ? 'deleted'
         : 'active'
+
+  // SDM-lah yang mengelola profil guru, jadi baginya nama guru mengantar ke
+  // profil — pintu yang sama dengan profil pengurus. Peran lain tetap diantar
+  // ke halaman akun & kontrak seperti sebelumnya; keduanya saling bertaut, jadi
+  // tidak ada yang jadi tak terjangkau.
+  const keProfil = canManageTeacherProfiles(session.role)
 
   const supabase = createServerClient()
 
@@ -211,7 +217,7 @@ export default async function UstadzListPage({ searchParams }: PageProps) {
               return (
                 <Link
                   key={t.id}
-                  href={`/ustadz/${t.id}`}
+                  href={keProfil ? `/ustadz/profil?unit=${t.unit ?? 'sd'}&guru=${t.id}` : `/ustadz/${t.id}`}
                   className="flex items-center gap-3 p-3 hover:bg-muted/30 transition-colors"
                 >
                   {identity}

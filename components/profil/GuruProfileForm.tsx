@@ -1,36 +1,37 @@
 'use client'
 
-import { useState, useActionState } from 'react'
-import { updatePengurusProfileAction } from '@/app/actions/profile'
+import { useActionState, useState } from 'react'
+import { updateGuruProfileBySdmAction, updateOwnGuruProfileAction } from '@/app/actions/teacher-profile'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { PhotoAdjuster } from '@/components/profil/PhotoAdjuster'
-import { RowSection, RowShell } from '@/components/profil/RowSection'
+import { RowSection, RowShell } from './RowSection'
+import { PhotoAdjuster } from './PhotoAdjuster'
 import { parseFocus } from '@/lib/profil/foto'
-import {
-  EDUCATION_LEVELS,
-  hasMajorField,
-  institutionPlaceholder,
-} from '@/lib/profil/pendidikan'
+import { EDUCATION_LEVELS, hasMajorField, institutionPlaceholder } from '@/lib/profil/pendidikan'
+import { UNIT_PENUGASAN_LABELS } from '@/lib/auth/permissions'
 import type {
-  PengurusProfile, TrainingEntry, AmanahEntry, AwardEntry, CompetencyEntry,
+  AmanahEntry, AwardEntry, CompetencyEntry, GuruProfile, Jenjang, TrainingEntry,
 } from '@/types'
 
-/** Baris kosong dipakai saat pengguna menekan "Tambah". */
+/**
+ * Form profil guru Qur'an.
+ *
+ * Satu komponen, dua peran. `scope='sdm'` menambahkan blok kepegawaian (unit,
+ * TMT, NIP, jenis kepegawaian) dan menulis lewat action SDM; `scope='guru'`
+ * hanya data diri dan menulis lewat action portal guru, yang mengambil id
+ * gurunya dari sesi.
+ *
+ * Medan kepegawaian tidak sekadar disembunyikan pada scope guru — action-nya
+ * memang tidak pernah membacanya (lihat app/actions/teacher-profile.ts), jadi
+ * menyisipkannya lewat peralatan pengembang peramban tetap tidak berpengaruh.
+ */
+
 const EMPTY_TRAINING: TrainingEntry = { name: '', year: '', organizer: '' }
 const EMPTY_AMANAH: AmanahEntry = { position: '', period: '' }
 const EMPTY_AWARD: AwardEntry = { name: '', year: '' }
 const EMPTY_COMPETENCY: CompetencyEntry = { name: '', institution: '' }
 
-/**
- * Baris riwayat pendidikan disimpan sebagai state terkendali dan diberi `uid`
- * sendiri. Empat daftar lain di form ini memakai defaultValue dengan key indeks
- * — itu cukup selama isian barisnya sejenis, tapi di sini jenjang yang dipilih
- * menentukan tampilan baris (placeholder lembaga & jurusan), jadi nilainya
- * harus dibaca React, bukan hanya oleh DOM. Sebagai efek sampingnya, menghapus
- * baris tengah tidak menggeser isi baris di bawahnya.
- */
 type EducationRow = {
   uid: number
   level: string
@@ -47,17 +48,30 @@ function newEducationRow(init?: Partial<EducationRow>): EducationRow {
 const inputCls =
   'flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring'
 
-export function PengurusProfileForm({ profile }: { profile: PengurusProfile }) {
-  const [state, action, pending] = useActionState(updatePengurusProfileAction, null)
+const UNITS: Jenjang[] = ['paud', 'sd', 'sd_juara', 'smp', 'sma']
 
-  // Daftar dikelola sebagai state supaya baris bisa ditambah/dihapus. Nilainya
-  // tetap dikirim lewat name= biasa, jadi server action membacanya dari FormData.
+const EMPLOYMENT: { key: string; label: string }[] = [
+  { key: 'tetap_yayasan', label: 'Tetap Yayasan' },
+  { key: 'kontrak_yayasan', label: 'Kontrak Yayasan' },
+  { key: 'kontrak_rq', label: 'Kontrak RQ' },
+]
+
+interface Props {
+  profile: GuruProfile
+  scope: 'sdm' | 'guru'
+}
+
+export function GuruProfileForm({ profile, scope }: Props) {
+  const [state, action, pending] = useActionState(
+    scope === 'sdm' ? updateGuruProfileBySdmAction : updateOwnGuruProfileAction,
+    null as { error?: string; success?: boolean; message?: string } | null,
+  )
+
   const [education, setEducation] = useState<EducationRow[]>(() =>
     profile.education_history?.length
       ? profile.education_history.map(e => newEducationRow(e))
       : [newEducationRow()],
   )
-
   const [quranComps, setQuranComps] = useState<CompetencyEntry[]>(
     profile.quran_competencies?.length ? profile.quran_competencies : [EMPTY_COMPETENCY],
   )
@@ -77,16 +91,12 @@ export function PengurusProfileForm({ profile }: { profile: PengurusProfile }) {
     profile.awards?.length ? profile.awards : [EMPTY_AWARD],
   )
 
-  const [photoPreview, setPhotoPreview] = useState<string | null>(profile.photo_url)
+  const [photoPreview, setPhotoPreview] = useState<string | null>(profile.photo_url ?? null)
 
   // Foto baru berarti bingkai lama tidak berlaku lagi: posisi yang pas untuk
   // foto sebelumnya hampir pasti salah untuk gambar yang komposisinya beda.
   // Mengganti key memaksa PhotoAdjuster memulai dari posisi tengah.
   const [adjusterKey, setAdjusterKey] = useState(0)
-
-  function patchEducation(index: number, patch: Partial<EducationRow>) {
-    setEducation(rows => rows.map((r, i) => (i === index ? { ...r, ...patch } : r)))
-  }
 
   function onPhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -95,11 +105,77 @@ export function PengurusProfileForm({ profile }: { profile: PengurusProfile }) {
     setAdjusterKey(k => k + 1)
   }
 
+  function patchEducation(index: number, patch: Partial<EducationRow>) {
+    setEducation(rows => rows.map((r, i) => (i === index ? { ...r, ...patch } : r)))
+  }
+
   return (
     <form action={action} className="space-y-8">
-      {/* ── Foto & sapaan ─────────────────────────────────────── */}
-      <section className="space-y-4">
-        <h2 className="text-sm font-semibold">Identitas</h2>
+      {scope === 'sdm' && <input type="hidden" name="teacher_id" value={profile.id} />}
+
+      {/* ── Kepegawaian (SDM saja) ────────────────────────────── */}
+      {scope === 'sdm' && (
+        <section className="space-y-4 rounded-xl border bg-card p-4 shadow-sm">
+          <div>
+            <h2 className="text-sm font-semibold">Kepegawaian</h2>
+            <p className="mt-0.5 text-[11px] text-muted-foreground">
+              Hanya SDM yang bisa mengubah bagian ini. Unit menentukan rubrik KPI,
+              TMT menentukan masa kerja yang tercetak di rapor bulanan.
+            </p>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="full_name">Nama Lengkap &amp; Gelar</Label>
+              <Input id="full_name" name="full_name" defaultValue={profile.full_name} required />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="nip">NIP / ID Guru</Label>
+              <Input id="nip" name="nip" defaultValue={profile.nip ?? ''} placeholder="GQ-2023-014" />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="unit">Unit Penugasan</Label>
+              <select id="unit" name="unit" defaultValue={profile.unit ?? ''} className={inputCls}>
+                <option value="">— belum ditentukan —</option>
+                {UNITS.map(u => (
+                  <option key={u} value={u}>{UNIT_PENUGASAN_LABELS[u]}</option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="joined_at">TMT / Tanggal Bergabung</Label>
+              <Input id="joined_at" name="joined_at" type="date" defaultValue={profile.joined_at ?? ''} />
+              <p className="text-[11px] text-muted-foreground">
+                Terhitung mulai tanggal bertugas. Inilah yang jadi masa kerja di rapor KPI.
+              </p>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="employment_type">Jenis Kepegawaian</Label>
+              <select
+                id="employment_type"
+                name="employment_type"
+                defaultValue={profile.employment_type ?? ''}
+                className={inputCls}
+              >
+                <option value="">— belum ditentukan —</option>
+                {EMPLOYMENT.map(e => (
+                  <option key={e.key} value={e.key}>{e.label}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* ── Data diri ─────────────────────────────────────────── */}
+      <section className="space-y-4 rounded-xl border bg-card p-4 shadow-sm">
+        <h2 className="text-sm font-semibold">Data Diri</h2>
+        {scope === 'guru' && (
+          <p className="-mt-2 text-[11px] text-muted-foreground">
+            Nama lengkap, NIP, unit, dan TMT dikelola SDM. Kalau ada yang keliru,
+            sampaikan kepada SDM.
+          </p>
+        )}
 
         <div className="flex items-start gap-4">
           <PhotoAdjuster
@@ -109,7 +185,7 @@ export function PengurusProfileForm({ profile }: { profile: PengurusProfile }) {
             initial={adjusterKey === 0 ? parseFocus(profile.photo_focus) : undefined}
             size={88}
           />
-          <div className="space-y-1.5">
+          <div className="min-w-0 flex-1 space-y-1.5">
             <Label htmlFor="photo">Foto Profil</Label>
             <Input
               id="photo"
@@ -119,53 +195,26 @@ export function PengurusProfileForm({ profile }: { profile: PengurusProfile }) {
               onChange={onPhotoChange}
               className="text-xs"
             />
-            <p className="text-[11px] text-muted-foreground">JPG/PNG/WebP, maksimal 2 MB.</p>
+            <p className="text-[11px] text-muted-foreground">
+              JPG/PNG/WebP, maksimal 2 MB. Ketuk lingkarannya untuk mengatur posisi.
+            </p>
           </div>
         </div>
 
-        <div className="grid sm:grid-cols-2 gap-4">
+        <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-1.5">
             <Label htmlFor="sapaan">Sapaan</Label>
-            <select
-              id="sapaan"
-              name="sapaan"
-              defaultValue={profile.sapaan ?? ''}
-              className={inputCls}
-            >
-              <option value="">— pilih —</option>
-              <option value="ust">Ust. (Ustadz)</option>
-              <option value="usth">Usth. (Ustadzah)</option>
+            <select id="sapaan" name="sapaan" defaultValue={profile.sapaan ?? ''} className={inputCls}>
+              <option value="">— tidak diisi —</option>
+              <option value="ust">Ust.</option>
+              <option value="usth">Usth.</option>
             </select>
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="nickname">Nama Panggilan</Label>
-            <Input id="nickname" name="nickname" defaultValue={profile.nickname ?? ''} placeholder="Habib" />
-          </div>
-        </div>
-
-        <div className="space-y-1.5">
-          <Label htmlFor="full_name">Nama Lengkap</Label>
-          <Input id="full_name" name="full_name" defaultValue={profile.full_name ?? profile.display_name} />
-        </div>
-
-        <div className="grid sm:grid-cols-2 gap-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="nip">NIP</Label>
-            <Input id="nip" name="nip" defaultValue={profile.nip ?? ''} />
+            <Input id="nickname" name="nickname" defaultValue={profile.nickname ?? ''} />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="current_amanah">Amanah Saat Ini</Label>
-            <Input
-              id="current_amanah"
-              name="current_amanah"
-              defaultValue={profile.current_amanah ?? ''}
-              placeholder="Kepala Rumah Qur'an"
-            />
-          </div>
-        </div>
-
-        <div className="grid sm:grid-cols-3 gap-4">
-          <div className="space-y-1.5 sm:col-span-2">
             <Label htmlFor="birth_place">Tempat Lahir</Label>
             <Input id="birth_place" name="birth_place" defaultValue={profile.birth_place ?? ''} />
           </div>
@@ -174,26 +223,25 @@ export function PengurusProfileForm({ profile }: { profile: PengurusProfile }) {
             <Input id="birth_date" name="birth_date" type="date" defaultValue={profile.birth_date ?? ''} />
           </div>
         </div>
-
       </section>
 
-      {/* ── Riwayat pendidikan formal ─────────────────────────── */}
+      {/* ── Riwayat pendidikan ────────────────────────────────── */}
       <RowSection
+        variant="card"
         title="Riwayat Pendidikan Formal"
-        desc="Pilih jenjangnya, isi datanya, lalu tekan Tambah untuk jenjang berikutnya. Urutan bebas — tersimpan otomatis dari jenjang terendah."
         onAdd={() => setEducation([...education, newEducationRow()])}
       >
         {education.map((row, i) => (
           <RowShell key={row.uid} onRemove={() => setEducation(education.filter((_, x) => x !== i))}>
-            <div className="grid gap-2 sm:grid-cols-[104px_1fr_1fr_88px]">
+            <div className="grid gap-2 sm:grid-cols-[110px_1fr_1fr_90px]">
               <select
                 name="edu_level"
                 value={row.level}
                 onChange={e => patchEducation(i, { level: e.target.value })}
                 className={inputCls}
-                aria-label={`Jenjang pendidikan ${i + 1}`}
+                aria-label={`Jenjang ${i + 1}`}
               >
-                <option value="">— jenjang —</option>
+                <option value="">Jenjang</option>
                 {EDUCATION_LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
               </select>
               <Input
@@ -201,7 +249,7 @@ export function PengurusProfileForm({ profile }: { profile: PengurusProfile }) {
                 value={row.institution}
                 onChange={e => patchEducation(i, { institution: e.target.value })}
                 placeholder={institutionPlaceholder(row.level)}
-                aria-label={`Nama lembaga ${i + 1}`}
+                aria-label={`Institusi ${i + 1}`}
               />
               <Input
                 name="edu_major"
@@ -225,6 +273,7 @@ export function PengurusProfileForm({ profile }: { profile: PengurusProfile }) {
 
       {/* ── Kompetensi Al-Qur'an ──────────────────────────────── */}
       <RowSection
+        variant="card"
         title="Kompetensi Al-Qur'an yang Dimiliki"
         desc="Isi lembaga penjaminnya bila sudah tersertifikasi; kosongkan bila belum."
         onAdd={() => setQuranComps([...quranComps, EMPTY_COMPETENCY])}
@@ -232,18 +281,8 @@ export function PengurusProfileForm({ profile }: { profile: PengurusProfile }) {
         {quranComps.map((c, i) => (
           <RowShell key={i} onRemove={() => setQuranComps(quranComps.filter((_, x) => x !== i))}>
             <div className="grid gap-2 sm:grid-cols-2">
-              <Input
-                name="quran_comp_name"
-                defaultValue={c.name}
-                placeholder="Tahsin metode UMMI"
-                aria-label={`Kompetensi Al-Qur'an ${i + 1}`}
-              />
-              <Input
-                name="quran_comp_institution"
-                defaultValue={c.institution}
-                placeholder="Lembaga penjamin (kosongkan bila belum)"
-                aria-label={`Lembaga penjamin kompetensi Al-Qur'an ${i + 1}`}
-              />
+              <Input name="quran_comp_name" defaultValue={c.name} placeholder="Tahsin metode UMMI" aria-label={`Kompetensi Al-Qur'an ${i + 1}`} />
+              <Input name="quran_comp_institution" defaultValue={c.institution} placeholder="Lembaga penjamin (kosongkan bila belum)" aria-label={`Lembaga penjamin ${i + 1}`} />
             </div>
           </RowShell>
         ))}
@@ -251,6 +290,7 @@ export function PengurusProfileForm({ profile }: { profile: PengurusProfile }) {
 
       {/* ── Kompetensi lain ───────────────────────────────────── */}
       <RowSection
+        variant="card"
         title="Kompetensi Lain yang Dimiliki"
         desc="Kompetensi di luar Al-Qur'an. Lembaga diisi hanya bila tersertifikasi."
         onAdd={() => setOtherComps([...otherComps, EMPTY_COMPETENCY])}
@@ -258,25 +298,16 @@ export function PengurusProfileForm({ profile }: { profile: PengurusProfile }) {
         {otherComps.map((c, i) => (
           <RowShell key={i} onRemove={() => setOtherComps(otherComps.filter((_, x) => x !== i))}>
             <div className="grid gap-2 sm:grid-cols-2">
-              <Input
-                name="other_comp_name"
-                defaultValue={c.name}
-                placeholder="Kurikulum PHI"
-                aria-label={`Kompetensi lain ${i + 1}`}
-              />
-              <Input
-                name="other_comp_institution"
-                defaultValue={c.institution}
-                placeholder="Lembaga penjamin (kosongkan bila belum)"
-                aria-label={`Lembaga penjamin kompetensi lain ${i + 1}`}
-              />
+              <Input name="other_comp_name" defaultValue={c.name} placeholder="Kurikulum PHI" aria-label={`Kompetensi lain ${i + 1}`} />
+              <Input name="other_comp_institution" defaultValue={c.institution} placeholder="Lembaga penjamin (kosongkan bila belum)" aria-label={`Lembaga penjamin lain ${i + 1}`} />
             </div>
           </RowShell>
         ))}
       </RowSection>
 
-      {/* ── Diklat & pelatihan ────────────────────────────────── */}
+      {/* ── Diklat ────────────────────────────────────────────── */}
       <RowSection
+        variant="card"
         title="Diklat & Pelatihan yang Pernah Diikuti"
         onAdd={() => setTrainings([...trainings, EMPTY_TRAINING])}
       >
@@ -285,7 +316,7 @@ export function PengurusProfileForm({ profile }: { profile: PengurusProfile }) {
             <div className="grid gap-2 sm:grid-cols-[1fr_90px_1fr]">
               <Input name="training_name" defaultValue={t.name} placeholder="Nama diklat" aria-label={`Nama diklat ${i + 1}`} />
               <Input name="training_year" defaultValue={t.year} placeholder="Tahun" aria-label={`Tahun diklat ${i + 1}`} />
-              <Input name="training_organizer" defaultValue={t.organizer} placeholder="Penyelenggara" aria-label={`Penyelenggara diklat ${i + 1}`} />
+              <Input name="training_organizer" defaultValue={t.organizer} placeholder="Penyelenggara" aria-label={`Penyelenggara ${i + 1}`} />
             </div>
           </RowShell>
         ))}
@@ -293,6 +324,7 @@ export function PengurusProfileForm({ profile }: { profile: PengurusProfile }) {
 
       {/* ── Riwayat amanah ────────────────────────────────────── */}
       <RowSection
+        variant="card"
         title="Riwayat Amanah Sebelumnya"
         onAdd={() => setAmanah([...amanah, EMPTY_AMANAH])}
       >
@@ -308,6 +340,7 @@ export function PengurusProfileForm({ profile }: { profile: PengurusProfile }) {
 
       {/* ── Penghargaan ───────────────────────────────────────── */}
       <RowSection
+        variant="card"
         title="Penghargaan & Prestasi"
         onAdd={() => setAwards([...awards, EMPTY_AWARD])}
       >
@@ -323,6 +356,7 @@ export function PengurusProfileForm({ profile }: { profile: PengurusProfile }) {
 
       {/* ── Ijazah & sanad ────────────────────────────────────── */}
       <RowSection
+        variant="card"
         title="Ijazah & Sanad yang Dimiliki"
         desc="Cukup nama ijazah atau sanadnya — tahun tidak perlu dicatat."
         onAdd={() => setIjazahSanad([...ijazahSanad, ''])}
@@ -342,7 +376,7 @@ export function PengurusProfileForm({ profile }: { profile: PengurusProfile }) {
       {state?.error && <p className="text-sm text-destructive">{state.error}</p>}
       {state?.success && <p className="text-sm text-success">{state.message}</p>}
 
-      <div className="sticky bottom-0 bg-background/95 backdrop-blur py-3 border-t">
+      <div className="sticky bottom-0 border-t bg-background/95 py-3 backdrop-blur">
         <Button type="submit" disabled={pending}>
           {pending ? 'Menyimpan…' : 'Simpan Profil'}
         </Button>
@@ -350,4 +384,3 @@ export function PengurusProfileForm({ profile }: { profile: PengurusProfile }) {
     </form>
   )
 }
-

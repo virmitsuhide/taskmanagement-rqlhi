@@ -7,6 +7,7 @@ import { getSession } from '@/lib/auth/session'
 import { canHavePengurusProfile } from '@/lib/auth/permissions'
 import { highestLevel, isEducationLevel, sortEducation } from '@/lib/profil/pendidikan'
 import { focusFromFormData } from '@/lib/profil/foto'
+import { collectRows } from '@/lib/profil/form-rows'
 import type { EducationEntry, TrainingEntry, AmanahEntry, AwardEntry, CompetencyEntry } from '@/types'
 
 const PHOTO_BUCKET = 'profile-photos'
@@ -42,25 +43,6 @@ async function uploadPhoto(
  * urutannya, jadi indeks ke-i dari tiap field membentuk satu baris.
  * Baris yang kolom utamanya kosong dibuang.
  */
-function collectRows<T>(
-  formData: FormData,
-  fields: { key: keyof T & string; field: string }[],
-  requiredKey: keyof T & string,
-): T[] {
-  const columns = fields.map(f => formData.getAll(f.field).map(v => String(v)))
-  const length = Math.max(0, ...columns.map(c => c.length))
-
-  const rows: T[] = []
-  for (let i = 0; i < length; i++) {
-    const row: Record<string, string> = {}
-    fields.forEach((f, ci) => {
-      row[f.key] = (columns[ci][i] ?? '').trim()
-    })
-    if (row[requiredKey]) rows.push(row as T)
-  }
-  return rows
-}
-
 export async function updatePengurusProfileAction(_: unknown, formData: FormData) {
   const session = await getSession()
   if (!session) return { error: 'Sesi tidak valid.' }
