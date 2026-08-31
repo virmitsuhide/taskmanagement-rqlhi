@@ -42,7 +42,7 @@ export default async function RaporKpiGuruDetail({ params }: PageProps) {
   // dari barisnya sendiri, sebab itulah rubrik yang dipakai menilainya.
   const { data: baris } = await supabase
     .from('kpi_monthly')
-    .select('id, unit, status, guru_ttd_at, banding_batas, versi')
+    .select('id, teacher_id, year, month, unit, status, guru_ttd_at, banding_batas, versi')
     .eq('teacher_id', session.teacherId)
     .eq('year', year)
     .eq('month', month)
@@ -50,6 +50,9 @@ export default async function RaporKpiGuruDetail({ params }: PageProps) {
 
   const row = baris as {
     id: string
+    teacher_id: string
+    year: number
+    month: number
     unit: Jenjang | null
     status: KpiRaporStatus
     guru_ttd_at: string | null

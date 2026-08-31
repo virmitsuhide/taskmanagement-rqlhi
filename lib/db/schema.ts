@@ -1134,7 +1134,16 @@ export const kpiMonthly = pgTable('kpi_monthly', {
  */
 export const kpiRaporRiwayat = pgTable('kpi_rapor_riwayat', {
   id: uuid('id').primaryKey().defaultRandom(),
-  kpi_monthly_id: uuid('kpi_monthly_id').notNull().references(() => kpiMonthly.id, { onDelete: 'cascade' }),
+  /**
+   * Kosong setelah rapornya dihapus (reset oleh Kepala RQ) — SET NULL, bukan
+   * CASCADE. Kalau menghapus rapor ikut menghapus riwayatnya, penghapusan
+   * justru menjadi satu-satunya tindakan yang tak berjejak (0051).
+   */
+  kpi_monthly_id: uuid('kpi_monthly_id').references(() => kpiMonthly.id, { onDelete: 'set null' }),
+  /** Identitas rapornya, disalin supaya riwayat tetap terbaca setelah dihapus. */
+  teacher_id: uuid('teacher_id').references(() => teachers.id, { onDelete: 'set null' }),
+  year: integer('year'),
+  month: integer('month'),
   versi: integer('versi').notNull().default(1),
   aksi: kpiRiwayatAksiEnum('aksi').notNull(),
   actor_user_id: uuid('actor_user_id').references(() => users.id, { onDelete: 'set null' }),
@@ -1158,8 +1167,13 @@ export const kpiRaporRiwayat = pgTable('kpi_rapor_riwayat', {
  */
 export const kpiBanding = pgTable('kpi_banding', {
   id: uuid('id').primaryKey().defaultRandom(),
-  kpi_monthly_id: uuid('kpi_monthly_id').notNull().references(() => kpiMonthly.id, { onDelete: 'cascade' }),
+  /** SET NULL, sealasan dengan kpi_rapor_riwayat: sanggahan atas penilaian
+   *  yang kemudian dihapus justru yang paling perlu tetap tercatat (0051). */
+  kpi_monthly_id: uuid('kpi_monthly_id').references(() => kpiMonthly.id, { onDelete: 'set null' }),
   teacher_id: uuid('teacher_id').notNull().references(() => teachers.id, { onDelete: 'cascade' }),
+  /** Periode yang disanggah, disalin supaya tetap terbaca tanpa barisnya. */
+  year: integer('year'),
+  month: integer('month'),
   /** Versi rapor yang disanggah — rapor yang terbit ulang boleh disanggah lagi. */
   versi_rapor: integer('versi_rapor').notNull().default(1),
   tingkat: smallint('tingkat').notNull().default(1),

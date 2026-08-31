@@ -127,6 +127,11 @@ export async function ajukanBandingAction(_: unknown, formData: FormData): Promi
   const { error } = await supabase.from('kpi_banding').insert({
     kpi_monthly_id: kpiId,
     teacher_id: guru.teacherId,
+    // Periode disalin, bukan cuma diacu lewat kpi_monthly_id: sanggahan atas
+    // penilaian yang kemudian dihapus Kepala RQ justru yang paling perlu tetap
+    // terbaca, dan tanpa ini ia jadi baris tanpa identitas apa pun (0051).
+    year: row.year,
+    month: row.month,
     versi_rapor: row.versi,
     tingkat: 1,
     items,
@@ -151,7 +156,7 @@ export async function ajukanBandingAction(_: unknown, formData: FormData): Promi
   await supabase.from('kpi_monthly').update({ status: 'banding' }).eq('id', kpiId)
 
   await catatRiwayat({
-    kpiId,
+    kpiId, pemilikId: row.teacher_id, year: row.year, month: row.month,
     versi: row.versi,
     aksi: 'banding_diajukan',
     teacherId: guru.teacherId,
@@ -227,7 +232,7 @@ export async function putusBandingAction(_: unknown, formData: FormData): Promis
   await terapkanPutusan({ rapor, tingkat: b.tingkat, putusan, userId: session.userId })
 
   await catatRiwayat({
-    kpiId: rapor.id,
+    kpiId: rapor.id, pemilikId: rapor.teacher_id, year: rapor.year, month: rapor.month,
     versi: rapor.versi,
     aksi: 'banding_diputus',
     userId: session.userId,
@@ -345,6 +350,8 @@ export async function eskalasiBandingAction(_: unknown, formData: FormData): Pro
   const { error } = await supabase.from('kpi_banding').insert({
     kpi_monthly_id: b.kpi_monthly_id,
     teacher_id: guru.teacherId,
+    year: rapor.year,
+    month: rapor.month,
     versi_rapor: b.versi_rapor,
     tingkat: 2,
     induk_id: b.id,
@@ -363,7 +370,7 @@ export async function eskalasiBandingAction(_: unknown, formData: FormData): Pro
   await supabase.from('kpi_monthly').update({ status: 'banding' }).eq('id', rapor.id)
 
   await catatRiwayat({
-    kpiId: rapor.id,
+    kpiId: rapor.id, pemilikId: rapor.teacher_id, year: rapor.year, month: rapor.month,
     versi: rapor.versi,
     aksi: 'banding_eskalasi',
     teacherId: guru.teacherId,

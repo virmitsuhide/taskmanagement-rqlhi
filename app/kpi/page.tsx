@@ -12,6 +12,7 @@ import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { Button } from '@/components/ui/button'
 import { Pencil, FileText, Printer } from 'lucide-react'
 import { AlurPanel, type RingkasAlur } from './AlurPanel'
+import { ResetRaporButton } from './ResetRaporButton'
 import { STATUS_LABELS, STATUS_TONE } from '@/lib/kpi/alur'
 import { cn } from '@/lib/utils'
 import type { Jenjang } from '@/types'
@@ -46,6 +47,9 @@ export default async function KpiPage({ searchParams }: PageProps) {
   // Mencetak rapor lebih sempit daripada mengisinya: dokumennya diserahkan ke
   // guru dengan kolom tanda tangan, dan SDM yang menerbitkannya.
   const mayPrint = canPrintKpiRapor(session.role)
+  // Menghapus penilaian: Kepala RQ saja, dan hanya pada baris yang memang
+  // sudah berisi — tombol hapus pada baris kosong tidak menghapus apa pun.
+  const mayReset = canResetKpiRapor(session.role)
 
   // Bahan panel alur — hanya guru yang sudah punya baris rapor. Yang belum
   // dinilai belum punya dokumen apa pun untuk diserahkan, dan menyertakannya
@@ -150,7 +154,6 @@ export default async function KpiPage({ searchParams }: PageProps) {
         <AlurPanel
           rows={ringkasAlur}
           bisaAjukan={mayInput}
-          bisaReset={canResetKpiRapor(session.role)}
           bisaPublikasi={canAccessKpiPublikasi(session.role)}
           bisaBanding={canViewKpiBanding(session.role)}
           unit={unit}
@@ -177,7 +180,7 @@ export default async function KpiPage({ searchParams }: PageProps) {
                   <th className="px-2 py-2 text-center font-medium">Total</th>
                   <th className="px-2 py-2 text-center font-medium">Rapot</th>
                   <th className="px-2 py-2 text-center font-medium">Predikat</th>
-                  {(mayInput || mayPrint) && (
+                  {(mayInput || mayPrint || mayReset) && (
                     <th className="px-2 py-2 text-center font-medium w-16">Aksi</th>
                   )}
                 </tr>
@@ -239,7 +242,7 @@ export default async function KpiPage({ searchParams }: PageProps) {
                           </span>
                         ) : '—'}
                       </td>
-                      {(mayInput || mayPrint) && (
+                      {(mayInput || mayPrint || mayReset) && (
                         <td className="px-2 py-2">
                           <div className="flex items-center justify-center gap-0.5">
                             {mayInput && (
@@ -267,6 +270,20 @@ export default async function KpiPage({ searchParams }: PageProps) {
                               >
                                 <Printer className="h-3.5 w-3.5" />
                               </Link>
+                            )}
+                            {/*
+                              Menghapus penilaian duduk di baris orangnya, bukan
+                              di panel atas: yang dihapus adalah pekerjaan satu
+                              guru selama sebulan, dan sasaran yang jauh dari
+                              mata adalah sasaran yang bisa keliru.
+                            */}
+                            {mayReset && h && r.entry && (
+                              <ResetRaporButton
+                                kpiId={r.entry.id}
+                                fullName={r.fullName}
+                                status={r.entry.status ?? 'draft'}
+                                rapot={h.rapot}
+                              />
                             )}
                           </div>
                         </td>

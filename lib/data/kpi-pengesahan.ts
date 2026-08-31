@@ -46,6 +46,10 @@ function normalisasi(raw: Record<string, unknown>): KpiMonthly {
 
 interface BarisTempo {
   id: string
+  teacher_id: string
+  year: number
+  month: number
+  versi?: number
   status: KpiRaporStatus
   guru_ttd_at: string | null
   banding_batas: string | null
@@ -84,6 +88,12 @@ export async function matangkanJatuhTempo(rows: BarisTempo[]): Promise<Set<strin
   await supabase.from('kpi_rapor_riwayat').insert(
     lewat.map(r => ({
       kpi_monthly_id: r.id,
+      // Identitas periode ikut disalin, sealasan dengan catatRiwayat: baris ini
+      // harus tetap terbaca kalau rapornya kelak dihapus lewat reset.
+      teacher_id: r.teacher_id,
+      year: r.year,
+      month: r.month,
+      versi: r.versi ?? 1,
       aksi: 'final_tenggat',
       catatan: `Masa banding berakhir ${r.banding_batas}; tidak ada tanggapan dari guru.`,
     })),
@@ -304,14 +314,27 @@ export interface RiwayatItem extends KpiRaporRiwayat {
  * keduanya dalam satu embed tanpa membuat kueri yang lebih sulit dibaca
  * daripada dua pengambilan biasa.
  */
-export async function getRiwayatRapor(kpiId: string): Promise<RiwayatItem[]> {
+export async function getRiwayatRapor(
+  kpiId: string | null,
+  periode?: { teacherId: string; year: number; month: number },
+): Promise<RiwayatItem[]> {
   const supabase = createServerClient()
 
-  const { data } = await supabase
-    .from('kpi_rapor_riwayat')
-    .select('*')
-    .eq('kpi_monthly_id', kpiId)
-    .order('created_at', { ascending: true })
+  // Dicari per PERIODE bila identitasnya diketahui, bukan cuma per baris.
+  // Rapor yang direset dihapus barisnya, dan kpi_monthly_id pada riwayatnya
+  // ikut menjadi NULL (0051) — tanpa jalur periode, catatan "penilaian
+  // dihapus" akan hilang dari pandangan tepat ketika ia paling dibutuhkan,
+  // dan penilaian berikutnya atas bulan yang sama akan tampak tak berumur.
+  const q = periode
+    ? supabase
+        .from('kpi_rapor_riwayat')
+        .select('*')
+        .eq('teacher_id', periode.teacherId)
+        .eq('year', periode.year)
+        .eq('month', periode.month)
+    : supabase.from('kpi_rapor_riwayat').select('*').eq('kpi_monthly_id', kpiId ?? '')
+
+  const { data } = await q.order('created_at', { ascending: true })
 
   const rows = (data ?? []) as KpiRaporRiwayat[]
   if (rows.length === 0) return []
@@ -348,13 +371,31 @@ export async function catatRiwayat(entry: {
   kpiId: string
   versi: number
   aksi: KpiRaporRiwayat['aksi']
+  /** Pelakunya, bila seorang pengurus. */
   userId?: string | null
+  /** Pelakunya, bila seorang guru. */
   teacherId?: string | null
+  /**
+   * Identitas rapornya — guru & periode. Disalin ke baris riwayat, bukan
+   * cuma diacu lewat kpi_monthly_id, supaya catatannya tetap terbaca setelah
+   * rapornya dihapus (reset Kepala RQ). Lihat 0051.
+   *
+   * Dinamai pemilikId karena teacherId di atas sudah dipakai untuk PELAKU,
+   * dan keduanya berbeda: yang mencatat "guru menandatangani" adalah gurunya
+   * sendiri, tapi yang mencatat "penilaian dihapus" adalah Kepala RQ atas
+   * rapor MILIK seorang guru.
+   */
+  pemilikId?: string | null
+  year?: number | null
+  month?: number | null
   catatan?: string | null
 }): Promise<void> {
   const supabase = createServerClient()
   await supabase.from('kpi_rapor_riwayat').insert({
     kpi_monthly_id: entry.kpiId,
+    teacher_id: entry.pemilikId ?? entry.teacherId ?? null,
+    year: entry.year ?? null,
+    month: entry.month ?? null,
     versi: entry.versi,
     aksi: entry.aksi,
     actor_user_id: entry.userId ?? null,

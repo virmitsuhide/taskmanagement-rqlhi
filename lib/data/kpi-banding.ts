@@ -64,13 +64,16 @@ export async function getBandingAktif(kpiId: string): Promise<KpiBanding | null>
 
 export interface BarisKotakBanding {
   banding: KpiBanding
-  kpiId: string
+  /** Null bila rapornya sudah dihapus lewat reset Kepala RQ. */
+  kpiId: string | null
   teacherId: string
   fullName: string
   unit: Jenjang | null
   periode: string
   year: number
   month: number
+  /** Rapornya sudah dihapus; putusan atasnya tidak mengubah apa pun lagi. */
+  raporHilang: boolean
   /** Tenggat putusannya sudah lewat — muncul sebagai peringatan, bukan diam. */
   terlambat: boolean
 }
@@ -102,7 +105,7 @@ export async function getKotakBanding(opts: {
     supabase
       .from('kpi_monthly')
       .select('id, year, month, unit')
-      .in('id', [...new Set(rows.map(r => r.kpi_monthly_id))]),
+      .in('id', [...new Set(rows.map(r => r.kpi_monthly_id).filter(Boolean))] as string[]),
     supabase
       .from('teachers')
       .select('id, full_name')
@@ -112,20 +115,29 @@ export async function getKotakBanding(opts: {
   const byRapor = new Map((rapor ?? []).map(r => [r.id, r]))
   const byGuru = new Map((guru ?? []).map(g => [g.id, g.full_name as string]))
 
-  return rows.flatMap(b => {
-    const r = byRapor.get(b.kpi_monthly_id)
-    if (!r) return []
-    return [{
+  return rows.map(b => {
+    // Barisnya bisa sudah tidak ada — Kepala RQ menghapus penilaian, dan kunci
+    // asingnya menjadi NULL (0051). Periode diambil dari salinan di baris
+    // banding itu sendiri, dengan rapornya cuma sebagai pelengkap. Kalau
+    // bandingnya ikut menghilang dari daftar, sanggahan yang belum diputus
+    // lenyap tanpa jejak justru ketika penilaiannya dibatalkan.
+    const r = b.kpi_monthly_id ? byRapor.get(b.kpi_monthly_id) : undefined
+    const year = (b.year ?? (r?.year as number | undefined)) ?? 0
+    const month = (b.month ?? (r?.month as number | undefined)) ?? 0
+
+    return {
       banding: b,
       kpiId: b.kpi_monthly_id,
       teacherId: b.teacher_id,
       fullName: byGuru.get(b.teacher_id) ?? '—',
-      unit: (r.unit ?? null) as Jenjang | null,
-      periode: `${MONTH_NAMES[(r.month as number) - 1]} ${r.year}`,
-      year: r.year as number,
-      month: r.month as number,
+      unit: (r?.unit ?? null) as Jenjang | null,
+      periode: month >= 1 && month <= 12 ? `${MONTH_NAMES[month - 1]} ${year}` : '—',
+      year,
+      month,
+      /** Rapornya sudah dihapus — putusan atasnya tidak lagi bisa mengubah apa pun. */
+      raporHilang: !r,
       terlambat: b.status === 'diajukan' && lewatTenggat(b.putusan_batas),
-    }]
+    }
   })
 }
 
@@ -167,6 +179,11 @@ export async function getBandingGuru(teacherId: string): Promise<Map<string, Kpi
   const peta = new Map<string, KpiBanding[]>()
   for (const raw of data ?? []) {
     const b = normalisasi(raw as Record<string, unknown>)
+    // Banding yatim — rapornya sudah dihapus — dilewati di sini saja. Petanya
+    // dipakai untuk menempelkan lencana pada baris rapor yang ADA di daftar
+    // guru, dan baris itu tidak ada lagi. Catatannya sendiri tetap hidup di
+    // kotak masuk pemutus, yang memang bertugas menampilkannya.
+    if (!b.kpi_monthly_id) continue
     const arr = peta.get(b.kpi_monthly_id) ?? []
     arr.push(b)
     peta.set(b.kpi_monthly_id, arr)

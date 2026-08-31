@@ -1202,8 +1202,12 @@ export interface KpiBandingItem {
 
 export interface KpiBanding {
   id: string
-  kpi_monthly_id: string
+  /** Null setelah rapornya dihapus lewat reset Kepala RQ (0051). */
+  kpi_monthly_id: string | null
   teacher_id: string
+  /** Periode yang disanggah — disalin, jadi tetap terbaca tanpa barisnya. */
+  year: number | null
+  month: number | null
   versi_rapor: number
   /** 1 = sengketa fakta (SDM). 2 = sengketa penilaian (Kepala RQ, final). */
   tingkat: number
@@ -1224,7 +1228,11 @@ export interface KpiBanding {
 /** Satu peristiwa dalam hidup selembar rapor — sekaligus sumber notifikasi. */
 export interface KpiRaporRiwayat {
   id: string
-  kpi_monthly_id: string
+  /** Null setelah rapornya dihapus — riwayatnya sengaja tidak ikut hilang. */
+  kpi_monthly_id: string | null
+  teacher_id: string | null
+  year: number | null
+  month: number | null
   versi: number
   aksi: KpiRiwayatAksi
   actor_user_id: string | null

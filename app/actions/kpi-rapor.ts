@@ -91,7 +91,7 @@ export async function ajukanRaporAction(kpiIds: string[]): Promise<Hasil> {
   if (error) return { error: galatKolom(error.message) }
 
   await Promise.all(layak.map(r =>
-    catatRiwayat({ kpiId: r.id, versi: r.versi, aksi: 'diajukan', userId: session.userId }),
+    catatRiwayat({ kpiId: r.id, pemilikId: r.teacher_id, year: r.year, month: r.month, versi: r.versi, aksi: 'diajukan', userId: session.userId }),
   ))
 
   const c = layak[0]
@@ -156,7 +156,7 @@ export async function terbitkanRaporAction(kpiIds: string[]): Promise<Hasil> {
   if (error) return { error: galatKolom(error.message) }
 
   await Promise.all(layak.map(r =>
-    catatRiwayat({ kpiId: r.id, versi: r.versi, aksi: 'terbit', userId: session.userId }),
+    catatRiwayat({ kpiId: r.id, pemilikId: r.teacher_id, year: r.year, month: r.month, versi: r.versi, aksi: 'terbit', userId: session.userId }),
   ))
 
   const c = layak[0]
@@ -195,7 +195,8 @@ export async function kembalikanRaporAction(kpiId: string, alasan: string): Prom
   if (error) return { error: galatKolom(error.message) }
 
   await catatRiwayat({
-    kpiId, versi: row.versi, aksi: 'dikembalikan', userId: session.userId, catatan: teks,
+    kpiId, pemilikId: row.teacher_id, year: row.year, month: row.month,
+    versi: row.versi, aksi: 'dikembalikan', userId: session.userId, catatan: teks,
   })
   segarkan(row.unit, row.year, row.month)
   return { success: true }
@@ -256,7 +257,10 @@ export async function ttdGuruAction(kpiId: string): Promise<Hasil> {
   const { error } = await supabase.from('kpi_monthly').update(patch).eq('id', kpiId)
   if (error) return { error: galatKolom(error.message) }
 
-  await catatRiwayat({ kpiId, versi: row.versi, aksi: 'ttd_guru', teacherId: guru.teacherId })
+  await catatRiwayat({
+    kpiId, pemilikId: row.teacher_id, year: row.year, month: row.month,
+    versi: row.versi, aksi: 'ttd_guru', teacherId: guru.teacherId,
+  })
   segarkan(row.unit, row.year, row.month)
   revalidatePath(`/guru/rapor-kpi/${row.year}/${row.month}`)
   return { success: true }
@@ -265,30 +269,37 @@ export async function ttdGuruAction(kpiId: string): Promise<Hasil> {
 // ── Kepala RQ: membuka kunci ───────────────────────────────────────
 
 /**
- * Reset rapor terbit: kosongkan nilainya dan kembalikan ke draft.
+ * Reset penilaian: hapus baris rapornya sama sekali.
  *
- * Ini jalan satu-satunya untuk mengubah rapor yang sudah diserahkan, dan hanya
- * Kepala RQ yang memegangnya. SDM sengaja tidak: memberi hak mengubah dokumen
- * terbit kepada pihak yang sama yang menyusunnya membuat tanda tangan guru
- * tidak menjamin apa pun.
+ * Hanya Kepala RQ. SDM sengaja tidak: memberi hak menghapus dokumen terbit
+ * kepada pihak yang sama yang menyusunnya membuat tanda tangan guru tidak
+ * menjamin apa pun.
  *
- * Dilaksanakan sebagai PENGOSONGAN, bukan DELETE. kpi_rapor_riwayat menunjuk
- * ke baris ini dengan ON DELETE CASCADE — menghapus barisnya akan menghapus
- * pula catatan "rapor direset" pada saat catatan itu dibuat, sehingga
- * penghapusan justru menjadi satu-satunya tindakan yang tak berjejak. Dengan
- * pengosongan, id-nya lestari dan seluruh riwayat versi sebelumnya tetap bisa
- * dibuktikan.
+ * KENAPA DIHAPUS, BUKAN DIKOSONGKAN
  *
- * Angka-angkanya dinolkan sekalian, bukan ditinggalkan apa adanya: yang
- * diminta adalah "hapus nilainya lalu masukkan yang baru", dan draft yang
- * masih memuat angka lama mengundang penyimpanan setengah jalan yang
- * mencampur nilai lama dengan nilai baru.
+ * Versi pertama menolkan seluruh angkanya dan mengembalikan status ke draft.
+ * Itu keliru, dan kekeliruannya tidak kelihatan sampai ada yang mereset: di
+ * rubrik ini NOL BERARTI SEMPURNA untuk empat indikator — nol menit terlambat
+ * adalah kehadiran tanpa cela, nol kasus izin adalah tanpa pelanggaran —
+ * ditambah dua indikator bernilai basis. Rapor yang "dikosongkan" tetap
+ * menghitung 40,4 dan tampil sebagai penilaian sungguhan berpredikat "Sangat
+ * Kurang Sekali", lalu ikut terbawa ke rata-rata rapor semester gurunya.
+ *
+ * Menandainya "kosong" lalu menyaringnya juga ditolak: ada delapan tempat yang
+ * membaca kpi_monthly, dan saringan yang harus diingat di delapan tempat cepat
+ * atau lambat terlupa di salah satunya — tanpa gagal, hanya diam-diam salah.
+ * Tanpa baris, "belum dinilai" kembali menjadi keadaan yang sudah dipahami
+ * seluruh modul sejak awal.
+ *
+ * Jejaknya tetap ada: riwayat dicatat SEBELUM penghapusan, dan sejak 0051
+ * kunci asingnya ON DELETE SET NULL dengan identitas periode yang disalin —
+ * jadi catatannya bertahan dan muncul kembali saat periode itu dinilai ulang.
  */
 export async function resetRaporAction(kpiId: string, alasan: string): Promise<Hasil> {
   const session = await getSession()
   if (!session) return { error: 'Sesi tidak valid.' }
   if (!canResetKpiRapor(session.role)) {
-    return { error: 'Hanya Kepala RQ yang bisa mereset rapor yang sudah terbit.' }
+    return { error: 'Hanya Kepala RQ yang bisa menghapus penilaian KPI.' }
   }
 
   const teks = alasan.trim()
@@ -299,44 +310,22 @@ export async function resetRaporAction(kpiId: string, alasan: string): Promise<H
   const row = data as BarisAlur | null
   if (!row) return { error: 'Rapor tidak ditemukan.' }
 
-  const { error } = await supabase
-    .from('kpi_monthly')
-    .update({
-      status: 'draft',
-      selesai_sebab: null,
-      versi: row.versi + 1,
-      // Bahan mentahnya dinolkan — inilah "hapus nilai"-nya.
-      late_minutes: 0, db_late_days: 0, hafalan_juz: 0, hafalan_pages: 0,
-      tuhfatul_bait: 0, bacaan_score: 0, buku_pegangan_meetings: 0,
-      izin_wa_cases: 0, pengganti_cases: 0, pengganti_found: 0,
-      seragam_daily: null, lapor_ortu_daily: null,
-      halaqoh_hadir: null, halaqoh_akhiri: null,
-      seragam_total: null, lapor_ortu_total: null, halaqoh_total: null,
-      apresiasi: null, pengembangan: null, notes: null,
-      // Kedua tanda tangan gugur bersama nilainya. Tanda tangan atas angka
-      // yang sudah tidak ada bukan lagi tanda tangan siapa pun.
-      koor_ttd_path: null, koor_ttd_focus: null,
-      guru_ttd_at: null, guru_ttd_path: null, guru_ttd_focus: null,
-      guru_dibuka_at: null,
-      terbit_at: null, terbit_by: null,
-      diajukan_at: null, diajukan_by: null,
-      dikembalikan_alasan: null, banding_batas: null,
-      direset_at: new Date().toISOString(),
-      direset_by: session.userId,
-      updated_by: session.userId,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', kpiId)
-
-  if (error) return { error: galatKolom(error.message) }
-
+  // Dicatat lebih dulu, selagi barisnya masih ada — sesudah dihapus,
+  // kpi_monthly_id-nya menjadi NULL sendiri dan identitas periode di baris
+  // riwayat inilah yang menjaganya tetap bisa ditelusuri.
   await catatRiwayat({
     kpiId,
-    versi: row.versi + 1,
+    pemilikId: row.teacher_id,
+    year: row.year,
+    month: row.month,
+    versi: row.versi,
     aksi: 'direset',
     userId: session.userId,
-    catatan: `Direset dari status "${row.status}" (versi ${row.versi} → ${row.versi + 1}). ${teks}`,
+    catatan: `Penilaian dihapus dari status "${row.status}" (versi ${row.versi}). ${teks}`,
   })
+
+  const { error } = await supabase.from('kpi_monthly').delete().eq('id', kpiId)
+  if (error) return { error: galatKolom(error.message) }
 
   segarkan(row.unit, row.year, row.month)
   return { success: true }
