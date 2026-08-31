@@ -6,6 +6,7 @@ import { KpiRadar, KpiSparkline } from './KpiRadar'
 import { UNIT_PENUGASAN_LABELS, ROLE_LABELS } from '@/lib/auth/permissions'
 import { MONTH_NAMES } from '@/lib/data/kpi'
 import { ttdStyle } from '@/lib/kpi/tanda-tangan'
+import { KPI_LEVELS } from '@/lib/kpi/parameter'
 import type { KpiRapor } from '@/lib/data/kpi-rapor'
 import type { SignatureFocus } from '@/types'
 
@@ -40,6 +41,9 @@ const TONE: Record<number, { teks: string; latar: string; batas: string }> = {
   2: { teks: 'var(--destructive)', latar: 'var(--destructive-wash)', batas: 'color-mix(in srgb, var(--destructive) 35%, transparent)' },
   1: { teks: 'var(--destructive)', latar: 'var(--destructive-wash)', batas: 'color-mix(in srgb, var(--destructive) 35%, transparent)' },
 }
+
+/** Level tertinggi pada rubrik — penentu berapa bintang yang digambar. */
+const LEVEL_MAKS = KPI_LEVELS[0].level
 
 function tanggalPanjang(d: Date): string {
   return `${d.getDate()} ${MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}`
@@ -120,11 +124,19 @@ export function KpiRaporSheet({ rapor, terbit }: { rapor: KpiRapor; terbit: Date
             <p className="mt-0.5 text-[11px] font-bold uppercase" style={{ color: tone.teks }}>
               {hasil.predikat}
             </p>
+            {/*
+              Jumlah bintang diturunkan dari KPI_LEVELS, bukan angka tetap.
+              Versi lama menulis 5 langsung, dan begitu rubriknya jadi enam pita
+              'repeat(5 - 6)' melempar RangeError — bukan salah gambar, tapi
+              seluruh lembar rapor gagal dirender, dan hanya bagi guru dengan
+              predikat tertinggi. Kesalahan yang menyembunyikan diri di nilai
+              terbaik adalah kesalahan yang paling lama tidak ketahuan.
+            */}
             <p className="text-[9px] tracking-[0.2em]" style={{ color: tone.teks }} aria-hidden>
               {'★'.repeat(hasil.level)}
-              <span className="opacity-25">{'★'.repeat(5 - hasil.level)}</span>
+              <span className="opacity-25">{'★'.repeat(Math.max(0, LEVEL_MAKS - hasil.level))}</span>
             </p>
-            <p className="sr-only">Level {hasil.level} dari 5</p>
+            <p className="sr-only">Level {hasil.level} dari {LEVEL_MAKS}</p>
           </Kotak>
 
           <Kotak judul="Perbandingan Periode">
@@ -233,8 +245,8 @@ export function KpiRaporSheet({ rapor, terbit }: { rapor: KpiRapor; terbit: Date
             </table>
             <p className="border-t px-2 py-1 text-[8px] leading-snug text-muted-foreground">
               Kesebelas indikator berbobot sama — Nilai Rapot adalah rata-ratanya
-              (total {hasil.total.toFixed(1)} ÷ 11). Level 1–5 memakai ambang yang sama
-              dengan predikat akhir.
+              (total {hasil.total.toFixed(1)} ÷ 11). Level 1–{LEVEL_MAKS} memakai ambang
+              yang sama dengan predikat akhir.
             </p>
           </div>
         </section>
