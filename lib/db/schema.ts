@@ -84,6 +84,16 @@ export const users = pgTable('users', {
   photo_url: text('photo_url'),
   /** { x, y, zoom } — posisi foto di dalam lingkaran, lihat lib/profil/foto.ts. */
   photo_focus: jsonb('photo_focus'),
+  /**
+   * Gambar tanda tangan, diunggah sekali di halaman profil (0050).
+   *
+   * Yang dibubuhkan ke rapor KPI adalah SALINAN url ini pada saat
+   * menandatangani, bukan acuan ke kolom ini — supaya mengganti gambarnya
+   * tidak ikut mengubah tanda tangan di rapor-rapor yang sudah terbit.
+   */
+  signature_path: text('signature_path'),
+  /** { x, y, zoom } — penataan di dalam kotak TTD, sebentuk photo_focus. */
+  signature_focus: jsonb('signature_focus'),
   /** [{ name, institution }] — lembaga kosong = belum tersertifikasi (0042). */
   quran_competencies: jsonb('quran_competencies'),
   /** [{ name, institution }] — kompetensi di luar Al-Qur'an (0042). */
@@ -376,6 +386,38 @@ export const taskCommentsRelations = relations(taskComments, ({ one }) => ({
 // (app/actions/teachers.ts, students.ts, halaqoh.ts, setoran.ts) TETAP pakai
 // Supabase client, tidak diubah. Kolom & FK diverifikasi lewat introspeksi
 // OpenAPI Supabase + isi asli file migrasi 0004/0006/0007.
+/**
+ * Siklus hidup satu lembar rapor KPI (0050).
+ *
+ *   draft → diajukan → terbit → (ttd guru | banding) → selesai
+ *              ↑ dikembalikan ┘
+ *
+ * Tanpa status, tidak ada cara membedakan "SDM masih mengetik" dari "sudah
+ * diserahkan kepada guru dan ditandatangani" — dan seluruh alur pengesahan
+ * bergantung pada perbedaan itu.
+ */
+export const kpiRaporStatusEnum = pgEnum('kpi_rapor_status', [
+  'draft', 'diajukan', 'dikembalikan', 'terbit', 'banding', 'selesai',
+])
+/**
+ * Kenapa rapor menjadi final.
+ *
+ * Dibedakan karena "guru menandatangani" dan "masa banding habis tanpa guru
+ * menanggapi" bukan hal yang sama. Laporan yang menyebut keduanya "disetujui"
+ * mengklaim persetujuan yang tidak pernah diberikan siapa pun.
+ */
+export const kpiSelesaiSebabEnum = pgEnum('kpi_selesai_sebab', [
+  'ttd_guru', 'lewat_tenggat', 'putusan_final',
+])
+export const kpiBandingStatusEnum = pgEnum('kpi_banding_status', [
+  'diajukan', 'diterima', 'diterima_sebagian', 'ditolak', 'kedaluwarsa',
+])
+export const kpiRiwayatAksiEnum = pgEnum('kpi_riwayat_aksi', [
+  'diajukan', 'dikembalikan', 'terbit', 'ttd_guru',
+  'banding_diajukan', 'banding_diputus', 'banding_eskalasi',
+  'direset', 'final_tenggat',
+])
+
 export const genderEnum = pgEnum('gender', ['L', 'P'])
 export const jenjangEnum = pgEnum('jenjang', ['paud', 'sd', 'smp', 'sma', 'sd_juara'])
 export const tahsinStatusEnum = pgEnum('tahsin_status', ['lulus', 'ulang'])
@@ -394,6 +436,9 @@ export const teachers = pgTable('teachers', {
   photo_url: text('photo_url'),
   /** { x, y, zoom } — posisi foto di dalam lingkaran, lihat lib/profil/foto.ts. */
   photo_focus: jsonb('photo_focus'),
+  /** Gambar tanda tangan guru — dibubuhkan ke rapor KPI-nya sendiri (0050). */
+  signature_path: text('signature_path'),
+  signature_focus: jsonb('signature_focus'),
   is_active: boolean('is_active').default(true),
   // Profil publik — dikelola Humas, tampil di /profil-guru
   public_title: text('public_title'),
@@ -427,6 +472,57 @@ export const teachers = pgTable('teachers', {
   amanah_history: jsonb('amanah_history'),
   awards: jsonb('awards'),
 
+  /** Kapan beranda Portal Guru terakhir dibuka — mengendalikan lencana pengumuman (0049). */
+  announcements_seen_at: timestamp('announcements_seen_at', { withTimezone: true }),
+  linked_user_id: uuid('linked_user_id').references(() => users.id, { onDelete: 'set null' }),
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+})
+
+/**
+ * Karyawan RQ — pegawai yang bukan guru Qur’an.
+ *
+ * Tabel sendiri, bukan penanda di teachers: karyawan tidak mengampu halaqoh,
+ * tidak menyetor hafalan, tidak dinilai KPI, dan tidak punya unit penugasan.
+ * Menumpangkannya di teachers berarti setiap kueri guru harus ingat
+ * menyaringnya — dan yang lupa tidak akan gagal, hanya diam-diam salah hitung.
+ *
+ * Kolom profilnya sengaja sebentuk dengan teachers dan users supaya satu
+ * komponen form melayani ketiganya. Lihat drizzle/0048.
+ */
+export const employees = pgTable('employees', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  username: text('username').notNull(),
+  password_hash: text('password_hash').notNull(),
+  full_name: text('full_name').notNull(),
+  /** Posisi kerja, mis. 'Bendahara'. Bukan amanah pengurus — itu turunan role. */
+  jabatan: text('jabatan'),
+  nip: text('nip'),
+  email: text('email'),
+  phone: text('phone'),
+  photo_url: text('photo_url'),
+  photo_focus: jsonb('photo_focus'),
+  is_active: boolean('is_active').default(true),
+  can_change_password: boolean('can_change_password').default(true),
+  employment_type: teacherEmploymentEnum('employment_type'),
+  joined_at: date('joined_at'),
+  contract_start: date('contract_start'),
+  contract_end: date('contract_end'),
+  /** Penanda hapus lunak, sejalan dengan teachers. */
+  deleted_at: timestamp('deleted_at', { withTimezone: true }),
+  sapaan: text('sapaan'),
+  nickname: text('nickname'),
+  birth_place: text('birth_place'),
+  birth_date: date('birth_date'),
+  education_level: text('education_level'),
+  education_history: jsonb('education_history'),
+  quran_competencies: jsonb('quran_competencies'),
+  other_competencies: jsonb('other_competencies'),
+  ijazah_sanad: text('ijazah_sanad').array(),
+  trainings: jsonb('trainings'),
+  amanah_history: jsonb('amanah_history'),
+  awards: jsonb('awards'),
+  /** Kursi pengurus yang diduduki — sejalan dengan teachers.linked_user_id. */
   linked_user_id: uuid('linked_user_id').references(() => users.id, { onDelete: 'set null' }),
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
@@ -984,7 +1080,106 @@ export const kpiMonthly = pgTable('kpi_monthly', {
   updated_by: uuid('updated_by').references(() => users.id, { onDelete: 'set null' }),
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+
+  // ── Pengesahan & penyerahan (0050) ────────────────────────────
+  //
+  // Baris berstatus terbit/banding/selesai TERKUNCI: sebuah trigger menolak
+  // perubahan angkanya. Modul ini menghitung ulang indikator saat dibaca
+  // (0034), jadi tanpa kunci itu membetulkan bahan mentah bulan lalu akan
+  // diam-diam mengubah isi rapor yang sudah ditandatangani guru.
+  status: kpiRaporStatusEnum('status').notNull().default('draft'),
+  selesai_sebab: kpiSelesaiSebabEnum('selesai_sebab'),
+  /** Naik tiap rapor terbit ditarik & diterbitkan ulang; dicetak "Revisi ke-N". */
+  versi: integer('versi').notNull().default(1),
+
+  diajukan_at: timestamp('diajukan_at', { withTimezone: true }),
+  diajukan_by: uuid('diajukan_by').references(() => users.id, { onDelete: 'set null' }),
+  /** Alasan koordinator menolak menandatangani — dibaca SDM saat memperbaiki. */
+  dikembalikan_alasan: text('dikembalikan_alasan'),
+
+  terbit_at: timestamp('terbit_at', { withTimezone: true }),
+  terbit_by: uuid('terbit_by').references(() => users.id, { onDelete: 'set null' }),
+  /**
+   * SALINAN gambar TTD koordinator saat menandatangani, bukan acuan ke
+   * profilnya. Acuan akan mengubah tanda tangan di seluruh rapor lama begitu
+   * koordinator mengganti gambarnya.
+   */
+  koor_ttd_path: text('koor_ttd_path'),
+  koor_ttd_focus: jsonb('koor_ttd_focus'),
+
+  /** Kapan guru pertama membuka rapornya — mengendalikan lencana "rapor baru". */
+  guru_dibuka_at: timestamp('guru_dibuka_at', { withTimezone: true }),
+  guru_ttd_at: timestamp('guru_ttd_at', { withTimezone: true }),
+  guru_ttd_path: text('guru_ttd_path'),
+  guru_ttd_focus: jsonb('guru_ttd_focus'),
+
+  /** Tenggat guru mengajukan banding — 7 hari kerja sejak terbit. */
+  banding_batas: date('banding_batas'),
+  direset_at: timestamp('direset_at', { withTimezone: true }),
+  direset_by: uuid('direset_by').references(() => users.id, { onDelete: 'set null' }),
 }, (t) => [unique('kpi_monthly_guru_periode_unik').on(t.teacher_id, t.year, t.month)])
+
+/**
+ * Riwayat satu lembar rapor — sekaligus sumber notifikasinya.
+ *
+ * Mengikuti prinsip lib/data/notifications.ts: pemberitahuan diturunkan dari
+ * riwayat, bukan dari tabel notifikasi tersendiri. Konsekuensinya, alur baru
+ * yang mencatat riwayat otomatis muncul di lonceng — tidak ada pemicu terpisah
+ * yang bisa lupa dipasang saat alurnya bertambah.
+ *
+ * Kedua kolom pelaku boleh kosong: yang bertindak bisa pengurus (SDM,
+ * koordinator, Kepala RQ) atau guru, dan keduanya hidup di tabel berbeda.
+ * Baris 'final_tenggat' tidak punya pelaku sama sekali — yang melakukannya
+ * adalah lewatnya waktu.
+ */
+export const kpiRaporRiwayat = pgTable('kpi_rapor_riwayat', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  kpi_monthly_id: uuid('kpi_monthly_id').notNull().references(() => kpiMonthly.id, { onDelete: 'cascade' }),
+  versi: integer('versi').notNull().default(1),
+  aksi: kpiRiwayatAksiEnum('aksi').notNull(),
+  actor_user_id: uuid('actor_user_id').references(() => users.id, { onDelete: 'set null' }),
+  actor_teacher_id: uuid('actor_teacher_id').references(() => teachers.id, { onDelete: 'set null' }),
+  catatan: text('catatan'),
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
+})
+
+/**
+ * Banding guru atas rapor KPI bulanannya.
+ *
+ * `items` wajib menunjuk indikator tertentu — banding bukan keberatan atas
+ * rapor secara utuh. "Saya keberatan dengan KPI saya" tidak bisa diperiksa
+ * siapa pun; "tercatat 3 kali izin WA, seharusnya 1" bisa dicek terhadap
+ * sumbernya dalam lima menit.
+ *
+ * Dua tingkat, dan yang kedua bukan pengulangan yang pertama:
+ *   tingkat 1 — sengketa FAKTA, diputus SDM selaku pemegang datanya
+ *   tingkat 2 — sengketa PENILAIAN, diputus Kepala RQ, final
+ * Koordinator sengaja bukan pemutus: dialah yang menandatangani rapor itu.
+ */
+export const kpiBanding = pgTable('kpi_banding', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  kpi_monthly_id: uuid('kpi_monthly_id').notNull().references(() => kpiMonthly.id, { onDelete: 'cascade' }),
+  teacher_id: uuid('teacher_id').notNull().references(() => teachers.id, { onDelete: 'cascade' }),
+  /** Versi rapor yang disanggah — rapor yang terbit ulang boleh disanggah lagi. */
+  versi_rapor: integer('versi_rapor').notNull().default(1),
+  tingkat: smallint('tingkat').notNull().default(1),
+  /** Tingkat 2 adalah ESKALASI banding yang sama, bukan banding baru. */
+  induk_id: uuid('induk_id'),
+
+  /** [{ indikator, nilaiTercatat, nilaiDiklaim, alasan }] */
+  items: jsonb('items').notNull().default([]),
+  lampiran_url: text('lampiran_url').array(),
+  status: kpiBandingStatusEnum('status').notNull().default('diajukan'),
+  diajukan_at: timestamp('diajukan_at', { withTimezone: true }).defaultNow(),
+  /** Tenggat pemutus — 5 hari kerja. Yang memutus pun terikat waktu. */
+  putusan_batas: date('putusan_batas'),
+  putusan_oleh: uuid('putusan_oleh').references(() => users.id, { onDelete: 'set null' }),
+  putusan_at: timestamp('putusan_at', { withTimezone: true }),
+  /** Wajib saat memutus. Putusan tanpa alasan tidak bisa dipelajari siapa pun. */
+  putusan_alasan: text('putusan_alasan'),
+  eskalasi_alasan: text('eskalasi_alasan'),
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
+}, (t) => [unique('kpi_banding_sekali_per_versi').on(t.kpi_monthly_id, t.versi_rapor, t.tingkat)])
 
 /** Catatan tiap perpindahan unit seorang guru — SD ↔ SMP dan sebagainya. */
 export const teacherUnitMoves = pgTable('teacher_unit_moves', {

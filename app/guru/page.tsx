@@ -3,6 +3,9 @@ import Link from 'next/link'
 import { getTeacherSession } from '@/lib/auth/teacher-session'
 import { getTeacherStudents } from '@/lib/data/teacher'
 import { getTeacherWeeklyStats, getTeacherHalaqohSummary } from '@/lib/data/teacher-stats'
+import { getKonteksPengumuman, getPengumumanGuru } from '@/lib/data/pengumuman-guru'
+import { TandaiPengumumanTerbaca } from '@/components/guru/TandaiPengumumanTerbaca'
+import { Megaphone } from 'lucide-react'
 
 const MONTH_ID = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember']
 const DAY_ID = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu']
@@ -22,11 +25,13 @@ export default async function TeacherHomePage() {
   const now = new Date()
   const dateLabel = `${DAY_ID[now.getDay()]}, ${now.getDate()} ${MONTH_ID[now.getMonth()]} ${now.getFullYear()}`
 
-  const [students, weekly, halaqohSummary] = await Promise.all([
+  const [students, weekly, halaqohSummary, konteks] = await Promise.all([
     getTeacherStudents(session.teacherId),
     getTeacherWeeklyStats(session.teacherId),
     getTeacherHalaqohSummary(session.teacherId),
+    getKonteksPengumuman(session.teacherId),
   ])
+  const pengumuman = await getPengumumanGuru(konteks.unit, konteks.seenAt)
   const todayStr = now.toISOString().slice(0, 10)
   const setorHariIni = students.filter(s => s.last_setoran_date === todayStr).length
   const belumSetor = students.filter(s => daysAgo(s.last_setoran_date) !== 0)
@@ -51,6 +56,47 @@ export default async function TeacherHomePage() {
             <span style={{ borderBottom: '3px solid var(--accent-warm)', paddingBottom: 2 }}>{session.fullName}</span>
           </h1>
         </div>
+
+        {/*
+          Pengumuman ditaruh DI ATAS angka-angka setoran, bukan di bawahnya.
+          Kabar yang perlu ditindaklanjuti hari itu kehilangan gunanya kalau
+          harus digulung dulu — sedangkan statistik tetap terbaca di mana pun ia
+          diletakkan.
+        */}
+        {pengumuman.items.length > 0 && (
+          <section className="mb-6 overflow-hidden rounded-xl border bg-card">
+            <div className="flex items-center gap-2 border-b px-4 py-2.5">
+              <Megaphone className="h-4 w-4 text-muted-foreground" />
+              <h2 className="text-sm font-semibold">Pengumuman</h2>
+              {pengumuman.barusanCount > 0 && (
+                <span className="ml-auto rounded-full bg-destructive/10 px-2 py-0.5 text-[11px] font-medium text-destructive">
+                  {pengumuman.barusanCount} baru
+                </span>
+              )}
+            </div>
+            <ul className="divide-y">
+              {pengumuman.items.map(pos => (
+                <li key={pos.id}>
+                  <Link href={`/pengumuman/${pos.id}`} className="block px-4 py-3 transition-colors hover:bg-accent">
+                    <p className={`text-[11px] font-medium ${
+                      pos.priority === 'penting' ? 'text-destructive'
+                        : pos.priority === 'pengingat' ? 'text-warning' : 'text-primary'
+                    }`}>
+                      {pos.type === 'tugas_guru' ? 'Tugas Guru' : 'Pengumuman'}
+                      {pos.due_date ? ` · tenggat ${pos.due_date}` : ''}
+                    </p>
+                    <p className="mt-0.5 text-sm font-medium">{pos.title}</p>
+                    <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{pos.content}</p>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
+        {/* Lencana dipadamkan di sini — di layar tempat pengumumannya benar-benar
+            terbaca, bukan saat loncengnya dilirik. */}
+        <TandaiPengumumanTerbaca aktif={pengumuman.barusanCount > 0} />
 
         {/* Stat */}
         <div className="grid grid-cols-3 gap-3 mb-6">
@@ -174,7 +220,7 @@ function StatCard({ num, label, tone }: { num: number; label: string; tone?: 'ok
   const style =
     tone === 'ok' ? { background: 'var(--success-wash)', borderColor: 'var(--success)' }
     : tone === 'warm' ? { background: 'var(--primary-wash)', borderColor: 'var(--border)' }
-    : { background: 'white', borderColor: 'var(--border)' }
+    : { background: 'var(--card)', borderColor: 'var(--border)' }
   const numColor = tone === 'ok' ? 'var(--success)' : tone === 'warm' ? 'var(--primary)' : 'var(--foreground)'
   return (
     <div className="rounded-xl border p-4" style={style}>

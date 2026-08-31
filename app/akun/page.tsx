@@ -14,11 +14,15 @@ export default async function AkunPage() {
 
   const supabase = createServerClient()
 
-  const [{ data: users }, { data: teachers }] = await Promise.all([
+  const [{ data: users }, { data: teachers }, { data: employees }] = await Promise.all([
     supabase.from('users').select('id, username, display_name, role'),
     supabase
       .from('teachers')
       .select('id, username, full_name, unit, is_active')
+      .is('deleted_at', null),
+    supabase
+      .from('employees')
+      .select('id, username, full_name, jabatan, is_active')
       .is('deleted_at', null),
   ])
 
@@ -26,6 +30,7 @@ export default async function AkunPage() {
   // perbandingan byte, yang menaruh semua huruf besar sebelum huruf kecil.
   const pengurus = (users ?? []).sort((a, b) => a.display_name.localeCompare(b.display_name, 'id'))
   const guru = (teachers ?? []).sort((a, b) => a.full_name.localeCompare(b.full_name, 'id'))
+  const karyawan = (employees ?? []).sort((a, b) => a.full_name.localeCompare(b.full_name, 'id'))
 
   return (
     <div>
@@ -33,7 +38,7 @@ export default async function AkunPage() {
       <div className="p-4 md:p-6 max-w-3xl mx-auto">
         <h1 className="text-2xl font-bold leading-tight">Akun &amp; Password</h1>
         <p className="text-sm text-muted-foreground mt-0.5 mb-5">
-          {pengurus.length} akun pengurus · {guru.length} akun guru
+          {pengurus.length} akun pengurus · {guru.length} akun guru · {karyawan.length} akun karyawan
         </p>
 
         {/*
@@ -94,6 +99,27 @@ export default async function AkunPage() {
                   username={t.username}
                   keterangan={t.unit ? JENJANG_LABELS[t.unit as Jenjang] : 'Tanpa unit'}
                   nonaktif={!t.is_active}
+                />
+              ))
+            )}
+          </div>
+        </section>
+
+        <section className="mt-6">
+          <h2 className="text-sm font-semibold mb-2">Karyawan</h2>
+          <div className="overflow-hidden rounded-xl border bg-card">
+            {karyawan.length === 0 ? (
+              <p className="px-3 py-6 text-center text-sm text-muted-foreground">Belum ada akun karyawan.</p>
+            ) : (
+              karyawan.map(k => (
+                <AccountRow
+                  key={k.id}
+                  target="employee"
+                  id={k.id}
+                  name={k.full_name}
+                  username={k.username}
+                  keterangan={k.jabatan ?? 'Karyawan'}
+                  nonaktif={!k.is_active}
                 />
               ))
             )}

@@ -5,7 +5,9 @@ import {
 import { KpiRadar, KpiSparkline } from './KpiRadar'
 import { UNIT_PENUGASAN_LABELS, ROLE_LABELS } from '@/lib/auth/permissions'
 import { MONTH_NAMES } from '@/lib/data/kpi'
+import { ttdStyle } from '@/lib/kpi/tanda-tangan'
 import type { KpiRapor } from '@/lib/data/kpi-rapor'
+import type { SignatureFocus } from '@/types'
 
 /**
  * Lembar rapor KPI bulanan — satu halaman A4 potret.
@@ -20,10 +22,21 @@ import type { KpiRapor } from '@/lib/data/kpi-rapor'
  * halaman kedua akan tercetak sebagai satu lembar berisi tanda tangan sendirian.
  */
 
+/**
+ * Warna level untuk lembar cetak.
+ *
+ * Terpisah dari KPI_LEVEL_TONE yang berupa kelas Tailwind: lembar ini dicetak,
+ * dan aturan @media print di globals.css memaksa kelas utilitas jadi hitam
+ * putih. Nilai CSS langsung inilah yang selamat sampai ke kertas.
+ *
+ * Enam tingkat sejak rubriknya diperbarui — 6 Sangat Baik sampai 1 Sangat
+ * Kurang Sekali. Tiga terbawah sama merahnya, sejalan dengan KPI_LEVEL_TONE.
+ */
 const TONE: Record<number, { teks: string; latar: string; batas: string }> = {
-  5: { teks: 'var(--success)', latar: 'var(--success-wash)', batas: 'color-mix(in srgb, var(--success) 35%, transparent)' },
-  4: { teks: 'var(--primary)', latar: 'var(--primary-wash)', batas: 'color-mix(in srgb, var(--primary) 35%, transparent)' },
-  3: { teks: 'var(--warning)', latar: 'var(--warning-wash)', batas: 'color-mix(in srgb, var(--warning) 35%, transparent)' },
+  6: { teks: 'var(--success)', latar: 'var(--success-wash)', batas: 'color-mix(in srgb, var(--success) 35%, transparent)' },
+  5: { teks: 'var(--primary)', latar: 'var(--primary-wash)', batas: 'color-mix(in srgb, var(--primary) 35%, transparent)' },
+  4: { teks: 'var(--warning)', latar: 'var(--warning-wash)', batas: 'color-mix(in srgb, var(--warning) 35%, transparent)' },
+  3: { teks: 'var(--destructive)', latar: 'var(--destructive-wash)', batas: 'color-mix(in srgb, var(--destructive) 35%, transparent)' },
   2: { teks: 'var(--destructive)', latar: 'var(--destructive-wash)', batas: 'color-mix(in srgb, var(--destructive) 35%, transparent)' },
   1: { teks: 'var(--destructive)', latar: 'var(--destructive-wash)', batas: 'color-mix(in srgb, var(--destructive) 35%, transparent)' },
 }
@@ -33,7 +46,14 @@ function tanggalPanjang(d: Date): string {
 }
 
 export function KpiRaporSheet({ rapor, terbit }: { rapor: KpiRapor; terbit: Date }) {
-  const { teacher, hasil, baris, catatan, periode, banding, tren, koordinator } = rapor
+  const { teacher, hasil, baris, catatan, periode, banding, tren, koordinator, pengesahan } = rapor
+
+  // Tanggal terbit yang dicetak adalah tanggal rapor ini DISAHKAN koordinator,
+  // bukan hari ini. Dokumen yang sama harus menyebut tanggal yang sama setiap
+  // kali dicetak ulang — kalau tidak, cetakan guru dan arsip SDM akan
+  // bertentangan tanpa ada yang salah mengerjakannya. `terbit` dipakai hanya
+  // selama rapor belum disahkan, yakni pada pratinjau.
+  const tanggalTerbit = pengesahan.terbitAt ? new Date(pengesahan.terbitAt) : terbit
 
   // Unit yang dicetak adalah unit tempat guru DINILAI pada bulan itu (tersimpan
   // di barisnya), bukan unit tempat ia berada sekarang. Rapor Agustus milik
@@ -45,7 +65,7 @@ export function KpiRaporSheet({ rapor, terbit }: { rapor: KpiRapor; terbit: Date
   const bulanLalu = tren.length >= 2 ? tren[tren.length - 2] : null
 
   return (
-    <div className="kpi-sheet mx-auto bg-card text-foreground">
+    <div className="kpi-sheet mx-auto flex flex-col bg-card text-foreground">
       {/* ── Kepala ─────────────────────────────────────────────── */}
       <header className="kpi-band flex items-center gap-3 rounded-t-lg px-5 py-3">
         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -61,7 +81,7 @@ export function KpiRaporSheet({ rapor, terbit }: { rapor: KpiRapor; terbit: Date
         </span>
       </header>
 
-      <div className="rounded-b-lg border border-t-0 px-4 py-3">
+      <div className="flex flex-1 flex-col rounded-b-lg border border-t-0 px-4 py-3">
         {/* ── Identitas ────────────────────────────────────────── */}
         <section className="mb-2.5 grid grid-cols-2 gap-x-5 gap-y-1 rounded-md border bg-muted/30 px-3 py-2">
           <Identitas icon={<User />} label="Nama Lengkap" value={teacher.fullName} />
@@ -70,7 +90,7 @@ export function KpiRaporSheet({ rapor, terbit }: { rapor: KpiRapor; terbit: Date
             label="Tahun Bergabung"
             value={
               teacher.tahunGabung
-                ? `${teacher.tahunGabung}${teacher.masaKerjaTahun !== null ? ` · ${teacher.masaKerjaTahun} tahun` : ''}`
+                ? `${teacher.tahunGabung}${teacher.masaKerjaTeks ? ` · ${teacher.masaKerjaTeks}` : ''}`
                 : '—'
             }
           />
@@ -239,10 +259,28 @@ export function KpiRaporSheet({ rapor, terbit }: { rapor: KpiRapor; terbit: Date
         </section>
 
         {/* ── Pengesahan ───────────────────────────────────────── */}
-        <section className="grid grid-cols-3 items-end gap-3 border-t pt-2.5">
+        {/*
+          mt-auto memakukannya ke dasar lembar, bukan membiarkannya mengambang
+          mengikuti panjang apresiasi & area pengembangan. Kolom tanda tangan
+          yang berpindah tinggi antar guru membuat setumpuk rapor tidak bisa
+          ditandatangani berurutan tanpa mencari letaknya tiap lembar.
+          Pasangannya: min-height .kpi-sheet di globals.css — tanpa tinggi
+          lembar, mt-auto tidak punya apa pun untuk didorong.
+        */}
+        <section className="mt-auto grid grid-cols-3 items-end gap-3 border-t pt-2.5">
           <div>
             <p className="text-[9px] text-muted-foreground">Tanggal Penerbitan Rapor</p>
-            <p className="text-[11px] font-semibold">{tanggalPanjang(terbit)}</p>
+            <p className="text-[11px] font-semibold">{tanggalPanjang(tanggalTerbit)}</p>
+            {/*
+              Nomor revisi hanya muncul kalau memang ada revisinya. Rapor yang
+              tidak pernah ditarik tidak perlu memberi tahu siapa pun bahwa ia
+              versi pertama — yang perlu diketahui adalah ketika bukan.
+            */}
+            {pengesahan.versi > 1 && (
+              <p className="text-[9px] font-semibold" style={{ color: 'var(--warning)' }}>
+                Revisi ke-{pengesahan.versi - 1} · menggantikan rapor sebelumnya
+              </p>
+            )}
             <p className="mt-1.5 rounded border-l-2 pl-2 text-[8.5px] italic leading-snug text-muted-foreground"
               style={{ borderColor: 'var(--primary)' }}>
               &ldquo;Teruslah berproses menjadi pribadi yang lebih baik setiap hari untuk
@@ -254,12 +292,15 @@ export function KpiRaporSheet({ rapor, terbit }: { rapor: KpiRapor; terbit: Date
             peran={koordinator ? ROLE_LABELS[koordinator.role] : 'Koordinator Unit'}
             nama={koordinator?.nama ?? '.........................'}
             keterangan={unitPenugasan ? UNIT_PENUGASAN_LABELS[unitPenugasan] : undefined}
+            ttd={pengesahan.koorTtd}
           />
           <TandaTangan
             peran="Guru Qur'an"
             nama={teacher.fullName}
             keterangan={teacher.nip ? `NIP. ${teacher.nip}` : undefined}
             catatan="Telah menerima & me-review hasil KPI"
+            ttd={pengesahan.guruTtd}
+            elektronikPada={pengesahan.guruTtd?.at ?? null}
           />
         </section>
       </div>
@@ -278,11 +319,18 @@ function Identitas({ icon, label, value }: { icon: React.ReactNode; label: strin
   )
 }
 
+/**
+ * Ketiga kotak ringkasan berdiri sejajar dalam satu grid, jadi tingginya
+ * disamakan oleh yang paling tinggi — "Perbandingan Periode" dengan grafik
+ * garisnya. Tanpa flex di sini, isi dua kotak lain menggantung di tepi atas
+ * dengan ruang kosong menganga di bawahnya. flex-1 + justify-center
+ * menengahkannya terhadap tinggi bersama itu.
+ */
 function Kotak({ judul, children }: { judul: string; children: React.ReactNode }) {
   return (
-    <div className="overflow-hidden rounded-md border text-center">
-      <p className="kpi-subhead px-2 py-1 text-[9.5px] font-semibold uppercase">{judul}</p>
-      <div className="px-2 py-1.5">{children}</div>
+    <div className="flex flex-col overflow-hidden rounded-md border text-center">
+      <p className="kpi-subhead shrink-0 px-2 py-1 text-[9.5px] font-semibold uppercase">{judul}</p>
+      <div className="flex flex-1 flex-col justify-center px-2 py-1.5">{children}</div>
     </div>
   )
 }
@@ -322,19 +370,44 @@ function Catatan({
   )
 }
 
+/**
+ * Satu kolom pengesahan.
+ *
+ * Tiga keadaan, dan ketiganya harus terbaca beda pada lembar tercetak:
+ *   • ada gambar        → gambarnya dipasang, ditata sesuai signature_focus
+ *   • ditandatangani
+ *     tanpa gambar      → keterangan elektronik + tanggalnya
+ *   • belum             → ruang kosong untuk tanda tangan basah
+ *
+ * Keadaan kedua sengaja tidak dibiarkan kosong. Guru yang menyetujui rapornya
+ * lewat portal tanpa pernah mengunggah gambar tetap sudah menyatakan sikap,
+ * dan lembar yang mencetaknya sebagai ruang kosong akan terbaca — oleh
+ * siapa pun yang memegang cetakannya — sebagai belum ditandatangani.
+ */
 function TandaTangan({
-  peran, nama, keterangan, catatan,
+  peran, nama, keterangan, catatan, ttd, elektronikPada,
 }: {
   peran: string
   nama: string
   keterangan?: string
   catatan?: string
+  ttd?: { src: string | null; focus: SignatureFocus } | null
+  elektronikPada?: string | null
 }) {
   return (
     <div className="text-center">
       <p className="text-[9.5px] font-semibold">{peran},</p>
-      {/* Ruang tanda tangan basah — rapor ini dicetak untuk ditandatangani. */}
-      <div className="h-11" />
+      <div className="relative h-11 overflow-hidden">
+        {ttd?.src ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={ttd.src} alt={`Tanda tangan ${nama}`} className="h-full w-full" style={ttdStyle(ttd.focus)} />
+        ) : elektronikPada ? (
+          <span className="flex h-full flex-col items-center justify-center gap-0.5 text-[7.5px] leading-tight text-muted-foreground">
+            <span className="font-semibold italic">Ditandatangani secara elektronik</span>
+            <span>{tanggalPanjang(new Date(elektronikPada))}</span>
+          </span>
+        ) : null}
+      </div>
       <p className="border-t pt-1 text-[10px] font-bold">{nama}</p>
       {keterangan && <p className="text-[8.5px] text-muted-foreground">{keterangan}</p>}
       {catatan && <p className="text-[7.5px] italic text-muted-foreground">({catatan})</p>}

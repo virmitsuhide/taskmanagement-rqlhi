@@ -1,10 +1,15 @@
 import { createServerClient } from '@/lib/supabase/server'
 import { nilaiDari, MONTH_NAMES } from '@/lib/data/kpi'
 import {
-  barisIndikator, catatanDari, bandingkan, masaKerja,
-  type BarisIndikator, type Catatan, type Perbandingan, type TitikTren,
+  barisIndikator, catatanDari, bandingkan, masaKerjaRinci, masaKerjaTeks,
+  type BarisIndikator, type Catatan, type MasaKerja, type Perbandingan, type TitikTren,
 } from '@/lib/kpi/rapor-bulanan'
-import type { Jenjang, KpiMonthly, UserRole } from '@/types'
+import { koorPengesah } from '@/lib/auth/permissions'
+import { parseTtdFocus } from '@/lib/kpi/tanda-tangan'
+import { ttdSrc } from '@/lib/kpi/ttd-berkas'
+import type {
+  Jenjang, KpiMonthly, KpiRaporStatus, KpiSelesaiSebab, SignatureFocus, UserRole,
+} from '@/types'
 
 /**
  * Bahan lengkap satu lembar rapor KPI bulanan.
@@ -23,10 +28,15 @@ export interface KpiRapor {
     /** Tahun bergabung, mis. 2022. Null bila joined_at kosong. */
     tahunGabung: number | null
     /** Masa kerja dalam tahun penuh sampai akhir periode rapor. */
-    masaKerjaTahun: number | null
+    /** Masa kerja terpecah tahun–bulan–hari sampai akhir periode rapor. */
+    masaKerja: MasaKerja | null
+    /** Bentuk siap cetak, mis. "6 tahun 2 bulan 11 hari". */
+    masaKerjaTeks: string | null
   }
   /** Koordinator unit — penanda tangan sebelah kiri. */
   koordinator: { nama: string; role: UserRole } | null
+  /** Keadaan pengesahannya: sudah sampai mana, ditandatangani siapa. */
+  pengesahan: Pengesahan
   periode: { year: number; month: number; label: string }
   entry: KpiMonthly
   hasil: ReturnType<typeof nilaiDari>
@@ -36,12 +46,67 @@ export interface KpiRapor {
   banding: Perbandingan
 }
 
-/** Peran koordinator yang menaungi tiap unit — penanda tangan rapornya. */
-const KOOR_UNIT: Record<string, UserRole> = {
-  sd: 'koor_sd',
-  sd_juara: 'koor_sd',
-  smp: 'koor_smp',
+/**
+ * Keadaan pengesahan selembar rapor.
+ *
+ * Yang dipakai adalah SALINAN tanda tangan yang tersimpan di baris rapor,
+ * bukan gambar terkini di profil penandatangannya — rapor yang sudah terbit
+ * tidak boleh berubah tanda tangannya ketika orangnya mengunggah gambar baru.
+ *
+ * `src` sudah berupa URL bertanda tangan yang siap dipasang di <img>, bukan
+ * path mentah: bucket tanda tangan tertutup, dan halaman yang menerima path
+ * mentah akan menghasilkan gambar rusak tanpa petunjuk apa pun. Lihat
+ * lib/kpi/ttd-berkas.ts.
+ */
+export interface Pengesahan {
+  status: KpiRaporStatus
+  selesaiSebab: KpiSelesaiSebab | null
+  versi: number
+  terbitAt: string | null
+  /** Tenggat guru mengajukan banding. Null selama rapor belum terbit. */
+  bandingBatas: string | null
+  dikembalikanAlasan: string | null
+  koorTtd: { src: string; focus: SignatureFocus } | null
+  guruTtd: { src: string | null; focus: SignatureFocus; at: string } | null
 }
+
+/**
+ * Bagian pengesahan dari satu baris kpi_monthly.
+ *
+ * Guru bisa menandatangani tanpa pernah mengunggah gambar — kehendaknya yang
+ * mengikat, bukan gambarnya. Karena itu `guruTtd` bisa ada dengan `src` kosong;
+ * lembar rapornya menuliskan "Ditandatangani secara elektronik" untuk keadaan
+ * itu, dan bukan meninggalkan kotak kosong yang terbaca sebagai belum
+ * ditandatangani.
+ */
+async function pengesahanDari(e: KpiMonthly): Promise<Pengesahan> {
+  const [koorSrc, guruSrc] = await Promise.all([
+    ttdSrc(e.koor_ttd_path),
+    ttdSrc(e.guru_ttd_path),
+  ])
+
+  return {
+    status: e.status ?? 'draft',
+    selesaiSebab: e.selesai_sebab ?? null,
+    versi: e.versi ?? 1,
+    terbitAt: e.terbit_at ?? null,
+    bandingBatas: e.banding_batas ?? null,
+    dikembalikanAlasan: e.dikembalikan_alasan ?? null,
+    koorTtd: koorSrc ? { src: koorSrc, focus: parseTtdFocus(e.koor_ttd_focus) } : null,
+    guruTtd: e.guru_ttd_at
+      ? { src: guruSrc, focus: parseTtdFocus(e.guru_ttd_focus), at: e.guru_ttd_at }
+      : null,
+  }
+}
+
+/**
+ * Petanya sendiri sudah tidak ada di sini: koorPengesah() di
+ * lib/auth/permissions.ts adalah satu-satunya sumbernya, sebab peta yang sama
+ * juga menentukan siapa yang BOLEH menerbitkan rapor. Dua salinan akan
+ * berselisih pada hari salah satunya diubah, dan selisihnya berupa
+ * koordinator yang namanya tercetak di lembar rapor tapi tombol
+ * terbitkannya tidak muncul.
+ */
 
 /** Berapa bulan ke belakang yang digambar sebagai tren kecil di rapor. */
 const PANJANG_TREN = 3
@@ -90,9 +155,9 @@ export async function getKpiRapor(
 
   if (!teacher) return null
 
-  // Koordinator unit. Unit tanpa koordinator terdaftar (sd_juara sebelum ada
-  // koornya sendiri) memakai koor SD — lihat KOOR_UNIT.
-  const roleKoor = KOOR_UNIT[unit]
+  // Koordinator unit. Unit tanpa koordinator sendiri (sd_juara, dan guru QULS
+  // SD yang unitnya sd) memakai Koor SD — lihat koorPengesah().
+  const roleKoor = koorPengesah(unit)
   const { data: koorRow } = roleKoor
     ? await supabase.from('users').select('display_name, role').eq('role', roleKoor).maybeSingle()
     : { data: null }
@@ -105,6 +170,7 @@ export async function getKpiRapor(
 
   const t = teacher as { id: string; full_name: string; nip: string | null; unit: string | null; joined_at: string | null }
   const tahunGabung = t.joined_at ? Number(t.joined_at.slice(0, 4)) : null
+  const rinci = masaKerjaRinci(t.joined_at, year, month)
 
   return {
     teacher: {
@@ -114,11 +180,13 @@ export async function getKpiRapor(
       unit: (t.unit ?? null) as Jenjang | null,
       joinedAt: t.joined_at,
       tahunGabung: Number.isFinite(tahunGabung) ? tahunGabung : null,
-      masaKerjaTahun: masaKerja(t.joined_at, year, month),
+      masaKerja: rinci,
+      masaKerjaTeks: rinci ? masaKerjaTeks(rinci) : null,
     },
     koordinator: koorRow
       ? { nama: (koorRow as { display_name: string }).display_name, role: (koorRow as { role: UserRole }).role }
       : null,
+    pengesahan: await pengesahanDari(entry),
     periode: { year, month, label: `${MONTH_NAMES[month - 1]} ${year}` },
     entry,
     hasil,

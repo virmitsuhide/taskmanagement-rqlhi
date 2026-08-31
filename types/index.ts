@@ -165,6 +165,9 @@ export interface PengurusProfile extends User {
   education_history: EducationEntry[] | null
   photo_url: string | null
   photo_focus: PhotoFocus | null
+  /** Gambar tanda tangan — dibubuhkan ke rapor KPI yang disahkan (0050). */
+  signature_path: string | null
+  signature_focus: SignatureFocus | null
   quran_competencies: CompetencyEntry[] | null
   other_competencies: CompetencyEntry[] | null
   /** Nama ijazah/sanad saja — tanpa tahun, tanpa lembaga. */
@@ -526,6 +529,9 @@ export interface GuruProfile {
   nip: string | null
   photo_url: string | null
   photo_focus: PhotoFocus | null
+  /** Gambar tanda tangan guru — dibubuhkan ke rapor KPI-nya sendiri (0050). */
+  signature_path: string | null
+  signature_focus: SignatureFocus | null
   unit: Jenjang | null
   employment_type: TeacherEmployment | null
   /** TMT — terhitung mulai tanggal bertugas. Null = belum diisi (0044). */
@@ -727,6 +733,65 @@ export interface TeacherSessionData {
   fullName: string
   isLoggedIn: boolean
   type: 'teacher'
+}
+
+// ─── Karyawan RQ ────────────────────────────────────────────────────────────
+
+/** Sesi karyawan — terpisah dari sesi pengurus maupun guru. */
+export interface EmployeeSessionData {
+  employeeId: string
+  username: string
+  fullName: string
+  isLoggedIn: boolean
+  type: 'employee'
+}
+
+/** Baris daftar karyawan untuk menu admin. */
+export interface Employee {
+  id: string
+  username: string
+  full_name: string
+  jabatan: string | null
+  nip: string | null
+  email: string | null
+  phone: string | null
+  photo_url: string | null
+  is_active: boolean
+  deleted_at: string | null
+  employment_type: TeacherEmployment | null
+  joined_at: string | null
+  contract_start: string | null
+  contract_end: string | null
+}
+
+/**
+ * Profil karyawan.
+ *
+ * Bentuknya sengaja sepadan dengan GuruProfile — bedanya hanya `unit` (karyawan
+ * tidak punya unit penugasan) diganti `jabatan`. Kesepadanan itu yang membuat
+ * satu komponen form bisa melayani guru, karyawan, dan pengurus sekaligus.
+ */
+export interface EmployeeProfile {
+  id: string
+  full_name: string
+  jabatan: string | null
+  nip: string | null
+  photo_url: string | null
+  photo_focus: PhotoFocus | null
+  employment_type: TeacherEmployment | null
+  joined_at: string | null
+  sapaan: Sapaan | null
+  nickname: string | null
+  birth_place: string | null
+  birth_date: string | null
+  education_level: EducationLevel | null
+  education_history: EducationEntry[] | null
+  quran_competencies: CompetencyEntry[] | null
+  other_competencies: CompetencyEntry[] | null
+  ijazah_sanad: string[] | null
+  trainings: TrainingEntry[] | null
+  amanah_history: AmanahEntry[] | null
+  awards: AwardEntry[] | null
 }
 
 // Total ayat per juz — referensi cepat untuk hitung progress
@@ -1047,6 +1112,125 @@ export interface KpiMonthly {
   updated_by: string | null
   created_at: string
   updated_at: string
+
+  // ── Pengesahan & penyerahan (0050) ────────────────────────────
+  status: KpiRaporStatus
+  selesai_sebab: KpiSelesaiSebab | null
+  versi: number
+  diajukan_at: string | null
+  diajukan_by: string | null
+  dikembalikan_alasan: string | null
+  terbit_at: string | null
+  terbit_by: string | null
+  koor_ttd_path: string | null
+  koor_ttd_focus: SignatureFocus | null
+  guru_dibuka_at: string | null
+  guru_ttd_at: string | null
+  guru_ttd_path: string | null
+  guru_ttd_focus: SignatureFocus | null
+  banding_batas: string | null
+  direset_at: string | null
+  direset_by: string | null
+}
+
+/**
+ * Siklus hidup selembar rapor KPI.
+ *
+ *   draft → diajukan → terbit → (ttd guru | banding) → selesai
+ *              ↑ dikembalikan ┘
+ */
+export type KpiRaporStatus =
+  | 'draft'
+  | 'diajukan'
+  | 'dikembalikan'
+  | 'terbit'
+  | 'banding'
+  | 'selesai'
+
+/**
+ * Kenapa rapor menjadi final — bukan hal yang sama dengan "guru setuju".
+ * Rapor yang final karena tenggatnya lewat tidak boleh dilaporkan sebagai
+ * disetujui: tidak ada seorang pun yang menyetujuinya.
+ */
+export type KpiSelesaiSebab = 'ttd_guru' | 'lewat_tenggat' | 'putusan_final'
+
+export type KpiBandingStatus =
+  | 'diajukan'
+  | 'diterima'
+  | 'diterima_sebagian'
+  | 'ditolak'
+  /** Pemutus melewati tenggatnya sendiri. */
+  | 'kedaluwarsa'
+
+export type KpiRiwayatAksi =
+  | 'diajukan' | 'dikembalikan' | 'terbit' | 'ttd_guru'
+  | 'banding_diajukan' | 'banding_diputus' | 'banding_eskalasi'
+  | 'direset' | 'final_tenggat'
+
+/**
+ * Penataan gambar tanda tangan di dalam kotaknya.
+ *
+ * Sebentuk PhotoFocus, tapi tipe tersendiri karena maknanya berbeda: foto
+ * profil dipangkas dalam lingkaran (object-fit: cover), tanda tangan tidak
+ * boleh dipangkas sama sekali — lihat lib/kpi/tanda-tangan.ts.
+ */
+export interface SignatureFocus {
+  /** 0–100, geser mendatar di dalam kotak. */
+  x: number
+  /** 0–100, geser tegak. */
+  y: number
+  /** 50–200 persen. */
+  zoom: number
+}
+
+/**
+ * Satu butir sanggahan: indikator mana, tercatat berapa, mestinya berapa.
+ *
+ * Banding wajib berbentuk seperti ini — bukan keberatan bebas atas rapor
+ * secara utuh — supaya bisa diperiksa terhadap sumber datanya, bukan
+ * diperdebatkan.
+ */
+export interface KpiBandingItem {
+  /** Indeks indikator 0–10, mengikuti urutan KPI_INDIKATOR di lib/kpi/hitung.ts. */
+  indikator: number
+  /** Nilai yang tercetak di rapor, disalin saat banding diajukan. */
+  nilaiTercatat: number
+  /** Nilai yang menurut guru seharusnya. */
+  nilaiDiklaim: number
+  alasan: string
+}
+
+export interface KpiBanding {
+  id: string
+  kpi_monthly_id: string
+  teacher_id: string
+  versi_rapor: number
+  /** 1 = sengketa fakta (SDM). 2 = sengketa penilaian (Kepala RQ, final). */
+  tingkat: number
+  /** Tingkat 2 menunjuk banding tingkat 1 yang dieskalasi. */
+  induk_id: string | null
+  items: KpiBandingItem[]
+  lampiran_url: string[] | null
+  status: KpiBandingStatus
+  diajukan_at: string
+  putusan_batas: string | null
+  putusan_oleh: string | null
+  putusan_at: string | null
+  putusan_alasan: string | null
+  eskalasi_alasan: string | null
+  created_at: string
+}
+
+/** Satu peristiwa dalam hidup selembar rapor — sekaligus sumber notifikasi. */
+export interface KpiRaporRiwayat {
+  id: string
+  kpi_monthly_id: string
+  versi: number
+  aksi: KpiRiwayatAksi
+  actor_user_id: string | null
+  actor_teacher_id: string | null
+  catatan: string | null
+  created_at: string
 }
 
 /** Guru + baris KPI-nya (kalau sudah ada) untuk satu periode. */

@@ -5,21 +5,13 @@ import { getSession } from '@/lib/auth/session'
 import { canViewKpi } from '@/lib/auth/permissions'
 import { getRaporSemester, KPI_UNITS, MONTH_NAMES, SEMESTER_MONTHS } from '@/lib/data/kpi'
 import { levelDari } from '@/lib/kpi/hitung'
-import { KPI_LEVELS } from '@/lib/kpi/parameter'
+import { KPI_LEVELS, KPI_LEVEL_TONE } from '@/lib/kpi/parameter'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { cn } from '@/lib/utils'
 import type { Jenjang } from '@/types'
 
 interface PageProps {
   searchParams: Promise<{ unit?: string; year?: string; semester?: string }>
-}
-
-const LEVEL_TONE: Record<number, string> = {
-  5: 'bg-success-wash text-success',
-  4: 'bg-primary-wash text-primary',
-  3: 'bg-warning-wash text-warning',
-  2: 'bg-destructive-wash text-destructive',
-  1: 'bg-destructive-wash text-destructive',
 }
 
 export default async function RaporSemesterPage({ searchParams }: PageProps) {
@@ -150,7 +142,7 @@ export default async function RaporSemesterPage({ searchParams }: PageProps) {
                         </td>
                         <td className="px-2 py-2 text-center">
                           {lv ? (
-                            <span className={cn('inline-block rounded px-1.5 py-0.5 font-medium whitespace-nowrap', LEVEL_TONE[lv.level])}>
+                            <span className={cn('inline-block rounded px-1.5 py-0.5 font-medium whitespace-nowrap', KPI_LEVEL_TONE[lv.level])}>
                               {lv.level} · {lv.predikat}
                             </span>
                           ) : '—'}
@@ -182,7 +174,7 @@ export default async function RaporSemesterPage({ searchParams }: PageProps) {
                     {KPI_LEVELS.map(l => (
                       <tr key={l.level} className="border-t">
                         <td className="px-3 py-2">
-                          <span className={cn('inline-block rounded px-1.5 py-0.5 font-medium', LEVEL_TONE[l.level])}>{l.level}</span>
+                          <span className={cn('inline-block rounded px-1.5 py-0.5 font-medium', KPI_LEVEL_TONE[l.level])}>{l.level}</span>
                         </td>
                         <td className="px-3 py-2 tabular-nums text-muted-foreground">{l.min} – {l.max}</td>
                         <td className="px-3 py-2 font-medium">{l.predikat}</td>

@@ -47,7 +47,13 @@ function newEducationRow(init?: Partial<EducationRow>): EducationRow {
 const inputCls =
   'flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring'
 
-export function PengurusProfileForm({ profile }: { profile: PengurusProfile }) {
+interface Props {
+  profile: PengurusProfile
+  /** Nama resmi jabatan, diturunkan dari role akun — lihat AMANAH_LABELS. */
+  amanahLabel: string
+}
+
+export function PengurusProfileForm({ profile, amanahLabel }: Props) {
   const [state, action, pending] = useActionState(updatePengurusProfileAction, null)
 
   // Daftar dikelola sebagai state supaya baris bisa ditambah/dihapus. Nilainya
@@ -153,14 +159,15 @@ export function PengurusProfileForm({ profile }: { profile: PengurusProfile }) {
             <Label htmlFor="nip">NIP</Label>
             <Input id="nip" name="nip" defaultValue={profile.nip ?? ''} />
           </div>
+          {/*
+            Amanah bukan lagi isian. Ia ditetapkan Kepala RQ lewat menu Pengurus
+            dan diturunkan dari role akun, jadi yang tampil di sini hanya
+            cerminannya — tanpa name=, sehingga tidak ikut terkirim ke server.
+          */}
           <div className="space-y-1.5">
             <Label htmlFor="current_amanah">Amanah Saat Ini</Label>
-            <Input
-              id="current_amanah"
-              name="current_amanah"
-              defaultValue={profile.current_amanah ?? ''}
-              placeholder="Kepala Rumah Qur'an"
-            />
+            <Input id="current_amanah" value={amanahLabel} readOnly disabled />
+            <p className="text-xs text-muted-foreground">Ditetapkan Kepala RQ, mengikuti jabatan akun ini.</p>
           </div>
         </div>
 

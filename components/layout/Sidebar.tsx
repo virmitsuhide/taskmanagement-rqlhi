@@ -7,14 +7,15 @@ import {
   LayoutDashboard, BookOpen, CheckSquare, ImageIcon,
   FileText, User, Megaphone, LogOut, ChevronRight, GraduationCap, Newspaper, LayoutGrid,
   Users, UserCog, BookMarked, BarChart3, LayoutTemplate, Info, Wallet, CalendarRange,
-  ClipboardCheck, KeyRound, ScrollText, Repeat, IdCard,
+  ClipboardCheck, KeyRound, ScrollText, Repeat, IdCard, UsersRound, Briefcase, Stamp, Scale,
 } from 'lucide-react'
 import { DASHBOARD_LABELS, getAccessibleDashboards, ROLE_LABELS , canManageTeacherProfiles } from '@/lib/auth/permissions'
 import {
   canViewTerms, canViewGukarRecap, canViewFinance, canViewFinanceNotes, canPostToHome, canViewHumasRequests, canCreateNews,
   canAccessProgramMenu, canEditAbout,
   canViewStudents, canViewHalaqoh, canViewTeachers, canViewAnalytics, canViewUnitAnalytics,
-  canManageHomepage, canViewKpi, canManageAllAccounts, canViewUjian,
+  canManageHomepage, canViewKpi, canManageAllAccounts, canManagePengurus, canManageEmployees, canViewUjian,
+  canAccessKpiPublikasi, canViewKpiBanding,
 } from '@/lib/auth/permissions'
 import type { UserRole } from '@/types'
 import { logoutAction } from '@/app/actions/auth'
@@ -24,6 +25,13 @@ interface Props {
   role: UserRole
   displayName: string
   username: string
+  /**
+   * Hitungan yang menunggu di alur rapor KPI: rapor yang menanti tanda tangan
+   * koordinator, dan banding yang menanti putusan. Dihitung di AppShell —
+   * komponen ini client, dan navigasi yang mengambil datanya sendiri akan
+   * menembak database dari peramban tiap kali menunya digambar.
+   */
+  lencanaKpi?: { publikasi: number; banding: number }
 }
 
 const DASHBOARD_ICONS: Record<string, React.ReactNode> = {
@@ -39,7 +47,7 @@ const DASHBOARD_ICONS: Record<string, React.ReactNode> = {
   pribadi: <LayoutDashboard className="h-4 w-4" />,
 }
 
-export function Sidebar({ role, displayName, username }: Props) {
+export function Sidebar({ role, displayName, username, lencanaKpi }: Props) {
   const pathname = usePathname()
   const dashboards = getAccessibleDashboards(role)
 
@@ -98,7 +106,38 @@ export function Sidebar({ role, displayName, username }: Props) {
                 kinerja, sekelompok dengan angka-angka pemantauan — bukan dengan
                 menu Tahsin & Tahfidz yang isinya pekerjaan harian. */}
             {canViewKpi(role) && (
-              <NavItem href="/kpi" icon={<ClipboardCheck className="h-4 w-4" />} label="KPI Guru" active={isActive('/kpi')} />
+              <NavItem
+                href="/kpi"
+                icon={<ClipboardCheck className="h-4 w-4" />}
+                label="KPI Guru"
+                // Dikecualikan dari dua anaknya yang punya menu sendiri —
+                // idiom yang sama dengan /tasks terhadap /tasks/board.
+                active={isActive('/kpi') && !pathname.startsWith('/kpi/publikasi') && !pathname.startsWith('/kpi/banding')}
+              />
+            )}
+            {/*
+              Dua menu turunan alur rapor. Sengaja berdiri sendiri, bukan
+              disembunyikan di dalam halaman KPI: keduanya membawa lencana
+              angka, dan pemberitahuan yang hanya terlihat setelah membuka
+              halaman lain bukan pemberitahuan.
+            */}
+            {canAccessKpiPublikasi(role) && (
+              <NavItem
+                href="/kpi/publikasi"
+                icon={<Stamp className="h-4 w-4" />}
+                label="Publikasi Rapor"
+                active={isActive('/kpi/publikasi')}
+                badge={lencanaKpi?.publikasi}
+              />
+            )}
+            {canViewKpiBanding(role) && (
+              <NavItem
+                href="/kpi/banding"
+                icon={<Scale className="h-4 w-4" />}
+                label="Banding KPI"
+                active={isActive('/kpi/banding')}
+                badge={lencanaKpi?.banding}
+              />
             )}
           </ul>
         </div>
@@ -165,6 +204,9 @@ export function Sidebar({ role, displayName, username }: Props) {
               {/* Menempel di bawah daftar guru: keduanya bicara tentang orang
                   yang sama, hanya berbeda sisi — daftar untuk operasional,
                   profil untuk arsip kepegawaian. */}
+              {canManageEmployees(role) && (
+                <NavItem href="/karyawan" icon={<Briefcase className="h-4 w-4" />} label="Karyawan" active={isActive('/karyawan')} />
+              )}
               {canManageTeacherProfiles(role) && (
                 <NavItem href="/ustadz/profil" icon={<IdCard className="h-4 w-4" />} label="Profil Guru" active={pathname.startsWith('/ustadz/profil')} />
               )}
@@ -186,6 +228,9 @@ export function Sidebar({ role, displayName, username }: Props) {
 
       {/* User section */}
       <div className="border-t px-3 py-3 space-y-1">
+        {canManagePengurus(role) && (
+          <NavItem href="/pengurus" icon={<UsersRound className="h-4 w-4" />} label="Pengurus" active={isActive('/pengurus')} />
+        )}
         {canManageAllAccounts(role) && (
           <NavItem href="/akun" icon={<KeyRound className="h-4 w-4" />} label="Akun & Password" active={isActive('/akun')} />
         )}
@@ -220,12 +265,14 @@ export function Sidebar({ role, displayName, username }: Props) {
 }
 
 function NavItem({
-  href, icon, label, active,
+  href, icon, label, active, badge,
 }: {
   href: string
   icon: React.ReactNode
   label: string
   active: boolean
+  /** Jumlah yang menunggu. 0/undefined = tanpa lencana sama sekali. */
+  badge?: number
 }) {
   return (
     <li>
@@ -241,7 +288,13 @@ function NavItem({
       >
         {icon}
         {label}
-        {active && <ChevronRight className="ml-auto h-3 w-3" />}
+        {badge ? (
+          <span className="ml-auto min-w-[18px] rounded-full bg-primary px-1.5 py-0.5 text-center text-[10px] font-semibold leading-none text-primary-foreground">
+            {badge > 9 ? '9+' : badge}
+          </span>
+        ) : active ? (
+          <ChevronRight className="ml-auto h-3 w-3" />
+        ) : null}
       </Link>
     </li>
   )

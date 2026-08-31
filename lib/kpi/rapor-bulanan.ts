@@ -1,5 +1,5 @@
 import { KPI_INDIKATOR, levelDari, type KpiHasil } from './hitung'
-import { paramFor, type KpiParam } from './parameter'
+import { paramFor, KPI_LEVELS, type KpiParam } from './parameter'
 import type { Jenjang, KpiMonthly } from '@/types'
 
 /**
@@ -32,7 +32,7 @@ export interface BarisIndikator {
   capaian: string
   /** Nilai indikator 0–100. */
   nilai: number
-  /** Level 1–5 memakai ambang yang sama dengan nilai rapot keseluruhan. */
+  /** Level 1–6 memakai ambang yang sama dengan nilai rapot keseluruhan. */
   level: number
   predikat: string
 }
@@ -137,8 +137,15 @@ export interface Catatan {
   pengembangan: string[]
 }
 
-/** Ambang "sudah sangat baik" — batas bawah level 5 pada KPI_LEVELS. */
-const AMBANG_APRESIASI = 81
+/**
+ * Ambang "sudah sangat baik" — batas bawah level tertinggi pada KPI_LEVELS.
+ *
+ * Diturunkan dari rubriknya, bukan diketik ulang: begitu ambang predikatnya
+ * digeser, kalimat apresiasi ikut bergeser bersamanya. Angka tetap di sini
+ * dulu bernilai 81 dan akan diam-diam memuji indikator yang kini hanya
+ * berpredikat "Baik".
+ */
+const AMBANG_APRESIASI = KPI_LEVELS[0].min
 
 /**
  * Kalimat apresiasi & area pengembangan untuk lembar rapor.
@@ -227,11 +234,77 @@ export function bandingkan(tren: TitikTren[]): Perbandingan {
   return { selisih, arah: selisih > 0 ? 'naik' : selisih < 0 ? 'turun' : 'tetap' }
 }
 
-/** Masa kerja dalam tahun penuh, dihitung sampai akhir periode rapor. */
-export function masaKerja(joinedAt: string | null, year: number, month: number): number | null {
+export interface MasaKerja {
+  tahun: number
+  bulan: number
+  hari: number
+}
+
+/** Jumlah hari dalam satu bulan (bulan 1–12), tahun kabisat ikut terhitung. */
+function hariDalamBulan(tahun: number, bulan: number): number {
+  return new Date(tahun, bulan, 0).getDate()
+}
+
+/**
+ * Masa kerja sampai AKHIR periode rapor, dipecah tahun–bulan–hari.
+ *
+ * Titik akhirnya hari terakhir bulan yang dinilai, bukan hari ini: rapor
+ * Agustus yang dicetak ulang bulan Desember harus tetap berbunyi sama seperti
+ * saat pertama diterbitkan. Dokumen yang angkanya berubah tiap kali dibuka
+ * bukan arsip.
+ *
+ * Hitungannya kalender, bukan pembagian 365/30: sisa hari dipinjam dari
+ * panjang bulan yang sebenarnya. Bergabung 15 Desember 2025 dan dinilai sampai
+ * akhir Januari 2026 memberi "1 bulan 16 hari" — meminjam 31 hari milik
+ * Desember, bukan 30 yang dipukul rata.
+ *
+ * Konsekuensi yang disengaja: tanggal bergabung yang melewati akhir bulan
+ * tujuan dihitung apa adanya. Bergabung 31 Januari dan dinilai sampai 29
+ * Februari berbunyi "29 hari", bukan "1 bulan" — sebab 31 Februari tidak ada,
+ * dan menebak mana yang dimaksud akan membuat angkanya bergantung pada tebakan.
+ */
+export function masaKerjaRinci(
+  joinedAt: string | null,
+  year: number,
+  month: number,
+): MasaKerja | null {
   if (!joinedAt) return null
-  const [jy, jm] = joinedAt.slice(0, 10).split('-').map(Number)
-  if (!jy || !jm) return null
-  const bulanTotal = (year - jy) * 12 + (month - jm)
-  return bulanTotal < 0 ? 0 : Math.floor(bulanTotal / 12)
+  const [jy, jm, jd] = joinedAt.slice(0, 10).split('-').map(Number)
+  if (!jy || !jm || !jd) return null
+
+  const akhirHari = hariDalamBulan(year, month)
+
+  let tahun = year - jy
+  let bulan = month - jm
+  let hari = akhirHari - jd
+
+  if (hari < 0) {
+    bulan -= 1
+    // Pinjam dari bulan sebelum bulan periode — panjangnya berbeda-beda,
+    // jadi tidak boleh dipukul rata 30.
+    const sebelum = month === 1 ? { y: year - 1, m: 12 } : { y: year, m: month - 1 }
+    hari += hariDalamBulan(sebelum.y, sebelum.m)
+  }
+  if (bulan < 0) {
+    tahun -= 1
+    bulan += 12
+  }
+
+  // Bergabung setelah periode rapor — belum punya masa kerja sama sekali.
+  if (tahun < 0) return { tahun: 0, bulan: 0, hari: 0 }
+
+  return { tahun, bulan, hari }
+}
+
+/**
+ * "6 tahun 2 bulan 11 hari". Bagian bernilai nol dibuang supaya tidak ada
+ * "0 bulan" yang harus dibaca lalu diabaikan; kalau ketiganya nol, dikembalikan
+ * "kurang dari sehari".
+ */
+export function masaKerjaTeks(m: MasaKerja): string {
+  const bagian: string[] = []
+  if (m.tahun > 0) bagian.push(`${m.tahun} tahun`)
+  if (m.bulan > 0) bagian.push(`${m.bulan} bulan`)
+  if (m.hari > 0) bagian.push(`${m.hari} hari`)
+  return bagian.length > 0 ? bagian.join(' ') : 'kurang dari sehari'
 }

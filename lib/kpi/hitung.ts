@@ -202,13 +202,17 @@ export function hitungKpi(input: KpiInput, harian: KpiHarian, unit: Jenjang | nu
 }
 
 /**
- * IF(O<=20,1,IF(O<=40,2,IF(O<=60,3,IF(O<=80,4,5))))
+ * Nilai 0–100 → level & predikatnya, memakai ambang di KPI_LEVELS.
+ *
+ * Enam pita sejak rubriknya diperbarui: ≤50 Sangat Kurang Sekali, lalu tiap
+ * sepuluh angka naik satu tingkat sampai 91–100 Sangat Baik. Sebelumnya lima
+ * pita selebar dua puluh angka, warisan rumus di berkas Excel-nya.
  *
  * Yang dipakai adalah batas ATAS tiap level (`max`), bukan batas bawahnya.
- * Tab Panduan menulis rentangnya sebagai "21 - 40", tapi rumus di tab Rekap
- * memakai O<=20 lalu O<=40 — jadi nilai di antara 20 dan 21, misalnya 20,5,
- * masuk level 2 menurut rumus padahal jatuh di celah menurut tabel. Yang
- * menentukan nilai guru selama ini adalah rumusnya, jadi rumus itu yang ditiru.
+ * Tabel rubriknya menulis rentang sebagai "51 - 60", padahal nilai rapot
+ * adalah pembagian dan kerap berkoma — 50,4 jatuh di celah menurut tabel, tapi
+ * jelas masuk pita terbawah menurut batas atas. Membandingkan dengan `max`
+ * membuat setiap nilai yang mungkin punya tempat, tanpa celah.
  */
 export function levelDari(rapot: number): { level: number; predikat: string; tindakLanjut: string } {
   const naik = [...KPI_LEVELS].reverse()

@@ -5,12 +5,7 @@ import { createServerClient } from '@/lib/supabase/server'
 import { getSession } from '@/lib/auth/session'
 import { getTeacherSession } from '@/lib/auth/teacher-session'
 import { canManageTeacherProfiles } from '@/lib/auth/permissions'
-import { highestLevel, isEducationLevel, sortEducation } from '@/lib/profil/pendidikan'
-import { collectRows } from '@/lib/profil/form-rows'
-import { focusFromFormData } from '@/lib/profil/foto'
-import type {
-  AmanahEntry, AwardEntry, CompetencyEntry, EducationEntry, TrainingEntry,
-} from '@/types'
+import { bacaDataDiri, teks, unggahFotoProfil } from '@/lib/profil/data-diri'
 
 /**
  * Profil guru Qur'an — disunting dari dua pintu.
@@ -30,107 +25,6 @@ import type {
  * dirinya sendiri. Karena itu pemisahannya ditegakkan di server, bukan dengan
  * menyembunyikan medannya di form.
  */
-
-const teks = (fd: FormData, key: string) => ((fd.get(key) as string) ?? '').trim() || null
-
-/** Bagian data diri — sama persis untuk kedua pintu masuk. */
-function bacaDataDiri(formData: FormData): Record<string, unknown> {
-  const educationHistory = sortEducation(
-    collectRows<EducationEntry>(
-      formData,
-      [
-        { key: 'level', field: 'edu_level' },
-        { key: 'institution', field: 'edu_institution' },
-        { key: 'major', field: 'edu_major' },
-        { key: 'graduation_year', field: 'edu_year' },
-      ],
-      'level',
-    ).filter(row => isEducationLevel(row.level)),
-  )
-
-  const sapaan = formData.get('sapaan')
-
-  return {
-    sapaan: sapaan === 'ust' || sapaan === 'usth' ? sapaan : null,
-    nickname: teks(formData, 'nickname'),
-    birth_place: teks(formData, 'birth_place'),
-    birth_date: (formData.get('birth_date') as string) || null,
-    education_history: educationHistory,
-    education_level: highestLevel(educationHistory),
-    quran_competencies: collectRows<CompetencyEntry>(
-      formData,
-      [{ key: 'name', field: 'quran_comp_name' }, { key: 'institution', field: 'quran_comp_institution' }],
-      'name',
-    ),
-    other_competencies: collectRows<CompetencyEntry>(
-      formData,
-      [{ key: 'name', field: 'other_comp_name' }, { key: 'institution', field: 'other_comp_institution' }],
-      'name',
-    ),
-    ijazah_sanad: formData.getAll('ijazah_sanad').map(v => String(v).trim()).filter(Boolean),
-    trainings: collectRows<TrainingEntry>(
-      formData,
-      [
-        { key: 'name', field: 'training_name' },
-        { key: 'year', field: 'training_year' },
-        { key: 'organizer', field: 'training_organizer' },
-      ],
-      'name',
-    ),
-    amanah_history: collectRows<AmanahEntry>(
-      formData,
-      [{ key: 'position', field: 'amanah_position' }, { key: 'period', field: 'amanah_period' }],
-      'position',
-    ),
-    awards: collectRows<AwardEntry>(
-      formData,
-      [{ key: 'name', field: 'award_name' }, { key: 'year', field: 'award_year' }],
-      'name',
-    ),
-    // Aman ditulis sejak form profil guru punya pengatur posisinya sendiri:
-    // nilainya berasal dari lingkaran yang barusan dilihat penyuntingnya, bukan
-    // dari nilai bawaan. Halaman Humas (/humas/beranda) menulis kolom yang sama
-    // — siapa pun yang menyimpan terakhir, itulah bingkai yang berlaku.
-    photo_focus: focusFromFormData(formData, 'photo_focus'),
-    updated_at: new Date().toISOString(),
-  }
-}
-
-const PHOTO_BUCKET = 'profile-photos'
-const MAX_PHOTO_BYTES = 2 * 1024 * 1024
-
-/**
- * Unggah foto guru bila ada berkas baru pada form.
- *
- * Berbagi bucket & awalan nama berkas ('teacher-') dengan unggahan Humas di
- * app/actions/site.ts, jadi foto yang diunggah dari sini terbaca di sana dan
- * sebaliknya. Mengembalikan undefined kalau tidak ada berkas (kolom foto tidak
- * disentuh), atau null kalau unggahannya gagal — pemanggil tetap menyimpan
- * sisa profilnya dan melaporkan kegagalan fotonya secara terpisah.
- */
-async function unggahFoto(
-  supabase: ReturnType<typeof createServerClient>,
-  formData: FormData,
-  teacherId: string,
-): Promise<string | null | undefined> {
-  const file = formData.get('photo') as File | null
-  if (!file || file.size === 0) return undefined
-  if (file.size > MAX_PHOTO_BYTES) return null
-  try {
-    const bytes = await file.arrayBuffer()
-    const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg'
-    const { data, error } = await supabase.storage
-      .from(PHOTO_BUCKET)
-      .upload(`teacher-${teacherId}-${Date.now()}.${ext}`, Buffer.from(bytes), {
-        contentType: file.type,
-        upsert: true,
-      })
-    if (error || !data) return null
-    return supabase.storage.from(PHOTO_BUCKET).getPublicUrl(data.path).data.publicUrl
-  } catch {
-    return null
-  }
-}
 
 /** Pesan galat yang menunjuk migrasinya, bukan "gagal menyimpan" yang buntu. */
 function pesanGalat(message: string | undefined): string {
@@ -170,7 +64,7 @@ export async function updateGuruProfileBySdmAction(_: unknown, formData: FormDat
 
   const supabase = createServerClient()
 
-  const foto = await unggahFoto(supabase, formData, teacherId)
+  const foto = await unggahFotoProfil(supabase, formData, 'teacher', teacherId)
   if (foto) (patch as Record<string, unknown>).photo_url = foto
 
   const { error } = await supabase.from('teachers').update(patch).eq('id', teacherId)
@@ -201,7 +95,7 @@ export async function updateOwnGuruProfileAction(_: unknown, formData: FormData)
   const supabase = createServerClient()
 
   const patch: Record<string, unknown> = bacaDataDiri(formData)
-  const foto = await unggahFoto(supabase, formData, session.teacherId)
+  const foto = await unggahFotoProfil(supabase, formData, 'teacher', session.teacherId)
   if (foto) patch.photo_url = foto
 
   const { error } = await supabase.from('teachers').update(patch).eq('id', session.teacherId)

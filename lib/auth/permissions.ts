@@ -134,9 +134,13 @@ const TASK_ASSIGN_TO: Record<UserRole, UserRole[]> = {
   kepala_rq: ['kepala_rq', 'kumik', 'sdm', 'bendahara', 'koor_ekstra', 'koor_sd', 'koor_smp', 'koor_qulssd', 'humas', 'div_training', 'new_squad'],
   kumik: ['koor_sd', 'koor_smp', 'koor_qulssd', 'koor_ekstra', 'humas', 'bendahara'],
   sdm: ['new_squad', 'div_training', 'humas', 'bendahara'],
-  koor_sd: ['koor_sd'],
-  koor_smp: ['koor_smp'],
-  koor_qulssd: ['koor_qulssd'],
+  // Para koor menugasi divisinya sendiri, plus Humas. Humas ikut karena keempat
+  // koor memang sudah memantau papan Humas (getBoardDivisions di bawah) — tanpa
+  // ini mereka melihat antrean desain & publikasi yang mereka butuhkan tapi
+  // harus menitipkannya lewat kumik untuk mengisinya.
+  koor_sd: ['koor_sd', 'humas'],
+  koor_smp: ['koor_smp', 'humas'],
+  koor_qulssd: ['koor_qulssd', 'humas'],
   koor_ekstra: ['humas'],
   bendahara: [],
   humas: [],
@@ -642,6 +646,17 @@ export function canManageTeachers(role: UserRole): boolean {
  * (/guru/profil) — tapi hanya bagian pribadinya, tidak menyentuh ketiga kolom
  * kepegawaian di atas.
  */
+/**
+ * Mengelola akun & profil karyawan RQ — menu "Karyawan".
+ *
+ * Sejalan dengan canManageTeachers: kepala RQ dan SDM. Karyawan bukan guru —
+ * tidak mengampu halaqoh, tidak dinilai KPI — tapi urusan akun dan
+ * kepegawaiannya tetap di tangan yang sama.
+ */
+export function canManageEmployees(role: UserRole): boolean {
+  return role === 'kepala_rq' || role === 'sdm'
+}
+
 export function canManageTeacherProfiles(role: UserRole): boolean {
   return role === 'sdm'
 }
@@ -733,6 +748,53 @@ export const ROLE_LABELS: Record<UserRole, string> = {
   humas: 'Humas',
   div_training: 'Div Training',
   new_squad: 'New Squad',
+}
+
+/**
+ * Nama resmi tiap jabatan pengurus — dipakai sebagai "Amanah Saat Ini".
+ *
+ * Diturunkan dari role, bukan diketik pengurus. Amanah adalah kursi yang
+ * ditetapkan kepala RQ lewat /pengurus, jadi membiarkannya sebagai teks bebas
+ * berarti dua orang di kursi yang sama bisa menulis nama jabatan yang berbeda —
+ * dan itu persis yang terjadi sebelum ini: dari 11 akun, 4 terisi dengan gaya
+ * penulisan yang tidak seragam dan 7 dibiarkan kosong.
+ *
+ * Bedanya dengan ROLE_LABELS: yang itu label pendek untuk lencana & tabel
+ * ("Koor SD"), yang ini nama utuh untuk dokumen & profil.
+ */
+export const AMANAH_LABELS: Record<UserRole, string> = {
+  kepala_rq:   "Kepala Rumah Qur’an",
+  kumik:       "Kurikulum & Metodologi (Kumik)",
+  sdm:         "Kadiv SDM RQ LHI",
+  bendahara:   "Bendahara",
+  koor_sd:     "Koordinator Qur’an SD",
+  koor_smp:    "Koordinator Qur’an SMP",
+  koor_qulssd: "Koordinator QULS SD",
+  koor_ekstra: "Koordinator Ekstra RQ LHI",
+  humas:       "Humas RQ LHI",
+  div_training:"Divisi Training",
+  new_squad:   "New Squad",
+}
+
+/**
+ * Urutan jabatan di halaman Pengurus — struktural, bukan abjad: pimpinan,
+ * lalu divisi penopang, lalu para koordinator lapangan.
+ */
+export const JABATAN_ORDER: UserRole[] = [
+  "kepala_rq", "kumik", "sdm", "bendahara",
+  "koor_sd", "koor_smp", "koor_qulssd", "koor_ekstra",
+  "humas", "div_training", "new_squad",
+]
+
+/**
+ * Boleh menetapkan siapa yang menduduki tiap jabatan pengurus.
+ *
+ * Kepala RQ saja. Ini wewenang penempatan orang, satu tingkat di atas SDM yang
+ * mengurus rekam kepegawaiannya — dan hasilnya menentukan profil siapa yang
+ * tampil di akun jabatan tersebut.
+ */
+export function canManagePengurus(role: UserRole): boolean {
+  return role === "kepala_rq"
 }
 
 export const TASK_PRIORITY_LABELS: Record<TaskPriority, string> = {
@@ -869,7 +931,7 @@ export function canInputKpi(role: UserRole): boolean {
  *
  * Sengaja lebih sempit daripada papan tugas: ini penilaian perorangan atas
  * kinerja, bukan informasi kerja harian. Koordinator unit ikut dimasukkan
- * karena merekalah yang menjalankan tindak lanjut pada level 1-3.
+ * karena merekalah yang menjalankan tindak lanjut pada level 1-4.
  */
 export function canViewKpi(role: UserRole): boolean {
   return canInputKpi(role) || role === 'kumik' || role === 'koor_sd' || role === 'koor_smp'
@@ -888,6 +950,96 @@ export function canViewKpi(role: UserRole): boolean {
  */
 export function canPrintKpiRapor(role: UserRole): boolean {
   return role === 'sdm'
+}
+
+// ── Pengesahan rapor KPI (0050) ────────────────────────────────────
+
+/**
+ * Koordinator yang menaungi tiap unit — penanda tangan rapornya.
+ *
+ * Guru QULS SD ikut di bawah Koor SD: unitnya memang sd/sd_juara, dan
+ * pemisahan pembinaan QULS SD belum sampai ke jalur pengesahan KPI. Kalau
+ * kelak Koor QULS SD yang mengesahkan anak buahnya sendiri, cukup peta ini
+ * yang berubah — lib/data/kpi-rapor.ts membacanya lewat koorPengesah(), tidak
+ * memelihara petanya sendiri.
+ */
+const KOOR_PENGESAH: Partial<Record<Jenjang, UserRole>> = {
+  sd: 'koor_sd',
+  sd_juara: 'koor_sd',
+  smp: 'koor_smp',
+}
+
+export function koorPengesah(unit: Jenjang | null): UserRole | null {
+  return (unit && KOOR_PENGESAH[unit]) ?? null
+}
+
+/**
+ * Siapa yang menandatangani & memublikasikan rapor kepada guru.
+ *
+ * Terikat unit: Koor SMP tidak bisa menerbitkan rapor guru SD, meski
+ * jabatannya setara. Yang disahkan adalah penilaian atas orang yang ia pimpin
+ * langsung — di luar itu ia menandatangani sesuatu yang tidak ia saksikan.
+ *
+ * Kepala RQ TIDAK ikut. Bukan karena wewenangnya kurang, melainkan karena
+ * tanda tangan pada rapor menyatakan "saya koordinator yang menyaksikan
+ * kinerja ini". Kalau Kepala RQ perlu turun tangan, jalurnya reset — yang
+ * meninggalkan jejak — bukan menandatangani atas nama koordinator.
+ */
+export function canPublishKpiRapor(role: UserRole, unit: Jenjang | null): boolean {
+  const koor = koorPengesah(unit)
+  return koor !== null && role === koor
+}
+
+/** Punya halaman publikasi sama sekali? Dipakai untuk menampilkan menunya. */
+export function canAccessKpiPublikasi(role: UserRole): boolean {
+  return role === 'koor_sd' || role === 'koor_smp'
+}
+
+/**
+ * Siapa yang memutus banding, per tingkat.
+ *
+ * Tingkat 1 sengketa FAKTA — SDM, sebab dialah pemegang data sumbernya.
+ * Tingkat 2 sengketa PENILAIAN — Kepala RQ, dan putusannya final.
+ *
+ * Koordinator tidak memutus di tingkat mana pun: dialah yang menandatangani
+ * rapor yang disanggah, jadi menjadikannya hakim atas sanggahan terhadap tanda
+ * tangannya sendiri tidak adil bagi kedua belah pihak.
+ */
+export function canDecideKpiBanding(role: UserRole, tingkat: number): boolean {
+  if (tingkat === 1) return role === 'sdm'
+  if (tingkat === 2) return role === 'kepala_rq'
+  return false
+}
+
+/** Boleh membuka daftar banding — pemutus kedua tingkat, plus koordinator. */
+export function canViewKpiBanding(role: UserRole): boolean {
+  return role === 'sdm' || role === 'kepala_rq' || canAccessKpiPublikasi(role)
+}
+
+/**
+ * Siapa yang boleh membuka kunci rapor yang sudah terbit: Kepala RQ saja.
+ *
+ * SDM sengaja tidak, meski dialah yang mengisi nilainya. Rapor terbit adalah
+ * dokumen yang sudah diserahkan dan mungkin sudah ditandatangani guru;
+ * memberi hak mengubahnya kepada pihak yang sama yang menyusunnya membuat
+ * tanda tangan guru tidak menjamin apa pun. Reset oleh Kepala RQ mengosongkan
+ * nilainya, membatalkan kedua tanda tangan, dan menaikkan nomor versi —
+ * sehingga perubahan atas rapor terbit selalu kasat mata.
+ */
+export function canResetKpiRapor(role: UserRole): boolean {
+  return role === 'kepala_rq'
+}
+
+/**
+ * Siapa yang boleh melihat LEMBAR rapor seorang guru.
+ *
+ * Lebih luas daripada canPrintKpiRapor: koordinator harus bisa membaca lembar
+ * yang akan ia tandatangani, dan Kepala RQ harus bisa memeriksanya saat
+ * memutus banding tingkat akhir. Yang tetap milik SDM sendiri adalah
+ * menerbitkan dokumennya.
+ */
+export function canViewKpiRaporSheet(role: UserRole): boolean {
+  return role === 'sdm' || role === 'kepala_rq' || canAccessKpiPublikasi(role)
 }
 
 /**

@@ -16,7 +16,7 @@ import type { BarisIndikator } from '@/lib/kpi/rapor-bulanan'
  * menghasilkan 0–100 untuk tiap indikator; memampatkannya ke 1–5 hanya untuk
  * grafik akan membuat dua angka berbeda untuk hal yang sama muncul di satu
  * halaman — 84 di tabel, 4,2 di grafik — dan pembacanya harus menebak mana
- * yang benar. Level 1–5 tetap dicetak di tabel sebagai kolom tersendiri,
+ * yang benar. Level 1–6 tetap dicetak di tabel sebagai kolom tersendiri,
  * memakai ambang KPI_LEVELS yang sudah dipakai rubrik.
  */
 

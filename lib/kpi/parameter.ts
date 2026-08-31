@@ -122,11 +122,34 @@ export function paramFor(unit: Jenjang | null | undefined): KpiParam {
 
 /** Skala level CAR (Capaian & Rencana Perbaikan) — sama untuk semua unit. */
 export const KPI_LEVELS = [
-  { level: 5, min: 81, max: 100, predikat: 'Sangat Baik',   tindakLanjut: 'Pertahankan, jadikan teladan / mentor rekan.' },
-  { level: 4, min: 61, max: 80,  predikat: 'Baik',          tindakLanjut: 'Pertahankan, perbaiki detail kecil.' },
-  { level: 3, min: 41, max: 60,  predikat: 'Cukup',         tindakLanjut: 'Perlu pendampingan koordinator.' },
-  { level: 2, min: 21, max: 40,  predikat: 'Kurang',        tindakLanjut: 'Perlu perbaikan terjadwal & evaluasi mingguan.' },
-  { level: 1, min: 0,  max: 20,  predikat: 'Sangat Kurang', tindakLanjut: 'Pembinaan khusus oleh Kepala RQ.' },
+  { level: 6, min: 91, max: 100, predikat: 'Sangat Baik',         tindakLanjut: 'Pertahankan, jadikan teladan / mentor rekan.' },
+  { level: 5, min: 81, max: 90,  predikat: 'Baik',                tindakLanjut: 'Pertahankan, perbaiki detail kecil.' },
+  { level: 4, min: 71, max: 80,  predikat: 'Cukup',               tindakLanjut: 'Perlu pendampingan koordinator.' },
+  { level: 3, min: 61, max: 70,  predikat: 'Kurang',              tindakLanjut: 'Perlu perbaikan terjadwal & evaluasi mingguan.' },
+  { level: 2, min: 51, max: 60,  predikat: 'Sangat Kurang',       tindakLanjut: 'Pembinaan terjadwal oleh koordinator & SDM.' },
+  { level: 1, min: 0,  max: 50,  predikat: 'Sangat Kurang Sekali', tindakLanjut: 'Pembinaan khusus oleh Kepala RQ.' },
 ] as const
 
 export type KpiLevel = (typeof KPI_LEVELS)[number]
+
+/**
+ * Warna lencana tiap level.
+ *
+ * Tinggal di sini bersama rubriknya, bukan disalin ulang di tiap halaman.
+ * Sebelumnya peta yang sama hidup di empat berkas; begitu ambangnya berubah,
+ * yang terlupakan tidak akan gagal — ia hanya akan mewarnai level yang tidak
+ * ada lagi dengan warna kosong, dan lencananya berubah jadi polos tanpa ada
+ * yang menyadarinya.
+ *
+ * Tiga level terbawah sama-sama merah dengan sengaja: "Kurang", "Sangat
+ * Kurang", dan "Sangat Kurang Sekali" menuntut tindakan yang sama seriusnya,
+ * dan membedakan warnanya akan menyiratkan bahwa salah satunya bisa ditunda.
+ */
+export const KPI_LEVEL_TONE: Record<number, string> = {
+  6: 'bg-success-wash text-success',
+  5: 'bg-primary-wash text-primary',
+  4: 'bg-warning-wash text-warning',
+  3: 'bg-destructive-wash text-destructive',
+  2: 'bg-destructive-wash text-destructive',
+  1: 'bg-destructive-wash text-destructive',
+}

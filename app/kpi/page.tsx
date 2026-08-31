@@ -1,12 +1,18 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { getSession } from '@/lib/auth/session'
-import { canViewKpi, canInputKpi, canPrintKpiRapor, JENJANG_LABELS } from '@/lib/auth/permissions'
+import {
+  canViewKpi, canInputKpi, canPrintKpiRapor, canResetKpiRapor,
+  canAccessKpiPublikasi, canViewKpiBanding, JENJANG_LABELS,
+} from '@/lib/auth/permissions'
 import { getKpiRows, nilaiDari, KPI_UNITS, MONTH_NAMES } from '@/lib/data/kpi'
 import { KPI_INDIKATOR } from '@/lib/kpi/hitung'
+import { KPI_LEVEL_TONE } from '@/lib/kpi/parameter'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { Button } from '@/components/ui/button'
 import { Pencil, FileText, Printer } from 'lucide-react'
+import { AlurPanel, type RingkasAlur } from './AlurPanel'
+import { STATUS_LABELS, STATUS_TONE } from '@/lib/kpi/alur'
 import { cn } from '@/lib/utils'
 import type { Jenjang } from '@/types'
 
@@ -24,14 +30,6 @@ const SINGKATAN = [
   'Lapor Ortu', 'Halaqoh', 'Buku Pgg', 'Perizinan', 'Pengganti',
 ]
 
-const LEVEL_TONE: Record<number, string> = {
-  5: 'bg-success-wash text-success',
-  4: 'bg-primary-wash text-primary',
-  3: 'bg-warning-wash text-warning',
-  2: 'bg-destructive-wash text-destructive',
-  1: 'bg-destructive-wash text-destructive',
-}
-
 export default async function KpiPage({ searchParams }: PageProps) {
   const session = await getSession()
   if (!session) redirect('/login')
@@ -48,6 +46,17 @@ export default async function KpiPage({ searchParams }: PageProps) {
   // Mencetak rapor lebih sempit daripada mengisinya: dokumennya diserahkan ke
   // guru dengan kolom tanda tangan, dan SDM yang menerbitkannya.
   const mayPrint = canPrintKpiRapor(session.role)
+
+  // Bahan panel alur — hanya guru yang sudah punya baris rapor. Yang belum
+  // dinilai belum punya dokumen apa pun untuk diserahkan, dan menyertakannya
+  // akan membuat hitungan "siap diajukan" mengklaim rapor yang tidak ada.
+  const ringkasAlur: RingkasAlur[] = rows
+    .filter(r => r.entry)
+    .map(r => ({
+      kpiId: r.entry!.id,
+      fullName: r.fullName,
+      status: r.entry!.status ?? 'draft',
+    }))
 
   // Rata-rata hanya dari guru yang sudah dinilai. Memasukkan yang belum diisi
   // sebagai nol akan menyeret angka unit ke bawah hanya karena SDM belum
@@ -138,6 +147,17 @@ export default async function KpiPage({ searchParams }: PageProps) {
           )}
         </p>
 
+        <AlurPanel
+          rows={ringkasAlur}
+          bisaAjukan={mayInput}
+          bisaReset={canResetKpiRapor(session.role)}
+          bisaPublikasi={canAccessKpiPublikasi(session.role)}
+          bisaBanding={canViewKpiBanding(session.role)}
+          unit={unit}
+          year={year}
+          month={month}
+        />
+
         {rows.length === 0 ? (
           <div className="rounded-lg border border-dashed py-12 text-center">
             <p className="text-sm text-muted-foreground">Belum ada guru aktif di unit ini.</p>
@@ -181,6 +201,21 @@ export default async function KpiPage({ searchParams }: PageProps) {
                             kini di {JENJANG_LABELS[r.pindahKe]}
                           </span>
                         )}
+                        {/*
+                          Status alur ditempelkan pada nama, bukan diberi kolom
+                          sendiri: tabelnya sudah tujuh belas kolom, dan kolom
+                          ke-18 akan mendorong indikator ke luar layar. 'draft'
+                          sengaja tidak dilencanai — itu keadaan biasa, dan
+                          lencana yang muncul di semua baris berhenti dibaca.
+                        */}
+                        {r.entry && r.entry.status && r.entry.status !== 'draft' && (
+                          <span className={cn(
+                            'ml-2 rounded px-1.5 py-0.5 text-[10px] font-medium whitespace-nowrap',
+                            STATUS_TONE[r.entry.status],
+                          )}>
+                            {STATUS_LABELS[r.entry.status]}
+                          </span>
+                        )}
                       </td>
                       {h ? (
                         h.nilai.map((n, j) => (
@@ -199,7 +234,7 @@ export default async function KpiPage({ searchParams }: PageProps) {
                       </td>
                       <td className="px-2 py-2 text-center">
                         {h ? (
-                          <span className={cn('inline-block rounded px-1.5 py-0.5 font-medium whitespace-nowrap', LEVEL_TONE[h.level])}>
+                          <span className={cn('inline-block rounded px-1.5 py-0.5 font-medium whitespace-nowrap', KPI_LEVEL_TONE[h.level])}>
                             {h.level} · {h.predikat}
                           </span>
                         ) : '—'}

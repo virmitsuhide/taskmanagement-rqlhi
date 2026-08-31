@@ -19,6 +19,7 @@ interface Props {
     phone: string | null
     is_active: boolean
     employment_type?: TeacherEmployment | null
+    joined_at?: string | null
     contract_start?: string | null
     contract_end?: string | null
   }
@@ -117,6 +118,21 @@ export function TeacherForm({ mode, initial }: Props) {
               <option key={key} value={key}>{TEACHER_EMPLOYMENT_LABELS[key]}</option>
             ))}
           </select>
+        </div>
+
+        {/* TMT dipisah dari tanggal kontrak: kontrak bisa berganti tiap tahun,
+            sedangkan TMT adalah titik awal masa kerja yang tercetak di rapor KPI
+            dan tidak ikut berganti. Boleh dikosongkan — kosong berarti "belum
+            diketahui", dan SDM bisa melengkapinya lewat menu Profil Guru. */}
+        <div className="space-y-1.5">
+          <Label htmlFor="joined_at">TMT (terhitung mulai tanggal)</Label>
+          <Input
+            id="joined_at" name="joined_at" type="date"
+            defaultValue={initial?.joined_at ?? ''} disabled={isPending}
+          />
+          <p className="text-xs text-muted-foreground">
+            Tanggal guru mulai bertugas. Boleh dikosongkan kalau belum diketahui.
+          </p>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

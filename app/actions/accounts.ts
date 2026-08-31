@@ -21,9 +21,9 @@ import { canManageAllAccounts } from '@/lib/auth/permissions'
  * password yang sama di layanan lain.
  */
 
-type Target = 'user' | 'teacher'
+type Target = 'user' | 'teacher' | 'employee'
 
-const TABEL: Record<Target, string> = { user: 'users', teacher: 'teachers' }
+const TABEL: Record<Target, string> = { user: 'users', teacher: 'teachers', employee: 'employees' }
 
 /** Abjad & angka tanpa karakter yang mudah tertukar saat dibacakan (O/0, l/1, I). */
 const ALFABET = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789'

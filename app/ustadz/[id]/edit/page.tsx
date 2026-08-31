@@ -18,7 +18,7 @@ export default async function EditTeacherPage({ params }: PageProps) {
   const supabase = createServerClient()
   const { data: teacher } = await supabase
     .from('teachers')
-    .select('id, username, full_name, nip, email, phone, is_active, deleted_at, employment_type, contract_start, contract_end')
+    .select('id, username, full_name, nip, email, phone, is_active, deleted_at, employment_type, joined_at, contract_start, contract_end')
     .eq('id', id)
     .maybeSingle()
 

@@ -32,9 +32,18 @@ function readEmployment(formData: FormData) {
 
   return {
     employment_type: EMPLOYMENT_TYPES.includes(raw) ? raw : null,
+    // TMT ikut dibaca di sini walau bukan bagian kontrak: keduanya tanggal
+    // kepegawaian yang diisi di form yang sama, dan aturan "kosong jadi NULL"
+    // yang berlaku untuk kontrak berlaku persis sama untuk TMT.
+    joined_at: clean('joined_at'),
     contract_start: clean('contract_start'),
     contract_end: clean('contract_end'),
   }
+}
+
+/** Nama kolom dari pesan 23502 Postgres, untuk ditunjukkan ke admin. */
+function kolomKosong(pesan: string | undefined): string {
+  return pesan?.match(/null value in column "([^"]+)"/)?.[1] ?? '(tidak diketahui)'
 }
 
 export async function createTeacherAction(_: unknown, formData: FormData) {
@@ -90,7 +99,18 @@ export async function createTeacherAction(_: unknown, formData: FormData) {
           : 'Username sudah dipakai.',
       }
     }
-    return { error: 'Gagal membuat akun guru.' }
+    // Sebutkan sebabnya. Pesan buntu "Gagal membuat akun guru" pernah
+    // menyembunyikan bug berhari-hari: kolom joined_at masih NOT NULL sementara
+    // form tidak pernah mengirimnya, sehingga SETIAP pembuatan akun gagal dan
+    // tidak ada satu pun petunjuk di layar tentang kolom mana yang bermasalah.
+    if (error?.code === '23502') {
+      return {
+        error:
+          `Gagal membuat akun guru: kolom "${kolomKosong(error.message)}" wajib diisi di database. ` +
+          'Jalankan migrasi terbaru di Supabase, lalu coba lagi.',
+      }
+    }
+    return { error: `Gagal membuat akun guru: ${error?.message ?? 'sebab tidak diketahui'}` }
   }
 
   revalidatePath('/ustadz')

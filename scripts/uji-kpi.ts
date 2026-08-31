@@ -26,10 +26,16 @@ console.log('harapan :', HARAP.join(', '))
 console.log('cocok   :', JSON.stringify(h.nilai) === JSON.stringify(HARAP) ? '✓' : '✗')
 console.log(`total   : ${h.total} (Excel 568) ${h.total === 568 ? '✓' : '✗'}`)
 console.log(`rapot   : ${h.rapot} (Excel 51.636363636363633) ${Math.abs(h.rapot - 51.636363636363633) < 1e-9 ? '✓' : '✗'}`)
-console.log(`level   : ${h.level} ${h.predikat} (Excel 3 Cukup) ${h.level === 3 && h.predikat === 'Cukup' ? '✓' : '✗'}`)
+// Nilai & rapot masih diuji terhadap Excel — rumusnya tidak berubah. Yang
+// berubah adalah PENAMAAN pitanya: rubrik RQ kini memakai enam predikat, jadi
+// rapot 51,64 yang dulu "Cukup" menurut lima pita Excel kini "Sangat Kurang".
+// Angka harapannya sengaja disetel ke rubrik yang berlaku, bukan dibiarkan
+// merah — uji yang selalu gagal berhenti dibaca orang, dan uji yang berhenti
+// dibaca tidak lagi menjaga apa pun.
+console.log(`level   : ${h.level} ${h.predikat} (rubrik 2 Sangat Kurang) ${h.level === 2 && h.predikat === 'Sangat Kurang' ? '✓' : '✗'}`)
 
-console.log('\nAmbang level (mengikuti rumus Excel, bukan tabel Panduan):')
-for (const v of [0, 20, 20.5, 21, 40, 40.5, 60, 60.5, 80, 80.5, 100]) {
+console.log('\nAmbang level (batas ATAS tiap pita, seperti levelDari):')
+for (const v of [0, 50, 50.5, 60, 60.5, 70, 70.5, 80, 80.5, 90, 90.5, 100]) {
   console.log(`  rapot ${String(v).padStart(5)} -> level ${levelDari(v).level}  ${levelDari(v).predikat}`)
 }
 

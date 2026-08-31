@@ -2,6 +2,8 @@
 
 import { useActionState, useState } from 'react'
 import { updateGuruProfileBySdmAction, updateOwnGuruProfileAction } from '@/app/actions/teacher-profile'
+import { updatePengurusOwnProfileAction } from '@/app/actions/profile'
+import { updateOwnEmployeeProfileAction, updateEmployeeBySdmAction } from '@/app/actions/employee-profile'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -11,7 +13,7 @@ import { parseFocus } from '@/lib/profil/foto'
 import { EDUCATION_LEVELS, hasMajorField, institutionPlaceholder } from '@/lib/profil/pendidikan'
 import { UNIT_PENUGASAN_LABELS } from '@/lib/auth/permissions'
 import type {
-  AmanahEntry, AwardEntry, CompetencyEntry, GuruProfile, Jenjang, TrainingEntry,
+  AmanahEntry, AwardEntry, CompetencyEntry, EmployeeProfile, GuruProfile, Jenjang, TrainingEntry,
 } from '@/types'
 
 /**
@@ -56,14 +58,39 @@ const EMPLOYMENT: { key: string; label: string }[] = [
   { key: 'kontrak_rq', label: 'Kontrak RQ' },
 ]
 
+/**
+ * Empat pintu masuk ke satu form.
+ *
+ *   sdm            SDM menyunting guru       — termasuk blok kepegawaian
+ *   guru           guru menyunting dirinya   — data diri saja
+ *   pengurus       pengurus lewat /profil    — data diri saja, ditulis ke
+ *                                              rekam orang yang menduduki
+ *                                              amanahnya (guru atau karyawan)
+ *   karyawan       karyawan lewat portalnya  — data diri saja
+ *   karyawan-sdm   admin menyunting karyawan — termasuk kepegawaian
+ *
+ * Blok kepegawaian tidak sekadar disembunyikan pada scope selain sdm: action-nya
+ * memang tidak pernah membacanya, jadi menyisipkannya lewat peralatan pengembang
+ * peramban tetap tidak berpengaruh.
+ */
+type Scope = 'sdm' | 'guru' | 'pengurus' | 'karyawan' | 'karyawan-sdm'
+
+const ACTIONS = {
+  sdm: updateGuruProfileBySdmAction,
+  guru: updateOwnGuruProfileAction,
+  pengurus: updatePengurusOwnProfileAction,
+  karyawan: updateOwnEmployeeProfileAction,
+  'karyawan-sdm': updateEmployeeBySdmAction,
+} as const
+
 interface Props {
-  profile: GuruProfile
-  scope: 'sdm' | 'guru'
+  profile: GuruProfile | EmployeeProfile
+  scope: Scope
 }
 
 export function GuruProfileForm({ profile, scope }: Props) {
   const [state, action, pending] = useActionState(
-    scope === 'sdm' ? updateGuruProfileBySdmAction : updateOwnGuruProfileAction,
+    ACTIONS[scope],
     null as { error?: string; success?: boolean; message?: string } | null,
   )
 
@@ -105,6 +132,11 @@ export function GuruProfileForm({ profile, scope }: Props) {
     setAdjusterKey(k => k + 1)
   }
 
+  // Dua scope admin memakai blok kepegawaian; hanya yang karyawan menukar
+  // Unit Penugasan dengan Jabatan.
+  const karyawanScope = scope === 'karyawan-sdm'
+  const adminScope = scope === 'sdm' || karyawanScope
+
   function patchEducation(index: number, patch: Partial<EducationRow>) {
     setEducation(rows => rows.map((r, i) => (i === index ? { ...r, ...patch } : r)))
   }
@@ -112,15 +144,17 @@ export function GuruProfileForm({ profile, scope }: Props) {
   return (
     <form action={action} className="space-y-8">
       {scope === 'sdm' && <input type="hidden" name="teacher_id" value={profile.id} />}
+      {scope === 'karyawan-sdm' && <input type="hidden" name="employee_id" value={profile.id} />}
 
-      {/* ── Kepegawaian (SDM saja) ────────────────────────────── */}
-      {scope === 'sdm' && (
+      {/* ── Kepegawaian (admin saja) ─────────────────── */}
+      {adminScope && (
         <section className="space-y-4 rounded-xl border bg-card p-4 shadow-sm">
           <div>
             <h2 className="text-sm font-semibold">Kepegawaian</h2>
             <p className="mt-0.5 text-[11px] text-muted-foreground">
-              Hanya SDM yang bisa mengubah bagian ini. Unit menentukan rubrik KPI,
-              TMT menentukan masa kerja yang tercetak di rapor bulanan.
+              {karyawanScope
+                ? 'Hanya admin yang bisa mengubah bagian ini.'
+                : 'Hanya SDM yang bisa mengubah bagian ini. Unit menentukan rubrik KPI, TMT menentukan masa kerja yang tercetak di rapor bulanan.'}
             </p>
           </div>
 
@@ -130,18 +164,33 @@ export function GuruProfileForm({ profile, scope }: Props) {
               <Input id="full_name" name="full_name" defaultValue={profile.full_name} required />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="nip">NIP / ID Guru</Label>
+              <Label htmlFor="nip">{karyawanScope ? 'NIP / ID Karyawan' : 'NIP / ID Guru'}</Label>
               <Input id="nip" name="nip" defaultValue={profile.nip ?? ''} placeholder="GQ-2023-014" />
             </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="unit">Unit Penugasan</Label>
-              <select id="unit" name="unit" defaultValue={profile.unit ?? ''} className={inputCls}>
-                <option value="">— belum ditentukan —</option>
-                {UNITS.map(u => (
-                  <option key={u} value={u}>{UNIT_PENUGASAN_LABELS[u]}</option>
-                ))}
-              </select>
-            </div>
+            {karyawanScope ? (
+              <div className="space-y-1.5">
+                <Label htmlFor="jabatan">Jabatan</Label>
+                <Input
+                  id="jabatan"
+                  name="jabatan"
+                  defaultValue={(profile as EmployeeProfile).jabatan ?? ''}
+                  placeholder="Bendahara"
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  Posisi kerjanya. Berbeda dari amanah pengurus, yang ditetapkan Kepala RQ.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-1.5">
+                <Label htmlFor="unit">Unit Penugasan</Label>
+                <select id="unit" name="unit" defaultValue={(profile as GuruProfile).unit ?? ''} className={inputCls}>
+                  <option value="">— belum ditentukan —</option>
+                  {UNITS.map(u => (
+                    <option key={u} value={u}>{UNIT_PENUGASAN_LABELS[u]}</option>
+                  ))}
+                </select>
+              </div>
+            )}
             <div className="space-y-1.5">
               <Label htmlFor="joined_at">TMT / Tanggal Bergabung</Label>
               <Input id="joined_at" name="joined_at" type="date" defaultValue={profile.joined_at ?? ''} />

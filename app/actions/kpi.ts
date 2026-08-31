@@ -4,7 +4,8 @@ import { revalidatePath } from 'next/cache'
 import { createServerClient } from '@/lib/supabase/server'
 import { getSession } from '@/lib/auth/session'
 import { canInputKpi } from '@/lib/auth/permissions'
-import type { Jenjang } from '@/types'
+import { terkunci } from '@/lib/kpi/alur'
+import type { Jenjang, KpiRaporStatus } from '@/types'
 import { paramFor } from '@/lib/kpi/parameter'
 
 /** Angka dari form: kosong/aneh dijadikan 0, lalu dijepit ke rentang wajar. */
@@ -76,6 +77,28 @@ export async function simpanKpiAction(_: unknown, formData: FormData) {
   // penilaiannya dibuat — kalau nanti ia pindah, baris ini tetap terbaca
   // dengan rubrik yang berlaku hari ini.
   const supabase = createServerClient()
+
+  // Rapor yang sudah diserahkan kepada guru tidak boleh berubah angkanya.
+  // Trigger di drizzle/0050 menegakkan hal yang sama di database; yang di sini
+  // ada supaya SDM mendapat kalimat yang bisa ditindaklanjuti, bukan galat
+  // Postgres, setelah mengetik satu formulir penuh.
+  const { data: adaRapor } = await supabase
+    .from('kpi_monthly')
+    .select('status')
+    .eq('teacher_id', teacherId)
+    .eq('year', year)
+    .eq('month', month)
+    .maybeSingle()
+
+  const statusRapor = (adaRapor as { status?: KpiRaporStatus } | null)?.status
+  if (statusRapor && terkunci(statusRapor)) {
+    return {
+      error: statusRapor === 'banding'
+        ? 'Rapor ini sedang dalam banding dan terkunci. Nilainya baru bisa diubah setelah bandingnya diputus.'
+        : 'Rapor ini sudah diterbitkan kepada guru dan terkunci. Minta Kepala RQ mereset rapornya lebih dulu.',
+    }
+  }
+
   const { data: guru } = await supabase
     .from('teachers')
     .select('unit')

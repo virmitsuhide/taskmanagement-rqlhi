@@ -1,0 +1,28 @@
+-- ============================================================
+-- TMT guru boleh kosong — menutup separuh pekerjaan migrasi 0044
+-- ============================================================
+-- 📋 CARA PAKAI: Supabase SQL Editor → paste seluruh file → Run.
+--    Idempoten (boleh dijalankan ulang).
+--
+-- Yang berubah:
+--   • teachers.joined_at : NOT NULL dilepas
+--
+-- MEMPERBAIKI BUG: sejak 0044 dijalankan, MEMBUAT AKUN GURU BARU SELALU GAGAL.
+--
+-- Kolomnya lahir di 0004 sebagai `date DEFAULT CURRENT_DATE NOT NULL`. Migrasi
+-- 0044 melepas DEFAULT-nya dengan alasan yang benar — TMT tercetak di rapor KPI
+-- sebagai masa kerja, dan tanggal pendaftaran yang menyamar jadi TMT tampak sah
+-- padahal tidak pernah dimasukkan siapa pun. Tapi NOT NULL-nya ikut tertinggal.
+--
+-- Akibatnya kolom itu jadi wajib diisi tanpa ada yang mengisinya: form tambah
+-- guru (app/ustadz/baru/TeacherForm.tsx) tidak punya medan TMT, sehingga setiap
+-- INSERT mengirim NULL dan ditolak dengan 23502. Pesan yang sampai ke admin
+-- hanya "Gagal membuat akun guru" — tidak menyebut kolom, tidak menyebut sebab.
+--
+-- lib/db/schema.ts sudah sejak awal menuliskannya nullable, jadi yang ini
+-- membuat database menyusul apa yang sudah dinyatakan skema dan dimaksudkan
+-- 0044: kosong berarti "belum diketahui", dan itu jujur.
+--
+-- Baris yang sudah terisi tidak disentuh.
+
+ALTER TABLE "teachers" ALTER COLUMN "joined_at" DROP NOT NULL;

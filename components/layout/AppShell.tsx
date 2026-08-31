@@ -2,6 +2,8 @@ import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/auth/session'
 import { Sidebar } from './Sidebar'
 import { MobileNav } from './MobileNav'
+import { hitungMenungguKoordinator } from '@/lib/data/kpi-pengesahan'
+import { hitungBandingMenunggu } from '@/lib/data/kpi-banding'
 
 interface Props {
   children: React.ReactNode
@@ -10,6 +12,16 @@ interface Props {
 export async function AppShell({ children }: Props) {
   const session = await getSession()
   if (!session?.isLoggedIn) redirect('/login')
+
+  // Lencana alur rapor KPI. Dihitung di sini, bukan di tiap halaman: keduanya
+  // menempel di navigasi yang ikut ke mana pun, dan pemberitahuan yang hanya
+  // muncul di halaman KPI hanya akan sampai kepada orang yang memang sudah
+  // membuka halaman KPI.
+  const [menungguKoor, bandingMenunggu] = await Promise.all([
+    hitungMenungguKoordinator(session.role),
+    hitungBandingMenunggu(session.role),
+  ])
+  const lencanaKpi = { publikasi: menungguKoor, banding: bandingMenunggu }
 
   return (
     // Saat dicetak, tinggi tetap + scroll internal harus dilepas. Browser
@@ -27,12 +39,14 @@ export async function AppShell({ children }: Props) {
           role={session.role}
           displayName={session.displayName}
           username={session.username}
+          lencanaKpi={lencanaKpi}
         />
       </div>
       <MobileNav
         role={session.role}
         displayName={session.displayName}
         username={session.username}
+        lencanaKpi={lencanaKpi}
       />
       <main id="main-content" tabIndex={-1} className="flex-1 overflow-y-auto pb-16 md:pb-0 outline-none print:overflow-visible print:pb-0">
         {children}

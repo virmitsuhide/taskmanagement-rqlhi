@@ -9,8 +9,11 @@ const playfair = Playfair_Display({ subsets: ['latin'], variable: '--font-playfa
 // /guru/login dikecualikan dari guard.
 export default function TeacherLayout({ children }: { children: ReactNode }) {
   return (
+    // Dulu kelas ini juga memuat 'theme-light', yang memaku portal guru ke mode
+    // terang. Dilepas: ThemeProvider di layout akar sudah melayani seluruh
+    // aplikasi, jadi satu kelas itulah satu-satunya alasan portal ini tertinggal.
     <div
-      className={`theme-light ${lora.variable} ${playfair.variable} bg-background text-foreground`}
+      className={`${lora.variable} ${playfair.variable} bg-background text-foreground`}
       style={{ fontFamily: 'var(--font-lora), Georgia, serif' }}
     >
       <TeacherShell>{children}</TeacherShell>

@@ -168,7 +168,7 @@ export function TahsinSetoranForm({ students, methods, jilidLevels, defaultStude
             className="rounded-lg border p-3 text-left transition-colors"
             style={status === 'lulus'
               ? { borderColor: 'var(--success)', background: 'var(--success-wash)' }
-              : { borderColor: 'var(--border)', background: 'white' }}
+              : { borderColor: 'var(--border)', background: 'var(--card)' }}
           >
             <p className="font-medium text-sm">✅ Lulus</p>
             <p className="text-xs text-muted-foreground">Lanjut halaman berikutnya</p>
@@ -179,7 +179,7 @@ export function TahsinSetoranForm({ students, methods, jilidLevels, defaultStude
             className="rounded-lg border p-3 text-left transition-colors"
             style={status === 'ulang'
               ? { borderColor: 'var(--warning)', background: 'var(--warning-wash)' }
-              : { borderColor: 'var(--border)', background: 'white' }}
+              : { borderColor: 'var(--border)', background: 'var(--card)' }}
           >
             <p className="font-medium text-sm">🔁 Ulang</p>
             <p className="text-xs text-muted-foreground">Belum tuntas, mengulang</p>

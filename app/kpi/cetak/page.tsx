@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, Printer } from 'lucide-react'
 import { getSession } from '@/lib/auth/session'
-import { canPrintKpiRapor } from '@/lib/auth/permissions'
+import { canPrintKpiRapor, canViewKpiRaporSheet } from '@/lib/auth/permissions'
 import { getKpiRapor } from '@/lib/data/kpi-rapor'
 import { KPI_UNITS, MONTH_NAMES } from '@/lib/data/kpi'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
@@ -18,9 +18,12 @@ interface PageProps {
 /**
  * Pratinjau & cetak rapor KPI bulanan seorang guru.
  *
- * Khusus SDM (canPrintKpiRapor). Halaman ini menghasilkan dokumen yang keluar
- * dari lingkaran pengurus dan diserahkan kepada guru dengan kolom tanda
- * tangan — lebih sempit daripada halaman pemantauan KPI biasa.
+ * MEMBACA lembarnya lebih luas daripada MENCETAKNYA. Koordinator harus bisa
+ * memeriksa dokumen yang akan ia tandatangani, dan Kepala RQ harus bisa
+ * melihatnya saat memutus banding tingkat akhir — keduanya mustahil kalau
+ * halaman ini hanya terbuka untuk SDM. Yang tetap milik SDM sendiri adalah
+ * tombol cetaknya: dialah yang menerbitkan dokumen kepegawaian, dan dua pihak
+ * yang mencetak rapor yang sama akan menghasilkan dua arsip yang berbeda.
  *
  * Seluruh chrome aplikasi (sidebar, header, tombol) memakai print:hidden,
  * sehingga yang keluar dari mesin cetak hanya lembar rapornya sendiri.
@@ -28,7 +31,8 @@ interface PageProps {
 export default async function CetakKpiPage({ searchParams }: PageProps) {
   const session = await getSession()
   if (!session) redirect('/login')
-  if (!canPrintKpiRapor(session.role)) redirect('/kpi')
+  if (!canViewKpiRaporSheet(session.role)) redirect('/kpi')
+  const bolehCetak = canPrintKpiRapor(session.role)
 
   const p = await searchParams
   const unit = (KPI_UNITS.find(u => u.key === p.unit)?.key ?? 'sd') as Jenjang
@@ -69,7 +73,7 @@ export default async function CetakKpiPage({ searchParams }: PageProps) {
                 {rapor && <> · {rapor.teacher.fullName}</>}
               </p>
             </div>
-            {rapor && <KpiPrintButton nama={rapor.teacher.fullName} />}
+            {rapor && bolehCetak && <KpiPrintButton nama={rapor.teacher.fullName} />}
           </div>
 
           {rapor === null ? (

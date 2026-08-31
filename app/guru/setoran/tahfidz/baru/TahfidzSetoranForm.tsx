@@ -90,7 +90,7 @@ export function TahfidzSetoranForm({ students, surat, completedJuzByStudent = {}
                 className="rounded-lg border p-2.5 text-left transition-colors"
                 style={active
                   ? { borderColor: meta.fg, background: meta.bg }
-                  : { borderColor: 'var(--border)', background: 'white' }}
+                  : { borderColor: 'var(--border)', background: 'var(--card)' }}
               >
                 <p className="font-medium text-sm" style={active ? { color: meta.fg } : undefined}>
                   {meta.emoji} {meta.label}
@@ -291,7 +291,7 @@ function TasmiSubForm({ studentId, onCancel }: { studentId: string; onCancel: ()
               className="rounded-lg border p-3 text-center transition-colors"
               style={scope === sc
                 ? { borderColor: '#b45309', background: 'var(--warning-wash)', color: '#b45309' }
-                : { borderColor: 'var(--border)', background: 'white' }}
+                : { borderColor: 'var(--border)', background: 'var(--card)' }}
             >
               <p className="font-semibold text-sm">{sc} Juz</p>
             </button>
@@ -334,7 +334,7 @@ function TasmiSubForm({ studentId, onCancel }: { studentId: string; onCancel: ()
             type="button"
             onClick={() => setStatus('lulus')}
             className="rounded-lg border p-3 text-left transition-colors"
-            style={status === 'lulus' ? { borderColor: 'var(--success)', background: 'var(--success-wash)' } : { borderColor: 'var(--border)', background: 'white' }}
+            style={status === 'lulus' ? { borderColor: 'var(--success)', background: 'var(--success-wash)' } : { borderColor: 'var(--border)', background: 'var(--card)' }}
           >
             <p className="font-medium text-sm">✅ Lulus</p>
             <p className="text-xs text-muted-foreground">Tasmi&apos; tuntas</p>
@@ -343,7 +343,7 @@ function TasmiSubForm({ studentId, onCancel }: { studentId: string; onCancel: ()
             type="button"
             onClick={() => setStatus('ulang')}
             className="rounded-lg border p-3 text-left transition-colors"
-            style={status === 'ulang' ? { borderColor: 'var(--warning)', background: 'var(--warning-wash)' } : { borderColor: 'var(--border)', background: 'white' }}
+            style={status === 'ulang' ? { borderColor: 'var(--warning)', background: 'var(--warning-wash)' } : { borderColor: 'var(--border)', background: 'var(--card)' }}
           >
             <p className="font-medium text-sm">🔁 Ulang</p>
             <p className="text-xs text-muted-foreground">Perlu diulang</p>

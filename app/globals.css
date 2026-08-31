@@ -608,8 +608,16 @@
  * lewat print:hidden.
  */
 .kpi-sheet {
-  /* 210mm dikurangi margin @page 12mm di kiri-kanan. */
+  /* A4 potret 210 × 297mm dengan margin @page 10mm, jadi bidang cetaknya
+     190 × 277mm. Lebarnya ditahan di 186mm — 2mm lebih sempit di tiap sisi
+     sebagai jaga-jaga terhadap pembulatan peramban.
+
+     min-height wajib ada: blok pengesahan memakai mt-auto untuk menempel di
+     dasar lembar, dan mt-auto tidak punya apa pun untuk didorong kalau
+     lembarnya setinggi isinya saja. Angkanya 3mm di bawah 277mm supaya
+     pembulatan sub-piksel tidak menumpahkan satu baris ke halaman kedua. */
   width: 186mm;
+  min-height: 274mm;
   max-width: 100%;
   font-size: 10px;
   line-height: 1.35;
@@ -660,6 +668,11 @@
 
   .kpi-sheet {
     width: 100%;
+    /* Tinggi dipatok, bukan minimum: saat dicetak, lembarnya harus mengisi
+       bidang halaman supaya kolom tanda tangan mendarat di tempat yang sama
+       pada setiap rapor. */
+    height: 274mm;
+    min-height: 0;
     /* Satu halaman, apa pun isinya: rapor yang tumpah akan tercetak sebagai
        lembar kedua berisi tanda tangan sendirian. */
     break-inside: avoid;

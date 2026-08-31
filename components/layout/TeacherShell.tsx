@@ -1,11 +1,14 @@
 import {
   LayoutDashboard, Users, BookOpen, Sparkles, CalendarCheck,
-  BarChart3, ScrollText, GraduationCap, IdCard,
+  BarChart3, ScrollText, GraduationCap, IdCard, ClipboardCheck,
 } from 'lucide-react'
 import { getTeacherSession } from '@/lib/auth/teacher-session'
 import { bolehMengampuGukar } from '@/lib/data/gukar'
 import { getUnitUjianGuru } from '@/lib/data/ujian'
 import { TeacherNav, type TeacherNavGroup } from './TeacherNav'
+import { PengumumanBell } from '@/components/guru/PengumumanBell'
+import { getKonteksPengumuman, getPengumumanGuru } from '@/lib/data/pengumuman-guru'
+import { hitungRaporBaruGuru } from '@/lib/data/kpi-pengesahan'
 
 /**
  * Kerangka Portal Guru: navigasi tetap + wadah isi yang bisa digulung.
@@ -27,10 +30,20 @@ export async function TeacherShell({ children }: { children: React.ReactNode }) 
   // halaman masuk tidak perlu menu yang belum boleh ia pakai.
   if (!session) return <>{children}</>
 
-  const [bolehGukar, unitUjian] = await Promise.all([
+  const [bolehGukar, unitUjian, konteks, raporBaru] = await Promise.all([
     bolehMengampuGukar(session.teacherId),
     getUnitUjianGuru(session.teacherId),
+    getKonteksPengumuman(session.teacherId),
+    // Lencana rapor KPI dihitung per baris, bukan lewat satu penanda waktu
+    // seperti pengumuman. Guru perlu tahu rapor BULAN MANA yang baru, dan
+    // penanda tunggal padam begitu ia membuka daftarnya — termasuk ketika yang
+    // ia buka bukan rapor yang dimaksud.
+    hitungRaporBaruGuru(session.teacherId),
   ])
+
+  // Diambil di kerangka, bukan di tiap halaman: loncengnya ada di bilah atas
+  // yang melekat di semua halaman portal, jadi datanya harus ikut ke mana pun.
+  const pengumuman = await getPengumumanGuru(konteks.unit, konteks.seenAt)
 
   const groups: TeacherNavGroup[] = [
     {
@@ -50,6 +63,12 @@ export async function TeacherShell({ children }: { children: React.ReactNode }) 
       ],
     },
     {
+      title: 'Kinerja Saya',
+      items: [
+        { label: 'Rapor KPI', href: '/guru/rapor-kpi', icon: <ClipboardCheck />, badge: raporBaru },
+      ],
+    },
+    {
       title: 'Lainnya',
       items: [
         ...(unitUjian ? [{ label: 'Pengajuan Ujian', href: '/guru/ujian', icon: <ScrollText /> }] : []),
@@ -60,7 +79,11 @@ export async function TeacherShell({ children }: { children: React.ReactNode }) 
   ]
 
   return (
-    <TeacherNav fullName={session.fullName} groups={groups}>
+    <TeacherNav
+      fullName={session.fullName}
+      groups={groups}
+      bell={<PengumumanBell items={pengumuman.items} barusanCount={pengumuman.barusanCount} />}
+    >
       {children}
     </TeacherNav>
   )

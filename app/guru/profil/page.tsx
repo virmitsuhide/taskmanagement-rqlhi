@@ -4,6 +4,10 @@ import { getTeacherSession } from '@/lib/auth/teacher-session'
 import { createServerClient } from '@/lib/supabase/server'
 import { UNIT_PENUGASAN_LABELS } from '@/lib/auth/permissions'
 import { GuruProfileForm } from '@/components/profil/GuruProfileForm'
+import { parseTtdFocus } from '@/lib/kpi/tanda-tangan'
+import { ttdSrc } from '@/lib/kpi/ttd-berkas'
+import { TandaTanganCard } from '@/components/kpi/TandaTanganCard'
+import { simpanTtdGuruAction } from '@/app/actions/tanda-tangan'
 import type { GuruProfile, Jenjang } from '@/types'
 
 const KOLOM_PROFIL =
@@ -40,6 +44,18 @@ export default async function ProfilGuruSendiriPage() {
   }
 
   if (!profile) redirect('/guru')
+
+  // Kolom tanda tangan baru ada setelah 0050, jadi dibaca terpisah dari
+  // KOLOM_PROFIL yang sudah punya jalur mundurnya sendiri — database yang
+  // belum dimigrasi cukup kehilangan kartu tanda tangannya, bukan seluruh
+  // halaman profil.
+  const { data: ttdData } = await supabase
+    .from('teachers')
+    .select('signature_path, signature_focus')
+    .eq('id', session.teacherId)
+    .maybeSingle()
+  const ttdRow = ttdData as { signature_path: string | null; signature_focus: unknown } | null
+  const ttdSaya = await ttdSrc(ttdRow?.signature_path)
 
   const unit = profile.unit as Jenjang | null
 
@@ -83,6 +99,16 @@ export default async function ProfilGuruSendiriPage() {
         </section>
 
         <GuruProfileForm profile={profile} scope="guru" />
+
+        <div className="mt-6">
+          <TandaTanganCard
+            aksi={simpanTtdGuruAction}
+            src={ttdSaya}
+            fokus={parseTtdFocus(ttdRow?.signature_focus)}
+            nama={profile.full_name}
+            keterangan="Dipakai saat Anda menandatangani rapor KPI bulanan. Tidak wajib — rapor yang Anda setujui tanpa gambar akan bertuliskan “Ditandatangani secara elektronik” beserta tanggalnya."
+          />
+        </div>
       </div>
     </div>
   )

@@ -7,7 +7,7 @@ import {
   Menu, X, LayoutDashboard, CheckSquare, BookOpen,
   ImageIcon, Megaphone, FileText, User, LogOut, GraduationCap, Newspaper, LayoutGrid,
   Users, UserCog, BookMarked, BarChart3, LayoutTemplate, Info, Wallet, CalendarRange,
-  ClipboardCheck, KeyRound, ScrollText, Repeat, IdCard,
+  ClipboardCheck, KeyRound, ScrollText, Repeat, IdCard, UsersRound, Briefcase, Stamp, Scale,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
@@ -16,7 +16,8 @@ import {
   canAccessProgramMenu, canEditAbout,
   canViewStudents, canViewHalaqoh, canViewTeachers, canViewAnalytics, canViewUnitAnalytics,
   canManageHomepage,
-  canViewKpi, canManageAllAccounts, canViewUjian, canManageTeacherProfiles } from '@/lib/auth/permissions'
+  canViewKpi, canManageAllAccounts, canManagePengurus, canManageEmployees, canViewUjian, canManageTeacherProfiles,
+  canAccessKpiPublikasi, canViewKpiBanding } from '@/lib/auth/permissions'
 import type { UserRole } from '@/types'
 import { logoutAction } from '@/app/actions/auth'
 import { Logo } from '@/components/brand/Logo'
@@ -38,6 +39,13 @@ interface Props {
   role: UserRole
   displayName: string
   username: string
+  /**
+   * Hitungan yang menunggu di alur rapor KPI: rapor yang menanti tanda tangan
+   * koordinator, dan banding yang menanti putusan. Dihitung di AppShell —
+   * komponen ini client, dan navigasi yang mengambil datanya sendiri akan
+   * menembak database dari peramban tiap kali menunya digambar.
+   */
+  lencanaKpi?: { publikasi: number; banding: number }
 }
 
 const navLinkClass = (active: boolean) => cn(
@@ -47,12 +55,14 @@ const navLinkClass = (active: boolean) => cn(
     : 'text-sidebar-foreground hover:bg-sidebar-accent/50'
 )
 
-function DrawerLink({ href, icon, label, active, onNavigate }: {
+function DrawerLink({ href, icon, label, active, onNavigate, badge }: {
   href: string
   icon: ReactNode
   label: string
   active: boolean
   onNavigate: () => void
+  /** Jumlah yang menunggu. 0/undefined = tanpa lencana sama sekali. */
+  badge?: number
 }) {
   return (
     <li>
@@ -64,12 +74,17 @@ function DrawerLink({ href, icon, label, active, onNavigate }: {
       >
         {icon}
         {label}
+        {badge ? (
+          <span className="ml-auto min-w-[18px] rounded-full bg-primary px-1.5 py-0.5 text-center text-[10px] font-semibold leading-none text-primary-foreground">
+            {badge > 9 ? '9+' : badge}
+          </span>
+        ) : null}
       </Link>
     </li>
   )
 }
 
-export function MobileNav({ role, displayName, username }: Props) {
+export function MobileNav({ role, displayName, username, lencanaKpi }: Props) {
   const [open, setOpen] = useState(false)
   const pathname = usePathname()
   const dashboards = getAccessibleDashboards(role)
@@ -177,7 +192,33 @@ export function MobileNav({ role, displayName, username }: Props) {
                   tempat antara layar lebar dan HP membuat orang harus mencari
                   ulang tiap ganti perangkat. */}
               {canViewKpi(role) && (
-                <DrawerLink href="/kpi" icon={<ClipboardCheck className="h-4 w-4" />} label="KPI Guru" active={isActive('/kpi')} onNavigate={close} />
+                <DrawerLink
+                  href="/kpi"
+                  icon={<ClipboardCheck className="h-4 w-4" />}
+                  label="KPI Guru"
+                  active={isActive('/kpi') && !pathname.startsWith('/kpi/publikasi') && !pathname.startsWith('/kpi/banding')}
+                  onNavigate={close}
+                />
+              )}
+              {canAccessKpiPublikasi(role) && (
+                <DrawerLink
+                  href="/kpi/publikasi"
+                  icon={<Stamp className="h-4 w-4" />}
+                  label="Publikasi Rapor"
+                  active={isActive('/kpi/publikasi')}
+                  onNavigate={close}
+                  badge={lencanaKpi?.publikasi}
+                />
+              )}
+              {canViewKpiBanding(role) && (
+                <DrawerLink
+                  href="/kpi/banding"
+                  icon={<Scale className="h-4 w-4" />}
+                  label="Banding KPI"
+                  active={isActive('/kpi/banding')}
+                  onNavigate={close}
+                  badge={lencanaKpi?.banding}
+                />
               )}
             </ul>
           </div>
@@ -232,7 +273,10 @@ export function MobileNav({ role, displayName, username }: Props) {
                 {canViewTeachers(role) && (
                   <DrawerLink href="/ustadz" icon={<UserCog className="h-4 w-4" />} label="Ustadz / Guru" active={isActive('/ustadz')} onNavigate={close} />
                 )}
-                {canManageTeacherProfiles(role) && (
+                {canManageEmployees(role) && (
+                <DrawerLink href="/karyawan" icon={<Briefcase className="h-4 w-4" />} label="Karyawan" active={isActive('/karyawan')} onNavigate={close} />
+              )}
+              {canManageTeacherProfiles(role) && (
                   <DrawerLink href="/ustadz/profil" icon={<IdCard className="h-4 w-4" />} label="Profil Guru" active={isActive('/ustadz/profil')} onNavigate={close} />
                 )}
                 {canViewUjian(role) && (
@@ -247,6 +291,9 @@ export function MobileNav({ role, displayName, username }: Props) {
         </nav>
 
         <div className="border-t px-3 py-3 space-y-1">
+          {canManagePengurus(role) && (
+            <DrawerLink href="/pengurus" icon={<UsersRound className="h-4 w-4" />} label="Pengurus" active={isActive('/pengurus')} onNavigate={close} />
+          )}
           {canManageAllAccounts(role) && (
             <DrawerLink href="/akun" icon={<KeyRound className="h-4 w-4" />} label="Akun & Password" active={isActive('/akun')} onNavigate={close} />
           )}

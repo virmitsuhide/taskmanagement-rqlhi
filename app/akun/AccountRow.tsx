@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 
 interface Props {
-  target: 'user' | 'teacher'
+  target: 'user' | 'teacher' | 'employee'
   id: string
   name: string
   username: string

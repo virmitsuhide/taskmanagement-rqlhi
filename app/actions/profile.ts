@@ -4,7 +4,9 @@ import { revalidatePath } from 'next/cache'
 import bcrypt from 'bcryptjs'
 import { createServerClient } from '@/lib/supabase/server'
 import { getSession } from '@/lib/auth/session'
-import { canHavePengurusProfile } from '@/lib/auth/permissions'
+import { AMANAH_LABELS, canHavePengurusProfile } from '@/lib/auth/permissions'
+import { getProfilAmanah } from '@/lib/data/pengurus'
+import { bacaDataDiri, unggahFotoProfil } from '@/lib/profil/data-diri'
 import { highestLevel, isEducationLevel, sortEducation } from '@/lib/profil/pendidikan'
 import { focusFromFormData } from '@/lib/profil/foto'
 import { collectRows } from '@/lib/profil/form-rows'
@@ -128,7 +130,10 @@ export async function updatePengurusProfileAction(_: unknown, formData: FormData
     nip: (formData.get('nip') as string)?.trim() || null,
     birth_place: (formData.get('birth_place') as string)?.trim() || null,
     birth_date: (formData.get('birth_date') as string) || null,
-    current_amanah: (formData.get('current_amanah') as string)?.trim() || null,
+    // Diturunkan dari role, BUKAN dari form. Medan amanah di form hanya
+    // cerminan; membacanya dari FormData akan membuat siapa pun yang membuka
+    // peralatan pengembang peramban bisa menulis nama jabatan apa saja.
+    current_amanah: AMANAH_LABELS[session.role] ?? null,
     education_history: educationHistory,
     education_level: highestLevel(educationHistory),
     // Posisi foto ikut tersimpan tiap kali profil disimpan, termasuk saat
@@ -237,4 +242,54 @@ export async function changePasswordAction(_: unknown, formData: FormData) {
   if (error) return { error: 'Gagal mengganti password.' }
 
   return { success: true, message: 'Password berhasil diperbarui.' }
+}
+
+/**
+ * Pengurus menyunting data dirinya dari /profil.
+ *
+ * Yang ditulis BUKAN kolom profil di akun jabatannya, melainkan rekam orang
+ * yang menduduki amanah itu — baris teachers atau employees, tergantung siapa
+ * yang didudukkan Kepala RQ lewat /pengurus. Jadi pengurus punya dua pintu ke
+ * data yang sama (di sini dan di portalnya sendiri), tapi tetap satu salinan:
+ * menyunting dari mana pun mengubah baris yang sama persis.
+ *
+ * Yang tidak bisa disentuh dari sini: nama lengkap, NIP, unit, TMT, jenis
+ * kepegawaian, dan jabatan. Ketiganya wewenang SDM — unit menentukan rubrik
+ * KPI, TMT menentukan masa kerja di rapor. Ditegakkan dengan tidak pernah
+ * membacanya, bukan dengan menyembunyikan medannya.
+ */
+export async function updatePengurusOwnProfileAction(_: unknown, formData: FormData) {
+  const session = await getSession()
+  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!canHavePengurusProfile(session.role)) return { error: 'Tidak memiliki izin.' }
+
+  const pemegang = await getProfilAmanah(session.userId)
+  if (!pemegang) {
+    return {
+      error:
+        'Amanah ini belum ditetapkan Kepala RQ, jadi belum ada rekam yang bisa disimpan. ' +
+        'Minta Kepala RQ menetapkan pemegangnya lewat menu Pengurus.',
+    }
+  }
+
+  const tabel = pemegang.sumber === 'karyawan' ? 'employees' : 'teachers'
+  const supabase = createServerClient()
+
+  const patch: Record<string, unknown> = bacaDataDiri(formData)
+  const foto = await unggahFotoProfil(supabase, formData, pemegang.sumber, pemegang.recordId)
+  if (foto) patch.photo_url = foto
+
+  const { error } = await supabase.from(tabel).update(patch).eq('id', pemegang.recordId)
+  if (error) return { error: `Gagal menyimpan profil: ${error.message}` }
+
+  revalidatePath('/profil')
+  revalidatePath('/guru/profil')
+  revalidatePath('/karyawan/profil')
+  revalidatePath('/ustadz/profil')
+  return {
+    success: true,
+    message: foto === null
+      ? 'Profil tersimpan, tetapi fotonya gagal diunggah. Pastikan ukurannya di bawah 2 MB.'
+      : 'Profil tersimpan.',
+  }
 }
