@@ -26,6 +26,15 @@ export interface KpiParam {
   hariPerMinggu: number
   hariPenilaian: number
   poinSeragamPerHari: number
+  /**
+   * Hari aktif Laporan Grup Orang Tua — TIDAK sama dengan hariPenilaian.
+   *
+   * Seragam dinilai sepanjang 20 hari kerja, sedangkan pelaporan ke grup orang
+   * tua mengikuti 16 hari aktif halaqoh. Dulu keduanya menumpang satu tetapan
+   * yang sama, dan itu membuat nilai pelaporan seorang guru dihitung atas hari
+   * yang memang tidak ada kewajibannya.
+   */
+  hariLaporOrtu: number
   poinLaporOrtuPerHari: number
   basisLaporOrtu: number
   pertemuanHalaqoh: number
@@ -65,8 +74,10 @@ export const KPI_PARAM_SD: KpiParam = {
   hariPenilaian: 20,
   /** B23 — 5 item: peci, id card, peci/jilbab standar, gamis/kaos, sepatu. */
   poinSeragamPerHari: 5,
-  /** B24 — 20 hari × 4 = 80, ditambah bonus 20 menjadi 100. */
-  poinLaporOrtuPerHari: 4,
+  /** Hari aktif pelaporan ke grup orang tua — mengikuti pertemuan halaqoh. */
+  hariLaporOrtu: 16,
+  /** B24 — 16 hari × 5 = 80, ditambah bonus 20 menjadi 100. */
+  poinLaporOrtuPerHari: 5,
   /** B25 — nilai dasar Laporan Grup Orang Tua. */
   basisLaporOrtu: 20,
   /** B26 */

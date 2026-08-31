@@ -14,7 +14,7 @@ const nol = { lateMinutes: 0, dbLateDays: 0, hafalanJuz: 0, hafalanPages: 0, tuh
 
 // Persis keadaan baris 6 Excel: seragam terisi 5 tiap hari, sisanya nol.
 const harian = {
-  seragamDaily: Array(20).fill(5), laporOrtuDaily: Array(20).fill(0),
+  seragamDaily: Array(20).fill(5), laporOrtuDaily: Array(16).fill(0),
   halaqohHadir: Array(16).fill(0), halaqohAkhiri: Array(16).fill(0),
   seragamTotal: null, laporOrtuTotal: null, halaqohTotal: null,
 }

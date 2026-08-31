@@ -123,7 +123,7 @@ export async function simpanKpiAction(_: unknown, formData: FormData) {
     pengganti_cases: angka(formData, 'pengganti_cases'),
     pengganti_found: angka(formData, 'pengganti_found'),
     seragam_daily: grid(formData, 'seragam', P.hariPenilaian, P.poinSeragamPerHari),
-    lapor_ortu_daily: grid(formData, 'lapor_ortu', P.hariPenilaian, P.poinLaporOrtuPerHari),
+    lapor_ortu_daily: grid(formData, 'lapor_ortu', P.hariLaporOrtu, P.poinLaporOrtuPerHari),
     halaqoh_hadir: grid(formData, 'halaqoh_hadir', P.pertemuanHalaqoh, P.poinHadirHalaqoh),
     halaqoh_akhiri: grid(formData, 'halaqoh_akhiri', P.pertemuanHalaqoh, P.poinAkhiriHalaqoh),
     seragam_total: totalOpsional(formData, 'seragam_total'),

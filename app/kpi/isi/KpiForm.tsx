@@ -78,16 +78,16 @@ export function KpiForm({ teacherId, teacherName, year, month, monthLabel, backH
   )
 
   const [seragam, setSeragam] = useState<number[]>(
-    () => existing?.seragam_daily ?? Array(P.hariPenilaian).fill(0),
+    () => sepanjang(existing?.seragam_daily, P.hariPenilaian),
   )
   const [laporOrtu, setLaporOrtu] = useState<number[]>(
-    () => existing?.lapor_ortu_daily ?? Array(P.hariPenilaian).fill(0),
+    () => sepanjang(existing?.lapor_ortu_daily, P.hariLaporOrtu),
   )
   const [hadir, setHadir] = useState<number[]>(
-    () => existing?.halaqoh_hadir ?? Array(P.pertemuanHalaqoh).fill(0),
+    () => sepanjang(existing?.halaqoh_hadir, P.pertemuanHalaqoh),
   )
   const [akhiri, setAkhiri] = useState<number[]>(
-    () => existing?.halaqoh_akhiri ?? Array(P.pertemuanHalaqoh).fill(0),
+    () => sepanjang(existing?.halaqoh_akhiri, P.pertemuanHalaqoh),
   )
 
   const [totals, setTotals] = useState({
@@ -227,7 +227,7 @@ export function KpiForm({ teacherId, teacherName, year, month, monthLabel, backH
                 prefix="seragam" nilai={seragam} setNilai={setSeragam} max={P.poinSeragamPerHari} labelAwal="Hari"
               />
               <GridHarian
-                judul={`Laporan grup orang tua — ${P.hariPenilaian} hari, maksimal ${P.poinLaporOrtuPerHari} poin per hari (+${P.basisLaporOrtu} bonus)`}
+                judul={`Laporan grup orang tua — ${P.hariLaporOrtu} hari aktif, maksimal ${P.poinLaporOrtuPerHari} poin per hari (+${P.basisLaporOrtu} bonus)`}
                 prefix="lapor_ortu" nilai={laporOrtu} setNilai={setLaporOrtu} max={P.poinLaporOrtuPerHari} labelAwal="Hari"
               />
               <GridHarian
@@ -341,6 +341,25 @@ export function KpiForm({ teacherId, teacherName, year, month, monthLabel, backH
  * "Isi total" aktif, grid ini tidak dirender sama sekali — itulah yang membuat
  * server tahu bahwa rincian hariannya memang sengaja dilewati, bukan nol.
  */
+/**
+ * Baris tersimpan disamakan panjangnya dengan rubrik yang berlaku sekarang.
+ *
+ * Perlu karena panjangnya pernah berubah: Laporan Grup Orang Tua dulu dicatat
+ * 20 hari, sekarang 16 hari aktif. Tanpa penyamaan ini, grid menggambar 20
+ * kotak dari data lama sementara penyimpanan hanya membaca 16 — empat hari
+ * yang terlihat di layar akan hilang diam-diam begitu SDM menekan simpan.
+ *
+ * Kelebihannya dipotong, kekurangannya diisi nol. Keduanya kasat mata di layar
+ * sebelum disimpan, jadi SDM bisa membetulkannya kalau ternyata keliru.
+ */
+function sepanjang(tersimpan: number[] | null | undefined, panjang: number): number[] {
+  const out = Array(panjang).fill(0)
+  if (tersimpan) {
+    for (let i = 0; i < Math.min(tersimpan.length, panjang); i++) out[i] = tersimpan[i]
+  }
+  return out
+}
+
 function GridHarian({
   judul, prefix, nilai, setNilai, max, labelAwal,
 }: {

@@ -73,7 +73,7 @@ function targetIndikator(P: KpiParam): string[] {
     `${P.totalBait} bait`,
     'Nilai ≥ 81',
     `${P.hariPenilaian} hari lengkap`,
-    `${P.hariPenilaian} hari melapor`,
+    `${P.hariLaporOrtu} hari melapor`,
     `${P.pertemuanHalaqoh} pertemuan tepat waktu`,
     `${P.pertemuanBukuPegangan} pertemuan terisi`,
     'Tidak ada kasus',

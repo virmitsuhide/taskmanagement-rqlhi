@@ -91,7 +91,7 @@ export function nilaiSeragam(h: KpiHarian): number {
   return clamp100(h.seragamTotal ?? 0)
 }
 
-// 7 ── 'Lapor Ortu'!Y = MIN(100, SUM(20 hari) + basisLaporOrtu)
+// 7 ── 'Lapor Ortu'!Y = MIN(100, SUM(16 hari aktif) + basisLaporOrtu)
 export function nilaiLaporOrtu(h: KpiHarian, P: KpiParam): number {
   if (h.laporOrtuDaily) return clamp100(sum(h.laporOrtuDaily) + P.basisLaporOrtu)
   return clamp100(h.laporOrtuTotal ?? 0)
