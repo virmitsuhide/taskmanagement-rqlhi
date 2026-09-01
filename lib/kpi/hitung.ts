@@ -15,7 +15,12 @@ import type { Jenjang } from '@/types'
 
 /** Isian bulanan — sepadan dengan kolom E–N tab "Input". */
 export interface KpiInput {
-  /** E — rata-rata keterlambatan hadir di sekolah, dalam menit. */
+  /**
+   * E — TOTAL keterlambatan hadir sebulan, dalam menit. Bukan rata-rata per
+   * hari: ambang terendah rubrik adalah 20 menit, dan tidak ada guru yang
+   * rata-rata hariannya menembus itu, sehingga tafsir rata-rata membuat semua
+   * orang bernilai 100 dan indikatornya berhenti membedakan siapa pun.
+   */
   lateMinutes: number
   /** F — keterlambatan setor database, dalam hari. */
   dbLateDays: number

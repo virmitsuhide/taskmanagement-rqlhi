@@ -34,7 +34,7 @@ interface Props {
  * SD menyebut 20.
  */
 const bulananFields = (P: KpiParam): { name: keyof KpiMonthly & string; label: string; hint: string; max?: number }[] => [
-  { name: 'late_minutes', label: 'Rata-rata keterlambatan hadir (menit)', hint: '≤20 mnt = 100 · ≤50 = 80 · ≤75 = 60 · ≤100 = 40 · >100 = 20' },
+  { name: 'late_minutes', label: 'Total keterlambatan hadir sebulan (menit)', hint: '≤20 mnt = 100 · ≤50 = 80 · ≤75 = 60 · ≤100 = 40 · >100 = 20' },
   { name: 'db_late_days', label: 'Keterlambatan setor database (hari)', hint: '0 hari = 100 · 1 = 90 · 2 = 80 · 3 = 70 · >3 = 60' },
   { name: 'hafalan_juz', label: "Hafalan Al-Qur'an — juz utuh", hint: `Basis ${P.basisHafalan} + ${P.poinPerJuz} poin per juz` },
   { name: 'hafalan_pages', label: "Hafalan Al-Qur'an — sisa halaman", hint: `${P.poinPerHalaman} poin per halaman`, max: P.halamanPerJuz },
