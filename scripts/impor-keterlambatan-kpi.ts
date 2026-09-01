@@ -125,8 +125,11 @@ async function main() {
   console.log(`\nImpor keterlambatan KPI — ${BULAN}/${TAHUN}`)
   console.log(tulis ? 'MODE: MENULIS ke database\n' : 'MODE: KERING (tambahkan --tulis untuk menyimpan)\n')
 
+  // Guru yang sudah dihapus lunak DIKECUALIKAN dari pencocokan. Tanpa ini,
+  // nama sisa akun percobaan bisa menyerap satu baris rekap dan membuatkannya
+  // rapor KPI — rapor untuk orang yang sudah tidak ada di aplikasi.
   const { data: guruRaw, error: e1 } = await db
-    .from('teachers').select('id,full_name,unit')
+    .from('teachers').select('id,full_name,unit').is('deleted_at', null)
   if (e1) throw e1
   const daftar: Guru[] = (guruRaw ?? []).map(g => ({ ...g, n: normal(g.full_name) }))
 
