@@ -45,12 +45,61 @@ export const STATUS_FLOW: UjianStatus[] = ['diajukan', 'dijadwalkan', 'selesai']
 
 // ─── Label ───────────────────────────────────────────────────────────────────
 
+/**
+ * Sengaja menyebut "Tasmi'" untuk ketiga tipe, termasuk ujian satu juz.
+ *
+ * Bukan kelalaian: label ini ikut terbaca wali murid lewat teks WhatsApp dan
+ * flyer, dan di sana "Tasmi'" adalah istilah yang sudah dikenal untuk semua
+ * ujian tahfidz. "Juz'iyyah" hanya kosakata internal koordinator — hidup di
+ * penyaring riwayat lewat [getTahfidzKategori], bukan di teks keluar.
+ */
 export function getTahfidzLabel(tipe: TahfidzTipe, juz: string): string {
   switch (tipe) {
     case '1_juz': return `Tasmi' Juz ${juz}`
     case '3_juz': return `Tasmi' 3 Juz (${juz})`
     case '5_juz': return `Tasmi' 5 Juz (${juz})`
   }
+}
+
+/**
+ * Dua agenda yang berbeda, meski keduanya tersimpan sebagai tahfidz.
+ *
+ * Juz'iyyah adalah ujian satu juz — anak naik juz demi juz. Tasmi' adalah
+ * setoran 3 atau 5 juz sekali duduk, acara yang jauh lebih jarang dan disiapkan
+ * tersendiri. Koordinator menyebut dan merekapnya terpisah, jadi pembedanya
+ * diberi nama sendiri alih-alih dibaca ulang dari `tipe` di tiap pemakaian.
+ */
+export type TahfidzKategori = 'juziyyah' | 'tasmi'
+
+export const KATEGORI_TAHFIDZ_LABEL: Record<TahfidzKategori, string> = {
+  juziyyah: "Juz'iyyah",
+  tasmi: "Tasmi'",
+}
+
+export function getTahfidzKategori(tipe: TahfidzTipe): TahfidzKategori {
+  return tipe === '1_juz' ? 'juziyyah' : 'tasmi'
+}
+
+/** Tipe tasmi' saja, untuk penyaring turunan di bawah kategori 'tasmi'. */
+export const TASMI_TIPE: { value: Extract<TahfidzTipe, '3_juz' | '5_juz'>; label: string }[] = [
+  { value: '3_juz', label: "Tasmi' 3 Juz" },
+  { value: '5_juz', label: "Tasmi' 5 Juz" },
+]
+
+/**
+ * Urutan juz untuk penyaring: 30 lebih dulu, lalu 29, 28, dan seterusnya.
+ *
+ * Mengikuti arah hafalan anak — mereka mulai dari juz 30 — bukan urutan mushaf.
+ * Juz yang bukan angka hanya ada pada data lama, dan didorong ke belakang.
+ */
+export function urutJuz(a: string, b: string): number {
+  const angka = (v: string) => (/^\d+$/.test(v.trim()) ? Number(v) : null)
+  const na = angka(a)
+  const nb = angka(b)
+  if (na !== null && nb !== null) return nb - na
+  if (na !== null) return -1
+  if (nb !== null) return 1
+  return a.localeCompare(b)
 }
 
 export function getStatusLabel(status: UjianStatus): string {

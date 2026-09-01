@@ -1,14 +1,16 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { BookOpen, ClipboardList, UserCheck } from 'lucide-react'
+import { BookOpen, ClipboardList, Filter, UserCheck } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { PERIODE_SELECT_CLASS, PilihPeriode } from './PilihPeriode'
 import {
-  BULAN_ID, formatTanggal, formatTahsinLevels,
-  getPredikatClass, getPredikatLabel, getTahfidzLabel,
+  BULAN_ID, KATEGORI_TAHFIDZ_LABEL, TASMI_TIPE,
+  formatTanggal, formatTahsinLevels,
+  getPredikatClass, getPredikatLabel, getTahfidzKategori, getTahfidzLabel, urutJuz,
 } from '@/lib/rq/ujian'
-import type { UjianTahfidz, UjianTahsin } from '@/types'
+import type { TahfidzKategori } from '@/lib/rq/ujian'
+import type { TahfidzTipe, UjianTahfidz, UjianTahsin } from '@/types'
 
 interface Props {
   tahfidz: UjianTahfidz[]
@@ -19,15 +21,39 @@ interface Props {
 
 const TANPA_PENGUJI = 'Tanpa penguji'
 
+/** Kategori baris: dua agenda tahfidz, plus tahsin yang berdiri sendiri. */
+type Kategori = TahfidzKategori | 'tahsin'
+
 interface Baris {
   id: string
   penguji: string
   nama: string
   jadwal: string | null
-  jenis: 'tahfidz' | 'tahsin'
+  kategori: Kategori
+  /** Tahfidz saja — dipakai penyaring turunan tasmi' (3 juz / 5 juz). */
+  tipe: TahfidzTipe | null
+  /** Tahfidz saja — nomor juz untuk juz'iyyah, rentang untuk tasmi'. */
+  juz: string | null
   rincian: string
   hasil: string
   hasilKelas: string
+}
+
+const KATEGORI_OPSI: { value: Kategori; label: string }[] = [
+  { value: 'juziyyah', label: KATEGORI_TAHFIDZ_LABEL.juziyyah },
+  { value: 'tasmi',    label: KATEGORI_TAHFIDZ_LABEL.tasmi    },
+  { value: 'tahsin',   label: 'Tahsin'                        },
+]
+
+/** Hitung berapa baris per nilai; kunci null diabaikan. */
+function hitung<T>(rows: Baris[], ambil: (r: Baris) => T | null): Map<T, number> {
+  const peta = new Map<T, number>()
+  for (const r of rows) {
+    const k = ambil(r)
+    if (k === null) continue
+    peta.set(k, (peta.get(k) ?? 0) + 1)
+  }
+  return peta
 }
 
 /**
@@ -39,6 +65,11 @@ interface Baris {
  */
 export function RiwayatUjian({ tahfidz, tahsin, month, year }: Props) {
   const [saring, setSaring] = useState('semua')
+  const [kategori, setKategori] = useState<Kategori | 'semua'>('semua')
+  // Juz dan tipe tasmi' disimpan terpisah supaya berpindah jenis bolak-balik
+  // tidak menghapus pilihan yang tadi dipakai.
+  const [juz, setJuz] = useState('semua')
+  const [tasmi, setTasmi] = useState<TahfidzTipe | 'semua'>('semua')
 
   const baris = useMemo<Baris[]>(() => {
     const tf: Baris[] = tahfidz.map(t => ({
@@ -46,7 +77,9 @@ export function RiwayatUjian({ tahfidz, tahsin, month, year }: Props) {
       penguji: t.penguji?.trim() || TANPA_PENGUJI,
       nama: t.nama_siswa,
       jadwal: t.jadwal,
-      jenis: 'tahfidz',
+      kategori: getTahfidzKategori(t.tipe),
+      tipe: t.tipe,
+      juz: t.juz,
       rincian: `${getTahfidzLabel(t.tipe, t.juz)} · ${t.unit} kelas ${t.kelas}${t.is_quls ? ' · QULS' : ''}`,
       hasil: getPredikatLabel(t.predikat),
       hasilKelas: getPredikatClass(t.predikat),
@@ -59,7 +92,9 @@ export function RiwayatUjian({ tahfidz, tahsin, month, year }: Props) {
         penguji: t.penguji?.trim() || TANPA_PENGUJI,
         nama: t.nama_kelompok,
         jadwal: t.jadwal,
-        jenis: 'tahsin',
+        kategori: 'tahsin',
+        tipe: null,
+        juz: null,
         rincian: `${formatTahsinLevels(t)} · ${t.unit} · ${t.siswa.length} siswa · Sesi ${t.sesi}`,
         hasil: `${lulus}/${t.siswa.length} lulus`,
         hasilKelas: 'text-success font-medium',
@@ -79,7 +114,40 @@ export function RiwayatUjian({ tahfidz, tahsin, month, year }: Props) {
     [baris],
   )
 
-  const tampil = saring === 'semua' ? baris : baris.filter(r => r.penguji === saring)
+  // Penguji disaring lebih dulu dan jadi dasar semua penyaring berikutnya:
+  // saat satu penguji dipilih, pilihan juz ikut menyusut ke juz yang benar-benar
+  // ia uji, bukan seluruh juz di bulan itu.
+  const dasar = useMemo(
+    () => (saring === 'semua' ? baris : baris.filter(r => r.penguji === saring)),
+    [baris, saring],
+  )
+
+  const jumlahKategori = useMemo(() => hitung(dasar, r => r.kategori), [dasar])
+
+  const juzTersedia = useMemo(() => {
+    const peta = hitung(dasar, r => (r.kategori === 'juziyyah' ? r.juz : null))
+    return [...peta.entries()].sort((a, b) => urutJuz(a[0], b[0]))
+  }, [dasar])
+
+  const tasmiTersedia = useMemo(() => {
+    const peta = hitung(dasar, r => (r.kategori === 'tasmi' ? r.tipe : null))
+    return TASMI_TIPE.map(t => ({ ...t, jumlah: peta.get(t.value) ?? 0 }))
+      .filter(t => t.jumlah > 0)
+  }, [dasar])
+
+  // Pilihan yang hilang dari data (ganti bulan, ganti penguji) jatuh kembali ke
+  // "semua" — kalau tidak, daftarnya kosong karena menyaring nilai yang sudah
+  // tidak ada pilihannya di dropdown.
+  const juzAktif = juzTersedia.some(([j]) => j === juz) ? juz : 'semua'
+  const tasmiAktif = tasmiTersedia.some(t => t.value === tasmi) ? tasmi : 'semua'
+
+  const tampil = useMemo(() => dasar.filter(r => {
+    if (kategori === 'semua') return true
+    if (r.kategori !== kategori) return false
+    if (kategori === 'juziyyah') return juzAktif === 'semua' || r.juz === juzAktif
+    if (kategori === 'tasmi') return tasmiAktif === 'semua' || r.tipe === tasmiAktif
+    return true
+  }), [dasar, kategori, juzAktif, tasmiAktif])
 
   const perPenguji = useMemo(() => {
     const peta = new Map<string, Baris[]>()
@@ -90,6 +158,8 @@ export function RiwayatUjian({ tahfidz, tahsin, month, year }: Props) {
     }
     return [...peta.entries()].sort((a, b) => urutPenguji(a[0], b[0]))
   }, [tampil])
+
+  const adaSaringan = saring !== 'semua' || kategori !== 'semua'
 
   return (
     <div className="space-y-4">
@@ -105,6 +175,55 @@ export function RiwayatUjian({ tahfidz, tahsin, month, year }: Props) {
         </select>
       </PilihPeriode>
 
+      <div className="flex flex-wrap items-center gap-2 rounded-xl border bg-card p-3">
+        <span className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+          <Filter className="h-3.5 w-3.5" /> Jenis
+        </span>
+        <select
+          aria-label="Jenis ujian"
+          value={kategori}
+          onChange={e => setKategori(e.target.value as Kategori | 'semua')}
+          className={`${PERIODE_SELECT_CLASS} min-w-40 flex-1 sm:w-52 sm:flex-none`}
+        >
+          <option value="semua">Semua jenis ({dasar.length})</option>
+          {KATEGORI_OPSI.map(({ value, label }) => (
+            <option key={value} value={value}>
+              {label} ({jumlahKategori.get(value) ?? 0})
+            </option>
+          ))}
+        </select>
+
+        {/* Dropdown turunan: hanya muncul untuk jenis tahfidz yang dipilih, dan
+            hanya bila ada nilai yang benar-benar terpakai bulan itu. */}
+        {kategori === 'juziyyah' && juzTersedia.length > 0 && (
+          <select
+            aria-label="Saring juz"
+            value={juzAktif}
+            onChange={e => setJuz(e.target.value)}
+            className={`${PERIODE_SELECT_CLASS} min-w-36 flex-1 sm:w-44 sm:flex-none`}
+          >
+            <option value="semua">Semua juz</option>
+            {juzTersedia.map(([j, n]) => (
+              <option key={j} value={j}>Juz {j} ({n})</option>
+            ))}
+          </select>
+        )}
+
+        {kategori === 'tasmi' && tasmiTersedia.length > 0 && (
+          <select
+            aria-label="Saring tipe tasmi'"
+            value={tasmiAktif}
+            onChange={e => setTasmi(e.target.value as TahfidzTipe | 'semua')}
+            className={`${PERIODE_SELECT_CLASS} min-w-40 flex-1 sm:w-48 sm:flex-none`}
+          >
+            <option value="semua">Semua tasmi&apos;</option>
+            {tasmiTersedia.map(({ value, label, jumlah }) => (
+              <option key={value} value={value}>{label} ({jumlah})</option>
+            ))}
+          </select>
+        )}
+      </div>
+
       <p className="text-sm text-muted-foreground">
         <span className="font-medium text-foreground">{tampil.length}</span> ujian selesai pada{' '}
         {BULAN_ID[month - 1]} {year}
@@ -113,7 +232,11 @@ export function RiwayatUjian({ tahfidz, tahsin, month, year }: Props) {
       {tampil.length === 0 ? (
         <div className="rounded-xl border border-dashed py-14 text-center">
           <UserCheck className="mx-auto mb-3 h-8 w-8 text-muted-foreground/40" />
-          <p className="text-sm font-medium">Belum ada ujian selesai pada periode ini</p>
+          <p className="text-sm font-medium">
+            {adaSaringan
+              ? 'Tidak ada ujian yang cocok dengan penyaring ini'
+              : 'Belum ada ujian selesai pada periode ini'}
+          </p>
         </div>
       ) : (
         <div className="space-y-5">
@@ -129,9 +252,9 @@ export function RiwayatUjian({ tahfidz, tahsin, month, year }: Props) {
                   <li key={r.id} className="flex items-start justify-between gap-3 px-4 py-3">
                     <div className="min-w-0">
                       <p className="flex items-center gap-1.5 font-medium">
-                        {r.jenis === 'tahfidz'
-                          ? <BookOpen className="h-3.5 w-3.5 shrink-0 text-info" />
-                          : <ClipboardList className="h-3.5 w-3.5 shrink-0 text-primary" />}
+                        {r.kategori === 'tahsin'
+                          ? <ClipboardList className="h-3.5 w-3.5 shrink-0 text-primary" />
+                          : <BookOpen className="h-3.5 w-3.5 shrink-0 text-info" />}
                         <span className="truncate">{r.nama}</span>
                       </p>
                       <p className="mt-0.5 text-xs text-muted-foreground">{r.rincian}</p>
