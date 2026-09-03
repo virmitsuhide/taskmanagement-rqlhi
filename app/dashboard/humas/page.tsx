@@ -9,7 +9,7 @@ import { DivisionStats } from '@/components/dashboard/DivisionStats'
 import { TaskCard } from '@/components/tasks/TaskCard'
 import { ContentRequestCard } from '@/components/humas/ContentRequestCard'
 import { ChevronRight, LayoutTemplate } from 'lucide-react'
-import { requestStatus } from '@/lib/humas/request-status'
+import { requestStatus, liveRequests } from '@/lib/humas/request-status'
 import type { ContentRequest } from '@/types'
 
 export default async function HumasDashboardPage() {
@@ -28,11 +28,13 @@ export default async function HumasDashboardPage() {
     // Yang menentukan sekarang status tugasnya, dan itu disaring di bawah.
     supabase
       .from('content_requests')
-      .select('*, requester:users!requested_by(id, display_name), task:tasks!task_id(id, status, priority, problem_type, assigned_to, assigned_by)')
+      .select('*, requester:users!requested_by(id, display_name), task:tasks!task_id(id, status, priority, problem_type, assigned_to, assigned_by, deleted_at)')
       .order('created_at', { ascending: false }),
   ])
 
-  const pendingRequests = ((pendingRequestsRes.data ?? []) as ContentRequest[])
+  // liveRequests() dulu, baru saring status: request yang tugasnya sudah
+  // dihapus dianggap batal dan tidak lagi terhitung sebagai pekerjaan masuk.
+  const pendingRequests = liveRequests((pendingRequestsRes.data ?? []) as ContentRequest[])
     .filter(r => requestStatus(r) !== 'finish')
     .slice(0, 5)
 

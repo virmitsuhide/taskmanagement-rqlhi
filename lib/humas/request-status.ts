@@ -63,3 +63,28 @@ export function requestPriority(
   if (req.task?.priority) return PRIORITY_FROM_TASK[req.task.priority]
   return req.priority
 }
+
+/**
+ * Request yang tugasnya sudah dihapus ikut dianggap batal.
+ *
+ * Penghapusan tugas bersifat lunak (`tasks.deleted_at`, lihat softDeleteTask),
+ * jadi barisnya tetap terbawa oleh embed PostgREST — filter pada query induk
+ * tidak menular ke relasinya. Tanpa saringan ini kartunya tetap tampil dengan
+ * status turunan dari tugas yang sudah tidak ada, sementara tautan "Buka
+ * tugasnya" berujung 404: baik pemohon (assigned_by) maupun Humas
+ * (assigned_to) bukan manajemen, dan halaman detail menolak tugas terhapus
+ * bagi keduanya.
+ *
+ * Sengaja diturunkan, bukan disimpan sebagai penanda di content_requests:
+ * tugas yang dipulihkan lewat restoreTaskAction membawa kembali request-nya
+ * sendiri. Penanda tersimpan justru akan meninggalkan request itu batal
+ * selamanya, padahal tugasnya sudah hidup lagi.
+ */
+export function requestCancelled(req: Pick<ContentRequest, 'task'>): boolean {
+  return !!req.task?.deleted_at
+}
+
+/** Request yang masih berdiri — yang tugasnya sudah dihapus dibuang. */
+export function liveRequests<T extends Pick<ContentRequest, 'task'>>(reqs: T[]): T[] {
+  return reqs.filter(r => !requestCancelled(r))
+}

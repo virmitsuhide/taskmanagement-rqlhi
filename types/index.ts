@@ -338,7 +338,7 @@ export interface ContentRequest {
   finished_at: string | null
   /** Tugas yang memegang kemajuan request ini. Null untuk request pra-0033. */
   task_id?: string | null
-  task?: Pick<Task, 'id' | 'status' | 'priority' | 'problem_type' | 'assigned_to' | 'assigned_by'> | null
+  task?: Pick<Task, 'id' | 'status' | 'priority' | 'problem_type' | 'assigned_to' | 'assigned_by' | 'deleted_at'> | null
   created_at: string
   updated_at: string
   requester?: User

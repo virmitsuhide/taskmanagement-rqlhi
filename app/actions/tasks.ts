@@ -371,8 +371,12 @@ async function softDeleteTask(taskId: string): Promise<{ error?: string }> {
     notes: 'Tugas dihapus',
   })
 
+  // Papan request Humas ikut berubah: request yang tugasnya dihapus dianggap
+  // batal dan disaring keluar oleh liveRequests().
   revalidatePath('/tasks')
   revalidatePath('/tasks/board')
+  revalidatePath('/humas-request')
+  revalidatePath('/dashboard/humas')
   return {}
 }
 
@@ -433,9 +437,12 @@ export async function restoreTaskAction(taskId: string) {
     notes: 'Tugas dipulihkan',
   })
 
+  // Memulihkan tugas mengembalikan request-nya ke papan Humas juga.
   revalidatePath('/tasks')
   revalidatePath('/tasks/board')
   revalidatePath(`/tasks/${taskId}`)
+  revalidatePath('/humas-request')
+  revalidatePath('/dashboard/humas')
   return { success: true }
 }
 

@@ -8,7 +8,7 @@ import { ContentRequestCard } from '@/components/humas/ContentRequestCard'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Plus, ArrowRight } from 'lucide-react'
-import { requestStatus } from '@/lib/humas/request-status'
+import { requestStatus, liveRequests } from '@/lib/humas/request-status'
 import type { ContentRequest } from '@/types'
 
 export default async function HumasRequestPage() {
@@ -19,7 +19,7 @@ export default async function HumasRequestPage() {
   const supabase = createServerClient()
   const query = supabase
     .from('content_requests')
-    .select('*, requester:users!requested_by(id, display_name, role), task:tasks!task_id(id, status, priority, problem_type, assigned_to, assigned_by)')
+    .select('*, requester:users!requested_by(id, display_name, role), task:tasks!task_id(id, status, priority, problem_type, assigned_to, assigned_by, deleted_at)')
     .order('created_at', { ascending: false })
 
   // Humas sees all; others see only their own
@@ -28,7 +28,10 @@ export default async function HumasRequestPage() {
   }
 
   const { data } = await query
-  const requests = (data ?? []) as ContentRequest[]
+  // liveRequests() membuang request yang tugasnya sudah dihapus — menghapus
+  // tugas berarti membatalkan request-nya, dan kartunya tidak boleh tertinggal
+  // menunjuk tugas yang detailnya sudah tidak bisa dibuka.
+  const requests = liveRequests((data ?? []) as ContentRequest[])
 
   // Status dibaca lewat requestStatus(), bukan r.status: sejak 0033 tugaslah
   // pemegang kemajuan, dan kolom status lama tidak lagi ditulis.
