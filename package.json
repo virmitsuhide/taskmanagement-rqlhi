@@ -27,6 +27,7 @@
     "seed:siswa": "tsx scripts/seed-siswa.ts",
     "seed:capaian": "tsx scripts/seed-capaian-sd.ts",
     "impor:keterlambatan": "tsx scripts/impor-keterlambatan-kpi.ts",
+    "kpi:maksimal": "tsx scripts/isi-kpi-maksimal.ts",
     "uji:gukar": "tsx scripts/uji-gukar-standar.ts",
     "uji:kpi": "tsx scripts/uji-kpi.ts"
   },
