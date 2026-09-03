@@ -91,9 +91,9 @@ export function sisaHari(batas: string | null, kini = new Date()): number | null
 export const STATUS_LABELS: Record<KpiRaporStatus, string> = {
   draft: 'Draf',
   diajukan: 'Menunggu koordinator',
-  dikembalikan: 'Dikembalikan ke SDM',
-  terbit: 'Sudah diserahkan',
-  banding: 'Dalam banding',
+  dikembalikan: 'Dikembalikan koordinator',
+  terbit: 'Sudah dipublikasikan',
+  banding: 'Mengajukan banding',
   selesai: 'Selesai',
 }
 
@@ -224,4 +224,105 @@ export function jatuhTempo(r: {
   banding_batas: string | null
 }, kini = new Date()): boolean {
   return r.status === 'terbit' && !r.guru_ttd_at && lewatTenggat(r.banding_batas, kini)
+}
+
+// ── Keterangan ────────────────────────────────────────────────────
+
+/** Tanggal singkat WIB, mis. "12 Sep 2026". */
+function tanggalPendek(iso: string): string {
+  return new Date(iso).toLocaleDateString('id-ID', {
+    day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Jakarta',
+  })
+}
+
+/** Sepotong keadaan rapor — hanya yang diperlukan untuk menyusun keterangan. */
+export interface KeadaanRapor {
+  status: KpiRaporStatus
+  selesaiSebab?: KpiSelesaiSebab | null
+  terbitAt?: string | null
+  bandingBatas?: string | null
+  /** Guru sudah pernah membuka rapornya? */
+  dibuka?: boolean
+  /**
+   * Banding yang belum diputus atas rapor ini, bila pemanggilnya mengambilnya.
+   *
+   * Pilihan, dan sengaja: bandingnya hidup di tabel lain, jadi halaman yang
+   * tidak membayar kueri tambahan itu tetap mendapat kalimat yang benar —
+   * hanya lebih singkat. Yang tidak boleh terjadi adalah keterangan yang
+   * MENGARANG tingkat atau tenggat ketika datanya tidak diambil.
+   */
+  banding?: { tingkat: number; putusanBatas: string | null } | null
+}
+
+/**
+ * Satu kalimat: rapor ini sedang di mana, dan apa artinya.
+ *
+ * Lencana status menjawab "apa", keterangan ini menjawab "lalu kenapa" —
+ * dan yang kedua itulah yang menentukan tindakan. "Sudah dipublikasikan"
+ * tidak memberi tahu SDM bahwa gurunya belum pernah membukanya dan masa
+ * bandingnya tinggal dua hari; kalimat inilah yang memberitahukannya.
+ *
+ * Dirumuskan di sini, bukan di tiap halaman, karena tiga halaman menampilkan
+ * keadaan yang sama kepada tiga peran berbeda — dan tiga salinan kalimat akan
+ * berselisih pada hari salah satunya diperbaiki.
+ *
+ * Tanpa titik di ujung: pemakainya sel tabel sekaligus kalimat di dalam kotak
+ * pemberitahuan, dan tanda baca yang menempel akan salah di salah satunya.
+ */
+export function keteranganRapor(r: KeadaanRapor, kini = new Date()): string {
+  switch (r.status) {
+    case 'draft':
+      return 'Masih di SDM, belum diajukan ke koordinator'
+
+    case 'diajukan':
+      return 'Menunggu koordinator menandatangani & memublikasikan'
+
+    // Sengaja menyebut akibatnya, bukan hanya peristiwanya: yang membaca baris
+    // ini adalah orang yang harus bertindak, dan "dikembalikan" saja tidak
+    // memberitahunya bahwa rapor ini berhenti sampai ia mengajukannya lagi.
+    case 'dikembalikan':
+      return 'Dikembalikan koordinator tanpa tanda tangan — belum bisa diterbitkan sampai SDM memperbaiki lalu mengajukannya lagi'
+
+    case 'terbit': {
+      const bagian = [
+        r.terbitAt ? `Dipublikasikan ${tanggalPendek(r.terbitAt)}` : 'Sudah dipublikasikan',
+        r.dibuka ? 'sudah dibuka guru' : 'belum dibuka guru',
+      ]
+      const sisa = sisaHari(r.bandingBatas ?? null, kini)
+      if (sisa !== null) {
+        bagian.push(sisa >= 0 ? `sisa ${sisa} hari banding` : 'masa banding habis')
+      }
+      return bagian.join(' · ')
+    }
+
+    /*
+      Yang disebut bukan cuma "ada banding", melainkan SIAPA yang menahannya
+      dan SEJAK KAPAN. Rapor dalam banding menghentikan seluruh alur: nilainya
+      terkunci dan rapor semester gurunya ikut menggantung. Kalimat yang hanya
+      berkata "dalam banding" membuat penundaan itu tidak berpemilik — dan
+      pekerjaan yang tidak berpemilik adalah pekerjaan yang menunggu selamanya.
+
+      Pemutusnya diturunkan dari tingkat, bukan dibaca dari basis data:
+      tingkat 1 sengketa fakta (SDM), tingkat 2 sengketa penilaian (Kepala RQ).
+      Petanya sudah ada di canDecideKpiBanding(); yang di sini hanya menamainya
+      untuk dibaca manusia.
+    */
+    case 'banding': {
+      const b = r.banding
+      if (!b) return 'Guru mengajukan banding — nilainya terkunci sampai bandingnya diputus'
+
+      const pemutus = b.tingkat === 1 ? 'SDM' : 'Kepala RQ'
+      const sisa = sisaHari(b.putusanBatas ?? null, kini)
+      const tenggat =
+        sisa === null ? 'belum bertenggat putusan'
+        : sisa < 0 ? `TENGGAT PUTUSAN LEWAT ${-sisa} hari`
+        : sisa === 0 ? 'tenggat putusan hari ini'
+        : `sisa ${sisa} hari untuk memutus`
+
+      return `Banding tingkat ${b.tingkat} — menunggu ${pemutus} memutus · ${tenggat}`
+    }
+
+    case 'selesai':
+      return r.selesaiSebab ? SEBAB_LABELS[r.selesaiSebab] : 'Rapor sudah final'
+  }
 }

@@ -1,6 +1,6 @@
 import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, Undo2 } from 'lucide-react'
 import { getSession } from '@/lib/auth/session'
 import { canInputKpi } from '@/lib/auth/permissions'
 import { createServerClient } from '@/lib/supabase/server'
@@ -86,6 +86,40 @@ export default async function IsiKpiPage({ searchParams }: PageProps) {
         >
           <ArrowLeft className="h-3.5 w-3.5" />Kembali ke rekap KPI
         </Link>
+
+        {/*
+          Alasan pengembalian koordinator, di atas formulir dan bukan di dalamnya.
+
+          Sampai sekarang alasan itu tersimpan rapi di dikembalikan_alasan tapi
+          tidak pernah ditampilkan di mana pun — SDM membuka formulir ini
+          persis seperti biasa, tanpa tahu bahwa rapornya pernah ditolak,
+          apalagi bagian mana yang dipersoalkan. Jalur pengembaliannya ada tapi
+          tidak berguna, sebab yang harus memperbaiki tidak pernah membaca
+          keberatannya.
+        */}
+        {existing?.status === 'dikembalikan' && (
+          <div className="mb-4 flex items-start gap-2.5 rounded-lg border border-destructive/30 bg-destructive-wash px-3.5 py-3">
+            <Undo2 className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+            <div className="text-sm">
+              <p className="font-semibold text-destructive">
+                Dikembalikan koordinator — belum ditandatangani
+              </p>
+              {existing.dikembalikan_alasan ? (
+                <p className="mt-1 whitespace-pre-line text-foreground">
+                  &ldquo;{existing.dikembalikan_alasan}&rdquo;
+                </p>
+              ) : (
+                <p className="mt-1 text-muted-foreground">
+                  Koordinator tidak menuliskan alasannya. Tanyakan langsung sebelum mengajukan ulang.
+                </p>
+              )}
+              <p className="mt-1.5 text-xs text-muted-foreground">
+                Betulkan nilainya di bawah, simpan, lalu ajukan lagi dari halaman rekap KPI.
+                Koordinator baru bisa memublikasikan rapor ini setelah Anda mengajukannya ulang.
+              </p>
+            </div>
+          </div>
+        )}
 
         <KpiForm
           teacherId={teacher.id}

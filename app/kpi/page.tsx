@@ -6,6 +6,7 @@ import {
   canAccessKpiPublikasi, canViewKpiBanding, JENJANG_LABELS,
 } from '@/lib/auth/permissions'
 import { getKpiRows, nilaiDari, KPI_UNITS, MONTH_NAMES } from '@/lib/data/kpi'
+import { getBandingAktifPer } from '@/lib/data/kpi-banding'
 import { KPI_INDIKATOR } from '@/lib/kpi/hitung'
 import { KPI_LEVEL_TONE } from '@/lib/kpi/parameter'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
@@ -13,7 +14,7 @@ import { Button } from '@/components/ui/button'
 import { Pencil, FileText, Printer } from 'lucide-react'
 import { AlurPanel, type RingkasAlur } from './AlurPanel'
 import { ResetRaporButton } from './ResetRaporButton'
-import { STATUS_LABELS, STATUS_TONE } from '@/lib/kpi/alur'
+import { STATUS_LABELS, STATUS_TONE, keteranganRapor } from '@/lib/kpi/alur'
 import { cn } from '@/lib/utils'
 import type { Jenjang } from '@/types'
 
@@ -43,6 +44,14 @@ export default async function KpiPage({ searchParams }: PageProps) {
   const month = Number(p.month) || now.getMonth() + 1
 
   const rows = await getKpiRows(unit, year, month)
+
+  // Tenggat putusan banding, satu kueri untuk seluruh daftar. Diambil di sini
+  // dan bukan di dalam getKpiRows() supaya lib/data/kpi tidak perlu mengimpor
+  // lib/data/kpi-banding, yang mengimpornya balik — lihat getBandingAktifPer().
+  const banding = await getBandingAktifPer(
+    rows.filter(r => r.entry?.status === 'banding').map(r => r.entry!.id),
+  )
+
   const mayInput = canInputKpi(session.role)
   // Mencetak rapor lebih sempit daripada mengisinya: dokumennya diserahkan ke
   // guru dengan kolom tanda tangan, dan SDM yang menerbitkannya.
@@ -212,12 +221,60 @@ export default async function KpiPage({ searchParams }: PageProps) {
                           lencana yang muncul di semua baris berhenti dibaca.
                         */}
                         {r.entry && r.entry.status && r.entry.status !== 'draft' && (
-                          <span className={cn(
-                            'ml-2 rounded px-1.5 py-0.5 text-[10px] font-medium whitespace-nowrap',
-                            STATUS_TONE[r.entry.status],
-                          )}>
-                            {STATUS_LABELS[r.entry.status]}
-                          </span>
+                          <>
+                            <span className={cn(
+                              'ml-2 rounded px-1.5 py-0.5 text-[10px] font-medium whitespace-nowrap',
+                              STATUS_TONE[r.entry.status],
+                            )}>
+                              {STATUS_LABELS[r.entry.status]}
+                            </span>
+                            {/*
+                              Keterangannya diberi baris sendiri di bawah nama,
+                              bukan disambung ke lencana. Kalimatnya sepanjang
+                              satu tarikan napas — "dipublikasikan 12 Sep ·
+                              belum dibuka guru · sisa 2 hari banding" — dan
+                              menyambungnya ke lencana akan melebarkan kolom
+                              nama sampai indikatornya terdorong ke luar layar,
+                              persoalan yang sama yang membuat statusnya tidak
+                              diberi kolom sendiri.
+                            */}
+                            {/*
+                              Banding yang tenggat putusannya lewat diwarnai
+                              merah, bukan abu-abu seperti keterangan lain.
+                              Inilah satu-satunya keadaan di tabel ini yang
+                              berarti seseorang sedang menunggu jawaban yang
+                              melampaui janjinya — dan yang terlambat tidak
+                              boleh terbaca sama tenangnya dengan yang berjalan
+                              normal.
+                            */}
+                            <span className={cn(
+                              'mt-0.5 block text-[10px] font-normal',
+                              banding.get(r.entry.id)?.terlambat
+                                ? 'font-medium text-destructive'
+                                : 'text-muted-foreground',
+                            )}>
+                              {keteranganRapor({
+                                status: r.entry.status,
+                                selesaiSebab: r.entry.selesai_sebab ?? null,
+                                terbitAt: r.entry.terbit_at ?? null,
+                                bandingBatas: r.entry.banding_batas ?? null,
+                                dibuka: Boolean(r.entry.guru_dibuka_at),
+                                banding: banding.get(r.entry.id) ?? null,
+                              })}
+                            </span>
+                            {/*
+                              Alasan pengembalian ditampilkan utuh, bukan
+                              dipotong: inilah satu-satunya kalimat yang
+                              memberitahu SDM apa yang harus dibetulkan, dan
+                              yang terpotong menjadi keberatan yang harus
+                              ditebak.
+                            */}
+                            {r.entry.status === 'dikembalikan' && r.entry.dikembalikan_alasan && (
+                              <span className="mt-0.5 block text-[10px] font-normal text-destructive">
+                                &ldquo;{r.entry.dikembalikan_alasan}&rdquo;
+                              </span>
+                            )}
+                          </>
                         )}
                       </td>
                       {h ? (

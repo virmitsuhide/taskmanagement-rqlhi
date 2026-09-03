@@ -62,6 +62,61 @@ export async function getBandingAktif(kpiId: string): Promise<KpiBanding | null>
   return semua.find(b => b.status === 'diajukan') ?? null
 }
 
+/** Sepotong banding yang menggantung — cukup untuk menyusun keterangan. */
+export interface RingkasBandingAktif {
+  tingkat: number
+  putusanBatas: string | null
+  /** Tenggat putusannya sudah lewat. */
+  terlambat: boolean
+}
+
+/**
+ * Banding yang belum diputus atas sekumpulan rapor sekaligus.
+ *
+ * SATU kueri untuk seluruh daftar, bukan satu per baris: /kpi menampilkan tiga
+ * puluh guru, dan getBandingAktif() yang dipanggil per baris akan menjadi tiga
+ * puluh perjalanan ke database untuk menghiasi paling banyak satu-dua baris.
+ *
+ * Sengaja dipanggil dari HALAMAN, bukan dari dalam getKpiRows(). Modul ini
+ * membaca MONTH_NAMES dari lib/data/kpi, jadi kalau kpi.ts balik memanggil
+ * modul ini keduanya saling mengimpor — lingkaran yang hari ini tidak
+ * meledak (pemakaiannya ada di dalam badan fungsi) tapi akan meledak pada hari
+ * seseorang memindahkan pemakaiannya ke tingkat modul. Halaman yang merangkai
+ * keduanya tidak punya persoalan itu, dan sekaligus membuat kueri tambahan ini
+ * bersifat pilihan: yang tidak menampilkan tenggat putusan tidak membayarnya.
+ *
+ * Yang tingkatnya lebih tinggi menang bila entah bagaimana ada dua yang
+ * menggantung. Perkara yang sudah naik ke Kepala RQ adalah keadaan rapor yang
+ * sebenarnya; menampilkan tingkat 1 akan menunjuk pemutus yang sudah selesai
+ * dengan bagiannya.
+ */
+export async function getBandingAktifPer(
+  kpiIds: string[],
+): Promise<Map<string, RingkasBandingAktif>> {
+  const peta = new Map<string, RingkasBandingAktif>()
+  const ids = [...new Set(kpiIds)].filter(Boolean)
+  if (ids.length === 0) return peta
+
+  const supabase = createServerClient()
+  const { data } = await supabase
+    .from('kpi_banding')
+    .select('kpi_monthly_id, tingkat, putusan_batas')
+    .in('kpi_monthly_id', ids)
+    .eq('status', 'diajukan')
+    .order('tingkat', { ascending: true })
+
+  for (const raw of data ?? []) {
+    const r = raw as { kpi_monthly_id: string | null; tingkat: unknown; putusan_batas: string | null }
+    if (!r.kpi_monthly_id) continue
+    peta.set(r.kpi_monthly_id, {
+      tingkat: Number(r.tingkat) || 1,
+      putusanBatas: r.putusan_batas,
+      terlambat: lewatTenggat(r.putusan_batas),
+    })
+  }
+  return peta
+}
+
 export interface BarisKotakBanding {
   banding: KpiBanding
   /** Null bila rapornya sudah dihapus lewat reset Kepala RQ. */
