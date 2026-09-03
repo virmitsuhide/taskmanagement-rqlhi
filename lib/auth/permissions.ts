@@ -2,6 +2,7 @@ import { getProgramsForJenjang, isQulsSdProgram, QULS_SD_PROGRAMS } from '@/lib/
 import type {
   UserRole, MeetingType, AgendaTag, TaskStatus, TaskPriority, TaskWeight,
   TaskProblemType, PublicTarget, Jenjang, TeacherEmployment, UjianUnit,
+  LingkupPenugasan,
 } from '@/types'
 
 // Dashboard access matrix.
@@ -713,6 +714,31 @@ export const UNIT_PENUGASAN_LABELS: Record<Jenjang, string> = {
 }
 
 /**
+ * Label tab pemilih di Profil Guru — lima unit ditambah penampungan 'lain'.
+ *
+ * 'lain' bukan satuan pendidikan, jadi ia tidak boleh masuk ke
+ * UNIT_PENUGASAN_LABELS: peta itu dipakai mencetak nama sekolah di rapor KPI
+ * yang diserahkan kepada guru, dan "Lain-lain" di kop sebuah rapor tidak
+ * menyebut apa pun. Yang ini semata untuk layar pengurus.
+ */
+export const UNIT_PROFIL_LABELS: Record<Jenjang | 'lain', string> = {
+  ...UNIT_PENUGASAN_LABELS,
+  lain: 'Lain-lain / lintas yayasan',
+}
+
+/**
+ * Label lingkup penugasan (0052) — dibaca SDM di formulir & ringkasan profil.
+ *
+ * "Lintas unit" disebut lebih dulu daripada "yayasan" karena itulah yang
+ * membedakannya dalam pekerjaan sehari-hari: yang menentukan bukan dari mana
+ * gajinya, melainkan bahwa ia tidak berada di bawah satu koordinator unit.
+ */
+export const LINGKUP_PENUGASAN_LABELS: Record<LingkupPenugasan, string> = {
+  unit:    'Satu unit sekolah',
+  yayasan: 'Lain-lain — lintas unit (yayasan)',
+}
+
+/**
  * Punya profil pengurus lengkap (data diri, pendidikan, kompetensi, riwayat).
  * New Squad dikecualikan — mereka hanya punya pengaturan akun dasar.
  */
@@ -969,7 +995,24 @@ const KOOR_PENGESAH: Partial<Record<Jenjang, UserRole>> = {
   smp: 'koor_smp',
 }
 
-export function koorPengesah(unit: Jenjang | null): UserRole | null {
+/**
+ * Guru berlingkup yayasan disahkan Kepala RQ, bukan koordinator unit mana pun.
+ *
+ * Ini pengecualian yang sengaja dibuat, dan alasannya sama dengan alasan
+ * Kepala RQ dikecualikan di tempat lain — hanya diterapkan terbalik. Tanda
+ * tangan pada rapor menyatakan "saya menyaksikan kinerja ini". Koor SD tidak
+ * menyaksikan kinerja seorang guru yang tugasnya melintasi seluruh yayasan,
+ * jadi tanda tangannya di sana adalah kesaksian yang tidak pernah terjadi.
+ *
+ * `lingkup` menang atas `unit`. Guru lintas yayasan boleh tetap punya unit —
+ * unit itulah yang menentukan rubrik KPI mana yang dipakai (lihat paramFor) —
+ * tapi unit tidak lagi menentukan siapa yang menandatangani.
+ */
+export function koorPengesah(
+  unit: Jenjang | null,
+  lingkup: LingkupPenugasan = 'unit',
+): UserRole | null {
+  if (lingkup === 'yayasan') return 'kepala_rq'
   return (unit && KOOR_PENGESAH[unit]) ?? null
 }
 
@@ -980,19 +1023,36 @@ export function koorPengesah(unit: Jenjang | null): UserRole | null {
  * jabatannya setara. Yang disahkan adalah penilaian atas orang yang ia pimpin
  * langsung — di luar itu ia menandatangani sesuatu yang tidak ia saksikan.
  *
- * Kepala RQ TIDAK ikut. Bukan karena wewenangnya kurang, melainkan karena
- * tanda tangan pada rapor menyatakan "saya koordinator yang menyaksikan
- * kinerja ini". Kalau Kepala RQ perlu turun tangan, jalurnya reset — yang
- * meninggalkan jejak — bukan menandatangani atas nama koordinator.
+ * Kepala RQ TIDAK ikut atas rapor guru unit. Bukan karena wewenangnya kurang,
+ * melainkan karena tanda tangan pada rapor menyatakan "saya koordinator yang
+ * menyaksikan kinerja ini". Kalau Kepala RQ perlu turun tangan atas rapor guru
+ * unit, jalurnya reset — yang meninggalkan jejak — bukan menandatangani atas
+ * nama koordinator.
+ *
+ * Yang berlingkup yayasan justru sebaliknya (0052): di sana Kepala RQ-lah
+ * atasan langsungnya, dan koor unit yang bukan. Alasannya satu dan sama —
+ * yang menandatangani adalah yang menyaksikan.
  */
-export function canPublishKpiRapor(role: UserRole, unit: Jenjang | null): boolean {
-  const koor = koorPengesah(unit)
+export function canPublishKpiRapor(
+  role: UserRole,
+  unit: Jenjang | null,
+  lingkup: LingkupPenugasan = 'unit',
+): boolean {
+  const koor = koorPengesah(unit, lingkup)
   return koor !== null && role === koor
 }
 
-/** Punya halaman publikasi sama sekali? Dipakai untuk menampilkan menunya. */
+/**
+ * Punya halaman publikasi sama sekali? Dipakai untuk menampilkan menunya.
+ *
+ * Kepala RQ ikut sejak 0052 — bukan untuk menandatangani rapor guru unit
+ * (canPublishKpiRapor tetap menolaknya per baris), melainkan karena rapor guru
+ * berlingkup yayasan tidak punya meja lain untuk ditandatangani. Pemisahan
+ * wewenangnya tetap utuh: yang menentukan bukan siapa yang boleh membuka
+ * halamannya, melainkan baris mana yang bisa ia terbitkan di dalamnya.
+ */
 export function canAccessKpiPublikasi(role: UserRole): boolean {
-  return role === 'koor_sd' || role === 'koor_smp'
+  return role === 'koor_sd' || role === 'koor_smp' || role === 'kepala_rq'
 }
 
 /**

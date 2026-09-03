@@ -5,6 +5,7 @@ import { getSession } from '@/lib/auth/session'
 import { createServerClient } from '@/lib/supabase/server'
 import { canAccessKpiPublikasi, canPublishKpiRapor } from '@/lib/auth/permissions'
 import { getDaftarPublikasi } from '@/lib/data/kpi-pengesahan'
+import { getBandingAktifPer } from '@/lib/data/kpi-banding'
 import { KPI_UNITS, MONTH_NAMES } from '@/lib/data/kpi'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { PublikasiTabel } from './PublikasiTabel'
@@ -28,9 +29,21 @@ export default async function PublikasiKpiPage({ searchParams }: PageProps) {
   if (!session) redirect('/login')
   if (!canAccessKpiPublikasi(session.role)) redirect('/kpi')
 
-  // Unit yang boleh ia sahkan saja. Koor SMP yang melihat tab SDIT LHI akan
-  // membuka daftar berisi tombol yang seluruhnya ditolak server.
-  const unitSaya = KPI_UNITS.filter(u => canPublishKpiRapor(session.role, u.key))
+  /*
+    Unit yang boleh ia sahkan saja. Koor SMP yang melihat tab SDIT LHI akan
+    membuka daftar berisi tombol yang seluruhnya ditolak server.
+
+    Kepala RQ pengecualiannya (0052): ia tidak memegang unit mana pun, tapi
+    guru berlingkup yayasan tersebar di semua unit — rapornya tetap ber-unit
+    sd/smp, sebab unit itulah yang menentukan rubriknya. Jadi ia melihat semua
+    tab, dan penjagaannya pindah ke tingkat BARIS: hanya baris berlingkup
+    yayasan yang bisa ia terbitkan. Ini bukan pelonggaran wewenang melainkan
+    pemindahan tempat penjagaannya, dan canPublishKpiRapor tetap penentunya.
+  */
+  const semuaUnit = session.role === 'kepala_rq'
+  const unitSaya = semuaUnit
+    ? KPI_UNITS
+    : KPI_UNITS.filter(u => canPublishKpiRapor(session.role, u.key))
   if (unitSaya.length === 0) redirect('/kpi')
 
   const p = await searchParams
@@ -45,8 +58,36 @@ export default async function PublikasiKpiPage({ searchParams }: PageProps) {
     supabase.from('users').select('signature_path').eq('id', session.userId).maybeSingle(),
   ])
 
+  // Tenggat putusan banding. Koordinator tidak memutus banding — justru itu
+  // sebabnya ia perlu melihatnya: rapor yang ia tandatangani kini tertahan di
+  // meja orang lain, dan tanpa tenggatnya di layar ia tidak punya dasar untuk
+  // menanyakannya. Dikirim sebagai peta terpisah, bukan disisipkan ke
+  // BarisPublikasi, supaya kueri tambahan ini tetap milik halaman.
+  const banding = await getBandingAktifPer(
+    rows.filter(r => r.status === 'banding').map(r => r.kpiId),
+  )
+
   const punyaTtd = Boolean((profil as { signature_path: string | null } | null)?.signature_path)
-  const menunggu = rows.filter(r => r.status === 'diajukan')
+
+  /*
+    Wewenang per baris, dihitung di server dan dikirim sebagai peta.
+
+    Bisa saja PublikasiTabel memanggil canPublishKpiRapor() sendiri — fungsinya
+    murni. Tapi menaruh keputusan wewenang di komponen klien membuat aturannya
+    ikut terkirim ke peramban, dan yang terkirim ke peramban bisa dibaca dan
+    ditebak batasnya. Di sini ia tetap di server; yang menyeberang hanyalah
+    jawaban ya/tidak untuk baris yang memang sedang ditampilkan.
+
+    Penjagaan sesungguhnya tetap di terbitkanRaporAction, yang memeriksa ulang
+    tiap baris. Peta ini semata supaya koordinator tidak melihat kotak centang
+    yang setiap kali ditekan akan ditolak.
+  */
+  const bisaTerbitkan: Record<string, boolean> = {}
+  for (const r of rows) {
+    bisaTerbitkan[r.kpiId] = canPublishKpiRapor(session.role, unit, r.lingkup)
+  }
+
+  const menunggu = rows.filter(r => r.status === 'diajukan' && bisaTerbitkan[r.kpiId])
 
   const href = (o: { unit?: string; year?: number; month?: number }) => {
     const q = new URLSearchParams({
@@ -168,6 +209,8 @@ export default async function PublikasiKpiPage({ searchParams }: PageProps) {
             year={year}
             month={month}
             punyaTtd={punyaTtd}
+            banding={Object.fromEntries(banding)}
+            bisaTerbitkan={bisaTerbitkan}
           />
         )}
       </div>

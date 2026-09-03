@@ -472,6 +472,15 @@ export interface KaldiApiResponse {
 export type Gender = 'L' | 'P'
 // Jenjang berfungsi sebagai "unit" RQ LHI. 'sd_juara' = SD LHI Juara (metode KIBAR).
 export type Jenjang = 'paud' | 'sd' | 'sd_juara' | 'smp' | 'sma'
+
+/**
+ * Kepada siapa seorang guru bertanggung jawab (0052).
+ *
+ * Bukan pengganti `unit` melainkan pertanyaan lain: `unit` menentukan rubrik
+ * KPI yang dipakai, `lingkup` menentukan siapa yang mengesahkan rapornya.
+ * 'yayasan' berarti lintas unit — disahkan Kepala RQ, bukan koordinator unit.
+ */
+export type LingkupPenugasan = 'unit' | 'yayasan'
 export type TahsinStatus = 'lulus' | 'ulang'
 // Jenis setoran tahfidz (semantik RQ LHI):
 //  - ziyadah        : menambah hafalan baru (dihitung ke progress juz)
@@ -533,6 +542,8 @@ export interface GuruProfile {
   signature_path: string | null
   signature_focus: SignatureFocus | null
   unit: Jenjang | null
+  /** Lingkup penugasan (0052). 'yayasan' = lintas unit, disahkan Kepala RQ. */
+  lingkup_penugasan: LingkupPenugasan
   employment_type: TeacherEmployment | null
   /** TMT — terhitung mulai tanggal bertugas. Null = belum diisi (0044). */
   joined_at: string | null
@@ -563,6 +574,8 @@ export interface Teacher {
   deleted_at: string | null
   /** Unit penempatan. Kosong untuk pengurus yang tidak terikat satu unit. */
   unit: Jenjang | null
+  /** Lingkup penugasan (0052). 'yayasan' = lintas unit, disahkan Kepala RQ. */
+  lingkup_penugasan: LingkupPenugasan
   employment_type: TeacherEmployment | null
   contract_start: string | null
   /** Hari terakhir kontrak berlaku. NULL = tidak pernah kedaluwarsa. */

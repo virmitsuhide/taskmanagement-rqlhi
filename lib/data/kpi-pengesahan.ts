@@ -4,7 +4,8 @@ import { levelDari } from '@/lib/kpi/hitung'
 import { jatuhTempo, tanggalSql } from '@/lib/kpi/alur'
 import { koorPengesah } from '@/lib/auth/permissions'
 import type {
-  Jenjang, KpiMonthly, KpiRaporRiwayat, KpiRaporStatus, KpiSelesaiSebab, UserRole,
+  Jenjang, KpiMonthly, KpiRaporRiwayat, KpiRaporStatus, KpiSelesaiSebab, LingkupPenugasan,
+  UserRole,
 } from '@/types'
 
 /**
@@ -119,6 +120,14 @@ export interface BarisPublikasi {
   /** Guru sudah membuka rapornya? Terlihat oleh koordinator, bukan oleh guru. */
   dibuka: boolean
   sudahTtd: boolean
+  /**
+   * Lingkup penugasan gurunya (0052) — penentu SIAPA yang boleh menandatangani
+   * baris ini. Diambil dari `teachers`, bukan dari `kpi_monthly`: lingkup
+   * adalah keadaan orangnya hari ini, sedangkan baris rapor adalah potret
+   * bulan lalu. Guru yang bulan ini dipindahkan ke lingkup yayasan harus
+   * langsung berpindah meja tanda tangan, bukan menunggu periode berikutnya.
+   */
+  lingkup: LingkupPenugasan
 }
 
 /**
@@ -148,12 +157,31 @@ export async function getDaftarPublikasi(
 
   const matang = await matangkanJatuhTempo(entries)
 
-  const { data: profil } = await supabase
-    .from('teachers')
-    .select('id, full_name')
-    .in('id', entries.map(e => e.teacher_id))
+  const teacherIds = entries.map(e => e.teacher_id)
 
-  const byId = new Map((profil ?? []).map(t => [t.id, t.full_name as string]))
+  // Kalau 0052 belum dijalankan, kueri ini gagal seluruhnya — dan gagalnya
+  // bukan berupa lingkup yang kosong melainkan NAMA GURU yang hilang, sebab
+  // keduanya diambil bersama. Meja publikasi berisi tiga puluh baris bernama
+  // "—" adalah kerusakan yang jauh lebih buruk daripada satu kolom yang belum
+  // ada, jadi disediakan jalan mundurnya.
+  const penuh = await supabase
+    .from('teachers')
+    .select('id, full_name, lingkup_penugasan')
+    .in('id', teacherIds)
+
+  const { data: profil } = penuh.error
+    ? await supabase.from('teachers').select('id, full_name').in('id', teacherIds)
+    : penuh
+
+  const byId = new Map(
+    (profil ?? []).map(t => [
+      t.id as string,
+      {
+        nama: t.full_name as string,
+        lingkup: ((t as { lingkup_penugasan?: LingkupPenugasan }).lingkup_penugasan ?? 'unit'),
+      },
+    ]),
+  )
 
   return entries
     .map(e => {
@@ -161,7 +189,8 @@ export async function getDaftarPublikasi(
       return {
         kpiId: e.id,
         teacherId: e.teacher_id,
-        fullName: byId.get(e.teacher_id) ?? '—',
+        fullName: byId.get(e.teacher_id)?.nama ?? '—',
+        lingkup: byId.get(e.teacher_id)?.lingkup ?? 'unit',
         // Baris yang barusan dimatangkan sudah usang di memori; statusnya
         // dibetulkan di sini supaya halaman tidak menampilkan tombol untuk
         // keadaan yang tidak berlaku lagi.
@@ -187,16 +216,53 @@ export async function getDaftarPublikasi(
  * bulan lalu masih menggantung, dan yang tidak terlihat tidak akan dikerjakan.
  */
 export async function hitungMenungguKoordinator(role: UserRole): Promise<number> {
-  const units = (['sd', 'sd_juara', 'smp'] as Jenjang[]).filter(u => koorPengesah(u) === role)
-  if (units.length === 0) return 0
-
   const supabase = createServerClient()
-  const { count } = await supabase
+
+  /*
+    Kepala RQ dihitung lewat jalur yang lain sama sekali (0052). Ia tidak
+    memegang unit mana pun, jadi menyaring per unit selalu menghasilkan nol
+    untuknya — dan lencananya akan padam selamanya sementara rapor guru
+    berlingkup yayasan menumpuk di mejanya.
+
+    Karena lingkup tinggal di `teachers` dan bukan di `kpi_monthly`, urutannya
+    dibalik: cari dulu gurunya, baru rapornya. Daftar guru lintas yayasan
+    berjumlah belasan, jadi ini kueri kecil — dan menjadikannya embed PostgREST
+    akan menukar dua kueri murah dengan satu kueri yang jauh lebih sulit dibaca.
+  */
+  const units = (['sd', 'sd_juara', 'smp'] as Jenjang[]).filter(u => koorPengesah(u) === role)
+  if (role !== 'kepala_rq' && units.length === 0) return 0
+
+  const { data: guru } = await supabase
+    .from('teachers')
+    .select('id')
+    .eq('lingkup_penugasan', 'yayasan')
+    .is('deleted_at', null)
+
+  const idsYayasan = (guru ?? []).map(g => g.id as string)
+
+  if (role === 'kepala_rq') {
+    if (idsYayasan.length === 0) return 0
+    const { count } = await supabase
+      .from('kpi_monthly')
+      .select('id', { count: 'exact', head: true })
+      .in('teacher_id', idsYayasan)
+      .eq('status', 'diajukan')
+    return count ?? 0
+  }
+
+  // Guru lintas yayasan DIKELUARKAN dari hitungan koor unitnya, walau baris
+  // rapornya tetap ber-unit sd/smp. Kalau ikut terhitung, lencana koor akan
+  // menampilkan pekerjaan yang tombolnya sendiri menolak ia kerjakan — dan
+  // angka yang tak pernah bisa turun adalah angka yang berhenti dipercaya.
+  let q = supabase
     .from('kpi_monthly')
     .select('id', { count: 'exact', head: true })
     .in('unit', units)
     .eq('status', 'diajukan')
 
+  if (idsYayasan.length > 0) q = q.not('teacher_id', 'in', `(${idsYayasan.join(',')})`)
+
+  const { count } = await q
   return count ?? 0
 }
 

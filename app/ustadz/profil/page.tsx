@@ -4,19 +4,19 @@ import {
   ArrowLeft, UserRoundSearch, CircleAlert, ChartNoAxesColumn, Printer, MessageSquareText, IdCard,
 } from 'lucide-react'
 import { getSession } from '@/lib/auth/session'
-import { canManageTeacherProfiles, UNIT_PENUGASAN_LABELS } from '@/lib/auth/permissions'
-import { getGuruUnit, getGuruProfile } from '@/lib/data/guru-profil'
+import { canManageTeacherProfiles, UNIT_PROFIL_LABELS } from '@/lib/auth/permissions'
+import { getGuruUnit, getGuruProfile, type UnitProfil } from '@/lib/data/guru-profil'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { GuruProfileForm } from '@/components/profil/GuruProfileForm'
 import { GuruPicker, GuruPager } from '@/components/ustadz/GuruPicker'
 import { Button } from '@/components/ui/button'
-import { TEACHER_EMPLOYMENT_LABELS, type Jenjang } from '@/types'
+import { TEACHER_EMPLOYMENT_LABELS } from '@/types'
 
 interface PageProps {
   searchParams: Promise<{ unit?: string; guru?: string }>
 }
 
-const UNITS: Jenjang[] = ['sd', 'sd_juara', 'smp', 'paud', 'sma']
+const UNITS: UnitProfil[] = ['sd', 'sd_juara', 'smp', 'paud', 'sma', 'lain']
 
 /**
  * Profil Guru — kelola data diri & kepegawaian guru Qur'an. Khusus SDM.
@@ -32,7 +32,7 @@ export default async function ProfilGuruPage({ searchParams }: PageProps) {
   if (!canManageTeacherProfiles(session.role)) redirect('/dashboard')
 
   const p = await searchParams
-  const unit = (UNITS.includes(p.unit as Jenjang) ? p.unit : 'sd') as Jenjang
+  const unit = (UNITS.includes(p.unit as UnitProfil) ? p.unit : 'sd') as UnitProfil
 
   const daftar = await getGuruUnit(unit)
   const terpilihId = daftar.find(g => g.id === p.guru)?.id ?? null
@@ -75,8 +75,9 @@ export default async function ProfilGuruPage({ searchParams }: PageProps) {
             <div className="mb-4 flex items-start gap-2 rounded-lg border border-warning/30 bg-warning-wash px-4 py-2.5 text-sm text-warning">
               <CircleAlert className="mt-0.5 h-4 w-4 shrink-0" />
               <p>
-                Kolom profil guru belum ada di database. Jalankan{' '}
-                <b>drizzle/0044_profil_guru_dan_catatan_kpi_PASTE_TO_SUPABASE.sql</b> di
+                Kolom profil guru belum lengkap di database. Jalankan{' '}
+                <b>drizzle/0044_profil_guru_dan_catatan_kpi_PASTE_TO_SUPABASE.sql</b> dan{' '}
+                <b>drizzle/0052_lingkup_penugasan_guru_PASTE_TO_SUPABASE.sql</b> di
                 Supabase — sampai itu, isian di bawah belum bisa disimpan.
               </p>
             </div>
@@ -84,7 +85,7 @@ export default async function ProfilGuruPage({ searchParams }: PageProps) {
 
           {daftar.length === 0 ? (
             <div className="rounded-xl border border-dashed bg-card py-12 text-center">
-              <p className="text-sm text-muted-foreground">Belum ada guru aktif di unit ini.</p>
+              <p className="text-sm text-muted-foreground">{unit === "lain" ? "Semua guru sudah punya unit penugasan." : "Belum ada guru aktif di unit ini."}</p>
             </div>
           ) : profile ? (
             <>
@@ -97,7 +98,7 @@ export default async function ProfilGuruPage({ searchParams }: PageProps) {
                     <div className="min-w-0">
                       <h2 className="truncate text-base font-semibold">{profile.full_name}</h2>
                       <p className="text-[11px] text-muted-foreground">
-                        {UNIT_PENUGASAN_LABELS[unit]}
+                        {UNIT_PROFIL_LABELS[unit]}
                         {profile.employment_type && ` · ${TEACHER_EMPLOYMENT_LABELS[profile.employment_type]}`}
                         {profile.nip ? ` · NIP ${profile.nip}` : ' · NIP belum diisi'}
                       </p>
@@ -147,7 +148,7 @@ function RiwayatLink({
   id, unit, tab, icon, children,
 }: {
   id: string
-  unit: Jenjang
+  unit: UnitProfil
   tab: string
   icon: React.ReactNode
   children: React.ReactNode

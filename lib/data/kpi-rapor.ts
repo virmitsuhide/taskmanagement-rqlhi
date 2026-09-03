@@ -8,7 +8,8 @@ import { koorPengesah } from '@/lib/auth/permissions'
 import { parseTtdFocus } from '@/lib/kpi/tanda-tangan'
 import { ttdSrc } from '@/lib/kpi/ttd-berkas'
 import type {
-  Jenjang, KpiMonthly, KpiRaporStatus, KpiSelesaiSebab, SignatureFocus, UserRole,
+  Jenjang, KpiMonthly, KpiRaporStatus, KpiSelesaiSebab, LingkupPenugasan, SignatureFocus,
+  UserRole,
 } from '@/types'
 
 /**
@@ -149,15 +150,19 @@ export async function getKpiRapor(
 
   const { data: teacher } = await supabase
     .from('teachers')
-    .select('id, full_name, nip, unit, joined_at')
+    .select('id, full_name, nip, unit, lingkup_penugasan, joined_at')
     .eq('id', teacherId)
     .maybeSingle()
 
   if (!teacher) return null
 
   // Koordinator unit. Unit tanpa koordinator sendiri (sd_juara, dan guru QULS
-  // SD yang unitnya sd) memakai Koor SD — lihat koorPengesah().
-  const roleKoor = koorPengesah(unit)
+  // SD yang unitnya sd) memakai Koor SD — lihat koorPengesah(). Guru
+  // berlingkup yayasan (0052) memakai Kepala RQ, dan nama itulah yang tercetak
+  // di kolom tanda tangan lembar rapornya.
+  const lingkupGuru =
+    (teacher as { lingkup_penugasan?: LingkupPenugasan }).lingkup_penugasan ?? 'unit'
+  const roleKoor = koorPengesah(unit, lingkupGuru)
   const { data: koorRow } = roleKoor
     ? await supabase.from('users').select('display_name, role').eq('role', roleKoor).maybeSingle()
     : { data: null }

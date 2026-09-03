@@ -13,7 +13,7 @@ import {
 } from '@/lib/kpi/alur'
 import { catatRiwayat } from '@/lib/data/kpi-pengesahan'
 import { parseTtdFocus } from '@/lib/kpi/tanda-tangan'
-import type { Jenjang, KpiRaporStatus } from '@/types'
+import type { Jenjang, KpiRaporStatus, LingkupPenugasan } from '@/types'
 
 /**
  * Perpindahan status selembar rapor KPI: pengajuan, pengesahan, tanda tangan
@@ -43,6 +43,42 @@ interface BarisAlur {
 
 const KOLOM =
   'id, teacher_id, unit, year, month, status, versi, guru_ttd_at, banding_batas'
+
+/**
+ * Lingkup penugasan tiap guru yang tersangkut, dikunci per teacher_id (0052).
+ *
+ * Dibaca dari `teachers` dan bukan dari baris rapornya, sebab lingkup adalah
+ * keadaan orangnya HARI INI sementara baris rapor adalah potret bulan lalu.
+ * Guru yang minggu ini dipindahkan ke lingkup yayasan harus langsung berpindah
+ * meja tanda tangan — kalau tidak, koordinator lamanya masih bisa
+ * menandatangani rapor orang yang bukan lagi bawahannya.
+ *
+ * Yang barisnya tidak ditemukan dianggap 'unit'. Itu keadaan bawaan di
+ * database (0052 memberi DEFAULT 'unit'), jadi menganggapnya begitu di sini
+ * membuat kedua sisi mengatakan hal yang sama — dan kegagalan kueri tidak
+ * diam-diam memindahkan siapa pun ke meja Kepala RQ.
+ */
+async function lingkupGuru(
+  supabase: ReturnType<typeof createServerClient>,
+  teacherIds: string[],
+): Promise<Map<string, LingkupPenugasan>> {
+  const peta = new Map<string, LingkupPenugasan>()
+  const ids = [...new Set(teacherIds)].filter(Boolean)
+  if (ids.length === 0) return peta
+
+  const { data } = await supabase
+    .from('teachers')
+    .select('id, lingkup_penugasan')
+    .in('id', ids)
+
+  for (const t of data ?? []) {
+    peta.set(
+      t.id as string,
+      ((t as { lingkup_penugasan?: LingkupPenugasan }).lingkup_penugasan ?? 'unit'),
+    )
+  }
+  return peta
+}
 
 function segarkan(unit: Jenjang | null, year: number, month: number) {
   revalidatePath('/kpi')
@@ -136,8 +172,14 @@ export async function terbitkanRaporAction(kpiIds: string[]): Promise<Hasil> {
 
   // Wewenangnya diperiksa PER BARIS, bukan sekali di muka: satu permintaan
   // bisa memuat rapor dari unit yang bukan tanggung jawabnya, dan koordinator
-  // hanya menandatangani kinerja orang yang ia pimpin langsung.
-  const layak = rows.filter(r => bolehDiterbitkan(r.status) && canPublishKpiRapor(session.role, r.unit))
+  // hanya menandatangani kinerja orang yang ia pimpin langsung. Sejak 0052
+  // lingkup penugasan gurunya ikut menentukan — guru lintas yayasan disahkan
+  // Kepala RQ meski baris rapornya ber-unit sd/smp.
+  const lingkup = await lingkupGuru(supabase, rows.map(r => r.teacher_id))
+  const layak = rows.filter(r =>
+    bolehDiterbitkan(r.status) &&
+    canPublishKpiRapor(session.role, r.unit, lingkup.get(r.teacher_id) ?? 'unit'),
+  )
   if (layak.length === 0) return { error: 'Tidak ada rapor yang bisa Anda terbitkan.' }
 
   const kini = new Date()
@@ -184,7 +226,15 @@ export async function kembalikanRaporAction(kpiId: string, alasan: string): Prom
   const { data } = await supabase.from('kpi_monthly').select(KOLOM).eq('id', kpiId).maybeSingle()
   const row = data as BarisAlur | null
   if (!row) return { error: 'Rapor tidak ditemukan.' }
-  if (!canPublishKpiRapor(session.role, row.unit)) return { error: 'Bukan unit Anda.' }
+
+  const lingkup = (await lingkupGuru(supabase, [row.teacher_id])).get(row.teacher_id) ?? 'unit'
+  if (!canPublishKpiRapor(session.role, row.unit, lingkup)) {
+    return {
+      error: lingkup === 'yayasan'
+        ? 'Guru ini berlingkup lintas yayasan — hanya Kepala RQ yang bisa menerbitkan atau mengembalikan rapornya.'
+        : 'Bukan unit Anda.',
+    }
+  }
   if (!bolehDiterbitkan(row.status)) return { error: 'Rapor ini tidak sedang menunggu Anda.' }
 
   const { error } = await supabase

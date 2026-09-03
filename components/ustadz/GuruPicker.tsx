@@ -3,9 +3,8 @@
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
-import { UNIT_PENUGASAN_LABELS } from '@/lib/auth/permissions'
-import type { GuruRingkas } from '@/lib/data/guru-profil'
-import type { Jenjang } from '@/types'
+import { UNIT_PROFIL_LABELS } from '@/lib/auth/permissions'
+import type { GuruRingkas, UnitProfil } from '@/lib/data/guru-profil'
 
 /**
  * Pemilih unit & nama guru untuk halaman Profil Guru.
@@ -28,10 +27,10 @@ import type { Jenjang } from '@/types'
 const inputCls =
   'h-9 w-full rounded-md border border-input bg-card px-3 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring'
 
-const UNITS: Jenjang[] = ['sd', 'sd_juara', 'smp', 'paud', 'sma']
+const UNITS: UnitProfil[] = ['sd', 'sd_juara', 'smp', 'paud', 'sma', 'lain']
 
 interface Props {
-  unit: Jenjang
+  unit: UnitProfil
   daftar: GuruRingkas[]
   terpilihId: string | null
 }
@@ -39,7 +38,7 @@ interface Props {
 export function GuruPicker({ unit, daftar, terpilihId }: Props) {
   const router = useRouter()
 
-  const href = (u: Jenjang, guru: string | null) => {
+  const href = (u: UnitProfil, guru: string | null) => {
     const q = new URLSearchParams({ unit: u })
     if (guru) q.set('guru', guru)
     return `/ustadz/profil?${q}`
@@ -58,10 +57,10 @@ export function GuruPicker({ unit, daftar, terpilihId }: Props) {
           // Ganti unit membuang guru terpilih: nama dari unit lama tidak ada di
           // daftar unit baru, dan menyisakannya membuat profil yang tampil
           // tidak cocok dengan unit yang tertulis di atasnya.
-          onChange={e => router.push(href(e.target.value as Jenjang, null))}
+          onChange={e => router.push(href(e.target.value as UnitProfil, null))}
         >
           {UNITS.map(u => (
-            <option key={u} value={u}>{UNIT_PENUGASAN_LABELS[u]}</option>
+            <option key={u} value={u}>{UNIT_PROFIL_LABELS[u]}</option>
           ))}
         </select>
       </div>
@@ -81,6 +80,11 @@ export function GuruPicker({ unit, daftar, terpilihId }: Props) {
           {daftar.map(g => (
             <option key={g.id} value={g.id}>
               {g.full_name}
+              {/* Di tab Lain-lain, lingkupnya disebut lebih dulu. Di sanalah dua
+                  keadaan yang dulu tak terbedakan berkumpul — yang memang
+                  lintas yayasan dan yang unitnya sekadar belum diisi — dan
+                  membedakannya adalah satu-satunya alasan tab itu ada. */}
+              {unit === 'lain' && (g.lingkup === 'yayasan' ? ' · lintas yayasan' : ' · unit belum diisi')}
               {/* Dua penanda yang paling sering dicari SDM, langsung di daftar
                   supaya tidak perlu membuka satu per satu untuk menemukannya. */}
               {!g.joined_at ? ' · TMT belum diisi' : !g.profilTerisi ? ' · profil kosong' : ''}
@@ -107,7 +111,7 @@ export function GuruPicker({ unit, daftar, terpilihId }: Props) {
 export function GuruPager({
   unit, daftar, terpilihId,
 }: {
-  unit: Jenjang
+  unit: UnitProfil
   daftar: GuruRingkas[]
   terpilihId: string
 }) {

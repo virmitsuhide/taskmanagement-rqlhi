@@ -420,6 +420,16 @@ export const kpiRiwayatAksiEnum = pgEnum('kpi_riwayat_aksi', [
 
 export const genderEnum = pgEnum('gender', ['L', 'P'])
 export const jenjangEnum = pgEnum('jenjang', ['paud', 'sd', 'smp', 'sma', 'sd_juara'])
+
+/**
+ * Kepada siapa seorang guru bertanggung jawab — bukan di mana ia mengajar.
+ *
+ * Terpisah dari `unit` dengan sengaja (0052). `unit` menjawab satuan
+ * pendidikan mana yang rubrik KPI-nya berlaku; yang ini menjawab siapa yang
+ * mengesahkan rapornya. Guru lintas yayasan membuktikan keduanya berbeda: ia
+ * bisa mengajar di SD sambil tidak berada di bawah Koor SD.
+ */
+export const lingkupPenugasanEnum = pgEnum('lingkup_penugasan', ['unit', 'yayasan'])
 export const tahsinStatusEnum = pgEnum('tahsin_status', ['lulus', 'ulang'])
 export const tahfidzKindEnum = pgEnum('tahfidz_kind', [
   'hafalan_baru', 'murojaah', 'ziyadah', 'murojaah_baru', 'murojaah_lama', 'tasmi',
@@ -450,6 +460,11 @@ export const teachers = pgTable('teachers', {
   joined_at: date('joined_at'),
   /** Unit penempatan: sd = SDIT LHI, smp = SMPIT LHI, sd_juara = SD LHI Juara. */
   unit: jenjangEnum('unit'),
+  /**
+   * Lingkup penugasan (0052). 'yayasan' = lintas unit, rapor KPI-nya disahkan
+   * Kepala RQ dan bukan koordinator unit mana pun.
+   */
+  lingkup_penugasan: lingkupPenugasanEnum('lingkup_penugasan').notNull().default('unit'),
   /** Jenis kepegawaian — menentukan pos gaji & apakah kontraknya bisa habis. */
   employment_type: teacherEmploymentEnum('employment_type'),
   contract_start: date('contract_start'),

@@ -1,5 +1,5 @@
 import { Lock } from 'lucide-react'
-import { JENJANG_LABELS } from '@/lib/auth/permissions'
+import { JENJANG_LABELS, LINGKUP_PENUGASAN_LABELS } from '@/lib/auth/permissions'
 import { TEACHER_EMPLOYMENT_LABELS } from '@/types'
 import type { EmployeeProfile, GuruProfile, Jenjang } from '@/types'
 import type { SumberAmanah } from '@/lib/data/pengurus'
@@ -37,7 +37,17 @@ export function KepegawaianTerkunci({
         {karyawan ? (
           <Baris label="Jabatan" value={(profile as EmployeeProfile).jabatan ?? '—'} />
         ) : (
-          <Baris label="Unit penugasan" value={unit ? JENJANG_LABELS[unit] : '—'} />
+          // Lingkup yayasan menang atas unit (0052): guru yang membaca "—" di
+          // sini akan mengira SDM lupa mengisinya dan menagih perbaikan atas
+          // sesuatu yang justru sudah ditetapkan.
+          <Baris
+            label="Unit penugasan"
+            value={
+              (profile as GuruProfile).lingkup_penugasan === 'yayasan'
+                ? LINGKUP_PENUGASAN_LABELS.yayasan
+                : unit ? JENJANG_LABELS[unit] : '—'
+            }
+          />
         )}
         <Baris label="TMT / bergabung" value={profile.joined_at ? tanggal(profile.joined_at) : 'belum diisi'} />
         <Baris

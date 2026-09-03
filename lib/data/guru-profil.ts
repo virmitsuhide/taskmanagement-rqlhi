@@ -1,6 +1,6 @@
 import { createServerClient } from '@/lib/supabase/server'
 import { nilaiDari, MONTH_NAMES } from '@/lib/data/kpi'
-import type { GuruProfile, Jenjang, KpiMonthly } from '@/types'
+import type { GuruProfile, Jenjang, KpiMonthly, LingkupPenugasan } from '@/types'
 
 /**
  * Lapisan data menu "Profil Guru" (SDM) dan riwayat KPI seorang guru.
@@ -17,7 +17,7 @@ import type { GuruProfile, Jenjang, KpiMonthly } from '@/types'
 
 /** Kolom profil lengkap — ada setelah migrasi 0044. */
 export const KOLOM_PROFIL_GURU =
-  'id, full_name, nip, unit, employment_type, joined_at, photo_url, photo_focus,' +
+  'id, full_name, nip, unit, lingkup_penugasan, employment_type, joined_at, photo_url, photo_focus,' +
   ' sapaan, nickname, birth_place, birth_date, education_level, education_history,' +
   ' quran_competencies, other_competencies, ijazah_sanad, trainings, amanah_history, awards'
 
@@ -35,7 +35,27 @@ export interface GuruRingkas {
   joined_at: string | null
   /** Sudah punya isian profil di luar kolom kepegawaian? */
   profilTerisi: boolean
+  /**
+   * Lingkup penugasannya (0052). Dipakai tab "Lain-lain" untuk membedakan yang
+   * memang lintas yayasan dari yang sekadar belum diisi SDM — dua keadaan yang
+   * sebelum kolom ini ada sama-sama tampil sebagai unit kosong.
+   */
+  lingkup: LingkupPenugasan
 }
+
+/**
+ * Tab pemilih di /ustadz/profil: lima unit, ditambah satu tempat penampungan.
+ *
+ * 'lain' BUKAN unit. Ia mengumpulkan guru yang `unit`-nya NULL — baik karena
+ * penugasannya lintas yayasan maupun karena SDM memang belum mengisinya.
+ *
+ * Tanpa tab ini mereka tidak muncul di mana pun, dan itu kebuntuan berputar:
+ * satu-satunya medan yang akan membuat seorang guru terlihat adalah `unit`,
+ * yang hanya bisa disunting dari halaman yang menyaring berdasarkan `unit`.
+ * Delapan guru terkurung di sana sebelum tab ini ada — dua di antaranya
+ * bahkan belum punya TMT sama sekali.
+ */
+export type UnitProfil = Jenjang | 'lain'
 
 /**
  * Daftar guru aktif satu unit, terurut abjad.
@@ -43,15 +63,19 @@ export interface GuruRingkas {
  * `profilTerisi` dipakai dropdown untuk menandai siapa yang datanya masih
  * kosong — pertanyaan yang paling sering dibawa SDM ke halaman ini.
  */
-export async function getGuruUnit(unit: Jenjang): Promise<GuruRingkas[]> {
+export async function getGuruUnit(unit: UnitProfil): Promise<GuruRingkas[]> {
   const supabase = createServerClient()
 
-  const penuh = await supabase
+  // PostgREST membedakan "sama dengan" dari "bernilai NULL": .eq('unit', null)
+  // tidak menghasilkan apa-apa, sebab NULL tidak sama dengan apa pun termasuk
+  // dirinya sendiri. Penampungan 'lain' karena itu memakai .is(), bukan .eq().
+  const dasarQ = supabase
     .from('teachers')
-    .select('id, full_name, nip, joined_at, education_history, quran_competencies')
-    .eq('unit', unit)
+    .select('id, full_name, nip, joined_at, lingkup_penugasan, education_history, quran_competencies')
     .is('deleted_at', null)
     .eq('is_active', true)
+
+  const penuh = await (unit === 'lain' ? dasarQ.is('unit', null) : dasarQ.eq('unit', unit))
 
   if (!penuh.error && penuh.data) {
     return (penuh.data as Record<string, unknown>[])
@@ -63,17 +87,19 @@ export async function getGuruUnit(unit: Jenjang): Promise<GuruRingkas[]> {
         profilTerisi:
           (Array.isArray(t.education_history) && t.education_history.length > 0) ||
           (Array.isArray(t.quran_competencies) && t.quran_competencies.length > 0),
+        lingkup: (t.lingkup_penugasan ?? 'unit') as LingkupPenugasan,
       }))
       .sort(urutNama)
   }
 
-  // Migrasi 0044 belum jalan — daftarnya tetap tampil, hanya tanpa penanda.
-  const dasar = await supabase
+  // Migrasi 0044/0052 belum jalan — daftarnya tetap tampil, hanya tanpa penanda.
+  const cadanganQ = supabase
     .from('teachers')
     .select('id, full_name, nip, joined_at')
-    .eq('unit', unit)
     .is('deleted_at', null)
     .eq('is_active', true)
+
+  const dasar = await (unit === 'lain' ? cadanganQ.is('unit', null) : cadanganQ.eq('unit', unit))
 
   return ((dasar.data ?? []) as Record<string, unknown>[])
     .map(t => ({
@@ -82,6 +108,7 @@ export async function getGuruUnit(unit: Jenjang): Promise<GuruRingkas[]> {
       nip: (t.nip ?? null) as string | null,
       joined_at: (t.joined_at ?? null) as string | null,
       profilTerisi: false,
+      lingkup: 'unit' as LingkupPenugasan,
     }))
     .sort(urutNama)
 }

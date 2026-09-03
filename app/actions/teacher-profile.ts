@@ -31,6 +31,12 @@ function pesanGalat(message: string | undefined): string {
   if (message?.includes('education_history') || message?.includes('quran_competencies') || message?.includes('sapaan')) {
     return 'Profil guru belum bisa disimpan: jalankan drizzle/0044_profil_guru_dan_catatan_kpi_PASTE_TO_SUPABASE.sql di Supabase.'
   }
+  // Tanpa pesan ini, memilih "Lain-lain" hanya gagal diam-diam pada pemasangan
+  // yang 0052-nya belum dijalankan — dan tidak ada di layar yang menunjukkan
+  // bahwa yang kurang adalah satu kolom, bukan isian yang keliru.
+  if (message?.includes('lingkup_penugasan')) {
+    return 'Lingkup penugasan belum aktif: jalankan drizzle/0052_lingkup_penugasan_guru_PASTE_TO_SUPABASE.sql di Supabase.'
+  }
   return 'Gagal menyimpan profil guru.'
 }
 
@@ -46,8 +52,26 @@ export async function updateGuruProfileBySdmAction(_: unknown, formData: FormDat
   const fullName = ((formData.get('full_name') as string) ?? '').trim()
   if (!fullName) return { error: 'Nama lengkap wajib diisi.' }
 
-  const unit = formData.get('unit') as string
   const employment = formData.get('employment_type') as string
+
+  /*
+    Satu dropdown, dua kolom. Nilai 'yayasan' bukan unit melainkan penanda
+    lingkup (0052); ia diuraikan di sini, bukan dibiarkan sampai ke database.
+
+    Dipilih begitu karena `unit` adalah enum jenjang, dan menampung 'yayasan'
+    di sana menuntut penambahan nilai enum yang juga berlaku untuk
+    halaqoh.jenjang, meetings, dan classes — tempat "yayasan" tidak berarti
+    apa pun. Penguraian di satu action jauh lebih murah daripada nilai tak
+    bermakna yang sah di empat tabel lain.
+
+    lingkup SELALU ditulis, tidak pernah dibiarkan apa adanya. Kalau hanya
+    ditulis saat bernilai 'yayasan', guru yang dikembalikan ke unit sekolah
+    akan tetap tercatat lintas yayasan — dan rapornya diam-diam terus
+    menunggu tanda tangan Kepala RQ yang tidak tahu ia menunggunya.
+  */
+  const pilihanUnit = formData.get('unit') as string
+  const lingkupYayasan = pilihanUnit === 'yayasan'
+  const unit = lingkupYayasan ? null : pilihanUnit
 
   const patch = {
     ...bacaDataDiri(formData),
@@ -56,7 +80,8 @@ export async function updateGuruProfileBySdmAction(_: unknown, formData: FormDat
     // TMT boleh dikosongkan: lebih baik kosong daripada tanggal yang tidak
     // pernah dimasukkan siapa pun — lihat migrasi 0044.
     joined_at: (formData.get('joined_at') as string) || null,
-    unit: ['paud', 'sd', 'sd_juara', 'smp', 'sma'].includes(unit) ? unit : null,
+    unit: unit && ['paud', 'sd', 'sd_juara', 'smp', 'sma'].includes(unit) ? unit : null,
+    lingkup_penugasan: lingkupYayasan ? 'yayasan' : 'unit',
     employment_type: ['tetap_yayasan', 'kontrak_yayasan', 'kontrak_rq'].includes(employment)
       ? employment
       : null,

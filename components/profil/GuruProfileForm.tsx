@@ -11,7 +11,7 @@ import { RowSection, RowShell } from './RowSection'
 import { PhotoAdjuster } from './PhotoAdjuster'
 import { parseFocus } from '@/lib/profil/foto'
 import { EDUCATION_LEVELS, hasMajorField, institutionPlaceholder } from '@/lib/profil/pendidikan'
-import { UNIT_PENUGASAN_LABELS } from '@/lib/auth/permissions'
+import { UNIT_PENUGASAN_LABELS, LINGKUP_PENUGASAN_LABELS } from '@/lib/auth/permissions'
 import type {
   AmanahEntry, AwardEntry, CompetencyEntry, EmployeeProfile, GuruProfile, Jenjang, TrainingEntry,
 } from '@/types'
@@ -182,13 +182,41 @@ export function GuruProfileForm({ profile, scope }: Props) {
               </div>
             ) : (
               <div className="space-y-1.5">
+                {/*
+                  SATU dropdown untuk dua hal yang sebenarnya berbeda: unit
+                  akademik dan lingkup pertanggungjawaban. Digabung dengan
+                  sengaja — SDM memikirkannya sebagai satu pertanyaan
+                  ("ditempatkan di mana orang ini?"), dan dua select
+                  berdampingan yang salah satunya hampir selalu bernilai bawaan
+                  hanya menambah medan yang dilewati tanpa dibaca.
+
+                  'yayasan' adalah nilai penanda, bukan unit. Action-nya yang
+                  menguraikannya menjadi unit=null + lingkup='yayasan' — lihat
+                  updateGuruProfileBySdmAction.
+                */}
                 <Label htmlFor="unit">Unit Penugasan</Label>
-                <select id="unit" name="unit" defaultValue={(profile as GuruProfile).unit ?? ''} className={inputCls}>
+                <select
+                  id="unit"
+                  name="unit"
+                  defaultValue={
+                    (profile as GuruProfile).lingkup_penugasan === 'yayasan'
+                      ? 'yayasan'
+                      : ((profile as GuruProfile).unit ?? '')
+                  }
+                  className={inputCls}
+                >
                   <option value="">— belum ditentukan —</option>
                   {UNITS.map(u => (
                     <option key={u} value={u}>{UNIT_PENUGASAN_LABELS[u]}</option>
                   ))}
+                  <option disabled>──────────</option>
+                  <option value="yayasan">{LINGKUP_PENUGASAN_LABELS.yayasan}</option>
                 </select>
+                <p className="text-[11px] text-muted-foreground">
+                  Pilih <b>Lain-lain</b> untuk guru yang tugasnya melintasi seluruh yayasan.
+                  Rapor KPI-nya disahkan Kepala RQ, bukan koordinator unit — dan ia
+                  berpindah dari tab unit ke tab <b>Lain-lain</b> di halaman ini.
+                </p>
               </div>
             )}
             <div className="space-y-1.5">
