@@ -11,7 +11,6 @@ import { DeleteTeacherButton, RestoreTeacherButton } from '../TeacherActions'
 import { UnitMovePanel } from './UnitMovePanel'
 import { PasswordBanner } from './PasswordBanner'
 import { contractDaysLeft } from '@/lib/auth/contract'
-import { getCurrentTerm, getTeacherSessionLoad } from '@/lib/data/terms'
 import { TEACHER_EMPLOYMENT_LABELS, type Jenjang, type TeacherEmployment, type TeacherUnitMove } from '@/types'
 
 interface PageProps {
@@ -42,7 +41,7 @@ export default async function TeacherDetailPage({ params, searchParams }: PagePr
 
   const { data: halaqohRows } = await supabase
     .from('halaqoh')
-    .select('id, name, jenjang, is_active')
+    .select('id, name, jenjang, sesi, is_active')
     .eq('wali_teacher_id', id)
     .order('name')
 
@@ -81,11 +80,20 @@ export default async function TeacherDetailPage({ params, searchParams }: PagePr
         .order('effective_date', { ascending: false })
     : { data: [] as TeacherUnitMove[] }
 
-  // Beban sesi semester berjalan — dasar angka "2 sesi"/"3 sesi" pada MPP.
-  const currentTerm = await getCurrentTerm()
-  const sessionCount = currentTerm
-    ? (await getTeacherSessionLoad(currentTerm.id)).get(id) ?? 0
-    : 0
+  /*
+    Slot sesi guru ini, dibaca dari kolom halaqoh.sesi halaqoh yang diwalinya.
+
+    Sebelumnya dijumlahkan dari tabel halaqoh_sessions, yang tidak pernah
+    terisi — sehingga tiap guru selalu tertulis "0 sesi / pekan" tanpa ada yang
+    menandainya salah. Slot 1/2/3 terisi lengkap untuk seluruh halaqoh aktif,
+    dan itulah yang ditanyakan orang saat membuka halaman ini: kapan ia
+    mengajar, bukan berapa jam ia mengajar.
+  */
+  const sesiSlots = [...new Set(
+    ((halaqohRows ?? []) as { sesi: number | null; is_active: boolean }[])
+      .filter(h => h.is_active && h.sesi != null)
+      .map(h => h.sesi as number),
+  )].sort((a, b) => a - b)
 
   const initials = teacher.full_name.split(' ').slice(0, 2).map((w: string) => w[0]).join('').toUpperCase()
 
@@ -161,9 +169,11 @@ export default async function TeacherDetailPage({ params, searchParams }: PagePr
                 {teacher.unit && (
                   <span className="rounded bg-muted px-2 py-1">{JENJANG_LABELS[teacher.unit as Jenjang]}</span>
                 )}
-                <span className="rounded bg-muted px-2 py-1 tabular-nums">
-                  {sessionCount} sesi / pekan
-                </span>
+                {sesiSlots.length > 0 && (
+                  <span className="rounded bg-muted px-2 py-1 tabular-nums">
+                    Sesi {sesiSlots.join(', ')}
+                  </span>
+                )}
                 {teacher.contract_end && (
                   <span
                     className={`rounded px-2 py-1 font-medium ${

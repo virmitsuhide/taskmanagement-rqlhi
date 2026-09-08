@@ -12,7 +12,6 @@ import { Button } from '@/components/ui/button'
 import { Plus, Mail, CircleAlert } from 'lucide-react'
 import { RestoreTeacherButton, KategoriPicker } from './TeacherActions'
 import { contractDaysLeft } from '@/lib/auth/contract'
-import { getCurrentTerm, getTeacherSessionLoad } from '@/lib/data/terms'
 import type { KategoriGuru, Teacher, TeacherEmployment } from '@/types'
 
 interface PageProps {
@@ -168,26 +167,42 @@ export default async function UstadzListPage({ searchParams }: PageProps) {
   // dihapus menambah data pada baris yang justru sedang ditiadakan.
   const bolehSortir = keProfil && !perluMigrasi && status !== 'deleted'
 
-  // Beban sesi dihitung dari jadwal halaqoh semester berjalan — inilah angka
-  // "2 sesi"/"3 sesi" pada MPP, dan dasar perhitungan Gaji OS.
-  const currentTerm = await getCurrentTerm()
-  const sessionLoad = currentTerm ? await getTeacherSessionLoad(currentTerm.id) : new Map<string, number>()
+  /*
+    Halaqoh & slot sesi tiap guru, dari SATU kueri.
 
-  // Counter siswa & halaqoh per guru
+    Slotnya dibaca dari kolom halaqoh.sesi, bukan dijumlahkan dari tabel
+    halaqoh_sessions seperti sebelumnya. Tabel itu tidak pernah terisi — jadwal
+    hari & jam belum pernah dimasukkan siapa pun — sehingga angka "beban sesi"
+    di sini SELALU 0 untuk setiap guru, tanpa ada yang menandainya salah.
+
+    Lagi pula keduanya menjawab pertanyaan yang berbeda. Jumlah beban dihitung
+    lewat halaqoh_teachers (siapa pengampunya), sementara "3 halaqoh" di
+    sebelahnya dihitung lewat wali_teacher_id (siapa walinya) — dua relasi
+    berbeda yang dipajang seolah sebanding. Yang benar-benar ditanyakan koor
+    saat membuka daftar ini adalah KAPAN seorang guru mengajar, dan itulah slot
+    1/2/3 yang memang sudah terisi untuk seluruh halaqoh.
+  */
   const ids = teachers.map(t => t.id)
-  let halaqohCountMap = new Map<string, number>()
+  const halaqohCountMap = new Map<string, number>()
+  const sesiSlotMap = new Map<string, number[]>()
   if (ids.length > 0) {
     const { data: halaqohRows } = await supabase
       .from('halaqoh')
-      .select('wali_teacher_id')
+      .select('wali_teacher_id, sesi')
       .in('wali_teacher_id', ids)
       .eq('is_active', true)
-    halaqohCountMap = new Map()
-    for (const row of halaqohRows ?? []) {
-      if (row.wali_teacher_id) {
-        halaqohCountMap.set(row.wali_teacher_id, (halaqohCountMap.get(row.wali_teacher_id) ?? 0) + 1)
-      }
+
+    for (const row of (halaqohRows ?? []) as { wali_teacher_id: string | null; sesi: number | null }[]) {
+      if (!row.wali_teacher_id) continue
+      halaqohCountMap.set(row.wali_teacher_id, (halaqohCountMap.get(row.wali_teacher_id) ?? 0) + 1)
+      // Slot yang sama boleh dipegang dua halaqoh sekaligus; yang ditampilkan
+      // adalah slot mana saja yang terisi, bukan berapa kali.
+      if (row.sesi == null) continue
+      const slot = sesiSlotMap.get(row.wali_teacher_id) ?? []
+      if (!slot.includes(row.sesi)) slot.push(row.sesi)
+      sesiSlotMap.set(row.wali_teacher_id, slot)
     }
+    for (const slot of sesiSlotMap.values()) slot.sort((a, b) => a - b)
   }
 
   return (
@@ -328,7 +343,11 @@ export default async function UstadzListPage({ searchParams }: PageProps) {
                     {identity}
                     <div className="text-right text-xs text-muted-foreground shrink-0">
                       <div>{halaqohCountMap.get(t.id) ?? 0} halaqoh</div>
-                      <div className="tabular-nums">{sessionLoad.get(t.id) ?? 0} sesi</div>
+                      {/* Tanpa halaqoh tidak ada slot — barisnya ditiadakan, bukan
+                          diisi "sesi -" yang menyerupai data yang belum diisi. */}
+                      {(sesiSlotMap.get(t.id)?.length ?? 0) > 0 && (
+                        <div className="tabular-nums">sesi {sesiSlotMap.get(t.id)!.join(', ')}</div>
+                      )}
                     </div>
                   </Link>
                   {bolehSortir && (
