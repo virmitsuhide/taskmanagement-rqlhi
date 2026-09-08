@@ -273,3 +273,206 @@ export async function deleteStudentAction(id: string) {
   revalidatePath('/siswa')
   redirect('/siswa')
 }
+
+// ─── Kenaikan kelas antar tahun ajaran ───────────────────────────────────────
+
+/**
+ * Tingkat terakhir tiap jenjang. Anak di tingkat ini tidak naik — ia lulus,
+ * dan ditandai nonaktif.
+ *
+ * PAUD sengaja tidak punya nilai: kelasnya ditulis 'A'/'B', bukan angka, jadi
+ * tidak ada yang bisa dinaikkan maupun diluluskan secara otomatis di sana.
+ */
+const TINGKAT_AKHIR: Partial<Record<Jenjang, number>> = {
+  sd: 6, sd_juara: 6, smp: 9, sma: 12,
+}
+
+/** Kelas yang bisa dinaikkan: angka di depan, sisanya rombel yang dipertahankan. */
+const POLA_KELAS = /^(\d+)([A-Za-z].*)$/
+
+export interface RencanaKenaikan {
+  naik: number
+  lulus: number
+  /** Kelas yang tidak berpola <angka><rombel> — dilewati, tidak ditebak. */
+  dilewati: { kelas: string; jumlah: number }[]
+}
+
+interface BarisKenaikan {
+  id: string
+  jenjang: Jenjang
+  kelas: string | null
+}
+
+/**
+ * Memilah siswa aktif menjadi tiga: naik, lulus, dan dilewati.
+ *
+ * Dipakai bersama oleh pratinjau dan pelaksanaan, supaya angka yang dilihat
+ * sebelum menekan tombol adalah angka yang benar-benar dikerjakan sesudahnya.
+ */
+function pilah(rows: BarisKenaikan[]) {
+  const naik: { id: string; kelas: string }[] = []
+  const lulus: string[] = []
+  const dilewati = new Map<string, number>()
+
+  for (const s of rows) {
+    const cocok = s.kelas?.match(POLA_KELAS)
+    if (!cocok) {
+      // Termasuk '4.0' dan kawan-kawannya yang lolos dari impor Excel. Ditolak,
+      // BUKAN ditebak: tidak ada rombel yang bisa dipertahankan dari '4.0', dan
+      // menebaknya berarti memindahkan anak ke kelas yang tak pernah diputuskan
+      // siapa pun. Yang benar diperbaiki manusia lewat sunting siswa.
+      const k = s.kelas?.trim() || '(kelas kosong)'
+      dilewati.set(k, (dilewati.get(k) ?? 0) + 1)
+      continue
+    }
+
+    const tingkat = Number(cocok[1])
+    const rombel = cocok[2]
+    const akhir = TINGKAT_AKHIR[s.jenjang]
+
+    if (akhir !== undefined && tingkat >= akhir) {
+      lulus.push(s.id)
+      continue
+    }
+    naik.push({ id: s.id, kelas: `${tingkat + 1}${rombel}` })
+  }
+
+  return { naik, lulus, dilewati }
+}
+
+/** Angka yang ditampilkan sebelum kenaikan dijalankan. Tidak mengubah apa pun. */
+export async function pratinjauKenaikanAction(): Promise<
+  { error: string } | { rencana: RencanaKenaikan }
+> {
+  const session = await getSession()
+  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!canManageStudents(session.role)) return { error: 'Anda tidak memiliki izin.' }
+
+  const supabase = createServerClient()
+  const { data, error } = await supabase
+    .from('students')
+    .select('id, jenjang, kelas')
+    .eq('is_active', true)
+
+  if (error) return { error: 'Gagal membaca data siswa.' }
+
+  const { naik, lulus, dilewati } = pilah((data ?? []) as BarisKenaikan[])
+  return {
+    rencana: {
+      naik: naik.length,
+      lulus: lulus.length,
+      dilewati: [...dilewati].map(([kelas, jumlah]) => ({ kelas, jumlah }))
+        .sort((a, b) => b.jumlah - a.jumlah),
+    },
+  }
+}
+
+/**
+ * Menaikkan seluruh siswa aktif satu tingkat, menuju tahun ajaran `termId`.
+ *
+ *   1A → 2A, 5C → 6C   — angkanya naik, rombelnya tetap
+ *   6A (SD), 9A (SMP)  — tidak naik; ditandai nonaktif alias lulus
+ *   4.0                — dilewati dan dilaporkan, tidak ditebak
+ *
+ * TIDAK ditempelkan pada setCurrentTermAction meski itu yang paling menggoda.
+ * Menetapkan semester berjalan adalah tindakan yang wajar diulang — koor
+ * berpindah ke semester lalu untuk memeriksa rekap, lalu kembali. Kalau
+ * kenaikan ikut menempel di sana, satu kali menengok arsip akan menaikkan
+ * seluruh angkatan untuk kedua kalinya.
+ *
+ * Penjaga sesungguhnya ada di kolom academic_terms.kenaikan_at (0055): sekali
+ * terisi, kenaikan menuju tahun itu ditolak. Konfirmasi di layar hanya menahan
+ * orang yang ragu — ia tidak menahan tombol yang terklik dua kali.
+ */
+export async function naikkanKelasAction(termId: string) {
+  const session = await getSession()
+  if (!session) return { error: 'Sesi tidak valid.' }
+  // Kenaikan menyentuh seluruh unit sekaligus, jadi yang boleh menjalankannya
+  // hanya yang berwenang atas seluruh unit — bukan koor satu jenjang.
+  if (!canManageStudents(session.role)) return { error: 'Anda tidak memiliki izin.' }
+  if (session.role !== 'kepala_rq' && session.role !== 'kumik') {
+    return { error: 'Hanya Kepala RQ dan Kumik yang bisa menjalankan kenaikan kelas.' }
+  }
+  if (!termId) return { error: 'Tahun ajaran tujuan tidak dikenali.' }
+
+  const supabase = createServerClient()
+
+  const { data: term } = await supabase
+    .from('academic_terms')
+    .select('id, year_label, semester, kenaikan_at')
+    .eq('id', termId)
+    .maybeSingle()
+
+  if (!term) return { error: 'Tahun ajaran tujuan tidak ditemukan.' }
+  if (term.kenaikan_at) {
+    return {
+      error: `Kenaikan menuju ${term.year_label} sudah pernah dijalankan pada ` +
+        `${new Date(term.kenaikan_at as string).toLocaleString('id-ID')}. ` +
+        'Menjalankannya lagi akan menaikkan seluruh angkatan dua tingkat.',
+    }
+  }
+
+  const { data, error: bacaError } = await supabase
+    .from('students')
+    .select('id, jenjang, kelas')
+    .eq('is_active', true)
+
+  if (bacaError) return { error: 'Gagal membaca data siswa.' }
+
+  const { naik, lulus, dilewati } = pilah((data ?? []) as BarisKenaikan[])
+
+  // Penanda dipasang LEBIH DULU. Kalau pemasangannya gagal, tidak satu baris
+  // pun siswa tersentuh — lebih baik kenaikan tidak jadi berjalan daripada
+  // berjalan tanpa penjaga yang menahan pengulangannya.
+  const { error: tandaError } = await supabase
+    .from('academic_terms')
+    .update({ kenaikan_at: new Date().toISOString() })
+    .eq('id', termId)
+    .is('kenaikan_at', null)
+
+  if (tandaError) {
+    return tandaError.message.includes('kenaikan_at')
+      ? { error: 'Kenaikan kelas belum aktif: jalankan drizzle/0055_kenaikan_kelas_PASTE_TO_SUPABASE.sql di Supabase.' }
+      : { error: 'Gagal menandai tahun ajaran; kenaikan dibatalkan.' }
+  }
+
+  // Dikelompokkan menurut kelas TUJUAN, bukan satu update per anak: 694 baris
+  // berarti 694 perjalanan ke database, dan putus di tengahnya meninggalkan
+  // separuh angkatan naik dan separuh tidak.
+  const perKelas = new Map<string, string[]>()
+  for (const s of naik) {
+    const daftar = perKelas.get(s.kelas) ?? []
+    daftar.push(s.id)
+    perKelas.set(s.kelas, daftar)
+  }
+
+  let gagal = 0
+  for (const [kelasBaru, ids] of perKelas) {
+    const { error } = await supabase
+      .from('students')
+      .update({ kelas: kelasBaru, updated_at: new Date().toISOString() })
+      .in('id', ids)
+    if (error) gagal += ids.length
+  }
+
+  if (lulus.length > 0) {
+    const { error } = await supabase
+      .from('students')
+      .update({ is_active: false, updated_at: new Date().toISOString() })
+      .in('id', lulus)
+    if (error) gagal += lulus.length
+  }
+
+  revalidatePath('/siswa')
+  revalidatePath('/tahun-ajaran')
+  revalidatePath('/halaqoh')
+
+  return {
+    success: true,
+    naik: naik.length,
+    lulus: lulus.length,
+    gagal,
+    dilewati: [...dilewati].map(([kelas, jumlah]) => ({ kelas, jumlah }))
+      .sort((a, b) => b.jumlah - a.jumlah),
+  }
+}

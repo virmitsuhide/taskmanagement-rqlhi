@@ -5,6 +5,7 @@ import { canManageTerms, canViewTerms } from '@/lib/auth/permissions'
 import { getTermStats, getTerms } from '@/lib/data/terms'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { TermManager } from '@/components/tahun-ajaran/TermManager'
+import { KenaikanKelas } from '@/components/tahun-ajaran/KenaikanKelas'
 
 export default async function TahunAjaranPage() {
   const session = await getSession()
@@ -12,6 +13,12 @@ export default async function TahunAjaranPage() {
   if (!canViewTerms(session.role)) redirect('/dashboard')
 
   const [terms, stats] = await Promise.all([getTerms(), getTermStats()])
+
+  // Kenaikan menyentuh seluruh unit sekaligus, jadi yang boleh menjalankannya
+  // hanya yang berwenang lintas unit — bukan koor satu jenjang. Ditegakkan lagi
+  // di dalam action-nya; yang di sini hanya menyembunyikan tombolnya.
+  const current = terms.find(t => t.is_current) ?? null
+  const bolehNaikkan = session.role === 'kepala_rq' || session.role === 'kumik'
 
   return (
     <div>
@@ -45,6 +52,8 @@ export default async function TahunAjaranPage() {
           stats={Object.fromEntries(stats)}
           canManage={canManageTerms(session.role)}
         />
+
+        {current && <KenaikanKelas term={current} boleh={bolehNaikkan} />}
       </div>
     </div>
   )
