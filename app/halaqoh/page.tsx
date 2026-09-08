@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { getSession } from '@/lib/auth/session'
 import { canViewHalaqoh, canManageHalaqoh, getManageableJenjang, JENJANG_LABELS } from '@/lib/auth/permissions'
 import { createServerClient } from '@/lib/supabase/server'
-import { DashboardHeader, HEADER_STICKY_TOP } from '@/components/layout/DashboardHeader'
+import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { SearchInput } from '@/components/ui/search-input'
 import { Button } from '@/components/ui/button'
 import { Plus, Users, ChevronRight, Pencil, MapPin, Upload } from 'lucide-react'
@@ -34,10 +34,12 @@ interface HalaqohWithStats extends HalaqohWithStatsBase {
  * Kolom pertama nomor urut wali di dalam sesinya — bukan nomor global, karena
  * yang dirujuk saat rapat adalah 'guru ke-4 sesi 2', bukan 'guru ke-30'.
  */
-const COLS = 'grid-cols-[34px_2fr_1.4fr_0.6fr_0.5fr_104px]'
+// # · Pengampu · Tempat · Siswa · Capaian · aksi.
+// Unit tidak lagi jadi kolom sendiri — ia menempel sebagai lencana di sel
+// Pengampu, sehingga keterangannya tidak hilang tapi juga tidak memakan lebar
+// yang lebih dibutuhkan capaian.
+const COLS = 'grid-cols-[34px_1.7fr_1.3fr_0.5fr_1.1fr_104px]'
 
-/** Sesi 1–3 lebih dulu, lalu halaqoh yang belum punya sesi. */
-const GROUP_ORDER: (number | null)[] = [1, 2, 3, null]
 
 export default async function HalaqohListPage({ searchParams }: PageProps) {
   const session = await getSession()
@@ -46,7 +48,17 @@ export default async function HalaqohListPage({ searchParams }: PageProps) {
 
   const params = await searchParams
   const jenjangFilter = params.jenjang as Jenjang | undefined
-  const sesiFilter = ['1', '2', '3'].includes(params.sesi ?? '') ? Number(params.sesi) : null
+  /*
+    Sesi SELALU terpilih; tidak ada lagi keadaan ‘semua sesi’.
+
+    Menayangkan 72 halaqoh sekaligus tidak menjawab pertanyaan siapa pun — yang
+    dibawa koor ke layar ini selalu satu sesi, sebab sesi itulah jam yang sedang
+    berjalan. Nilainya ditetapkan di bawah, setelah terlihat sesi mana yang
+    benar-benar berisi.
+  */
+  const sesiParam = ['1', '2', '3'].includes(params.sesi ?? '') ? Number(params.sesi)
+    : params.sesi === 'tanpa' ? 0
+    : null
   const q = (params.q ?? '').trim().toLowerCase()
   const allowed = getManageableJenjang(session.role)
   const canCreateAny = allowed.length > 0
@@ -93,33 +105,82 @@ export default async function HalaqohListPage({ searchParams }: PageProps) {
   }
   const tanpaSesi = allInScope.filter(h => !h.sesi).length
 
-  const halaqohList = sesiFilter
-    ? allInScope.filter(h => h.sesi === sesiFilter)
-    : allInScope
+  /*
+    Tab yang ditawarkan: sesi yang ada isinya, ditambah penampungan ‘0’ untuk
+    halaqoh yang sesinya belum diisi.
 
-  // Hitung jumlah siswa per halaqoh
+    Penampungan itu bukan kerapian. Tanpa keadaan ‘semua’, halaqoh tanpa sesi
+    tidak punya satu pun tab yang memuatnya — ia lenyap dari layar tanpa galat,
+    dan satu-satunya cara membetulkan sesinya adalah lewat halaman yang tidak
+    lagi menampilkannya.
+  */
+  const sesiTabs: number[] = [1, 2, 3].filter(s => (sesiCount.get(s) ?? 0) > 0)
+  if (tanpaSesi > 0) sesiTabs.push(0)
+
+  const sesiFilter: number | null =
+    sesiParam !== null && (sesiParam === 0 ? tanpaSesi > 0 : (sesiCount.get(sesiParam) ?? 0) > 0)
+      ? sesiParam
+      : sesiTabs[0] ?? null
+
+  const halaqohList = sesiFilter === null
+    ? []
+    : allInScope.filter(h => (h.sesi ?? 0) === sesiFilter)
+
+  /*
+    Jumlah siswa DAN capaiannya, dari satu ambilan yang sama.
+
+    Capaian dibagi tiga menurut penanda pada jilid_levels, bukan menurut tebakan
+    atas nama levelnya: is_quran menandai tingkat Al-Qur’an (‘Talaqqi Al-Qur’an’,
+    ‘Al-Qur’an T1’, …), is_terminal menandai ‘Lulus Tahsin’ — anak yang sudah
+    selesai tahsin dan kini fokus tahfidz. Sisanya jilid.
+
+    Enam metode hidup berdampingan (UMMI, KIBAR, Syajaroh, Tilawati, Ummi, Iqro)
+    dengan penamaan yang berbeda-beda, jadi mencocokkan teks label akan salah
+    pada sebagian di antaranya. Kedua penanda itu ada justru supaya tidak perlu.
+  */
+  const capaian = new Map<string, { jilid: number; quran: number; tahfidz: number }>()
   if (halaqohList.length > 0) {
     const ids = halaqohList.map(h => h.id)
-    const { data: counts } = await supabase
-      .from('students')
-      .select('halaqoh_id')
-      .in('halaqoh_id', ids)
-      .eq('is_active', true)
+    const [{ data: siswa }, { data: levels }] = await Promise.all([
+      supabase.from('students')
+        .select('halaqoh_id, current_jilid_id')
+        .in('halaqoh_id', ids)
+        .eq('is_active', true),
+      supabase.from('jilid_levels').select('id, is_quran, is_terminal'),
+    ])
+
+    const level = new Map(
+      ((levels ?? []) as { id: string; is_quran: boolean | null; is_terminal: boolean | null }[])
+        .map(l => [l.id, l]),
+    )
+
     const countMap = new Map<string, number>()
-    for (const row of counts ?? []) {
+    for (const row of (siswa ?? []) as { halaqoh_id: string; current_jilid_id: string | null }[]) {
       countMap.set(row.halaqoh_id, (countMap.get(row.halaqoh_id) ?? 0) + 1)
+
+      const c = capaian.get(row.halaqoh_id) ?? { jilid: 0, quran: 0, tahfidz: 0 }
+      const l = row.current_jilid_id ? level.get(row.current_jilid_id) : undefined
+      // Belum terdata tidak dihitung ke mana pun. Memasukkannya ke ‘jilid’
+      // membuat halaqoh yang levelnya belum diisi tampak seperti halaqoh jilid.
+      if (l?.is_terminal) c.tahfidz++
+      else if (l?.is_quran) c.quran++
+      else if (l) c.jilid++
+      capaian.set(row.halaqoh_id, c)
     }
     for (const h of halaqohList) h.student_count = countMap.get(h.id) ?? 0
   }
 
   const totalSiswa = halaqohList.reduce((t, h) => t + (h.student_count ?? 0), 0)
 
-  const groups = GROUP_ORDER
-    .map(sesi => {
-      const rows = halaqohList.filter(h => (h.sesi ?? null) === sesi)
-      return { sesi, rows, kelas: kelasRingkas(rows) }
-    })
-    .filter(g => g.rows.length > 0)
+  // Keterangan sesi tidak lagi jadi kepala kelompok DI DALAM tabel.
+  //
+  // Kepala itu sticky (top-[85px] z-10), dan begitu daftar digulir ia menempel
+  // lalu MENUTUPI baris pertama: yang terbaca di posisi halaqoh nomor 1 adalah
+  // ‘Sesi 1 · 08.00–09.00 · 26’, sementara tombol Edit di bawahnya tetap milik
+  // baris yang tertutup. Dulu ia sepadan harganya karena satu layar memuat tiga
+  // sesi sekaligus; sejak sesi selalu tunggal, ia hanya menutupi satu baris
+  // tanpa memberi keterangan apa pun yang belum ada di tab di atasnya.
+  const ringkasKelas = kelasRingkas(halaqohList)
 
   return (
     <div>
@@ -171,20 +232,22 @@ export default async function HalaqohListPage({ searchParams }: PageProps) {
         {/* Tab sesi. Jam ikut ditampilkan karena itulah pembeda sesungguhnya
             antar sesi — nomornya sendiri tidak memberi tahu apa-apa. */}
         <div className="flex gap-1 mb-4 overflow-x-auto border-b">
-          <SesiTab href={hrefFor(jenjangFilter, null, q)} active={!sesiFilter}>
-            Semua Sesi <Count n={allInScope.length} />
-          </SesiTab>
-          {[1, 2, 3].map(s => (
+          {sesiTabs.map(s => (
             <SesiTab key={s} href={hrefFor(jenjangFilter, s, q)} active={sesiFilter === s}>
-              {sesiLabel(s)} <Count n={sesiCount.get(s) ?? 0} />
+              {s === 0 ? 'Belum ada sesi' : sesiLabel(s)}{' '}
+              <Count n={s === 0 ? tanpaSesi : sesiCount.get(s) ?? 0} />
             </SesiTab>
           ))}
         </div>
 
-        {tanpaSesi > 0 && !sesiFilter && (
+        {sesiFilter === 0 && (
           <p className="mb-3 text-xs text-warning">
             {tanpaSesi} halaqoh belum punya sesi — jamnya kosong sampai diisi lewat Edit.
           </p>
+        )}
+
+        {ringkasKelas && (
+          <p className="mb-3 text-xs text-muted-foreground">{ringkasKelas}</p>
         )}
 
         {halaqohList.length === 0 ? (
@@ -205,31 +268,21 @@ export default async function HalaqohListPage({ searchParams }: PageProps) {
             <div className="hidden md:block">
               <div className={cn('grid px-5 bg-muted/40 border-b', COLS)}>
                 <HeadCell className="text-right pr-3">#</HeadCell>
-                <HeadCell>Wali</HeadCell>
+                <HeadCell>Pengampu</HeadCell>
                 <HeadCell>Tempat</HeadCell>
-                <HeadCell>Unit</HeadCell>
-                <HeadCell className="text-right">Siswa</HeadCell>
+                <HeadCell className="text-right pr-3">Siswa</HeadCell>
+                <HeadCell>Capaian</HeadCell>
                 <span />
               </div>
-              {groups.map(g => (
-                <div key={g.sesi ?? 'none'}>
-                  <GroupHeader sesi={g.sesi} count={g.rows.length} kelas={g.kelas} />
-                  {g.rows.map((h, i) => (
-                    <DesktopRow key={h.id} h={h} no={i + 1} role={session.role} />
-                  ))}
-                </div>
+              {halaqohList.map((h, i) => (
+                <DesktopRow key={h.id} h={h} no={i + 1} role={session.role} cap={capaian.get(h.id)} />
               ))}
             </div>
 
             {/* ── Layar sempit: daftar ── */}
             <div className="md:hidden">
-              {groups.map(g => (
-                <div key={g.sesi ?? 'none'}>
-                  <GroupHeader sesi={g.sesi} count={g.rows.length} kelas={g.kelas} />
-                  {g.rows.map((h, i) => (
-                    <MobileRow key={h.id} h={h} no={i + 1} />
-                  ))}
-                </div>
+              {halaqohList.map((h, i) => (
+                <MobileRow key={h.id} h={h} no={i + 1} cap={capaian.get(h.id)} />
               ))}
             </div>
           </div>
@@ -247,22 +300,6 @@ function HeadCell({ children, className }: { children?: React.ReactNode; classNa
   )
 }
 
-/**
- * Kepala kelompok sesi. Menempel tepat di bawah DashboardHeader supaya saat
- * daftar digulir, sesi yang sedang dibaca tetap terlihat — itu inti dari
- * mengelompokkan per sesi.
- */
-function GroupHeader({ sesi, count, kelas }: { sesi: number | null; count: number; kelas: string }) {
-  return (
-    <div className={cn(HEADER_STICKY_TOP, 'sticky z-10 flex flex-wrap items-center gap-x-2.5 gap-y-0.5 border-y border-primary/15 bg-primary-wash px-4 md:px-5 py-2')}>
-      <span className="text-xs font-bold text-primary">{sesiLabel(sesi)}</span>
-      <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[11px] font-semibold text-primary tabular-nums">
-        {count}
-      </span>
-      {kelas && <span className="text-[11px] text-primary/70">{kelas}</span>}
-    </div>
-  )
-}
 
 /**
  * 'SD kelas 3 & 4 · SMP kelas 9'.
@@ -309,6 +346,42 @@ function ProgramChip({ h }: { h: HalaqohWithStats }) {
   )
 }
 
+/** Sebaran capaian satu halaqoh. Nol tidak ditampilkan — lihat CapaianChips. */
+interface Capaian { jilid: number; quran: number; tahfidz: number }
+
+/**
+ * Sebaran capaian satu halaqoh: berapa anak di jilid, di Al-Qur’an, dan di
+ * tahfidz.
+ *
+ * Yang bernilai nol DIBUANG, bukan ditulis ‘0’. Satu halaqoh jarang memuat
+ * ketiganya sekaligus; menuliskan ketiga golongan pada 72 baris berarti dua per
+ * tiganya berisi nol, dan angka yang berarti tenggelam di antara yang tidak.
+ */
+function CapaianChips({ c }: { c?: Capaian }) {
+  const bagian = [
+    { n: c?.jilid ?? 0, label: 'Jilid', kelas: 'bg-muted text-muted-foreground' },
+    { n: c?.quran ?? 0, label: 'Al-Qur’an', kelas: 'bg-primary-wash text-primary' },
+    { n: c?.tahfidz ?? 0, label: 'Tahfidz', kelas: 'bg-success-wash text-success' },
+  ].filter(b => b.n > 0)
+
+  if (bagian.length === 0) {
+    return <span className="text-[11.5px] text-muted-foreground">—</span>
+  }
+
+  return (
+    <span className="flex flex-wrap items-center gap-1">
+      {bagian.map(b => (
+        <span
+          key={b.label}
+          className={cn('rounded px-1.5 py-px text-[10.5px] font-semibold whitespace-nowrap', b.kelas)}
+        >
+          {b.n} {b.label}
+        </span>
+      ))}
+    </span>
+  )
+}
+
 function Avatar({ name, className }: { name: string | null; className?: string }) {
   return (
     <span
@@ -323,7 +396,10 @@ function Avatar({ name, className }: { name: string | null; className?: string }
   )
 }
 
-function DesktopRow({ h, no, role }: { h: HalaqohWithStats; no: number; role: UserRole }) {
+function DesktopRow(
+  { h, no, role, cap }:
+  { h: HalaqohWithStats; no: number; role: UserRole; cap?: Capaian },
+) {
   const wali = h.wali_teacher?.full_name ?? null
   return (
     // `group` + tautan meregang: barisnya bisa diklik seluruhnya tanpa
@@ -353,6 +429,9 @@ function DesktopRow({ h, no, role }: { h: HalaqohWithStats; no: number; role: Us
             )}
           </span>
           <span className="flex min-w-0 items-center gap-1.5">
+            <span className="shrink-0 rounded bg-muted px-1.5 py-px text-[10px] font-semibold text-muted-foreground">
+              {JENJANG_LABELS[h.jenjang]}
+            </span>
             <ProgramChip h={h} />
             <span className="block truncate text-[11.5px] text-muted-foreground" title={h.name}>{namaRingkas(h.name)}</span>
           </span>
@@ -364,12 +443,8 @@ function DesktopRow({ h, no, role }: { h: HalaqohWithStats; no: number; role: Us
       <span className="text-[13px] text-muted-foreground truncate pr-3" title={h.tempat || undefined}>
         {h.tempat || '—'}
       </span>
-      <span>
-        <span className="rounded-md bg-muted px-2 py-0.5 text-[10.5px] font-semibold text-muted-foreground">
-          {JENJANG_LABELS[h.jenjang]}
-        </span>
-      </span>
-      <span className="text-sm font-semibold text-right tabular-nums">{h.student_count ?? 0}</span>
+      <span className="pr-3 text-sm font-semibold text-right tabular-nums">{h.student_count ?? 0}</span>
+      <span className="pr-3"><CapaianChips c={cap} /></span>
       {/* Aksi muncul saat hover; `focus-within` menjaganya tetap terjangkau
           lewat keyboard, yang tidak bisa diungkapkan mockup statis. */}
       <span className="relative z-10 flex justify-end opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
@@ -386,7 +461,7 @@ function DesktopRow({ h, no, role }: { h: HalaqohWithStats; no: number; role: Us
   )
 }
 
-function MobileRow({ h, no }: { h: HalaqohWithStats; no: number }) {
+function MobileRow({ h, no, cap }: { h: HalaqohWithStats; no: number; cap?: Capaian }) {
   const wali = h.wali_teacher?.full_name
   return (
     <Link
@@ -415,6 +490,7 @@ function MobileRow({ h, no }: { h: HalaqohWithStats; no: number }) {
           <span className="truncate">{h.tempat || '—'}</span>
           <span className="shrink-0">· {h.student_count ?? 0} siswa</span>
         </span>
+        <span className="mt-1 flex"><CapaianChips c={cap} /></span>
       </span>
       <span className="rounded-md bg-muted px-2 py-0.5 text-[10.5px] font-semibold text-muted-foreground shrink-0">
         {JENJANG_LABELS[h.jenjang]}
@@ -451,7 +527,10 @@ function UnitChip({
 function hrefFor(jenjang: Jenjang | undefined, sesi: number | null, q: string): string {
   const params = new URLSearchParams()
   if (jenjang) params.set('jenjang', jenjang)
-  if (sesi) params.set('sesi', String(sesi))
+  // 0 adalah penampungan 'belum punya sesi'; nilainya harus ikut tertulis,
+  // sebab tanpa itu tabnya tidak bisa dipilih sama sekali.
+  if (sesi === 0) params.set('sesi', 'tanpa')
+  else if (sesi) params.set('sesi', String(sesi))
   if (q) params.set('q', q)
   const qs = params.toString()
   return qs ? `/halaqoh?${qs}` : '/halaqoh'
