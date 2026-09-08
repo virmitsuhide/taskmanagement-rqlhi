@@ -1,13 +1,14 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { BookOpen, ClipboardList, Filter, UserCheck } from 'lucide-react'
+import { BookOpen, ClipboardList, Filter, UserCheck, Users } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { PERIODE_SELECT_CLASS, PilihPeriode } from './PilihPeriode'
 import {
   BULAN_ID, KATEGORI_TAHFIDZ_LABEL, TASMI_TIPE,
-  formatTanggal, formatTahsinLevels,
-  getPredikatClass, getPredikatLabel, getTahfidzKategori, getTahfidzLabel, urutJuz,
+  formatTanggal, groupSiswaByLevel,
+  getPredikatClass, getPredikatLabel, getTahfidzKategori, getTahfidzLabel,
+  getSiswaPredikatClass, getSiswaPredikatLabel, urutJuz,
 } from '@/lib/rq/ujian'
 import type { TahfidzKategori } from '@/lib/rq/ujian'
 import type { TahfidzTipe, UjianTahfidz, UjianTahsin } from '@/types'
@@ -34,6 +35,10 @@ interface Baris {
   tipe: TahfidzTipe | null
   /** Tahfidz saja — nomor juz untuk juz'iyyah, rentang untuk tasmi'. */
   juz: string | null
+  /** Tahsin saja — seluruh level yang diuji kelompok ini, untuk penyaring jilid. */
+  levels: string[] | null
+  /** Tahsin saja — sumbernya disimpan supaya baris bisa dihitung ulang per jilid. */
+  tahsin: UjianTahsin | null
   rincian: string
   hasil: string
   hasilKelas: string
@@ -56,6 +61,67 @@ function hitung<T>(rows: Baris[], ambil: (r: Baris) => T | null): Map<T, number>
   return peta
 }
 
+/** Jumlah siswa per level di seluruh kelompok tahsin pada `rows`. */
+function hitungSiswaPerJilid(rows: Baris[]): Map<string, number> {
+  const peta = new Map<string, number>()
+  for (const r of rows) {
+    if (!r.tahsin) continue
+    for (const g of groupSiswaByLevel(r.tahsin)) {
+      peta.set(g.level, (peta.get(g.level) ?? 0) + g.siswa.length)
+    }
+  }
+  return peta
+}
+
+/** Satu baris mewakili satu kelompok tahsin — bentuk bawaan daftar ini. */
+function barisTahsin(t: UjianTahsin): Baris {
+  const grup = groupSiswaByLevel(t)
+  const lulus = t.siswa.filter(s => s.predikat === 'lulus').length
+
+  return {
+    id: `ts-${t.id}`,
+    penguji: t.penguji?.trim() || TANPA_PENGUJI,
+    nama: t.nama_kelompok,
+    jadwal: t.jadwal,
+    kategori: 'tahsin',
+    tipe: null,
+    juz: null,
+    levels: grup.map(g => g.level),
+    tahsin: t,
+    rincian: `${grup.map(g => g.level).join(', ') || t.level} · ${t.unit} · ${t.siswa.length} siswa · Sesi ${t.sesi}`,
+    hasil: `${lulus}/${t.siswa.length} lulus`,
+    hasilKelas: 'text-success font-medium',
+  }
+}
+
+/**
+ * Satu baris per siswa, untuk satu jilid dari satu kelompok.
+ *
+ * Dipakai begitu penyaring jilid aktif: pertanyaannya berubah dari "kelompok
+ * mana yang menguji Jilid 3" menjadi "siapa saja yang diuji Jilid 3", jadi nama
+ * anak naik jadi judul baris dan kelompoknya turun jadi keterangan asal.
+ */
+function barisSiswaTahsin(t: UjianTahsin, level: string): Baris[] {
+  const grup = groupSiswaByLevel(t).find(g => g.level === level)
+
+  return (grup?.siswa ?? []).map((s, i) => ({
+    // Nama bisa kembar antar kelompok, jadi kuncinya ikut membawa asal & urutan.
+    id: `ts-${t.id}-${level}-${i}`,
+    penguji: t.penguji?.trim() || TANPA_PENGUJI,
+    nama: s.nama,
+    jadwal: t.jadwal,
+    kategori: 'tahsin',
+    tipe: null,
+    juz: null,
+    // Baris ini lahir setelah penyaringan, jadi ia tidak perlu ikut disaring lagi.
+    levels: null,
+    tahsin: null,
+    rincian: `${t.nama_kelompok} · ${level} · ${t.unit} · Sesi ${t.sesi}`,
+    hasil: getSiswaPredikatLabel(s.predikat),
+    hasilKelas: getSiswaPredikatClass(s.predikat),
+  }))
+}
+
 /**
  * Rekap ujian selesai satu bulan, dikelompokkan per penguji.
  *
@@ -70,6 +136,7 @@ export function RiwayatUjian({ tahfidz, tahsin, month, year }: Props) {
   // tidak menghapus pilihan yang tadi dipakai.
   const [juz, setJuz] = useState('semua')
   const [tasmi, setTasmi] = useState<TahfidzTipe | 'semua'>('semua')
+  const [jilid, setJilid] = useState('semua')
 
   const baris = useMemo<Baris[]>(() => {
     const tf: Baris[] = tahfidz.map(t => ({
@@ -80,26 +147,14 @@ export function RiwayatUjian({ tahfidz, tahsin, month, year }: Props) {
       kategori: getTahfidzKategori(t.tipe),
       tipe: t.tipe,
       juz: t.juz,
+      levels: null,
+      tahsin: null,
       rincian: `${getTahfidzLabel(t.tipe, t.juz)} · ${t.unit} kelas ${t.kelas}${t.is_quls ? ' · QULS' : ''}`,
       hasil: getPredikatLabel(t.predikat),
       hasilKelas: getPredikatClass(t.predikat),
     }))
 
-    const ts: Baris[] = tahsin.map(t => {
-      const lulus = t.siswa.filter(s => s.predikat === 'lulus').length
-      return {
-        id: `ts-${t.id}`,
-        penguji: t.penguji?.trim() || TANPA_PENGUJI,
-        nama: t.nama_kelompok,
-        jadwal: t.jadwal,
-        kategori: 'tahsin',
-        tipe: null,
-        juz: null,
-        rincian: `${formatTahsinLevels(t)} · ${t.unit} · ${t.siswa.length} siswa · Sesi ${t.sesi}`,
-        hasil: `${lulus}/${t.siswa.length} lulus`,
-        hasilKelas: 'text-success font-medium',
-      }
-    })
+    const ts: Baris[] = tahsin.map(barisTahsin)
 
     return [...tf, ...ts]
   }, [tahfidz, tahsin])
@@ -135,19 +190,44 @@ export function RiwayatUjian({ tahfidz, tahsin, month, year }: Props) {
       .filter(t => t.jumlah > 0)
   }, [dasar])
 
+  // Angkanya jumlah siswa, bukan jumlah kelompok — satu kelompok berisi lima
+  // anak Jilid 2 dan tiga anak Jilid 3 tidak berarti kedua jilid itu sama sibuk.
+  // Jilid tersibuk lebih dulu: yang dicari koordinator adalah "bulan ini paling
+  // banyak menguji jilid berapa", bukan urutan kurikulumnya. Seri dipecah menurut
+  // nama supaya daftarnya tidak berubah-ubah sendiri antar render.
+  const jilidTersedia = useMemo(() => {
+    const peta = hitungSiswaPerJilid(dasar)
+    return [...peta.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+  }, [dasar])
+
   // Pilihan yang hilang dari data (ganti bulan, ganti penguji) jatuh kembali ke
   // "semua" — kalau tidak, daftarnya kosong karena menyaring nilai yang sudah
   // tidak ada pilihannya di dropdown.
   const juzAktif = juzTersedia.some(([j]) => j === juz) ? juz : 'semua'
   const tasmiAktif = tasmiTersedia.some(t => t.value === tasmi) ? tasmi : 'semua'
+  // Ikut mensyaratkan kategori tahsin, tidak seperti dua penyaring di atas:
+  // pilihan jilid mengubah bentuk daftar di luar penyaringan, jadi ia harus mati
+  // sepenuhnya saat jenis lain dipilih — bukan sekadar tak terpakai.
+  const jilidAktif =
+    kategori === 'tahsin' && jilidTersedia.some(([l]) => l === jilid) ? jilid : 'semua'
 
-  const tampil = useMemo(() => dasar.filter(r => {
-    if (kategori === 'semua') return true
-    if (r.kategori !== kategori) return false
-    if (kategori === 'juziyyah') return juzAktif === 'semua' || r.juz === juzAktif
-    if (kategori === 'tasmi') return tasmiAktif === 'semua' || r.tipe === tasmiAktif
-    return true
-  }), [dasar, kategori, juzAktif, tasmiAktif])
+  const tampil = useMemo(() => {
+    const cocok = dasar.filter(r => {
+      if (kategori === 'semua') return true
+      if (r.kategori !== kategori) return false
+      if (kategori === 'juziyyah') return juzAktif === 'semua' || r.juz === juzAktif
+      if (kategori === 'tasmi') return tasmiAktif === 'semua' || r.tipe === tasmiAktif
+      return jilidAktif === 'semua' || (r.levels?.includes(jilidAktif) ?? false)
+    })
+
+    // Memilih satu jilid mengganti satuan barisnya: kelompok pecah menjadi
+    // siswa-siswanya, dan hanya yang benar-benar diuji di jilid itu yang tinggal.
+    if (jilidAktif === 'semua') return cocok
+    return cocok.flatMap(r => (r.tahsin ? barisSiswaTahsin(r.tahsin, jilidAktif) : [r]))
+  }, [dasar, kategori, juzAktif, tasmiAktif, jilidAktif])
+
+  /** Saat jilid dipilih satu baris adalah satu anak, bukan satu ujian. */
+  const perSiswa = jilidAktif !== 'semua'
 
   const perPenguji = useMemo(() => {
     const peta = new Map<string, Baris[]>()
@@ -222,10 +302,27 @@ export function RiwayatUjian({ tahfidz, tahsin, month, year }: Props) {
             ))}
           </select>
         )}
+
+        {kategori === 'tahsin' && jilidTersedia.length > 0 && (
+          <select
+            aria-label="Saring jilid"
+            value={jilidAktif}
+            onChange={e => setJilid(e.target.value)}
+            className={`${PERIODE_SELECT_CLASS} min-w-36 flex-1 sm:w-44 sm:flex-none`}
+          >
+            <option value="semua">Semua jilid</option>
+            {/* Satuannya ditulis apa adanya: angka di dropdown lain menghitung
+                ujian, yang ini menghitung anak. */}
+            {jilidTersedia.map(([l, n]) => (
+              <option key={l} value={l}>{l} ({n} siswa)</option>
+            ))}
+          </select>
+        )}
       </div>
 
       <p className="text-sm text-muted-foreground">
-        <span className="font-medium text-foreground">{tampil.length}</span> ujian selesai pada{' '}
+        <span className="font-medium text-foreground">{tampil.length}</span>{' '}
+        {perSiswa ? `siswa diuji ${jilidAktif}` : 'ujian selesai'} pada{' '}
         {BULAN_ID[month - 1]} {year}
       </p>
 
@@ -234,7 +331,7 @@ export function RiwayatUjian({ tahfidz, tahsin, month, year }: Props) {
           <UserCheck className="mx-auto mb-3 h-8 w-8 text-muted-foreground/40" />
           <p className="text-sm font-medium">
             {adaSaringan
-              ? 'Tidak ada ujian yang cocok dengan penyaring ini'
+              ? `Tidak ada ${perSiswa ? 'siswa' : 'ujian'} yang cocok dengan penyaring ini`
               : 'Belum ada ujian selesai pada periode ini'}
           </p>
         </div>
@@ -245,16 +342,20 @@ export function RiwayatUjian({ tahfidz, tahsin, month, year }: Props) {
               <h2 className="mb-2 flex items-center gap-2 text-sm font-semibold">
                 <UserCheck className="h-4 w-4 text-primary" />
                 {penguji}
-                <span className="font-normal text-muted-foreground">({items.length} ujian)</span>
+                <span className="font-normal text-muted-foreground">
+                  ({items.length} {perSiswa ? 'siswa' : 'ujian'})
+                </span>
               </h2>
               <ul className="divide-y rounded-xl border bg-card">
                 {items.map(r => (
                   <li key={r.id} className="flex items-start justify-between gap-3 px-4 py-3">
                     <div className="min-w-0">
                       <p className="flex items-center gap-1.5 font-medium">
-                        {r.kategori === 'tahsin'
-                          ? <ClipboardList className="h-3.5 w-3.5 shrink-0 text-primary" />
-                          : <BookOpen className="h-3.5 w-3.5 shrink-0 text-info" />}
+                        {r.kategori !== 'tahsin'
+                          ? <BookOpen className="h-3.5 w-3.5 shrink-0 text-info" />
+                          : perSiswa
+                            ? <Users className="h-3.5 w-3.5 shrink-0 text-primary" />
+                            : <ClipboardList className="h-3.5 w-3.5 shrink-0 text-primary" />}
                         <span className="truncate">{r.nama}</span>
                       </p>
                       <p className="mt-0.5 text-xs text-muted-foreground">{r.rincian}</p>

@@ -136,6 +136,25 @@ export function getPredikatClass(predikat: UjianPredikat | null): string {
   }
 }
 
+/**
+ * Predikat seorang siswa tahsin — bukan skala tahfidz di atas.
+ *
+ * Tahsin hanya mengenal lulus atau mengulang; tidak ada mumtaz atau jayyid.
+ * `kosong` bisa disetel karena penyebutan nilai yang belum ada berbeda menurut
+ * layarnya: daftar ujian yang masih berjalan menyebutnya "Belum", rekap ujian
+ * yang sudah selesai cukup memakai tanda hubung.
+ */
+export function getSiswaPredikatLabel(predikat: UjianSiswa['predikat'], kosong = '-'): string {
+  return predikat === 'lulus' ? 'Lulus' : predikat === 'mengulang' ? 'Mengulang' : kosong
+}
+
+/** Kelas warna teks untuk predikat siswa tahsin, memakai token tema. */
+export function getSiswaPredikatClass(predikat: UjianSiswa['predikat']): string {
+  return predikat === 'lulus' ? 'text-success'
+    : predikat === 'mengulang' ? 'text-destructive'
+    : 'text-muted-foreground'
+}
+
 // ─── Level tahsin per siswa ──────────────────────────────────────────────────
 
 type SumberSiswa = Pick<UjianTahsin, 'level' | 'siswa'>
