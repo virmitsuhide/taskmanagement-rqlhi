@@ -2,7 +2,7 @@ import { getProgramsForJenjang, isQulsSdProgram, QULS_SD_PROGRAMS } from '@/lib/
 import type {
   UserRole, MeetingType, AgendaTag, TaskStatus, TaskPriority, TaskWeight,
   TaskProblemType, PublicTarget, Jenjang, TeacherEmployment, UjianUnit,
-  LingkupPenugasan,
+  LingkupPenugasan, KategoriGuru,
 } from '@/types'
 
 // Dashboard access matrix.
@@ -737,6 +737,39 @@ export const LINGKUP_PENUGASAN_LABELS: Record<LingkupPenugasan, string> = {
   unit:    'Satu unit sekolah',
   yayasan: 'Lain-lain — lintas unit (yayasan)',
 }
+
+/**
+ * Label kategori guru (0053) — dipakai tab /ustadz dan formulir Profil Guru.
+ *
+ * "Musyrif/ah" ditulis dengan kedua bentuknya, sebagaimana disebut sehari-hari;
+ * satu nilai enum melayani musyrif maupun musyrifah karena yang dibedakannya
+ * adalah penugasan, bukan jenis kelamin.
+ */
+export const KATEGORI_GURU_LABELS: Record<KategoriGuru, string> = {
+  guru_rq:        'Guru RQ',
+  guru_quls_sd:   'Guru QULS SD',
+  musyrif_smp:    'Musyrif/ah SMP',
+  guru_unit_lain: 'Guru Unit Lain',
+}
+
+/**
+ * Keterangan satu kalimat per kategori, untuk formulir SDM.
+ *
+ * Perbedaan ketiganya tidak terbaca dari namanya — "Guru RQ" dan "Guru QULS SD"
+ * sama-sama bisa mengajar di kelas QULS SD yang sama — jadi yang membedakan
+ * harus ikut tertulis di tempat SDM memilihnya.
+ */
+export const KATEGORI_GURU_KETERANGAN: Record<KategoriGuru, string> = {
+  guru_rq:        'Di bawah RQ. Bisa ditugaskan ke QULS SD, QULS SMP, maupun SD Juara.',
+  guru_quls_sd:   'Hanya mengajar di QULS SD, dan berada di bawah unit SD — bukan RQ.',
+  musyrif_smp:    'Guru Qur’an jam asrama SMPIT LHI; mengampu halaqoh santri boarding.',
+  guru_unit_lain: 'Guru Qur’an di unit selain SD & SMP — TPAIT LHI, SD LHI Juara, SMA LHI.',
+}
+
+/** Urutan tampil kategori — mengikuti besarnya rombongan, bukan abjad. */
+export const KATEGORI_GURU_ORDER: KategoriGuru[] = [
+  'guru_rq', 'guru_quls_sd', 'musyrif_smp', 'guru_unit_lain',
+]
 
 /**
  * Punya profil pengurus lengkap (data diri, pendidikan, kompetensi, riwayat).

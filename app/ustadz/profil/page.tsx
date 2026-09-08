@@ -76,8 +76,9 @@ export default async function ProfilGuruPage({ searchParams }: PageProps) {
               <CircleAlert className="mt-0.5 h-4 w-4 shrink-0" />
               <p>
                 Kolom profil guru belum lengkap di database. Jalankan{' '}
-                <b>drizzle/0044_profil_guru_dan_catatan_kpi_PASTE_TO_SUPABASE.sql</b> dan{' '}
-                <b>drizzle/0052_lingkup_penugasan_guru_PASTE_TO_SUPABASE.sql</b> di
+                <b>drizzle/0044_profil_guru_dan_catatan_kpi_PASTE_TO_SUPABASE.sql</b>,{' '}
+                <b>drizzle/0052_lingkup_penugasan_guru_PASTE_TO_SUPABASE.sql</b>, dan{' '}
+                <b>drizzle/0053_kategori_guru_PASTE_TO_SUPABASE.sql</b> di
                 Supabase — sampai itu, isian di bawah belum bisa disimpan.
               </p>
             </div>

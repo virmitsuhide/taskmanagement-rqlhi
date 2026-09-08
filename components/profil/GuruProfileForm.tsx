@@ -11,7 +11,10 @@ import { RowSection, RowShell } from './RowSection'
 import { PhotoAdjuster } from './PhotoAdjuster'
 import { parseFocus } from '@/lib/profil/foto'
 import { EDUCATION_LEVELS, hasMajorField, institutionPlaceholder } from '@/lib/profil/pendidikan'
-import { UNIT_PENUGASAN_LABELS, LINGKUP_PENUGASAN_LABELS } from '@/lib/auth/permissions'
+import {
+  UNIT_PENUGASAN_LABELS, LINGKUP_PENUGASAN_LABELS,
+  KATEGORI_GURU_LABELS, KATEGORI_GURU_KETERANGAN, KATEGORI_GURU_ORDER,
+} from '@/lib/auth/permissions'
 import type {
   AmanahEntry, AwardEntry, CompetencyEntry, EmployeeProfile, GuruProfile, Jenjang, TrainingEntry,
 } from '@/types'
@@ -217,6 +220,35 @@ export function GuruProfileForm({ profile, scope }: Props) {
                   Rapor KPI-nya disahkan Kepala RQ, bukan koordinator unit — dan ia
                   berpindah dari tab unit ke tab <b>Lain-lain</b> di halaman ini.
                 </p>
+              </div>
+            )}
+            {!karyawanScope && (
+              <div className="space-y-1.5 sm:col-span-2">
+                {/*
+                  Pertanyaan ketiga, dan sengaja TIDAK ditumpangkan ke dropdown
+                  di atas seperti 'yayasan' ditumpangkan ke Unit Penugasan.
+                  Guru RQ dan Guru QULS SD sama-sama ber-unit SD dan sama-sama
+                  berlingkup unit — tak satu pun pilihan di sana bisa
+                  membedakan keduanya. Lihat migrasi 0053.
+                */}
+                <Label htmlFor="kategori_guru">Kategori Guru</Label>
+                <select
+                  id="kategori_guru"
+                  name="kategori_guru"
+                  defaultValue={(profile as GuruProfile).kategori_guru ?? ''}
+                  className={inputCls}
+                >
+                  <option value="">— belum ditentukan —</option>
+                  {KATEGORI_GURU_ORDER.map(k => (
+                    <option key={k} value={k}>{KATEGORI_GURU_LABELS[k]}</option>
+                  ))}
+                </select>
+                <div className="space-y-0.5 text-[11px] text-muted-foreground">
+                  {KATEGORI_GURU_ORDER.map(k => (
+                    <p key={k}><b>{KATEGORI_GURU_LABELS[k]}</b> — {KATEGORI_GURU_KETERANGAN[k]}</p>
+                  ))}
+                  <p>Guru QULS SMP tidak punya kategori sendiri: mereka Guru RQ yang ditugaskan ke sana.</p>
+                </div>
               </div>
             )}
             <div className="space-y-1.5">

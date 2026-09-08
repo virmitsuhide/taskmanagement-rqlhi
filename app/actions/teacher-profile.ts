@@ -4,7 +4,8 @@ import { revalidatePath } from 'next/cache'
 import { createServerClient } from '@/lib/supabase/server'
 import { getSession } from '@/lib/auth/session'
 import { getTeacherSession } from '@/lib/auth/teacher-session'
-import { canManageTeacherProfiles } from '@/lib/auth/permissions'
+import { canManageTeacherProfiles, KATEGORI_GURU_ORDER } from '@/lib/auth/permissions'
+import type { KategoriGuru } from '@/types'
 import { bacaDataDiri, teks, unggahFotoProfil } from '@/lib/profil/data-diri'
 
 /**
@@ -36,6 +37,12 @@ function pesanGalat(message: string | undefined): string {
   // bahwa yang kurang adalah satu kolom, bukan isian yang keliru.
   if (message?.includes('lingkup_penugasan')) {
     return 'Lingkup penugasan belum aktif: jalankan drizzle/0052_lingkup_penugasan_guru_PASTE_TO_SUPABASE.sql di Supabase.'
+  }
+  if (message?.includes('guru_unit_lain')) {
+    return 'Kategori "Guru Unit Lain" belum aktif: jalankan drizzle/0054_kategori_unit_lain_dan_penguji_guru_PASTE_TO_SUPABASE.sql di Supabase.'
+  }
+  if (message?.includes('kategori_guru')) {
+    return 'Kategori guru belum aktif: jalankan drizzle/0053_kategori_guru_PASTE_TO_SUPABASE.sql di Supabase.'
   }
   return 'Gagal menyimpan profil guru.'
 }
@@ -73,6 +80,16 @@ export async function updateGuruProfileBySdmAction(_: unknown, formData: FormDat
   const lingkupYayasan = pilihanUnit === 'yayasan'
   const unit = lingkupYayasan ? null : pilihanUnit
 
+  // Kategori guru (0053). "Belum ditentukan" disimpan sebagai NULL, bukan
+  // string kosong: enum-nya tidak mengenal nilai kosong, dan NULL itulah yang
+  // dibaca tab "Belum ditentukan" di /ustadz sebagai daftar kerja SDM.
+  //
+  // Daftar sahnya dibaca dari KATEGORI_GURU_ORDER, bukan ditulis ulang di sini.
+  // Salinannya pernah tertinggal saat 0054 menambah kategori keempat, dan
+  // akibatnya bukan galat melainkan diam: pilihan yang tidak dikenal jatuh ke
+  // null, tersimpan, dan melapor berhasil.
+  const pilihanKategori = formData.get('kategori_guru') as string
+
   const patch = {
     ...bacaDataDiri(formData),
     full_name: fullName,
@@ -82,6 +99,9 @@ export async function updateGuruProfileBySdmAction(_: unknown, formData: FormDat
     joined_at: (formData.get('joined_at') as string) || null,
     unit: unit && ['paud', 'sd', 'sd_juara', 'smp', 'sma'].includes(unit) ? unit : null,
     lingkup_penugasan: lingkupYayasan ? 'yayasan' : 'unit',
+    kategori_guru: KATEGORI_GURU_ORDER.includes(pilihanKategori as KategoriGuru)
+      ? pilihanKategori
+      : null,
     employment_type: ['tetap_yayasan', 'kontrak_yayasan', 'kontrak_rq'].includes(employment)
       ? employment
       : null,

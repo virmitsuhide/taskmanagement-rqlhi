@@ -481,6 +481,21 @@ export type Jenjang = 'paud' | 'sd' | 'sd_juara' | 'smp' | 'sma'
  * 'yayasan' berarti lintas unit — disahkan Kepala RQ, bukan koordinator unit.
  */
 export type LingkupPenugasan = 'unit' | 'yayasan'
+
+/**
+ * Rombongan guru Qur'an (0053) — pertanyaan ketiga di samping `unit` dan
+ * `lingkup_penugasan`: siapa yang membawahinya.
+ *
+ * - guru_rq      : di bawah RQ; bisa ditugaskan ke QULS SD, QULS SMP, SD Juara.
+ * - guru_quls_sd : hanya QULS SD, dan berada di bawah unit SD — bukan RQ.
+ * - musyrif_smp  : guru Qur'an jam asrama SMPIT LHI, mengampu halaqoh boarding.
+ * - guru_unit_lain : guru Qur'an di unit selain SD & SMP — TPAIT LHI, SD LHI
+ *                    Juara, SMA LHI. Unit persisnya dibaca dari `unit` (0054).
+ *
+ * QULS SMP tidak punya nilainya sendiri: gurunya guru RQ yang ditugaskan ke SMP.
+ * null = belum ditetapkan SDM.
+ */
+export type KategoriGuru = 'guru_rq' | 'guru_quls_sd' | 'musyrif_smp' | 'guru_unit_lain'
 export type TahsinStatus = 'lulus' | 'ulang'
 // Jenis setoran tahfidz (semantik RQ LHI):
 //  - ziyadah        : menambah hafalan baru (dihitung ke progress juz)
@@ -544,6 +559,8 @@ export interface GuruProfile {
   unit: Jenjang | null
   /** Lingkup penugasan (0052). 'yayasan' = lintas unit, disahkan Kepala RQ. */
   lingkup_penugasan: LingkupPenugasan
+  /** Rombongan guru (0053). null = belum ditetapkan SDM. */
+  kategori_guru: KategoriGuru | null
   employment_type: TeacherEmployment | null
   /** TMT — terhitung mulai tanggal bertugas. Null = belum diisi (0044). */
   joined_at: string | null
@@ -576,6 +593,8 @@ export interface Teacher {
   unit: Jenjang | null
   /** Lingkup penugasan (0052). 'yayasan' = lintas unit, disahkan Kepala RQ. */
   lingkup_penugasan: LingkupPenugasan
+  /** Rombongan guru (0053). null = belum ditetapkan SDM. */
+  kategori_guru: KategoriGuru | null
   employment_type: TeacherEmployment | null
   contract_start: string | null
   /** Hari terakhir kontrak berlaku. NULL = tidak pernah kedaluwarsa. */
@@ -1346,8 +1365,24 @@ export interface UjianTahsin {
 
 export interface UjianPenguji {
   id: string
+  /** Nama yang tercetak di rapor ujian. */
   nama: string
+  /** Guru yang ditunjuk entri ini (0054). null = entri warisan belum tertaut. */
+  teacher_id: string | null
   created_at: string
+  /** Unit & kategori guru terkait — hanya terisi kalau teacher_id ada. */
+  unit?: Jenjang | null
+  kategori_guru?: KategoriGuru | null
+}
+
+/** Guru yang boleh dipilih jadi penguji — isi dropdown pencarian. */
+export interface CalonPenguji {
+  id: string
+  full_name: string
+  unit: Jenjang | null
+  kategori_guru: KategoriGuru | null
+  /** Sudah ada di daftar penguji? Dipakai menandai, bukan menyembunyikan. */
+  sudahPenguji: boolean
 }
 
 /** Angka ringkas untuk kartu dashboard & badge. */

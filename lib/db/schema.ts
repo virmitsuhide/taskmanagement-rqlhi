@@ -430,6 +430,19 @@ export const jenjangEnum = pgEnum('jenjang', ['paud', 'sd', 'smp', 'sma', 'sd_ju
  * bisa mengajar di SD sambil tidak berada di bawah Koor SD.
  */
 export const lingkupPenugasanEnum = pgEnum('lingkup_penugasan', ['unit', 'yayasan'])
+
+/**
+ * Rombongan guru Qur'an (0053) — pertanyaan ketiga, di samping `unit` dan
+ * `lingkup_penugasan`.
+ *
+ * Bukan tempat mengajar melainkan siapa yang membawahi: Guru RQ dan Guru QULS SD
+ * bisa berdiri di kelas QULS SD yang sama, sama-sama ber-unit 'sd' dan
+ * berlingkup 'unit'. Guru QULS SMP tidak punya nilainya sendiri — mereka guru RQ
+ * yang sedang ditugaskan ke SMP.
+ */
+export const kategoriGuruEnum = pgEnum('kategori_guru', [
+  'guru_rq', 'guru_quls_sd', 'musyrif_smp', 'guru_unit_lain',
+])
 export const tahsinStatusEnum = pgEnum('tahsin_status', ['lulus', 'ulang'])
 export const tahfidzKindEnum = pgEnum('tahfidz_kind', [
   'hafalan_baru', 'murojaah', 'ziyadah', 'murojaah_baru', 'murojaah_lama', 'tasmi',
@@ -465,6 +478,11 @@ export const teachers = pgTable('teachers', {
    * Kepala RQ dan bukan koordinator unit mana pun.
    */
   lingkup_penugasan: lingkupPenugasanEnum('lingkup_penugasan').notNull().default('unit'),
+  /**
+   * Rombongan guru (0053). NULL = belum ditetapkan SDM — sengaja tanpa default,
+   * sebab tidak ada nilai bawaan yang benar untuk baris lama.
+   */
+  kategori_guru: kategoriGuruEnum('kategori_guru'),
   /** Jenis kepegawaian — menentukan pos gaji & apakah kontraknya bisa habis. */
   employment_type: teacherEmploymentEnum('employment_type'),
   contract_start: date('contract_start'),
@@ -1233,7 +1251,19 @@ export const teacherUnitMoves = pgTable('teacher_unit_moves', {
 /** Daftar nama penguji, dipakai bersama SD & SMP. */
 export const ujianPengujis = pgTable('ujian_pengujis', {
   id: uuid('id').primaryKey().defaultRandom(),
+  /**
+   * Nama yang TERCETAK di rapor ujian. Tetap disimpan sendiri meski sudah ada
+   * teacher_id (0054): ujian_tahfidz.penguji & ujian_tahsin.penguji menyimpan
+   * teks, dan rapor yang sudah diserahkan harus menyebut nama yang berlaku
+   * saat itu — bukan nama yang berubah kemudian.
+   */
   nama: text('nama').notNull().unique(),
+  /**
+   * Guru yang DITUNJUK entri ini (0054). NULL = entri warisan yang belum
+   * tertaut; sebelas entri pertama berupa panggilan sehari-hari yang tidak
+   * semuanya bisa dicocokkan dengan yakin.
+   */
+  teacher_id: uuid('teacher_id').references(() => teachers.id, { onDelete: 'set null' }),
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
 })
 

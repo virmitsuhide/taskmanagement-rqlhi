@@ -5,7 +5,10 @@ import { redirect } from 'next/navigation'
 import bcrypt from 'bcryptjs'
 import { createServerClient } from '@/lib/supabase/server'
 import { getSession } from '@/lib/auth/session'
-import { canManageTeachers } from '@/lib/auth/permissions'
+import {
+  canManageTeachers, canManageTeacherProfiles, KATEGORI_GURU_ORDER,
+} from '@/lib/auth/permissions'
+import type { KategoriGuru } from '@/types'
 
 function generatePassword(): string {
   // Format: Guru@<3 huruf random><4 digit random>
@@ -226,4 +229,53 @@ function revalidateTeacherPaths(id: string) {
   revalidatePath('/halaqoh')
   revalidatePath('/profil-guru')
   revalidatePath('/humas/beranda')
+}
+
+/**
+ * Menetapkan kategori guru (0053) dari daftar /ustadz, satu baris sekali klik.
+ *
+ * Berdiri sendiri, tidak menumpang updateTeacherAction. Action itu membaca
+ * seluruh FormData dan menulis belasan kolom sekaligus; memakainya dari daftar
+ * berarti mengirim ulang nama, username, dan kontrak seorang guru hanya untuk
+ * mengubah satu enum — dan setiap medan yang tidak ikut terkirim akan tertulis
+ * kosong. Di sini yang tersentuh benar-benar hanya satu kolom.
+ *
+ * Izinnya canManageTeacherProfiles, sama dengan formulir Profil Guru. Kategori
+ * adalah data profil, bukan data akun: koordinator yang boleh menyunting akun
+ * guru unitnya tidak dengan sendirinya berhak memindahkan guru antar rombongan.
+ */
+export async function setKategoriGuruAction(id: string, kategori: string | null) {
+  const session = await getSession()
+  if (!session || !canManageTeacherProfiles(session.role)) {
+    return { error: 'Anda tidak memiliki izin.' }
+  }
+  if (!id) return { error: 'Guru tidak ditemukan.' }
+
+  // "Belum ditentukan" adalah NULL, bukan string kosong — enum-nya tidak
+  // mengenal nilai kosong, dan NULL itulah yang dibaca tab daftar kerja SDM.
+  const nilai = KATEGORI_GURU_ORDER.includes(kategori as KategoriGuru) ? kategori : null
+
+  const supabase = createServerClient()
+  const { error } = await supabase
+    .from('teachers')
+    .update({ kategori_guru: nilai, updated_at: new Date().toISOString() })
+    .eq('id', id)
+
+  if (error) {
+    // Tanpa pesan ini, memilih kategori pada pemasangan yang 0053-nya belum
+    // dijalankan hanya gagal diam-diam — dan yang kurang adalah satu kolom,
+    // bukan pilihan yang keliru.
+    if (error.message.includes('guru_unit_lain')) {
+      return { error: 'Kategori "Guru Unit Lain" belum aktif: jalankan drizzle/0054_kategori_unit_lain_dan_penguji_guru_PASTE_TO_SUPABASE.sql di Supabase.' }
+    }
+    return {
+      error: error.message.includes('kategori_guru')
+        ? 'Kategori guru belum aktif: jalankan drizzle/0053_kategori_guru_PASTE_TO_SUPABASE.sql di Supabase.'
+        : 'Gagal menyimpan kategori guru.',
+    }
+  }
+
+  revalidateTeacherPaths(id)
+  revalidatePath('/ustadz/profil')
+  return { success: true }
 }

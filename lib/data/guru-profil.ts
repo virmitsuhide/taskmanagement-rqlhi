@@ -17,7 +17,8 @@ import type { GuruProfile, Jenjang, KpiMonthly, LingkupPenugasan } from '@/types
 
 /** Kolom profil lengkap — ada setelah migrasi 0044. */
 export const KOLOM_PROFIL_GURU =
-  'id, full_name, nip, unit, lingkup_penugasan, employment_type, joined_at, photo_url, photo_focus,' +
+  'id, full_name, nip, unit, lingkup_penugasan, kategori_guru,' +
+  ' employment_type, joined_at, photo_url, photo_focus,' +
   ' sapaan, nickname, birth_place, birth_date, education_level, education_history,' +
   ' quran_competencies, other_competencies, ijazah_sanad, trainings, amanah_history, awards'
 
