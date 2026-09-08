@@ -318,19 +318,48 @@ async function guardPenguji(): Promise<{ ok: true } | { error: string }> {
   return { ok: true }
 }
 
-export async function createPengujiAction(nama: string): Promise<Result> {
+/**
+ * Menambah penguji dari guru yang sudah terdaftar (0054).
+ *
+ * Menerima id guru, BUKAN nama yang diketik. Sebelas entri pertama daftar ini
+ * lahir dari kolom teks bebas, dan hasilnya panggilan sehari-hari yang tidak
+ * pernah bisa dicocokkan kembali dengan akun mana pun — termasuk dua yang
+ * cocok dengan lebih dari satu guru sekaligus. Salah ketik satu huruf dulu
+ * melahirkan penguji baru yang sah tanpa ada yang memberi tahu.
+ *
+ * Namanya disalin dari full_name saat penambahan, bukan dibaca ulang tiap
+ * kali ditampilkan: nama itu yang akan tercetak di rapor ujian, dan rapor
+ * lama tidak boleh ikut berubah ketika gelar seorang guru bertambah.
+ */
+export async function createPengujiAction(teacherId: string): Promise<Result> {
   const izin = await guardPenguji()
   if ('error' in izin) return izin
 
-  const bersih = nama.trim()
-  if (bersih.length < 2) return { error: 'Nama penguji minimal 2 karakter.' }
+  if (!teacherId) return { error: 'Pilih dulu gurunya dari daftar.' }
 
   try {
     const supabase = createServerClient()
-    const { error } = await supabase.from('ujian_pengujis').insert({ nama: bersih })
+
+    const { data: guru } = await supabase
+      .from('teachers')
+      .select('full_name')
+      .eq('id', teacherId)
+      .is('deleted_at', null)
+      .maybeSingle()
+
+    if (!guru) return { error: 'Guru itu tidak ditemukan.' }
+
+    const { error } = await supabase
+      .from('ujian_pengujis')
+      .insert({ nama: (guru.full_name as string).trim(), teacher_id: teacherId })
+
     if (error) {
-      // 23505 = unique_violation
-      if (error.code === '23505') return { error: 'Nama penguji itu sudah ada di daftar.' }
+      // 23505 = unique_violation — bisa dari nama yang kembar dengan entri
+      // warisan, bisa dari guru yang sudah terdaftar lewat indeks teacher_id.
+      if (error.code === '23505') return { error: 'Guru itu sudah ada di daftar penguji.' }
+      if (error.message.includes('teacher_id')) {
+        return { error: 'Penautan penguji belum aktif: jalankan drizzle/0054_kategori_unit_lain_dan_penguji_guru_PASTE_TO_SUPABASE.sql di Supabase.' }
+      }
       return { error: error.message }
     }
   } catch (e) {

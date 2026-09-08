@@ -1,6 +1,9 @@
 import { createServerClient } from '@/lib/supabase/server'
 import { tanggalWIB } from '@/lib/rq/ujian'
 import type {
+  CalonPenguji,
+  Jenjang,
+  KategoriGuru,
   UjianPenguji,
   UjianStats,
   UjianTahfidz,
@@ -206,11 +209,81 @@ export async function getUnitUjianGuru(teacherId: string): Promise<UjianUnit | n
 export async function getPengujis(): Promise<UjianPenguji[]> {
   try {
     const supabase = createServerClient()
-    const { data } = await supabase
+    // Unit & kategori ikut dibawa lewat relasi teacher_id supaya daftar penguji
+    // bisa menyebut asal tiap orang. Kalau 0054 belum dijalankan, select ini
+    // gagal — dan kueri cadangan di bawah mengembalikan daftar apa adanya,
+    // sebagaimana sebelum penautan ada.
+    const { data, error } = await supabase
+      .from('ujian_pengujis')
+      .select('id, nama, teacher_id, created_at, teachers(unit, kategori_guru)')
+      .order('nama', { ascending: true })
+
+    if (!error && data) {
+      return (data as Record<string, unknown>[]).map(r => {
+        const guru = r.teachers as { unit?: Jenjang | null; kategori_guru?: KategoriGuru | null } | null
+        return {
+          id: r.id as string,
+          nama: r.nama as string,
+          teacher_id: (r.teacher_id ?? null) as string | null,
+          created_at: r.created_at as string,
+          unit: guru?.unit ?? null,
+          kategori_guru: guru?.kategori_guru ?? null,
+        }
+      })
+    }
+
+    const dasar = await supabase
       .from('ujian_pengujis')
       .select('*')
       .order('nama', { ascending: true })
-    return (data ?? []) as UjianPenguji[]
+    return (dasar.data ?? []) as UjianPenguji[]
+  } catch {
+    return []
+  }
+}
+
+/**
+ * Guru yang bisa dijadikan penguji — isi dropdown pencarian di Daftar Penguji.
+ *
+ * Yang sudah terdaftar TIDAK dibuang dari hasil, hanya ditandai. Koor yang
+ * mengetik sebuah nama dan tidak menemukannya akan menyimpulkan gurunya belum
+ * ada dan pergi membuat akun kedua; menampilkannya dengan keterangan “sudah
+ * terdaftar” menjawab pertanyaannya di tempat ia bertanya.
+ *
+ * Guru nonaktif dan terhapus tidak ikut: penguji adalah penugasan yang sedang
+ * berjalan, bukan riwayat.
+ */
+export async function getCalonPenguji(): Promise<CalonPenguji[]> {
+  try {
+    const supabase = createServerClient()
+
+    const [guru, penguji] = await Promise.all([
+      supabase
+        .from('teachers')
+        .select('id, full_name, unit, kategori_guru')
+        .is('deleted_at', null)
+        .eq('is_active', true),
+      supabase.from('ujian_pengujis').select('teacher_id'),
+    ])
+
+    const terpakai = new Set(
+      (penguji.data ?? [])
+        .map(r => (r as { teacher_id?: string | null }).teacher_id)
+        .filter((v): v is string => Boolean(v)),
+    )
+
+    return (guru.data ?? [])
+      .map(g => ({
+        id: g.id as string,
+        full_name: g.full_name as string,
+        unit: (g.unit ?? null) as Jenjang | null,
+        kategori_guru: (g.kategori_guru ?? null) as KategoriGuru | null,
+        sudahPenguji: terpakai.has(g.id as string),
+      }))
+      // localeCompare('id'), bukan ORDER BY — alasannya sama dengan
+      // lib/data/guru-profil.ts: urutan byte melempar nama berhuruf besar dan
+      // berawalan tanda baca ke tempat yang tidak diduga pencarinya.
+      .sort((a, b) => a.full_name.localeCompare(b.full_name, 'id'))
   } catch {
     return []
   }

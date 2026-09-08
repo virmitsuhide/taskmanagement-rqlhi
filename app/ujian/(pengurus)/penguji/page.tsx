@@ -4,14 +4,14 @@ import { canViewUjian } from '@/lib/auth/permissions'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { PengujiManager } from '@/components/ujian/PengujiManager'
 import { UjianSubNav } from '@/components/ujian/UjianSubNav'
-import { getPengujis } from '@/lib/data/ujian'
+import { getCalonPenguji, getPengujis } from '@/lib/data/ujian'
 
 export default async function PengujiPage() {
   const session = await getSession()
   if (!session) redirect('/login')
   if (!canViewUjian(session.role)) redirect('/dashboard')
 
-  const pengujis = await getPengujis()
+  const [pengujis, calon] = await Promise.all([getPengujis(), getCalonPenguji()])
 
   return (
     <div>
@@ -34,7 +34,7 @@ export default async function PengujiPage() {
 
         <UjianSubNav />
 
-        <PengujiManager pengujis={pengujis} />
+        <PengujiManager pengujis={pengujis} calon={calon} />
       </div>
     </div>
   )
