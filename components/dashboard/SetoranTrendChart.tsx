@@ -35,9 +35,16 @@ export function SetoranTrendChart({ trend }: Props) {
   if (isEmpty) {
     return (
       <section className="rounded-xl border bg-card p-5">
-        <Heading />
+        {/* Sumber tiap titik disebut terang-terangan. Bulan tertutup dibaca dari
+          rangkuman, bulan berjalan dari setoran harian yang masih ditulis —
+          dan pembaca berhak tahu angka terakhir belum setara dengan sebelumnya. */}
+      <Heading catatan={
+        points.some(p => p.sumber === 'harian')
+          ? 'Bulan tertutup dibaca dari rangkuman bulanan; bulan berjalan dari setoran harian yang masih berlangsung.'
+          : 'Dibaca dari rangkuman bulanan.'
+      } />
         <p className="text-sm text-muted-foreground">
-          Belum ada setoran tercatat dalam 12 bulan terakhir.
+          Belum ada capaian tercatat dalam 12 bulan terakhir.
         </p>
       </section>
     )
@@ -70,7 +77,7 @@ export function SetoranTrendChart({ trend }: Props) {
 
   const first = visible[0]
   const last = visible.at(-1)
-  const ariaLabel = `Tren setoran bulanan ${first?.full ?? ''} sampai ${last?.full ?? ''}. ` +
+  const ariaLabel = `Santri tercatat per bulan, ${first?.full ?? ''} sampai ${last?.full ?? ''}. ` +
     visible.map(p => `${p.full}: tahsin ${p.tahsin}, tahfidz ${p.tahfidz}.`).join(' ')
 
   return (
@@ -189,11 +196,19 @@ export function SetoranTrendChart({ trend }: Props) {
   )
 }
 
-function Heading() {
+/**
+ * Judul menyebut SANTRI, bukan setoran. Sejak sumbernya hibrida (0056), yang
+ * dihitung tiap bulan adalah berapa anak punya catatan — satu-satunya besaran
+ * yang bisa dijawab sama persis oleh setoran harian maupun rangkuman bulanan.
+ */
+function Heading({ catatan }: { catatan?: string }) {
   return (
-    <h2 className="text-sm font-semibold mb-4 flex items-center gap-2">
-      <TrendingUp className="h-4 w-4" /> Tren Setoran Bulanan
-    </h2>
+    <div className="mb-4">
+      <h2 className="text-sm font-semibold flex items-center gap-2">
+        <TrendingUp className="h-4 w-4" /> Santri Tercatat per Bulan
+      </h2>
+      {catatan && <p className="mt-1 text-xs text-muted-foreground">{catatan}</p>}
+    </div>
   )
 }
 

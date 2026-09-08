@@ -642,6 +642,12 @@ export interface SetoranTrendPoint {
   full: string
   tahsin: number
   tahfidz: number
+  /**
+   * Dari mana angka bulan ini dibaca (0056). 'harian' = setoran hari per hari
+   * yang masih ditulis; 'bulanan' = rangkuman bulan yang sudah ditutup.
+   * Keduanya menghitung hal yang sama — berapa ANAK punya catatan bulan itu.
+   */
+  sumber: 'harian' | 'bulanan'
   /** Bulan berjalan: angkanya belum lengkap, jangan dibandingkan setara. */
   isRunning: boolean
   /** Sebelum setoran pertama tercatat — beda dari "nol beneran". */
@@ -659,19 +665,36 @@ export interface SetoranTrend {
 }
 
 /**
- * Jumlah setoran tahsin & tahfidz per bulan untuk `months` bulan terakhir.
+ * Santri yang tercatat capaiannya per bulan, untuk `months` bulan terakhir.
  *
- * Dihitung lewat count query per bulan (2 tabel × N bulan, paralel) alih-alih
- * menarik seluruh baris lalu dikelompokkan di JS. Alasannya: PostgREST memotong
- * hasil di 1000 baris secara diam-diam — grafik yang terpotong tanpa peringatan
- * jauh lebih berbahaya daripada beberapa permintaan tambahan yang masing-masing
- * hanya mengembalikan satu angka.
+ * ── KENAPA YANG DIHITUNG SANTRI, BUKAN SETORAN ──────────────────────────────
+ *
+ * Sejak RQ memakai model semi (0056), satu bulan punya DUA kemungkinan sumber:
+ *
+ *   bulan berjalan   tahsin_logs / tahfidz_logs  — setoran harian, masih ditulis
+ *   bulan tertutup   student_monthly             — rangkuman, satu baris per anak
+ *
+ * Keduanya tidak menghitung hal yang sama. Setoran harian menghitung PERISTIWA
+ * (satu anak bisa menyumbang delapan baris sebulan); rangkuman bulanan
+ * menghitung ANAK. Menggambar keduanya pada satu sumbu akan menghasilkan garis
+ * yang melonjak atau terjun bebas persis di bulan peralihan — bukan karena ada
+ * yang berubah di lapangan, melainkan karena satuannya berganti di tengah jalan.
+ *
+ * Yang bisa dijawab kedua sumber dengan cara yang sama persis adalah: BERAPA
+ * ANAK yang punya catatan bulan itu. Itulah yang dihitung di sini, dan itu pula
+ * angka yang paling dicari manajemen — cakupan pencatatan, bukan kesibukan.
+ *
+ * ── KENAPA TIDAK MENJUMLAHKAN KEDUANYA ──────────────────────────────────────
+ *
+ * Bulan berjalan sengaja HANYA membaca setoran harian, meski rangkuman bulannya
+ * mungkin sudah sebagian terisi. Merangkum adalah tindakan akhir bulan; kalau
+ * kedua sumber dijumlahkan, anak yang sudah dirangkum akan terhitung dua kali
+ * selama bulan itu masih berjalan.
  */
 export async function getSetoranTrend(months = 12): Promise<SetoranTrend> {
   const supabase = createServerClient()
   const now = new Date()
 
-  // Rentang tiap bulan disiapkan dulu supaya query bisa ditembak sekaligus.
   const ranges = Array.from({ length: months }, (_, i) => {
     const offset = months - 1 - i
     const start = new Date(now.getFullYear(), now.getMonth() - offset, 1)
@@ -686,20 +709,64 @@ export async function getSetoranTrend(months = 12): Promise<SetoranTrend> {
     }
   })
 
-  const counts = await Promise.all(
-    ranges.flatMap(r => (['tahsin_logs', 'tahfidz_logs'] as const).map(table =>
-      supabase.from(table)
-        .select('*', { count: 'exact', head: true })
-        .gte('setoran_date', r.startIso)
-        .lte('setoran_date', r.endIso)
-        .then(res => res.count ?? 0),
-    )),
+  /*
+    Bulan berjalan: anak berbeda yang punya setoran harian.
+
+    Diambil barisnya lalu dihitung unik di memori, bukan lewat count query —
+    PostgREST tidak punya COUNT(DISTINCT), dan satu bulan setoran harian
+    berjumlah puluhan sampai ratusan baris, bukan ribuan.
+  */
+  const berjalan = ranges.find(r => r.isRunning)
+  const hariIni = berjalan
+    ? await Promise.all([
+        supabase.from('tahsin_logs').select('student_id')
+          .gte('setoran_date', berjalan.startIso).lte('setoran_date', berjalan.endIso),
+        supabase.from('tahfidz_logs').select('student_id')
+          .gte('setoran_date', berjalan.startIso).lte('setoran_date', berjalan.endIso),
+      ])
+    : null
+
+  const unik = (rows: { student_id: string }[] | null | undefined) =>
+    new Set((rows ?? []).map(r => r.student_id)).size
+
+  // Bulan tertutup: satu baris student_monthly = satu anak, jadi cukup dihitung
+  // per periode. Kolom akhir yang menentukan — baris yang hanya berisi titik
+  // berangkat (hasil salin awal bulan) belum berarti anaknya sudah dinilai.
+  const lampau = ranges.filter(r => !r.isRunning)
+  const bulanan = await Promise.all(
+    lampau.map(r =>
+      supabase.from('student_monthly')
+        .select('student_id, halaman_akhir_tahsin, tahfidz_akhir')
+        .eq('period', `${r.key}-01`)
+        .then(res => res.data ?? []),
+    ),
   )
 
-  // Bulan-bulan di awal rentang yang masih nol dianggap "belum ada data", bukan
-  // nol beneran — RQ bisa saja baru mulai mencatat di tengah rentang, dan
-  // menggambar garis nol di situ akan terbaca sebagai penurunan kinerja.
-  const raw = ranges.map((r, i) => ({ ...r, tahsin: counts[i * 2], tahfidz: counts[i * 2 + 1] }))
+  const perKey = new Map<string, { tahsin: number; tahfidz: number; sumber: 'bulanan' | 'harian' }>()
+  lampau.forEach((r, i) => {
+    const rows = bulanan[i] as { halaman_akhir_tahsin: string; tahfidz_akhir: string }[]
+    perKey.set(r.key, {
+      tahsin: rows.filter(x => (x.halaman_akhir_tahsin ?? '').trim()).length,
+      tahfidz: rows.filter(x => (x.tahfidz_akhir ?? '').trim()).length,
+      sumber: 'bulanan',
+    })
+  })
+  if (berjalan && hariIni) {
+    perKey.set(berjalan.key, {
+      tahsin: unik(hariIni[0].data as { student_id: string }[]),
+      tahfidz: unik(hariIni[1].data as { student_id: string }[]),
+      sumber: 'harian',
+    })
+  }
+
+  const raw = ranges.map(r => ({
+    ...r,
+    ...(perKey.get(r.key) ?? { tahsin: 0, tahfidz: 0, sumber: 'bulanan' as const }),
+  }))
+
+  // Bulan-bulan nol di awal rentang dianggap "belum ada data", bukan nol
+  // beneran — RQ bisa saja baru mulai mencatat di tengah rentang, dan menggambar
+  // garis nol di situ akan terbaca sebagai penurunan kinerja.
   const firstWithData = raw.findIndex(p => p.tahsin > 0 || p.tahfidz > 0)
 
   const points: SetoranTrendPoint[] = raw.map((p, i) => ({
@@ -708,6 +775,7 @@ export async function getSetoranTrend(months = 12): Promise<SetoranTrend> {
     full: p.full,
     tahsin: p.tahsin,
     tahfidz: p.tahfidz,
+    sumber: p.sumber,
     isRunning: p.isRunning,
     isBeforeData: firstWithData === -1 || i < firstWithData,
   }))
@@ -715,7 +783,8 @@ export async function getSetoranTrend(months = 12): Promise<SetoranTrend> {
   const max = Math.max(1, ...points.map(p => Math.max(p.tahsin, p.tahfidz)))
 
   // Bulan berjalan dikecualikan dari delta: membandingkan bulan yang baru jalan
-  // seminggu dengan bulan penuh selalu terlihat seperti anjlok.
+  // seminggu dengan bulan penuh selalu terlihat seperti anjlok — dan sejak
+  // sumbernya berbeda pula, perbandingannya jadi dua kali tidak setara.
   const complete = points.filter(p => !p.isRunning && !p.isBeforeData)
   const prev = complete.at(-2)
   const last = complete.at(-1)

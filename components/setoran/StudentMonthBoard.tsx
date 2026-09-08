@@ -3,8 +3,10 @@
 import { useState, useTransition, useActionState } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { ChevronLeft, ChevronRight, CornerDownRight, Pencil, X } from 'lucide-react'
-import { carryOverMonthlyAction, saveStudentMonthlyAction } from '@/app/actions/student-monthly'
+import { ChevronLeft, ChevronRight, CornerDownRight, Pencil, Sparkles, X } from 'lucide-react'
+import {
+  carryOverMonthlyAction, rangkumBulanAction, saveStudentMonthlyAction,
+} from '@/app/actions/student-monthly'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -41,6 +43,29 @@ export function StudentMonthBoard({
       halaqoh: next.halaqoh ?? activeHalaqohId,
     })
     router.push(`/guru/capaian?${params.toString()}`)
+  }
+
+  /*
+    Merangkum bulan ini dari setoran harian.
+
+    Sengaja tombol, bukan otomatis saat bulan berganti. Merangkum menimpa
+    kolom akhir, jumlah halaman, ujian, dan total hafalan — kalau ia berjalan
+    sendiri, koreksi yang sudah diketik guru bisa terhapus oleh setoran susulan
+    yang dimasukkan kemudian, tanpa ada yang menekan apa pun.
+  */
+  function rangkum() {
+    startTransition(async () => {
+      const result = await rangkumBulanAction(activeHalaqohId, period)
+      if (result.error) {
+        toast.error(result.error)
+        return
+      }
+      toast.success(
+        `${result.dirangkum} siswa dirangkum dari setoran harian` +
+        (result.dilewati ? ` · ${result.dilewati} belum ada setorannya` : ''),
+      )
+      router.refresh()
+    })
   }
 
   function carryOver() {
@@ -83,10 +108,16 @@ export function StudentMonthBoard({
           </div>
         </div>
 
-        <Button size="sm" variant="outline" disabled={pending || students.length === 0} onClick={carryOver}>
-          <CornerDownRight className="mr-1 h-3.5 w-3.5" />
-          Isi awal dari {formatPeriod(previousPeriod)}
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button size="sm" variant="outline" disabled={pending || students.length === 0} onClick={carryOver}>
+            <CornerDownRight className="mr-1 h-3.5 w-3.5" />
+            Isi awal dari {formatPeriod(previousPeriod)}
+          </Button>
+          <Button size="sm" disabled={pending || students.length === 0} onClick={rangkum}>
+            <Sparkles className="mr-1 h-3.5 w-3.5" />
+            Rangkum dari setoran
+          </Button>
+        </div>
       </div>
 
       <p className="text-xs text-muted-foreground">
@@ -112,6 +143,8 @@ export function StudentMonthBoard({
               <th className="py-2 px-2 font-medium">Tahsin awal → akhir</th>
               <th className="py-2 px-2 font-medium">Tahfidz awal → akhir</th>
               <th className="py-2 px-2 text-right font-medium">Hal.</th>
+              <th className="py-2 px-2 font-medium">Total hafalan</th>
+              <th className="py-2 px-2 font-medium">Ujian</th>
               <th className="py-2 px-2 w-10" />
             </tr>
           </thead>
@@ -134,6 +167,18 @@ export function StudentMonthBoard({
                     <Arrow from={row?.tahfidz_awal} to={row?.tahfidz_akhir} />
                   </td>
                   <td className="py-2 px-2 text-right tabular-nums">{row?.capaian_halaman || '—'}</td>
+                  <td className="py-2 px-2 text-muted-foreground">
+                    {row?.total_hafalan || '—'}
+                    {/* Penanda sumber. Angka hasil hitungan bisa ditelusuri ke
+                        baris setoran hari itu; angka ketikan hanya bisa
+                        ditanyakan kepada yang mengetiknya. */}
+                    {row?.dari_setoran && (
+                      <span className="ml-1.5 rounded bg-primary-wash px-1 py-px text-[10px] font-semibold text-primary">
+                        dari setoran
+                      </span>
+                    )}
+                  </td>
+                  <td className="py-2 px-2 text-muted-foreground">{row?.ujian_tercatat || '—'}</td>
                   <td className="py-2 px-2 text-right">
                     <Button size="sm" variant="ghost" className="h-7 w-7 p-0"
                       onClick={() => setEditing(student)} aria-label={`Isi capaian ${student.full_name}`}>
@@ -144,7 +189,7 @@ export function StudentMonthBoard({
               )
             })}
             {students.length === 0 && (
-              <tr><td colSpan={6} className="py-6 text-center text-muted-foreground">Belum ada siswa di halaqoh ini.</td></tr>
+              <tr><td colSpan={8} className="py-6 text-center text-muted-foreground">Belum ada siswa di halaqoh ini.</td></tr>
             )}
           </tbody>
         </table>
