@@ -130,6 +130,25 @@ export function getViewableMeetingTypes(role: UserRole): MeetingType[] {
     .map(([type]) => type)
 }
 
+/**
+ * Jenis rapat yang boleh DIBUAT peran ini.
+ *
+ * Dipakai dashboard untuk memilih rapat mana yang ditampilkan di "Rapat
+ * Terbaru". Diturunkan dari MEETING_CREATE, tidak ditulis ulang di tiap
+ * halaman: daftar yang disalin harus diingat saat jenis rapat baru lahir, dan
+ * itu tidak terjadi. Migrasi 0012 menambah koor_x_sd, koor_x_smp,
+ * koor_x_boarding, dan rq_x_quls; keempat dashboard koor tetap memegang daftar
+ * lamanya, sehingga seorang koor SMP yang membuat Rapat Koor x SMP tidak
+ * menemukannya di dashboardnya sendiri — yang tampil justru rapat kumik.
+ *
+ * Gagalnya diam-diam: tidak ada galat, hanya rapat yang tidak pernah muncul.
+ */
+export function getCreatableMeetingTypes(role: UserRole): MeetingType[] {
+  return (Object.entries(MEETING_CREATE) as [MeetingType, UserRole[]][])
+    .filter(([, roles]) => roles.includes(role))
+    .map(([type]) => type)
+}
+
 // Task assignment — who can assign to whom
 const TASK_ASSIGN_TO: Record<UserRole, UserRole[]> = {
   kepala_rq: ['kepala_rq', 'kumik', 'sdm', 'bendahara', 'koor_ekstra', 'koor_sd', 'koor_smp', 'koor_qulssd', 'humas', 'div_training', 'new_squad'],
@@ -569,12 +588,18 @@ export function programScopeFor(
 /**
  * Bisa manage siswa untuk jenjang tertentu (atau semua jika jenjang null).
  * - kepala_rq:   semua jenjang
+ * - kumik:       semua jenjang
  * - koor_sd:     jenjang 'sd', kecuali siswa berprogram QULS
  * - koor_qulssd: jenjang 'sd', hanya siswa berprogram QULS
  * - koor_smp:    hanya jenjang 'smp'
+ *
+ * Kumik ikut sejak daftar siswa punya CRUD sendiri. Sebelumnya ia hanya bisa
+ * melihat, sehingga tiap salah ketik nama atau kelas harus dibawa ke Kepala RQ
+ * atau koor unit — padahal Kumik-lah yang paling sering menemukannya saat
+ * memeriksa rekap lintas unit.
  */
 export function canManageStudents(role: UserRole, jenjang?: Jenjang | null, program?: ProgramArg): boolean {
-  if (role === 'kepala_rq') return true
+  if (role === 'kepala_rq' || role === 'kumik') return true
   if (role === 'koor_smp') return !jenjang || jenjang === 'smp'
   if (role === 'koor_sd' || role === 'koor_qulssd') {
     if (!jenjang) return true

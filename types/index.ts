@@ -1010,6 +1010,11 @@ export interface AcademicTerm {
   start_date: string
   end_date: string
   is_current: boolean
+  /**
+   * Kapan kenaikan kelas dijalankan MENUJU tahun ajaran ini (0055).
+   * null = belum. Terisi = kenaikan ditolak, supaya tidak berjalan dua kali.
+   */
+  kenaikan_at: string | null
 }
 
 export interface HalaqohMember {
@@ -1106,6 +1111,12 @@ export interface StudentMonthly {
   tahfidz_akhir: string
   capaian_halaman: number
   catatan: string
+  /** Ujian yang terjadi bulan itu (0056), mis. "Tahfidz 1 juz — Mumtaz". */
+  ujian_tercatat: string
+  /** Capaian hafalan kumulatif seperti tercetak di rapor (0056). */
+  total_hafalan: string
+  /** true = dihitung dari setoran harian; false = diketik guru (0056). */
+  dari_setoran: boolean
 }
 
 // ── KPI bulanan guru Qur'an ────────────────────────────────────────

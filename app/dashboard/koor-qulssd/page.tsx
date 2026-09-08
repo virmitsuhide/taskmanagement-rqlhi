@@ -1,9 +1,11 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { getSession } from '@/lib/auth/session'
-import { canViewDashboard } from '@/lib/auth/permissions'
+import { canViewDashboard, getCreatableMeetingTypes, getAnalyticsJenjang } from '@/lib/auth/permissions'
 import { getDashboardStats, getMyActiveTasks, getRecentMeetings, getPendingVerifications } from '@/lib/data/dashboard'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
+import { RingkasanPembinaan } from '@/components/dashboard/RingkasanPembinaan'
+import { getRingkasanPembinaan } from '@/lib/data/ringkasan-pembinaan'
 import { DivisionStats } from '@/components/dashboard/DivisionStats'
 import { TaskCard } from '@/components/tasks/TaskCard'
 import { MeetingCard } from '@/components/rapat/MeetingCard'
@@ -25,13 +27,14 @@ export default async function KoorQulsSdDashboardPage() {
   if (!session) redirect('/login')
   if (!canViewDashboard(session.role, 'koor-qulssd')) redirect('/dashboard')
 
-  const [stats, myTasks, pendingVerif, recentMeetings] = await Promise.all([
+  const [stats, myTasks, pendingVerif, recentMeetings, pembinaan] = await Promise.all([
     getDashboardStats(session.userId),
     getMyActiveTasks(session.userId),
     getPendingVerifications(session.userId),
     // Rapat koor SD ikut ditampilkan: kelompok QULS duduk di unit dan sesi
     // yang sama, jadi keputusannya kerap menyangkut anak-anak di sini juga.
-    getRecentMeetings(['koor_sd', 'kumik']),
+    getRecentMeetings([...getCreatableMeetingTypes(session.role), 'koor_sd', 'kumik']),
+    getRingkasanPembinaan(getAnalyticsJenjang(session.role)),
   ])
 
   return (
@@ -39,6 +42,8 @@ export default async function KoorQulsSdDashboardPage() {
       <DashboardHeader displayName={session.displayName} role={session.role} title="Dashboard Koor QULS SD" showBack />
       <div className="max-w-4xl space-y-6 p-4 md:p-6">
         <DivisionStats {...stats} />
+
+        <RingkasanPembinaan data={pembinaan} />
 
         <section className="flex flex-wrap gap-2">
           <Button asChild size="sm" variant="outline">

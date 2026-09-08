@@ -934,6 +934,12 @@ export const academicTerms = pgTable('academic_terms', {
   end_date: date('end_date').notNull(),
   /** Hanya satu baris boleh bernilai true — dijaga index unik parsial. */
   is_current: boolean('is_current').notNull().default(false),
+  /**
+   * Penanda kenaikan kelas menuju tahun ajaran ini (0055). Sekali terisi,
+   * kenaikan ditolak — dijalankan dua kali, anak kelas 1 mendarat di kelas 3
+   * dan tidak ada data tersisa untuk memulihkannya.
+   */
+  kenaikan_at: timestamp('kenaikan_at', { withTimezone: true }),
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
 })
 
@@ -1059,6 +1065,15 @@ export const studentMonthly = pgTable('student_monthly', {
   tahfidz_akhir: text('tahfidz_akhir').notNull().default(''),
   capaian_halaman: integer('capaian_halaman').notNull().default(0),
   catatan: text('catatan').notNull().default(''),
+  /** Ujian yang terjadi bulan itu (0056), mis. "Tahfidz 1 juz — Mumtaz". */
+  ujian_tercatat: text('ujian_tercatat').notNull().default(''),
+  /** Capaian hafalan kumulatif seperti tercetak di rapor (0056). */
+  total_hafalan: text('total_hafalan').notNull().default(''),
+  /**
+   * true = dihitung dari setoran harian; false = diketik guru (0056).
+   * Menentukan apakah angkanya bisa ditelusuri sampai ke baris setoran.
+   */
+  dari_setoran: boolean('dari_setoran').notNull().default(false),
   recorded_by: uuid('recorded_by').references(() => teachers.id, { onDelete: 'set null' }),
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),

@@ -1,9 +1,11 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { getSession } from '@/lib/auth/session'
-import { canViewDashboard } from '@/lib/auth/permissions'
+import { canViewDashboard, getAnalyticsJenjang } from '@/lib/auth/permissions'
 import { getDashboardStats, getMyActiveTasks, getRecentMeetings, getPendingVerifications } from '@/lib/data/dashboard'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
+import { RingkasanPembinaan } from '@/components/dashboard/RingkasanPembinaan'
+import { getRingkasanPembinaan } from '@/lib/data/ringkasan-pembinaan'
 import { DivisionStats } from '@/components/dashboard/DivisionStats'
 import { TaskCard } from '@/components/tasks/TaskCard'
 import { MeetingCard } from '@/components/rapat/MeetingCard'
@@ -15,11 +17,12 @@ export default async function SdmDashboardPage() {
   if (!session) redirect('/login')
   if (!canViewDashboard(session.role, 'sdm')) redirect('/dashboard')
 
-  const [stats, myTasks, pendingVerif, recentMeetings] = await Promise.all([
+  const [stats, myTasks, pendingVerif, recentMeetings, pembinaan] = await Promise.all([
     getDashboardStats(session.userId),
     getMyActiveTasks(session.userId),
     getPendingVerifications(session.userId),
     getRecentMeetings(['new_squad']),
+    getRingkasanPembinaan(getAnalyticsJenjang(session.role)),
   ])
 
   return (
@@ -27,6 +30,8 @@ export default async function SdmDashboardPage() {
       <DashboardHeader displayName={session.displayName} role={session.role} title="Dashboard SDM" showBack />
       <div className="p-4 md:p-6 space-y-6 max-w-4xl">
         <DivisionStats {...stats} />
+
+        <RingkasanPembinaan data={pembinaan} />
 
         {/* Pembinaan gukar adalah program SDM, jadi pintu masuk rekapnya
             ditaruh di dashboard ini — pengampu lain cukup mengisi kelompoknya

@@ -1,10 +1,12 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { getSession } from '@/lib/auth/session'
-import { canViewDashboard, getBoardDivisions } from '@/lib/auth/permissions'
+import { canViewDashboard, getBoardDivisions, getAnalyticsJenjang } from '@/lib/auth/permissions'
 import { getTeamActiveTasks, getRecentMeetings, getCompletionHistory } from '@/lib/data/dashboard'
 import { getBoardTasks } from '@/lib/data/board'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
+import { RingkasanPembinaan } from '@/components/dashboard/RingkasanPembinaan'
+import { getRingkasanPembinaan } from '@/lib/data/ringkasan-pembinaan'
 import { TeamActivityAnalytics } from '@/components/dashboard/TeamActivityAnalytics'
 import { TeamTasksSwitcher } from '@/components/dashboard/TeamTasksSwitcher'
 import { CompletionHistory } from '@/components/dashboard/CompletionHistory'
@@ -18,17 +20,20 @@ export default async function ManajemenDashboardPage() {
   if (!session) redirect('/login')
   if (!canViewDashboard(session.role, 'manajemen')) redirect('/dashboard')
 
-  const [teamTasks, completionHistory, boardColumns, recentMeetings] = await Promise.all([
+  const [teamTasks, completionHistory, boardColumns, recentMeetings, pembinaan] = await Promise.all([
     getTeamActiveTasks(),
     getCompletionHistory(),
     getBoardTasks({ session, scope: 'divisi', divisi: null }),
     getRecentMeetings(['manajemen']),
+    getRingkasanPembinaan(getAnalyticsJenjang(session.role)),
   ])
 
   return (
     <div>
       <DashboardHeader displayName={session.displayName} role={session.role} title="Dashboard Manajemen" showBack />
       <div className="p-4 md:p-6 space-y-6 max-w-4xl">
+        <RingkasanPembinaan data={pembinaan} />
+
         {/* Analitik aktivitas pengurus — kartu bisa diklik untuk drill-down */}
         <section>
           <h2 className="text-sm font-semibold mb-3">Analitik Aktivitas Pengurus</h2>
