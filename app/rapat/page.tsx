@@ -16,6 +16,21 @@ const PAGE_SIZE = 10
 
 const MONTHS_LONG = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember']
 
+/**
+ * Membungkus nilai untuk dipakai di dalam .or() PostgREST.
+ *
+ * PostgREST memisah argumen or() dengan koma dan membaca tanda kurung sebagai
+ * sintaks. Tanpa dikutip, pencarian "rapat, evaluasi" akan pecah jadi dua
+ * syarat yang tidak sah dan seluruh query gagal — bukan sekadar tidak
+ * menemukan apa-apa.
+ */
+function orArg(raw: string): string {
+  // JSON.stringify kebetulan menghasilkan persis bentuk yang diminta PostgREST:
+  // dikutip ganda, dengan kutip dan garis miring terbalik di dalamnya di-escape.
+  return JSON.stringify(raw)
+}
+
+
 function formatDate(d: string): string {
   const [y, mo, day] = d.split('-').map(Number)
   return `${day} ${MONTHS_LONG[mo - 1]} ${y}`
@@ -73,13 +88,39 @@ export default async function RapatPage({ searchParams }: PageProps) {
   const years: number[] = []
   for (let y = now.getFullYear(); y >= earliestYear; y--) years.push(y)
 
+  // Pencarian menjangkau isi notulen, bukan cuma judulnya. Orang mengingat
+  // rapat lewat apa yang dibahas ("seragam", "tasmi'"), bukan lewat subjek
+  // yang kerap hanya berbunyi "Rapat Bulanan".
+  //
+  // Dua langkah, bukan satu join: PostgREST tidak bisa menyaring baris induk
+  // berdasarkan isi tabel anak sekaligus menghitung totalnya dengan
+  // head:true. Jadi id rapat yang agendanya cocok dikumpulkan dulu, lalu
+  // dipakai sebagai syarat OR di kedua query di bawah.
+  let agendaMatchIds: string[] = []
+  if (query) {
+    const { data: hits } = await supabase
+      .from('agenda_items')
+      .select('meeting_id')
+      .or(`discussion.ilike.${orArg(`%${query}%`)},follow_up.ilike.${orArg(`%${query}%`)}`)
+    agendaMatchIds = [...new Set((hits ?? []).map(h => h.meeting_id).filter(Boolean))]
+  }
+
+  // Judul ATAU isi — pencarian tidak semestinya menghukum orang yang mengingat
+  // kata dari sisi yang salah.
+  const searchOr = query
+    ? [
+        `subject.ilike.${orArg(`%${query}%`)}`,
+        ...(agendaMatchIds.length ? [`id.in.(${agendaMatchIds.join(',')})`] : []),
+      ].join(',')
+    : null
+
   // Count
   let countQuery = supabase
     .from('meetings')
     .select('*', { count: 'exact', head: true })
     .is('deleted_at', null)
     .in('type', typeFilter ? [typeFilter] : viewableTypes)
-  if (query) countQuery = countQuery.ilike('subject', `%${query}%`)
+  if (searchOr) countQuery = countQuery.or(searchOr)
   if (dateStart) countQuery = countQuery.gte('date', dateStart).lte('date', dateEnd!)
   const { count, error: countError } = await countQuery
   if (countError) console.error('[rapat] gagal menghitung jumlah rapat:', countError)
@@ -96,7 +137,7 @@ export default async function RapatPage({ searchParams }: PageProps) {
     .select('*, creator:users!created_by(id, display_name)')
     .is('deleted_at', null)
     .in('type', typeFilter ? [typeFilter] : viewableTypes)
-  if (query) dbQuery = dbQuery.ilike('subject', `%${query}%`)
+  if (searchOr) dbQuery = dbQuery.or(searchOr)
   if (dateStart) dbQuery = dbQuery.gte('date', dateStart).lte('date', dateEnd!)
   dbQuery = dbQuery.order('date', { ascending: false }).range(from, to)
   const { data, error } = await dbQuery
