@@ -31,7 +31,8 @@ export default async function RapatDetailPage({ params }: { params: Promise<{ id
     .from('meetings')
     .select('*, creator:users!created_by(id, display_name)')
     .eq('id', id)
-    .single()
+    .is('deleted_at', null)
+    .maybeSingle()
 
   if (!meeting) notFound()
   if (!canViewMeeting(session.role, meeting.type)) redirect('/rapat')

@@ -1,13 +1,13 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { getSession } from '@/lib/auth/session'
-import { getViewableMeetingTypes, canCreateMeeting, MEETING_TYPE_LABELS } from '@/lib/auth/permissions'
+import { getViewableMeetingTypes, canCreateMeeting, canPurgeMeeting, MEETING_TYPE_LABELS } from '@/lib/auth/permissions'
 import { createServerClient } from '@/lib/supabase/server'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { MeetingRowActions } from '@/components/rapat/MeetingRowActions'
 import { MeetingMonthYearFilter } from '@/components/rapat/MeetingMonthYearFilter'
 import { Button } from '@/components/ui/button'
-import { Plus, BookOpen, AlertTriangle, RefreshCw } from 'lucide-react'
+import { Plus, BookOpen, AlertTriangle, RefreshCw, Trash2 } from 'lucide-react'
 import { SearchInput } from '@/components/ui/search-input'
 import { Pagination } from '@/components/ui/pagination'
 import type { Meeting, MeetingType } from '@/types'
@@ -68,7 +68,7 @@ export default async function RapatPage({ searchParams }: PageProps) {
 
   // Tahun yang tersedia untuk dropdown (dari rapat terlama s/d tahun ini)
   const { data: earliestRow } = await supabase
-    .from('meetings').select('date').in('type', viewableTypes).order('date', { ascending: true }).limit(1).maybeSingle()
+    .from('meetings').select('date').is('deleted_at', null).in('type', viewableTypes).order('date', { ascending: true }).limit(1).maybeSingle()
   const earliestYear = earliestRow?.date ? parseInt(earliestRow.date.slice(0, 4), 10) : now.getFullYear()
   const years: number[] = []
   for (let y = now.getFullYear(); y >= earliestYear; y--) years.push(y)
@@ -77,6 +77,7 @@ export default async function RapatPage({ searchParams }: PageProps) {
   let countQuery = supabase
     .from('meetings')
     .select('*', { count: 'exact', head: true })
+    .is('deleted_at', null)
     .in('type', typeFilter ? [typeFilter] : viewableTypes)
   if (query) countQuery = countQuery.ilike('subject', `%${query}%`)
   if (dateStart) countQuery = countQuery.gte('date', dateStart).lte('date', dateEnd!)
@@ -93,6 +94,7 @@ export default async function RapatPage({ searchParams }: PageProps) {
   let dbQuery = supabase
     .from('meetings')
     .select('*, creator:users!created_by(id, display_name)')
+    .is('deleted_at', null)
     .in('type', typeFilter ? [typeFilter] : viewableTypes)
   if (query) dbQuery = dbQuery.ilike('subject', `%${query}%`)
   if (dateStart) dbQuery = dbQuery.gte('date', dateStart).lte('date', dateEnd!)
@@ -104,6 +106,14 @@ export default async function RapatPage({ searchParams }: PageProps) {
   // Query gagal ≠ tidak ada data. Dibedakan supaya pengguna tidak disuruh
   // mengubah filter padahal masalahnya ada di sisi sistem.
   const loadFailed = Boolean(error || countError)
+
+  const bolehLihatSampah = canPurgeMeeting(session.role)
+  const { count: trashCount } = bolehLihatSampah
+    ? await supabase
+        .from('meetings')
+        .select('*', { count: 'exact', head: true })
+        .not('deleted_at', 'is', null)
+    : { count: 0 }
 
   function chipHref(nextType: MeetingType | null): string {
     const p = new URLSearchParams()
@@ -130,11 +140,20 @@ export default async function RapatPage({ searchParams }: PageProps) {
               {loadFailed ? 'Data tidak dapat dimuat' : `${total} rapat · 10 terbaru per halaman`}
             </p>
           </div>
-          {canCreate && (
-            <Button asChild size="sm">
-              <Link href="/rapat/baru"><Plus className="h-4 w-4 mr-1" />Buat Rapat</Link>
-            </Button>
-          )}
+          <div className="flex items-center gap-2">
+            {bolehLihatSampah && (trashCount ?? 0) > 0 && (
+              <Button asChild size="sm" variant="outline">
+                <Link href="/rapat/sampah">
+                  <Trash2 className="h-4 w-4 mr-1" />Keranjang ({trashCount})
+                </Link>
+              </Button>
+            )}
+            {canCreate && (
+              <Button asChild size="sm">
+                <Link href="/rapat/baru"><Plus className="h-4 w-4 mr-1" />Buat Rapat</Link>
+              </Button>
+            )}
+          </div>
         </div>
 
         {/* Pencarian + filter bulan/tahun */}

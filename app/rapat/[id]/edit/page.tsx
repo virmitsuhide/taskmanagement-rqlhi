@@ -17,7 +17,7 @@ export default async function EditRapatPage({ params }: { params: Promise<{ id: 
 
   const supabase = createServerClient()
   const [meetingRes, agendaRes] = await Promise.all([
-    supabase.from('meetings').select('*').eq('id', id).single(),
+    supabase.from('meetings').select('*').eq('id', id).is('deleted_at', null).maybeSingle(),
     supabase.from('agenda_items').select('*').eq('meeting_id', id).order('order_num'),
   ])
 

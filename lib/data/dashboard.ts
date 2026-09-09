@@ -55,6 +55,7 @@ export async function getRecentMeetings(meetingTypes: MeetingType[], limit = 5) 
   const { data } = await supabase
     .from('meetings')
     .select('*, creator:users!created_by(id, display_name)')
+    .is('deleted_at', null)
     .in('type', meetingTypes)
     .order('date', { ascending: false })
     .limit(limit)

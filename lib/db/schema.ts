@@ -124,6 +124,8 @@ export const meetings = pgTable('meetings', {
   created_by: uuid('created_by').references(() => users.id),
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+  deleted_at: timestamp('deleted_at', { withTimezone: true }),
+  deleted_by: uuid('deleted_by').references(() => users.id),
 })
 
 export const agendaItems = pgTable('agenda_items', {

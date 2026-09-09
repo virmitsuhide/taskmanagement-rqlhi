@@ -120,6 +120,20 @@ export function canDeleteMeeting(role: UserRole, type: MeetingType): boolean {
   return MEETING_DELETE[type]?.includes(role) ?? false
 }
 
+/**
+ * Siapa yang boleh membuka keranjang sampah rapat: memulihkan yang terbuang,
+ * dan menghapusnya untuk selamanya.
+ *
+ * Sengaja hanya Kepala RQ, dan sengaja BUKAN turunan dari canDeleteMeeting.
+ * Membuang ke keranjang itu bisa dibatalkan, jadi wajar dipegang tiap
+ * koordinator atas rapatnya sendiri. Mengosongkan keranjang tidak bisa
+ * dibatalkan, jadi ia berhenti di satu orang — dan orang itu melihat seluruh
+ * isi keranjang lintas jenis rapat sebelum memutuskan.
+ */
+export function canPurgeMeeting(role: UserRole): boolean {
+  return role === 'kepala_rq'
+}
+
 export function canViewMeeting(role: UserRole, type: MeetingType): boolean {
   return MEETING_VIEW[type]?.includes(role) ?? false
 }

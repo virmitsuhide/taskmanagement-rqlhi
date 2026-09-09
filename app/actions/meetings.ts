@@ -4,7 +4,12 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createServerClient } from '@/lib/supabase/server'
 import { getSession } from '@/lib/auth/session'
-import { canCreateMeeting, canEditMeeting, canDeleteMeeting } from '@/lib/auth/permissions'
+import {
+  canCreateMeeting,
+  canEditMeeting,
+  canDeleteMeeting,
+  canPurgeMeeting,
+} from '@/lib/auth/permissions'
 import type { MeetingType, AgendaTag } from '@/types'
 
 export async function createMeetingAction(_: unknown, formData: FormData) {
@@ -77,11 +82,14 @@ export async function updateMeetingAction(_: unknown, formData: FormData) {
 
   const { data: existing } = await supabase
     .from('meetings')
-    .select('type')
+    .select('type, deleted_at')
     .eq('id', meetingId)
-    .single()
+    .maybeSingle()
 
-  if (!existing) return { error: 'Rapat tidak ditemukan.' }
+  // Rapat di keranjang sampah tidak bisa diedit — pulihkan dulu. Tanpa syarat
+  // ini, tautan /rapat/{id}/edit yang masih tersimpan di riwayat peramban jadi
+  // pintu belakang untuk mengubah notulen yang sudah dibuang.
+  if (!existing || existing.deleted_at) return { error: 'Rapat tidak ditemukan.' }
   if (!canEditMeeting(session.role, existing.type)) {
     return { error: 'Anda tidak memiliki izin untuk mengedit rapat ini.' }
   }
@@ -156,7 +164,7 @@ export async function updateMeetingAction(_: unknown, formData: FormData) {
  * lain — tabel baru yang kelak menunjuk rapat — tetap terbaca manusiawi,
  * bukan muncul sebagai "Gagal menghapus rapat" tanpa keterangan.
  */
-async function deleteMeetingRow(
+async function purgeMeetingRow(
   supabase: ReturnType<typeof createServerClient>,
   meetingId: string,
 ): Promise<{ error?: string }> {
@@ -194,49 +202,128 @@ async function deleteMeetingRow(
   }
 }
 
-export async function deleteMeetingAction(meetingId: string) {
+/**
+ * Buang rapat ke keranjang sampah. Barisnya tetap ada, hanya ditandai — dan
+ * `deleted_by` mencatat siapa yang membuangnya, supaya Kepala RQ tahu kepada
+ * siapa harus bertanya sebelum mengosongkan keranjang.
+ */
+async function trashMeeting(
+  supabase: ReturnType<typeof createServerClient>,
+  meetingId: string,
+  userId: string,
+): Promise<{ error?: string }> {
+  const { error } = await supabase
+    .from('meetings')
+    .update({ deleted_at: new Date().toISOString(), deleted_by: userId })
+    .eq('id', meetingId)
+    .is('deleted_at', null)
+  if (error) return { error: 'Gagal memindahkan rapat ke keranjang sampah.' }
+  return {}
+}
+
+/**
+ * Memastikan rapat ada, belum di keranjang, dan penggunanya berhak membuangnya.
+ * Dipakai kedua tombol hapus — dari halaman detail dan dari daftar.
+ */
+async function siapDibuang(meetingId: string) {
   const session = await getSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!session) return { error: 'Sesi tidak valid.' as const }
 
   const supabase = createServerClient()
   const { data: meeting } = await supabase
     .from('meetings')
-    .select('type')
+    .select('type, deleted_at')
     .eq('id', meetingId)
-    .single()
+    .maybeSingle()
 
-  if (!meeting) return { error: 'Rapat tidak ditemukan.' }
+  if (!meeting || meeting.deleted_at) return { error: 'Rapat tidak ditemukan.' as const }
   if (!canDeleteMeeting(session.role, meeting.type)) {
-    return { error: 'Anda tidak memiliki izin untuk menghapus rapat ini.' }
+    return { error: 'Anda tidak memiliki izin untuk menghapus rapat ini.' as const }
   }
+  return { supabase, userId: session.userId }
+}
 
-  const { error } = await deleteMeetingRow(supabase, meetingId)
+export async function deleteMeetingAction(meetingId: string) {
+  const siap = await siapDibuang(meetingId)
+  if ('error' in siap) return { error: siap.error }
+
+  const { error } = await trashMeeting(siap.supabase, meetingId, siap.userId)
   if (error) return { error }
 
   revalidatePath('/rapat')
+  revalidatePath('/rapat/sampah')
   redirect('/rapat')
 }
 
-/** Hapus dari tabel /rapat tanpa redirect — dipakai tombol aksi di daftar. */
+/** Buang dari tabel /rapat tanpa redirect — dipakai tombol aksi di daftar. */
 export async function deleteMeetingFromListAction(meetingId: string) {
+  const siap = await siapDibuang(meetingId)
+  if ('error' in siap) return { error: siap.error }
+
+  const { error } = await trashMeeting(siap.supabase, meetingId, siap.userId)
+  if (error) return { error }
+
+  revalidatePath('/rapat')
+  revalidatePath('/rapat/sampah')
+  return { success: true }
+}
+
+/** Kembalikan rapat dari keranjang sampah ke daftar. Kepala RQ saja. */
+export async function restoreMeetingAction(meetingId: string) {
   const session = await getSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!session || !canPurgeMeeting(session.role)) {
+    return { error: 'Hanya Kepala RQ yang bisa membuka keranjang sampah rapat.' }
+  }
 
   const supabase = createServerClient()
   const { data: meeting } = await supabase
     .from('meetings')
-    .select('type')
+    .select('deleted_at')
     .eq('id', meetingId)
-    .single()
+    .maybeSingle()
 
   if (!meeting) return { error: 'Rapat tidak ditemukan.' }
-  if (!canDeleteMeeting(session.role, meeting.type)) {
-    return { error: 'Anda tidak memiliki izin untuk menghapus rapat ini.' }
+  if (!meeting.deleted_at) return { error: 'Rapat ini tidak sedang di keranjang sampah.' }
+
+  const { error } = await supabase
+    .from('meetings')
+    .update({ deleted_at: null, deleted_by: null })
+    .eq('id', meetingId)
+  if (error) return { error: 'Gagal memulihkan rapat.' }
+
+  revalidatePath('/rapat')
+  revalidatePath('/rapat/sampah')
+  revalidatePath(`/rapat/${meetingId}`)
+  return { success: true }
+}
+
+/**
+ * Hapus rapat untuk selamanya, beserta seluruh agendanya (cascade). Kepala RQ
+ * saja, dan hanya atas rapat yang sudah ada di keranjang sampah — supaya
+ * penghapusan permanen selalu butuh dua langkah terpisah oleh orang yang sama.
+ */
+export async function purgeMeetingAction(meetingId: string) {
+  const session = await getSession()
+  if (!session || !canPurgeMeeting(session.role)) {
+    return { error: 'Hanya Kepala RQ yang bisa menghapus rapat secara permanen.' }
   }
 
-  const { error } = await deleteMeetingRow(supabase, meetingId)
+  const supabase = createServerClient()
+  const { data: meeting } = await supabase
+    .from('meetings')
+    .select('deleted_at')
+    .eq('id', meetingId)
+    .maybeSingle()
+
+  if (!meeting) return { error: 'Rapat tidak ditemukan.' }
+  if (!meeting.deleted_at) {
+    return { error: 'Buang rapat ini ke keranjang sampah dulu sebelum dihapus permanen.' }
+  }
+
+  const { error } = await purgeMeetingRow(supabase, meetingId)
   if (error) return { error }
 
   revalidatePath('/rapat')
+  revalidatePath('/rapat/sampah')
   return { success: true }
 }
