@@ -13,6 +13,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { useConfirm } from '@/components/ui/confirm-dialog'
 import { shortDate, daysLeft, SUBTASK_STATUS_LABELS } from '@/lib/tasks/gantt'
 import type { TaskSubtask, SubtaskStatus } from '@/types'
 
@@ -51,6 +52,7 @@ interface Props {
 export function SubtaskPanel({ taskId, subtasks, canManage }: Props) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
+  const confirm = useConfirm()
   const [adding, setAdding] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
 
@@ -119,8 +121,13 @@ export function SubtaskPanel({ taskId, subtasks, canManage }: Props) {
               onToggle={() => run(() => setSubtaskStatusAction(sub.id, CYCLE[sub.status]))}
               onEdit={() => { setEditingId(sub.id); setAdding(false) }}
               onMove={dir => run(() => moveSubtaskAction(sub.id, dir))}
-              onDelete={() => {
-                if (!confirm(`Hapus rincian "${sub.title}"?`)) return
+              onDelete={async () => {
+                const ok = await confirm({
+                  title: `Hapus rincian "${sub.title}"?`,
+                  description: 'Rincian ini hilang dari tugas dan tidak bisa dikembalikan.',
+                  confirmText: 'Hapus rincian',
+                })
+                if (!ok) return
                 run(() => deleteSubtaskAction(sub.id), 'Rincian dihapus.')
               }}
             />

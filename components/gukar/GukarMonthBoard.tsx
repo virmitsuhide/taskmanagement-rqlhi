@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { useConfirm } from '@/components/ui/confirm-dialog'
 import { formatPeriod, shiftPeriod } from '@/lib/finance/period'
 import { TAHAP_TAHSIN } from '@/lib/rq/gukar-standar'
 import { predikatHafalan } from '@/lib/rq/quran'
@@ -116,6 +117,7 @@ function ParticipantRow({
   onEdit: () => void
 }) {
   const [pending, startTransition] = useTransition()
+  const confirm = useConfirm()
 
   function toggle(pekan: number, next: boolean) {
     startTransition(async () => {
@@ -168,11 +170,12 @@ function ParticipantRow({
             size="sm" variant="ghost" disabled={pending}
             className="h-7 w-7 p-0 text-destructive"
             aria-label={`Hapus catatan ${participant.full_name}`}
-            onClick={() => {
-              const ok = confirm(
-                `Hapus catatan ${participant.full_name} untuk bulan ini?\n\n` +
-                'Kehadiran dan capaian bulan ini dikosongkan kembali.',
-              )
+            onClick={async () => {
+              const ok = await confirm({
+                title: `Hapus catatan ${participant.full_name} untuk bulan ini?`,
+                description: 'Kehadiran dan capaian bulan ini dikosongkan kembali.',
+                confirmText: 'Hapus catatan',
+              })
               if (!ok) return
               startTransition(async () => {
                 const result = await deleteGukarMonthlyAction(groupId, participant.id, period)

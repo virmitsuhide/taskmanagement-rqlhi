@@ -7,6 +7,7 @@ import { deleteSessionAction, saveSessionAction } from '@/app/actions/terms'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { useConfirm } from '@/components/ui/confirm-dialog'
 import { DAY_LABELS, type HalaqohSession } from '@/types'
 
 interface Props {
@@ -80,9 +81,15 @@ export function SessionEditor({ halaqohId, sessions, canManage }: Props) {
 
 function DeleteSessionButton({ id, halaqohId }: { id: string; halaqohId: string }) {
   const [pending, startTransition] = useTransition()
+  const confirm = useConfirm()
 
-  function remove() {
-    if (!confirm('Hapus sesi ini?')) return
+  async function remove() {
+    const ok = await confirm({
+      title: 'Hapus sesi ini?',
+      description: 'Sesi dan jadwal yang menempel padanya ikut hilang dari halaqoh.',
+      confirmText: 'Hapus sesi',
+    })
+    if (!ok) return
     startTransition(async () => {
       const result = await deleteSessionAction(id, halaqohId)
       if (result?.error) toast.error(result.error)

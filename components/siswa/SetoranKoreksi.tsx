@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { useConfirm } from '@/components/ui/confirm-dialog'
 
 export type LogTable = 'tahsin_logs' | 'tahfidz_logs' | 'tasmi_logs'
 
@@ -75,13 +76,17 @@ export function SetoranKoreksi({ items }: { items: SetoranItem[] }) {
 
 function Row({ item, onEdit }: { item: SetoranItem; onEdit: () => void }) {
   const [pending, startTransition] = useTransition()
+  const confirm = useConfirm()
 
-  function remove() {
-    const ok = confirm(
-      `Hapus setoran ${LABEL[item.table]} tanggal ${item.tanggal}?\n\n${item.judul}\n\n` +
-      'Kenaikan jilid atau juz yang ditimbulkannya ikut dibatalkan, dan posisi ' +
-      'siswa dihitung ulang. Tindakan ini tidak bisa dibatalkan.',
-    )
+  async function remove() {
+    const ok = await confirm({
+      title: `Hapus setoran ${LABEL[item.table]} tanggal ${item.tanggal}?`,
+      description:
+        `${item.judul}\n\n` +
+        'Kenaikan jilid atau juz yang ditimbulkannya ikut dibatalkan, dan posisi ' +
+        'siswa dihitung ulang. Tindakan ini tidak bisa dibatalkan.',
+      confirmText: 'Hapus setoran',
+    })
     if (!ok) return
 
     startTransition(async () => {

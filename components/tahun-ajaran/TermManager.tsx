@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { useConfirm } from '@/components/ui/confirm-dialog'
 import { formatTerm } from '@/lib/data/terms'
 import type { AcademicTerm } from '@/types'
 import type { TermStats } from '@/lib/data/terms'
@@ -58,6 +59,7 @@ function TermRow({
   canManage: boolean
 }) {
   const [pending, startTransition] = useTransition()
+  const confirm = useConfirm()
 
   const halaqohCount = stats?.halaqohCount ?? 0
   const isEmpty = halaqohCount === 0
@@ -70,8 +72,13 @@ function TermRow({
     })
   }
 
-  function remove() {
-    if (!confirm(`Hapus ${formatTerm(term)}?`)) return
+  async function remove() {
+    const ok = await confirm({
+      title: `Hapus ${formatTerm(term)}?`,
+      description: 'Tahun ajaran ini hilang dari daftar beserta kerangka yang menempel padanya.',
+      confirmText: 'Hapus tahun ajaran',
+    })
+    if (!ok) return
     startTransition(async () => {
       const result = await deleteTermAction(term.id)
       if (result?.error) toast.error(result.error)
@@ -84,13 +91,17 @@ function TermRow({
   const canCopyHere = canManage && isEmpty && currentTerm && currentTerm.id !== term.id
     && (stats?.halaqohCount ?? 0) === 0
 
-  function copyFromCurrent() {
+  async function copyFromCurrent() {
     if (!currentTerm) return
-    if (!confirm(
-      `Salin kerangka halaqoh dari ${formatTerm(currentTerm)} ke ${formatTerm(term)}?\n\n` +
-      'Yang disalin hanya nama, jenjang, dan jadwal sesi. Santri, wali, dan ' +
-      'pengampu tidak ikut — keduanya memang diacak ulang tiap semester.',
-    )) return
+    const ok = await confirm({
+      title: `Salin kerangka halaqoh dari ${formatTerm(currentTerm)} ke ${formatTerm(term)}?`,
+      description:
+        'Yang disalin hanya nama, jenjang, dan jadwal sesi. Santri, wali, dan ' +
+        'pengampu tidak ikut — keduanya memang diacak ulang tiap semester.',
+      confirmText: 'Salin kerangka',
+      tone: 'default',
+    })
+    if (!ok) return
 
     startTransition(async () => {
       const result = await copyHalaqohToTermAction(currentTerm.id, term.id)

@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 import { Check, Copy, KeyRound, RotateCcw, X } from 'lucide-react'
 import { setPasswordAction, resetPasswordAction } from '@/app/actions/accounts'
 import { Button } from '@/components/ui/button'
+import { useConfirm } from '@/components/ui/confirm-dialog'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 
@@ -29,6 +30,7 @@ interface Props {
  */
 export function AccountRow({ target, id, name, username, keterangan, nonaktif }: Props) {
   const [pending, startTransition] = useTransition()
+  const confirm = useConfirm()
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState('')
   const [hasil, setHasil] = useState<string | null>(null)
@@ -104,8 +106,15 @@ export function AccountRow({ target, id, name, username, keterangan, nonaktif }:
             <Button
               size="sm" variant="outline" className="h-8 text-xs"
               disabled={pending}
-              onClick={() => {
-                if (!confirm(`Reset password ${name}?\n\nPassword lamanya langsung tidak berlaku. Password baru akan tampil sekali di layar untuk kamu salin dan sampaikan.`)) return
+              onClick={async () => {
+                const ok = await confirm({
+                  title: `Reset password ${name}?`,
+                  description:
+                    'Password lamanya langsung tidak berlaku. Password baru akan tampil sekali di layar untuk kamu salin dan sampaikan.',
+                  confirmText: 'Reset password',
+                  tone: 'default',
+                })
+                if (!ok) return
                 terapkan(() => resetPasswordAction(target, id))
               }}
             >

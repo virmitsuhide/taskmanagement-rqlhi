@@ -10,6 +10,7 @@ import {
 import { KATEGORI_GURU_LABELS, KATEGORI_GURU_ORDER } from '@/lib/auth/permissions'
 import type { KategoriGuru } from '@/types'
 import { Button } from '@/components/ui/button'
+import { useConfirm } from '@/components/ui/confirm-dialog'
 
 /**
  * Hapus akun guru. Hapusnya lunak — akun disembunyikan, bukan dibuang, dan
@@ -20,14 +21,17 @@ import { Button } from '@/components/ui/button'
 export function DeleteTeacherButton({ id, name }: { id: string; name: string }) {
   const [pending, startTransition] = useTransition()
   const router = useRouter()
+  const confirm = useConfirm()
 
-  function handleDelete() {
-    const ok = confirm(
-      `Hapus akun guru "${name}"?\n\n` +
-      'Guru langsung kehilangan akses login dan hilang dari semua daftar. ' +
-      'Riwayat setoran dan penugasan halaqoh-nya tetap tersimpan, dan akun ini ' +
-      'bisa dipulihkan lagi dari tab Terhapus.',
-    )
+  async function handleDelete() {
+    const ok = await confirm({
+      title: `Hapus akun guru "${name}"?`,
+      description:
+        'Guru langsung kehilangan akses login dan hilang dari semua daftar. ' +
+        'Riwayat setoran dan penugasan halaqoh-nya tetap tersimpan, dan akun ini ' +
+        'bisa dipulihkan lagi dari tab Terhapus.',
+      confirmText: 'Hapus akun guru',
+    })
     if (!ok) return
 
     startTransition(async () => {

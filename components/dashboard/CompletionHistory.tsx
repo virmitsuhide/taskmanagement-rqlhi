@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button'
 import { ROLE_LABELS } from '@/lib/auth/permissions'
 import { deleteCompletedTaskAction } from '@/app/actions/tasks'
 import { cn } from '@/lib/utils'
+import { useConfirm } from '@/components/ui/confirm-dialog'
 import type { MemberCompletion, CompletedTaskEntry } from '@/types'
 
 interface Props {
@@ -104,6 +105,7 @@ export function CompletionHistory({ members }: Props) {
 
 function HistoryCard({ entry }: { entry: CompletedTaskEntry }) {
   const router = useRouter()
+  const confirm = useConfirm()
   const [showChat, setShowChat] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const { task, startedAt, completedAt, durationMs, comments } = entry
@@ -111,7 +113,12 @@ function HistoryCard({ entry }: { entry: CompletedTaskEntry }) {
   async function handleDelete() {
     // Sejak migrasi 0018 penghapusan bersifat lunak — diskusi & riwayat status
     // tetap tersimpan, dan tugasnya masih bisa dipulihkan oleh manajemen.
-    if (!confirm(`Hapus tugas "${task.title}" dari riwayat? Tugas disembunyikan dan masih bisa dipulihkan.`)) return
+    const ok = await confirm({
+      title: `Hapus tugas "${task.title}" dari riwayat?`,
+      description: 'Tugas disembunyikan dari riwayat dan masih bisa dipulihkan.',
+      confirmText: 'Hapus dari riwayat',
+    })
+    if (!ok) return
     setDeleting(true)
     const res = await deleteCompletedTaskAction(task.id)
     setDeleting(false)

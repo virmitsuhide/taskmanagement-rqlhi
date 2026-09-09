@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 import { GraduationCap, TriangleAlert } from 'lucide-react'
 import { naikkanKelasAction, pratinjauKenaikanAction, type RencanaKenaikan } from '@/app/actions/students'
 import { Button } from '@/components/ui/button'
+import { useConfirm } from '@/components/ui/confirm-dialog'
 import type { AcademicTerm } from '@/types'
 
 /**
@@ -24,6 +25,7 @@ import type { AcademicTerm } from '@/types'
 export function KenaikanKelas({ term, boleh }: { term: AcademicTerm; boleh: boolean }) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
+  const confirm = useConfirm()
   const [rencana, setRencana] = useState<RencanaKenaikan | null>(null)
 
   if (!boleh) return null
@@ -41,17 +43,19 @@ export function KenaikanKelas({ term, boleh }: { term: AcademicTerm; boleh: bool
     })
   }
 
-  function jalankan() {
+  async function jalankan() {
     if (!rencana) return
-    const ok = confirm(
-      `Naikkan seluruh siswa menuju ${term.year_label}?\n\n` +
-      `• ${rencana.naik} siswa naik satu tingkat (1A → 2A, rombel tetap)\n` +
-      `• ${rencana.lulus} siswa kelas akhir ditandai lulus & nonaktif\n` +
-      (rencana.dilewati.length > 0
-        ? `• ${rencana.dilewati.reduce((n, d) => n + d.jumlah, 0)} siswa DILEWATI karena kelasnya tidak berpola\n`
-        : '') +
-      '\nHanya bisa dijalankan sekali untuk tahun ajaran ini.',
-    )
+    const ok = await confirm({
+      title: `Naikkan seluruh siswa menuju ${term.year_label}?`,
+      description:
+        `• ${rencana.naik} siswa naik satu tingkat (1A → 2A, rombel tetap)\n` +
+        `• ${rencana.lulus} siswa kelas akhir ditandai lulus & nonaktif\n` +
+        (rencana.dilewati.length > 0
+          ? `• ${rencana.dilewati.reduce((n, d) => n + d.jumlah, 0)} siswa DILEWATI karena kelasnya tidak berpola\n`
+          : '') +
+        '\nHanya bisa dijalankan sekali untuk tahun ajaran ini.',
+      confirmText: 'Naikkan kelas',
+    })
     if (!ok) return
 
     startTransition(async () => {

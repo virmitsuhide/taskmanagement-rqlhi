@@ -7,6 +7,7 @@ import { ArrowRightLeft } from 'lucide-react'
 import { pindahUnitGuruAction } from '@/app/actions/teacher-unit'
 import { JENJANG_LABELS } from '@/lib/auth/permissions'
 import { Button } from '@/components/ui/button'
+import { useConfirm } from '@/components/ui/confirm-dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -38,20 +39,25 @@ const tanggal = (s: string) =>
 export function UnitMovePanel({ teacherId, teacherName, currentUnit, riwayat }: Props) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
+  const confirm = useConfirm()
   const [open, setOpen] = useState(false)
   const [toUnit, setToUnit] = useState<string>('')
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10))
   const [notes, setNotes] = useState('')
 
-  function submit() {
+  async function submit() {
     if (!toUnit) return
     const label = JENJANG_LABELS[toUnit as Jenjang]
-    if (!confirm(
-      `Pindahkan ${teacherName} ke ${label}?\n\n` +
-      'Penilaian KPI bulan-bulan sebelumnya TETAP tercatat di unit lama beserta ' +
-      'rubrik lamanya, jadi nilainya tidak berubah. Yang berpindah hanya tempat ' +
-      'ia dinilai mulai sekarang.',
-    )) return
+    const ok = await confirm({
+      title: `Pindahkan ${teacherName} ke ${label}?`,
+      description:
+        'Penilaian KPI bulan-bulan sebelumnya TETAP tercatat di unit lama beserta ' +
+        'rubrik lamanya, jadi nilainya tidak berubah. Yang berpindah hanya tempat ' +
+        'ia dinilai mulai sekarang.',
+      confirmText: 'Pindahkan',
+      tone: 'default',
+    })
+    if (!ok) return
 
     startTransition(async () => {
       const res = await pindahUnitGuruAction(teacherId, toUnit, date, notes)

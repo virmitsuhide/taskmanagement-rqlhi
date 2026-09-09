@@ -7,6 +7,7 @@ import { toast } from 'sonner'
 import { Pencil, UserMinus } from 'lucide-react'
 import { deleteStudentAction } from '@/app/actions/students'
 import { Button } from '@/components/ui/button'
+import { useConfirm } from '@/components/ui/confirm-dialog'
 
 /**
  * Sunting & nonaktifkan satu siswa, langsung dari barisnya di tabel.
@@ -22,14 +23,17 @@ import { Button } from '@/components/ui/button'
 export function SiswaRowActions({ id, name }: { id: string; name: string }) {
   const [pending, startTransition] = useTransition()
   const router = useRouter()
+  const confirm = useConfirm()
 
-  function nonaktifkan() {
-    const ok = confirm(
-      `Nonaktifkan "${name}"?\n\n` +
-      'Ia hilang dari daftar kelas dan tidak bisa lagi disetorkan, tetapi ' +
-      'seluruh riwayat tahsin, tahfidz, dan rapornya tetap tersimpan. ' +
-      'Bisa diaktifkan lagi lewat halaman siswa.',
-    )
+  async function nonaktifkan() {
+    const ok = await confirm({
+      title: `Nonaktifkan "${name}"?`,
+      description:
+        'Ia hilang dari daftar kelas dan tidak bisa lagi disetorkan, tetapi ' +
+        'seluruh riwayat tahsin, tahfidz, dan rapornya tetap tersimpan. ' +
+        'Bisa diaktifkan lagi lewat halaman siswa.',
+      confirmText: 'Nonaktifkan siswa',
+    })
     if (!ok) return
 
     startTransition(async () => {

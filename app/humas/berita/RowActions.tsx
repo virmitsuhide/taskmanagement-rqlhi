@@ -5,6 +5,7 @@ import { useTransition } from 'react'
 import { toast } from 'sonner'
 import { Pencil, Eye, EyeOff, Trash2, ExternalLink } from 'lucide-react'
 import { toggleNewsAction, deleteNewsAction } from '@/app/actions/news'
+import { useConfirm } from '@/components/ui/confirm-dialog'
 
 interface Props {
   newsId: string
@@ -17,6 +18,7 @@ const BTN =
 
 export function RowActions({ newsId, title, isActive }: Props) {
   const [pending, startTransition] = useTransition()
+  const confirm = useConfirm()
 
   function handleToggle() {
     startTransition(async () => {
@@ -26,10 +28,15 @@ export function RowActions({ newsId, title, isActive }: Props) {
     })
   }
 
-  function handleDelete() {
+  async function handleDelete() {
     // Hard delete — sengaja pakai konfirmasi yang menyebut judulnya supaya
     // tidak ada artikel terbit yang terhapus karena salah baris.
-    if (!confirm(`Hapus "${title}"? Tindakan ini tidak bisa dibatalkan.`)) return
+    const ok = await confirm({
+      title: `Hapus berita "${title}"?`,
+      description: 'Artikel ini hilang permanen dan tidak bisa dikembalikan.',
+      confirmText: 'Hapus berita',
+    })
+    if (!ok) return
     startTransition(async () => {
       const result = await deleteNewsAction(newsId)
       if (result?.error) toast.error(result.error)

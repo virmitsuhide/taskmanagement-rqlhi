@@ -6,6 +6,7 @@ import { useTransition } from 'react'
 import { toast } from 'sonner'
 import { Pencil, Eye, EyeOff, Trash2 } from 'lucide-react'
 import { toggleNewsAction, deleteNewsAction } from '@/app/actions/news'
+import { useConfirm } from '@/components/ui/confirm-dialog'
 
 interface Props {
   newsId: string
@@ -15,6 +16,7 @@ interface Props {
 export function DetailEditorBar({ newsId, isActive }: Props) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
+  const confirm = useConfirm()
 
   function handleToggle() {
     startTransition(async () => {
@@ -28,8 +30,13 @@ export function DetailEditorBar({ newsId, isActive }: Props) {
     })
   }
 
-  function handleDelete() {
-    if (!confirm('Hapus berita ini? Tindakan tidak bisa dibatalkan.')) return
+  async function handleDelete() {
+    const ok = await confirm({
+      title: 'Hapus berita ini?',
+      description: 'Artikel ini hilang permanen dan tidak bisa dikembalikan.',
+      confirmText: 'Hapus berita',
+    })
+    if (!ok) return
     startTransition(async () => {
       const result = await deleteNewsAction(newsId)
       if (result?.error) {

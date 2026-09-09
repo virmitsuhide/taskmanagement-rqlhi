@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { cn } from '@/lib/utils'
+import { useConfirm } from '@/components/ui/confirm-dialog'
 import { formatPeriod, formatRupiah, toPeriodKey } from '@/lib/finance/period'
 import type { Receivable } from '@/lib/finance/report'
 import type { FinanceAccount, FinanceTransaction } from '@/types'
@@ -145,10 +146,16 @@ function TransactionRow({
   const [pending, setPending] = useState(false)
   // Tagihan bulan lain yang cair bulan ini — konteks yang hilang kalau hanya
   // nominalnya yang ditampilkan.
+  const confirm = useConfirm()
   const fromOtherPeriod = toPeriodKey(trx.period) !== period
 
   async function remove() {
-    if (!confirm('Hapus transaksi ini?')) return
+    const ok = await confirm({
+      title: 'Hapus transaksi ini?',
+      description: 'Saldo dan rekap bulan berjalan langsung dihitung ulang tanpa transaksi ini.',
+      confirmText: 'Hapus transaksi',
+    })
+    if (!ok) return
     setPending(true)
     const result = await deleteTransactionAction(trx.id)
     if (result.error) {

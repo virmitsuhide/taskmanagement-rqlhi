@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from 'next/font/google'
 import { Toaster } from 'sonner'
 import './globals.css'
 import { ThemeProvider } from '@/components/theme-provider'
+import { ConfirmProvider } from '@/components/ui/confirm-dialog'
 import { cn } from '@/lib/utils'
 
 const geist = Geist({ subsets: ['latin'], variable: '--font-sans' })
@@ -30,7 +31,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     >
       <body>
         <ThemeProvider>
-          {children}
+          <ConfirmProvider>{children}</ConfirmProvider>
           <Toaster position="top-right" richColors closeButton />
         </ThemeProvider>
       </body>

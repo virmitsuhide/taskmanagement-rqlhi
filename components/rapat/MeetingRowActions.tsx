@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { Eye, Pencil, Trash2 } from 'lucide-react'
 import { deleteMeetingFromListAction } from '@/app/actions/meetings'
+import { useConfirm } from '@/components/ui/confirm-dialog'
 
 interface Props {
   meetingId: string
@@ -14,10 +15,16 @@ interface Props {
 
 export function MeetingRowActions({ meetingId, subject }: Props) {
   const router = useRouter()
+  const confirm = useConfirm()
   const [deleting, setDeleting] = useState(false)
 
   async function handleDelete() {
-    if (!confirm(`Hapus rapat "${subject}"? Notulen & agenda ikut terhapus permanen.`)) return
+    const ok = await confirm({
+      title: `Hapus rapat "${subject}"?`,
+      description: 'Notulen dan agenda rapat ini ikut terhapus permanen.',
+      confirmText: 'Hapus rapat',
+    })
+    if (!ok) return
     setDeleting(true)
     const res = await deleteMeetingFromListAction(meetingId)
     setDeleting(false)

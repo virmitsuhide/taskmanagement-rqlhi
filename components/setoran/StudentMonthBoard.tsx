@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { useConfirm } from '@/components/ui/confirm-dialog'
 import { formatPeriod, shiftPeriod } from '@/lib/finance/period'
 import type { StudentMonthly } from '@/types'
 
@@ -34,6 +35,7 @@ export function StudentMonthBoard({
   period, previousPeriod, halaqohList, activeHalaqohId, students, monthly,
 }: Props) {
   const router = useRouter()
+  const confirm = useConfirm()
   const [editing, setEditing] = useState<Student | null>(null)
   const [pending, startTransition] = useTransition()
 
@@ -68,11 +70,16 @@ export function StudentMonthBoard({
     })
   }
 
-  function carryOver() {
-    if (!confirm(
-      `Salin capaian akhir ${formatPeriod(previousPeriod)} menjadi capaian awal ${formatPeriod(period)}?\n\n` +
-      'Hanya kolom AWAL yang diisi; kolom akhir dibiarkan kosong agar terlihat mana yang belum dinilai bulan ini.',
-    )) return
+  async function carryOver() {
+    const ok = await confirm({
+      title: `Salin capaian akhir ${formatPeriod(previousPeriod)} menjadi capaian awal ${formatPeriod(period)}?`,
+      description:
+        'Hanya kolom AWAL yang diisi; kolom akhir dibiarkan kosong agar terlihat ' +
+        'mana yang belum dinilai bulan ini.',
+      confirmText: 'Salin capaian',
+      tone: 'default',
+    })
+    if (!ok) return
 
     startTransition(async () => {
       const result = await carryOverMonthlyAction(activeHalaqohId, period, previousPeriod)

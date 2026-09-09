@@ -13,6 +13,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { useConfirm } from '@/components/ui/confirm-dialog'
 import { CADENCES, CADENCE_LABELS, CADENCE_PERIOD_LABELS, labelPeriode } from '@/lib/rutin/periode'
 import type { RoutineGroup } from '@/lib/data/rutin'
 import type { RoutineTaskState } from '@/types'
@@ -43,6 +44,7 @@ export function RoutineChecklist({ groups }: Props) {
 
 function GroupSection({ group }: { group: RoutineGroup }) {
   const router = useRouter()
+  const confirm = useConfirm()
   const [pending, startTransition] = useTransition()
   const [editingId, setEditingId] = useState<string | null>(null)
 
@@ -142,8 +144,13 @@ function GroupSection({ group }: { group: RoutineGroup }) {
               onToggle={next => toggle(item, next)}
               onEdit={() => setEditingId(item.task.id)}
               onMove={dir => run(() => moveRoutineTaskAction(item.task.id, dir))}
-              onDelete={() => {
-                if (!confirm(`Hapus tugas rutin "${item.task.description}"?\n\nRiwayat centangnya ikut terhapus.`)) return
+              onDelete={async () => {
+                const ok = await confirm({
+                  title: `Hapus tugas rutin "${item.task.description}"?`,
+                  description: 'Riwayat centangnya ikut terhapus.',
+                  confirmText: 'Hapus tugas rutin',
+                })
+                if (!ok) return
                 run(() => deleteRoutineTaskAction(item.task.id), 'Tugas rutin dihapus.')
               }}
             />

@@ -10,6 +10,7 @@ import {
   canMoveTaskOnBoard, canDeleteTask,
 } from '@/lib/auth/permissions'
 import { cn } from '@/lib/utils'
+import { useConfirm } from '@/components/ui/confirm-dialog'
 import type { Task, TaskStatus, TaskProblemType, UserRole } from '@/types'
 import type { BoardColumn, BoardColumnKey } from '@/lib/data/board'
 
@@ -76,6 +77,7 @@ interface Props {
 export function KanbanBoard({ columns: initialColumns, currentUserId, currentRole }: Props) {
   const router = useRouter()
   const [columns, setColumns] = useState(initialColumns)
+  const confirm = useConfirm()
   const [dragId, setDragId] = useState<string | null>(null)
   const [overCol, setOverCol] = useState<BoardColumnKey | null>(null)
   const didDragRef = useRef(false)
@@ -112,14 +114,15 @@ export function KanbanBoard({ columns: initialColumns, currentUserId, currentRol
   }
 
   async function handleDelete(task: Task) {
-    if (!confirm(
-      `Hapus tugas "${task.title}"?
-
-` +
-      'Tugas disembunyikan dari daftar & papan, tapi riwayat dan diskusinya ' +
-      'tetap tersimpan dan masih bisa dipulihkan oleh manajemen. ' +
-      'Manajemen akan menerima notifikasi penghapusan ini.',
-    )) return
+    const ok = await confirm({
+      title: `Hapus tugas "${task.title}"?`,
+      description:
+        'Tugas disembunyikan dari daftar & papan, tapi riwayat dan diskusinya tetap ' +
+        'tersimpan dan masih bisa dipulihkan oleh manajemen. Manajemen akan menerima ' +
+        'notifikasi penghapusan ini.',
+      confirmText: 'Hapus tugas',
+    })
+    if (!ok) return
 
     // Kartu dilepas duluan supaya papan terasa langsung menanggapi; kalau server
     // menolak, router.refresh() di bawah mengembalikannya apa adanya.

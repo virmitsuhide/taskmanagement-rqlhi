@@ -5,6 +5,7 @@ import { useTransition } from 'react'
 import { toast } from 'sonner'
 import { Pencil, Eye, EyeOff, Trash2, ExternalLink, ChevronUp, ChevronDown } from 'lucide-react'
 import { toggleProgramAction, deleteProgramAction, moveProgramAction } from '@/app/actions/program'
+import { useConfirm } from '@/components/ui/confirm-dialog'
 
 interface Props {
   slug: string
@@ -19,6 +20,7 @@ const BTN =
 
 export function ProgramRowActions({ slug, title, isActive, isFirst, isLast }: Props) {
   const [pending, startTransition] = useTransition()
+  const confirm = useConfirm()
 
   function move(direction: 'up' | 'down') {
     startTransition(async () => {
@@ -35,8 +37,13 @@ export function ProgramRowActions({ slug, title, isActive, isFirst, isLast }: Pr
     })
   }
 
-  function handleDelete() {
-    if (!confirm(`Hapus program "${title}"? Seluruh isi halaman detailnya ikut terhapus dan tidak bisa dikembalikan.`)) return
+  async function handleDelete() {
+    const ok = await confirm({
+      title: `Hapus program "${title}"?`,
+      description: 'Seluruh isi halaman detailnya ikut terhapus dan tidak bisa dikembalikan.',
+      confirmText: 'Hapus program',
+    })
+    if (!ok) return
     startTransition(async () => {
       const result = await deleteProgramAction(slug)
       if (result?.error) toast.error(result.error)

@@ -6,6 +6,7 @@ import { deleteProgramPlanAction, saveProgramPlanAction } from '@/app/actions/fi
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { useConfirm } from '@/components/ui/confirm-dialog'
 import { formatAngka, formatRupiah } from '@/lib/finance/period'
 import type { FinanceProgramPlan } from '@/types'
 
@@ -77,9 +78,15 @@ export function ProgramPlanEditor({ period, plans, canManage }: Props) {
 
 function DeletePlanButton({ id }: { id: string }) {
   const [pending, setPending] = useState(false)
+  const confirm = useConfirm()
 
   async function remove() {
-    if (!confirm('Hapus rencana ini?')) return
+    const ok = await confirm({
+      title: 'Hapus rencana ini?',
+      description: 'Baris rencana anggaran ini hilang dari rekap bulan berjalan.',
+      confirmText: 'Hapus rencana',
+    })
+    if (!ok) return
     setPending(true)
     const result = await deleteProgramPlanAction(id)
     if (result.error) {

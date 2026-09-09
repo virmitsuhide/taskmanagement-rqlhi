@@ -7,6 +7,7 @@ import { toast } from 'sonner'
 import { Pencil, Trash2, RotateCcw } from 'lucide-react'
 import { deleteTaskAction, restoreTaskAction } from '@/app/actions/tasks'
 import { Button } from '@/components/ui/button'
+import { useConfirm } from '@/components/ui/confirm-dialog'
 
 interface Props {
   taskId: string
@@ -28,14 +29,18 @@ interface Props {
 export function TaskRowActions({ taskId, title, canEdit, canDelete, isDeleted, canRestore }: Props) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
+  const confirm = useConfirm()
 
-  function handleDelete() {
-    if (!confirm(
-      `Hapus tugas "${title}"?\n\n` +
-      'Tugas disembunyikan dari daftar & papan, tapi riwayat dan diskusinya ' +
-      'tetap tersimpan dan masih bisa dipulihkan oleh manajemen. ' +
-      'Manajemen akan menerima notifikasi penghapusan ini.',
-    )) return
+  async function handleDelete() {
+    const ok = await confirm({
+      title: `Hapus tugas "${title}"?`,
+      description:
+        'Tugas disembunyikan dari daftar & papan, tapi riwayat dan diskusinya tetap ' +
+        'tersimpan dan masih bisa dipulihkan oleh manajemen. Manajemen akan menerima ' +
+        'notifikasi penghapusan ini.',
+      confirmText: 'Hapus tugas',
+    })
+    if (!ok) return
 
     startTransition(async () => {
       // Sukses berujung redirect ke /tasks, jadi hanya kegagalan yang kembali.

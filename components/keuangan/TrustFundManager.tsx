@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { useConfirm } from '@/components/ui/confirm-dialog'
 import { formatPeriod, formatRupiah } from '@/lib/finance/period'
 import type { TrustFundReport } from '@/lib/finance/report'
 import type { FinanceTrustFund } from '@/types'
@@ -125,9 +126,15 @@ function FundCard({
 
 function DeleteEntryButton({ id }: { id: string }) {
   const [pending, setPending] = useState(false)
+  const confirm = useConfirm()
 
   async function remove() {
-    if (!confirm('Hapus mutasi ini?')) return
+    const ok = await confirm({
+      title: 'Hapus mutasi ini?',
+      description: 'Saldo dana amanah dihitung ulang tanpa mutasi ini.',
+      confirmText: 'Hapus mutasi',
+    })
+    if (!ok) return
     setPending(true)
     const result = await deleteTrustEntryAction(id)
     if (result.error) {
