@@ -6,7 +6,7 @@ import { getBoardTasks, type BoardScope } from '@/lib/data/board'
 import { getGanttPeople } from '@/lib/data/gantt'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { NewTaskMenu } from '@/components/tasks/NewTaskMenu'
-import { GanttNavMenu, GanttPeopleStrip } from '@/components/tasks/GanttNavMenu'
+import { GanttNavMenu } from '@/components/tasks/GanttNavMenu'
 import { KanbanBoard } from './KanbanBoard'
 import { List } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -105,8 +105,6 @@ export default async function TaskBoardPage({ searchParams }: PageProps) {
             ))}
           </div>
         )}
-
-        <GanttPeopleStrip people={ganttPeople} selfLabel={ROLE_LABELS[session.role]} />
 
         <KanbanBoard columns={columns} currentUserId={session.userId} currentRole={session.role} />
 
