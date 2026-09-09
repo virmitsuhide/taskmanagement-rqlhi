@@ -1,5 +1,6 @@
 import { createServerClient } from '@/lib/supabase/server'
 import { UNIT_ORDER, UNIT_LABELS, PROGRAMS_BY_JENJANG, programLabel } from '@/lib/rq/programs'
+import { totalJuzHafalan } from '@/lib/rq/hafalan'
 import { TAHFIDZ_TARGETS } from '@/lib/rq/targets'
 import type { Jenjang } from '@/types'
 
@@ -803,4 +804,84 @@ export async function getSetoranTrend(months = 12): Promise<SetoranTrend> {
       : null,
     isEmpty: firstWithData === -1,
   }
+}
+
+// ─── Hafalan menurut UJIAN, bukan menurut setoran ──────────────────────
+
+/**
+ * Capaian hafalan yang sudah LULUS UJIAN, per unit.
+ *
+ * Sengaja berdiri sendiri di samping getUnitHafalanBoards(), yang menghitung
+ * dari juz_progress — yaitu apa yang disetor sehari-hari. Keduanya menjawab
+ * pertanyaan berbeda: setoran menunjukkan proses yang sedang berjalan, ujian
+ * menunjukkan yang sudah diakui tuntas. Angkanya wajar berbeda, dan
+ * menggabungkannya jadi satu metrik akan menyembunyikan justru selisih itu —
+ * anak yang setorannya jauh tapi belum pernah diujikan.
+ *
+ * Hitungannya memakai posisi dalam urutan hafalan (30, 29, 28, 27, 26, lalu
+ * 1..25), bukan nomor juz. Lihat lib/rq/hafalan.ts.
+ */
+export interface HafalanUjianUnit {
+  jenjang: Jenjang
+  label: string
+  /** Siswa yang punya minimal satu catatan ujian terpetakan. */
+  siswaTeruji: number
+  totalJuz: number
+  rataJuz: number
+  /** Berapa siswa pada tiap jumlah juz — untuk batang sebaran. */
+  sebaran: { juz: number; siswa: number }[]
+  top10: { id: string; name: string; kelas: string | null; juz: number }[]
+}
+
+export async function getHafalanUjianPerUnit(): Promise<HafalanUjianUnit[]> {
+  const supabase = createServerClient()
+  const [siswaRes, ujianRes] = await Promise.all([
+    supabase.from('students').select('id, full_name, jenjang, kelas').eq('is_active', true),
+    // Hanya yang sudah selesai: pengajuan yang belum diuji bukan capaian.
+    supabase
+      .from('ujian_tahfidz')
+      .select('student_id, juz')
+      .not('student_id', 'is', null)
+      .eq('status', 'selesai'),
+  ])
+
+  const siswa = (siswaRes.data ?? []) as {
+    id: string; full_name: string; jenjang: Jenjang; kelas: string | null
+  }[]
+
+  const perSiswa = new Map<string, string[]>()
+  for (const r of (ujianRes.data ?? []) as { student_id: string; juz: string }[]) {
+    const daftar = perSiswa.get(r.student_id) ?? []
+    daftar.push(String(r.juz))
+    perSiswa.set(r.student_id, daftar)
+  }
+
+  return UNIT_ORDER.map(jenjang => {
+    const anak = siswa
+      .filter(s => s.jenjang === jenjang && perSiswa.has(s.id))
+      .map(s => ({
+        id: s.id,
+        name: s.full_name,
+        kelas: s.kelas,
+        juz: totalJuzHafalan(perSiswa.get(s.id) ?? []),
+      }))
+      .filter(a => a.juz > 0)
+
+    const totalJuz = anak.reduce((n, a) => n + a.juz, 0)
+
+    const hitung = new Map<number, number>()
+    for (const a of anak) hitung.set(a.juz, (hitung.get(a.juz) ?? 0) + 1)
+
+    return {
+      jenjang,
+      label: UNIT_LABELS[jenjang],
+      siswaTeruji: anak.length,
+      totalJuz,
+      rataJuz: anak.length > 0 ? Math.round((totalJuz / anak.length) * 10) / 10 : 0,
+      sebaran: [...hitung.entries()]
+        .map(([juz, jumlah]) => ({ juz, siswa: jumlah }))
+        .sort((a, b) => a.juz - b.juz),
+      top10: [...anak].sort((a, b) => b.juz - a.juz || a.name.localeCompare(b.name)).slice(0, 10),
+    }
+  }).filter(u => u.siswaTeruji > 0)
 }

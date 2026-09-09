@@ -483,3 +483,68 @@ export async function cariSiswaUjianAction(
     sudahSampai: totalJuzHafalan(perSiswa.get(s.id) ?? []),
   }))
 }
+
+// ─── Pemetaan catatan lama ke siswa ──────────────────────────────────────────
+
+/**
+ * Memasangkan catatan ujian lama ke siswa.
+ *
+ * 36 dari 38 catatan yang ada dibuat sebelum ada tautan ke siswa, dan namanya
+ * sudah tersingkat sehingga tidak bisa dicocokkan otomatis. Pemasangannya
+ * dikerjakan manusia yang mengenali anaknya — pencocokan tebak-tebakan atas
+ * inisial berisiko menaruh capaian juz pada anak yang keliru, dan salah pasang
+ * seperti itu baru ketahuan berbulan-bulan kemudian lewat analitik yang aneh.
+ *
+ * nama_siswa ikut ditimpa nama lengkap dari data siswa. Nilai lamanya sudah
+ * pindah ke nama_flyer lewat migrasi 0059, jadi tidak ada yang hilang.
+ */
+export async function petakanUjianKeSiswaAction(
+  ujianId: string,
+  studentId: string,
+): Promise<Result> {
+  const guard = await guardPengelola('ujian_tahfidz', ujianId)
+  if ('error' in guard) return guard
+
+  const supabase = createServerClient()
+  const { data: siswa } = await supabase
+    .from('students')
+    .select('id, full_name, kelas')
+    .eq('id', studentId)
+    .maybeSingle()
+
+  if (!siswa) return { error: 'Siswa tidak ditemukan.' }
+
+  const { error } = await supabase
+    .from('ujian_tahfidz')
+    .update({
+      student_id: siswa.id,
+      nama_siswa: siswa.full_name,
+      kelas: siswa.kelas ?? '',
+    })
+    .eq('id', ujianId)
+
+  if (error) return { error: error.message }
+
+  segarkan()
+  revalidatePath('/ujian/pemetaan')
+  revalidatePath(`/siswa/${siswa.id}`)
+  return { success: true }
+}
+
+/** Melepas tautan yang terlanjur salah pasang. */
+export async function lepasPemetaanUjianAction(ujianId: string): Promise<Result> {
+  const guard = await guardPengelola('ujian_tahfidz', ujianId)
+  if ('error' in guard) return guard
+
+  const supabase = createServerClient()
+  const { error } = await supabase
+    .from('ujian_tahfidz')
+    .update({ student_id: null })
+    .eq('id', ujianId)
+
+  if (error) return { error: error.message }
+
+  segarkan()
+  revalidatePath('/ujian/pemetaan')
+  return { success: true }
+}

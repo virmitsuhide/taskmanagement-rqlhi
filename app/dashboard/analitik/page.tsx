@@ -3,9 +3,10 @@ import Link from 'next/link'
 import { getSession } from '@/lib/auth/session'
 import { canViewAnalytics, canViewGukarRecap } from '@/lib/auth/permissions'
 import { UNIT_LABELS } from '@/lib/rq/programs'
-import { getRqAnalytics, getUnitHafalanBoards, getSetoranTrend } from '@/lib/data/analytics'
+import { getRqAnalytics, getUnitHafalanBoards, getSetoranTrend, getHafalanUjianPerUnit } from '@/lib/data/analytics'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { UnitHafalanBoard } from '@/components/dashboard/UnitHafalanBoard'
+import { HafalanUjianBoard } from '@/components/dashboard/HafalanUjianBoard'
 import { SetoranTrendChart } from '@/components/dashboard/SetoranTrendChart'
 import { Users, GraduationCap, BookMarked, Sparkles, ClipboardList } from 'lucide-react'
 
@@ -14,7 +15,9 @@ export default async function AnalitikPage() {
   if (!session) redirect('/login')
   if (!canViewAnalytics(session.role)) redirect('/dashboard')
 
-  const [a, boards, trend] = await Promise.all([getRqAnalytics(), getUnitHafalanBoards(), getSetoranTrend()])
+  const [a, boards, trend, hafalanUjian] = await Promise.all([
+    getRqAnalytics(), getUnitHafalanBoards(), getSetoranTrend(), getHafalanUjianPerUnit(),
+  ])
   const maxJenjang = Math.max(1, ...a.overview.studentsByJenjang.map(j => j.count))
 
   return (
@@ -131,6 +134,8 @@ export default async function AnalitikPage() {
 
         {/* 10 besar hafalan per unit + posisi vs target */}
         <UnitHafalanBoard boards={boards} />
+
+        <HafalanUjianBoard units={hafalanUjian} />
       </div>
     </div>
   )

@@ -7,7 +7,9 @@ import { SetoranKoreksi, type SetoranItem } from '@/components/siswa/SetoranKore
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { Button } from '@/components/ui/button'
 import { Pencil, Phone, Mail, GraduationCap, BookOpen } from 'lucide-react'
-import type { Jenjang, Gender } from '@/types'
+import { totalJuzHafalan, ringkasHafalan } from '@/lib/rq/hafalan'
+import { getTahfidzLabel, getPredikatLabel, getStatusLabel } from '@/lib/rq/ujian'
+import type { Jenjang, Gender, UjianTahfidz } from '@/types'
 
 interface PageProps {
   params: Promise<{ id: string }>
@@ -45,7 +47,21 @@ export default async function StudentDetailPage({ params }: PageProps) {
   const { data: juzProgress } = await supabase
     .from('juz_progress').select('juz_number, ayat_hafal').eq('student_id', id).order('juz_number')
 
-  // Riwayat setoran hanya diambil untuk yang berwenang mengoreksinya —
+  // Riwayat ujian tahfidz anak ini. Catatan lama yang belum dipetakan tidak
+  // punya student_id, jadi tidak muncul di sini sampai dipasangkan lewat
+  // /ujian/pemetaan.
+  const { data: ujianRows } = await supabase
+    .from('ujian_tahfidz')
+    .select('id, tipe, juz, jadwal, penguji, predikat, status, created_at')
+    .eq('student_id', id)
+    .order('created_at', { ascending: false })
+  const ujian = (ujianRows ?? []) as unknown as UjianTahfidz[]
+
+  // Yang dihitung catatan terjauh, bukan jumlah catatannya: tiga kali ujian
+  // juz 30 tetap satu juz.
+  const juzHafalan = totalJuzHafalan(ujian.map(u => String(u.juz)))
+
+  // Riwayat setoran hanya diambil untuk yang berwenang mengoreksinya;
   // bagi yang lain, tiga query ini sia-sia.
   const canKoreksi = canManageSetoran(session.role, jenjang, program)
   const setoranItems: SetoranItem[] = canKoreksi ? await ambilSetoran(supabase, id) : []
@@ -139,6 +155,15 @@ export default async function StudentDetailPage({ params }: PageProps) {
             ) : (
               <p className="text-sm text-muted-foreground italic">Belum ada hafalan</p>
             )}
+            {/* Hafalan menurut UJIAN, bukan menurut setoran. Keduanya sengaja
+                berdampingan: setoran adalah proses harian, ujian adalah yang
+                sudah diakui lulus — dan hanya yang kedua yang dipakai
+                menentukan juz berikutnya boleh diajukan. */}
+            {juzHafalan > 0 && (
+              <p className="mt-2 border-t pt-2 text-xs text-muted-foreground">
+                Lulus ujian: <span className="font-medium text-foreground">{ringkasHafalan(juzHafalan)}</span>
+              </p>
+            )}
           </div>
         </div>
 
@@ -166,9 +191,50 @@ export default async function StudentDetailPage({ params }: PageProps) {
           </div>
         )}
 
+        {/* Riwayat ujian terbuka untuk siapa pun yang boleh melihat siswa ini:
+            capaian ujian bukan data yang perlu dibatasi sebagaimana koreksi
+            setoran, dan justru inilah yang paling sering ditanyakan. */}
+        {ujian.length > 0 && (
+          <section className="mt-6">
+            <h2 className="text-base font-semibold">Riwayat Ujian</h2>
+            <p className="mt-0.5 mb-3 text-xs text-muted-foreground">
+              {ringkasHafalan(juzHafalan)}
+            </p>
+            <div className="overflow-hidden rounded-xl border bg-card">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b text-left text-[11px] tracking-wider text-muted-foreground uppercase">
+                    <th className="px-3 py-2.5">Ujian</th>
+                    <th className="w-36 px-3 py-2.5">Tanggal</th>
+                    <th className="w-32 px-3 py-2.5">Penguji</th>
+                    <th className="w-28 px-3 py-2.5">Hasil</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {ujian.map(u => (
+                    <tr key={u.id} className="border-b last:border-0 align-top">
+                      <td className="px-3 py-2.5 font-medium">{getTahfidzLabel(u.tipe, u.juz)}</td>
+                      <td className="px-3 py-2.5 text-muted-foreground">
+                        {u.jadwal
+                          ? new Date(u.jadwal).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
+                          : '—'}
+                      </td>
+                      <td className="px-3 py-2.5 text-muted-foreground">{u.penguji ?? '—'}</td>
+                      <td className="px-3 py-2.5 text-muted-foreground">
+                        {u.status === 'selesai' ? getPredikatLabel(u.predikat) : getStatusLabel(u.status)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        )}
+
         {canKoreksi && (
           <section className="mt-6">
             <h2 className="text-base font-semibold">Riwayat Setoran</h2>
+
             <p className="text-xs text-muted-foreground mt-0.5 mb-3">
               20 setoran terakhir. Guru mencatat, pengurus membetulkan bila ada salah input.
             </p>

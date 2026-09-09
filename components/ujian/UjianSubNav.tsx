@@ -2,13 +2,16 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { History, ListChecks, PlusCircle, UserCheck } from 'lucide-react'
+import { History, Link2, ListChecks, PlusCircle, UserCheck } from 'lucide-react'
 
 const MENU = [
   { href: '/ujian/kelola',  label: 'Kelola',  icon: ListChecks },
   { href: '/ujian/ajukan',  label: 'Ajukan',  icon: PlusCircle },
   { href: '/ujian/riwayat', label: 'Riwayat', icon: History    },
   { href: '/ujian/penguji', label: 'Penguji', icon: UserCheck  },
+  // Sementara: hilang sendiri dari kebiasaan begitu semua catatan lama
+  // terpasang, tapi tetap perlu pintu selama masih ada yang menganggur.
+  { href: '/ujian/pemetaan', label: 'Pemetaan', icon: Link2 },
 ]
 
 /**
