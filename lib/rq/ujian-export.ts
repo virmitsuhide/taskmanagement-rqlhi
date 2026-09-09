@@ -3,7 +3,7 @@ import {
   BULAN_ID,
   formatJadwal,
   getPredikatLabel,
-  getTahfidzLabel,
+  getTahfidzLabel, namaPublik,
 } from '@/lib/rq/ujian'
 import type { UjianTahfidz, UjianTahsin } from '@/types'
 
@@ -30,12 +30,12 @@ export function exportRekapUjian(
     ['REKAP HASIL UJIAN TAHFIDZ'],
     [`Periode: ${periode}`],
     [],
-    ['No', 'Unit', 'Nama Siswa', 'Ayah', 'Kelas', 'Tipe Ujian', 'Predikat', 'Penguji', 'Jadwal', 'Catatan'],
+    ['No', 'Unit', 'Nama Siswa', 'Nama Flyer', 'Kelas', 'Tipe Ujian', 'Predikat', 'Penguji', 'Jadwal', 'Catatan'],
     ...tahfidz.map((item, i) => [
       i + 1,
       item.unit,
       item.nama_siswa,
-      item.nama_ayah,
+      namaPublik(item),
       `${item.kelas}${item.is_quls ? ' (QULS)' : ''}`,
       getTahfidzLabel(item.tipe, item.juz),
       getPredikatLabel(item.predikat),

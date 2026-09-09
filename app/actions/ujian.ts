@@ -6,6 +6,7 @@ import { getSession } from '@/lib/auth/session'
 import { getTeacherSession } from '@/lib/auth/teacher-session'
 import { canManageUjian, canSubmitUjian, getUjianUnits } from '@/lib/auth/permissions'
 import { getUnitUjianGuru } from '@/lib/data/ujian'
+import { totalJuzHafalan } from '@/lib/rq/hafalan'
 import type {
   TahfidzTipe,
   UjianPredikat,
@@ -100,23 +101,26 @@ async function guardPengelola(
 export async function createTahfidzUjianAction(input: {
   tipe: TahfidzTipe
   juz: string
+  /** Siswa terpilih dari saran. null hanya untuk anak yang belum terdaftar. */
+  student_id: string | null
   nama_siswa: string
-  nama_ayah: string
+  nama_flyer: string
   kelas: string
   is_quls: boolean
   unit?: UjianUnit
 }): Promise<Result> {
+
   const pengaju = await guardPengaju(input.unit)
   if ('error' in pengaju) return pengaju
 
   const juz = input.juz.trim()
   const namaSiswa = input.nama_siswa.trim()
-  const namaAyah = input.nama_ayah.trim()
+  const namaFlyer = input.nama_flyer.trim()
   const kelas = input.kelas.trim()
 
   if (!juz) return { error: 'Nomor atau rentang juz wajib diisi.' }
   if (!namaSiswa) return { error: 'Nama siswa wajib diisi.' }
-  if (!namaAyah) return { error: 'Nama ayah wajib diisi.' }
+  if (!namaFlyer) return { error: 'Nama untuk flyer wajib diisi.' }
   if (!kelas) return { error: 'Kelas wajib diisi.' }
 
   try {
@@ -125,8 +129,9 @@ export async function createTahfidzUjianAction(input: {
       unit: pengaju.unit,
       tipe: input.tipe,
       juz,
+      student_id: input.student_id,
       nama_siswa: namaSiswa,
-      nama_ayah: namaAyah,
+      nama_flyer: namaFlyer,
       kelas,
       is_quls: input.is_quls,
       status: 'diajukan',
@@ -149,7 +154,7 @@ export async function updateTahfidzUjianAction(
     penguji?: string | null
     predikat?: UjianPredikat | null
     catatan?: string | null
-    nama_ayah?: string
+    nama_flyer?: string
     status?: UjianStatus
     is_quls?: boolean
   },
@@ -407,4 +412,74 @@ export async function markUjianSeenAction(): Promise<void> {
     // Penanda badge, bukan data inti — gagal menyimpannya tidak perlu
     // menggagalkan halaman yang sedang dibuka.
   }
+}
+
+// ─── Saran siswa untuk form pengajuan ────────────────────────────────────────
+
+export interface SaranSiswa {
+  id: string
+  full_name: string
+  kelas: string | null
+  /** Program siswa; dipakai mencentang QULS otomatis. */
+  program: string | null
+  /** Posisi juz terjauh yang sudah tercatat. 0 = belum pernah ujian. */
+  sudahSampai: number
+}
+
+/**
+ * Mencari siswa untuk saran nama di form pengajuan.
+ *
+ * Unit ujian dipetakan ke jenjang, jadi pengaju SD tidak pernah melihat anak
+ * SMP — bukan sekadar merapikan daftar, tapi supaya nama anak unit lain tidak
+ * bocor ke koordinator yang tidak mengurusnya.
+ *
+ * Capaian juz ikut dibawa pulang sekalian. Memisahkannya jadi permintaan
+ * kedua berarti daftar juz baru menyempit setelah nama dipilih, dan sekejap
+ * di antaranya pengaju sempat melihat juz yang sebenarnya sudah lewat.
+ */
+export async function cariSiswaUjianAction(
+  unit: UjianUnit,
+  kueri: string,
+): Promise<SaranSiswa[]> {
+  const pengaju = await guardPengaju(unit)
+  if ('error' in pengaju) return []
+
+  const q = kueri.trim()
+  if (q.length < 2) return []
+
+  const supabase = createServerClient()
+  // 'SD' mencakup SD reguler dan SD Juara; keduanya diuji di antrean yang sama.
+  const jenjang = pengaju.unit === 'SD' ? ['sd', 'sd_juara'] : ['smp']
+
+  const { data: siswa } = await supabase
+    .from('students')
+    .select('id, full_name, kelas, program')
+    .in('jenjang', jenjang)
+    .eq('is_active', true)
+    .ilike('full_name', `%${q}%`)
+    .order('full_name')
+    .limit(8)
+
+  if (!siswa || siswa.length === 0) return []
+
+  const { data: ujian } = await supabase
+    .from('ujian_tahfidz')
+    .select('student_id, juz')
+    .in('student_id', siswa.map(s => s.id))
+
+  const perSiswa = new Map<string, string[]>()
+  for (const u of ujian ?? []) {
+    if (!u.student_id) continue
+    const daftar = perSiswa.get(u.student_id) ?? []
+    daftar.push(String(u.juz))
+    perSiswa.set(u.student_id, daftar)
+  }
+
+  return siswa.map(s => ({
+    id: s.id,
+    full_name: s.full_name,
+    kelas: s.kelas,
+    program: s.program,
+    sudahSampai: totalJuzHafalan(perSiswa.get(s.id) ?? []),
+  }))
 }

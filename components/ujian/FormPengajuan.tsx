@@ -8,6 +8,9 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Segmen } from './Segmen'
 import { TAHSIN_LEVELS, getTahfidzLabel } from '@/lib/rq/ujian'
+import { juzTersedia, ringkasHafalan } from '@/lib/rq/hafalan'
+import { PilihSiswa } from './PilihSiswa'
+import type { SaranSiswa } from '@/app/actions/ujian'
 import { createTahfidzUjianAction, createTahsinUjianAction } from '@/app/actions/ujian'
 import type { TahfidzTipe, UjianSiswa, UjianUnit } from '@/types'
 
@@ -62,7 +65,7 @@ export function FormPengajuan({ units, redirectTo }: Props) {
 
       <div className="rounded-xl border bg-card p-4">
         {jenis === 'tahfidz'
-          ? <FormTahfidz unit={unit} redirectTo={redirectTo} />
+          ? <FormTahfidz key={unit} unit={unit} redirectTo={redirectTo} />
           : <FormTahsin unit={unit} redirectTo={redirectTo} />}
       </div>
     </div>
@@ -71,16 +74,37 @@ export function FormPengajuan({ units, redirectTo }: Props) {
 
 // ─── Tahfidz ─────────────────────────────────────────────────────────────────
 
-const JUZ_OPTIONS = Array.from({ length: 30 }, (_, i) => i + 1)
 
 function FormTahfidz({ unit, redirectTo }: { unit: UjianUnit; redirectTo: string }) {
   const router = useRouter()
   const [tipe, setTipe] = useState<TahfidzTipe>('1_juz')
-  const [juz, setJuz] = useState('1')
-  const [namaSiswa, setNamaSiswa] = useState('')
-  const [namaAyah, setNamaAyah] = useState('')
-  const [kelas, setKelas] = useState('')
+  const [siswa, setSiswa] = useState<SaranSiswa | null>(null)
+  const [namaFlyer, setNamaFlyer] = useState('')
   const [isQuls, setIsQuls] = useState(false)
+
+  // Juz yang sudah dilewati tidak ditawarkan lagi. Anak yang sudah juz'iyyah
+  // juz 26 hanya melihat 1-25, sebab 30-26 pasti sudah lewat.
+  const pilihanJuz = juzTersedia(siswa?.sudahSampai ?? 0)
+  const [juz, setJuz] = useState('')
+
+  // Berganti siswa mengubah daftar juz-nya, jadi pilihan lama bisa jadi tidak
+  // sah lagi. Dijatuhkan ke juz terdekat yang belum dilewati, bukan dibiarkan
+  // menunjuk juz yang sudah hilang dari daftar.
+  const juzSah = juz && pilihanJuz.includes(Number(juz)) ? juz : String(pilihanJuz[0] ?? '')
+
+  function pilihSiswa(s: SaranSiswa | null) {
+    setSiswa(s)
+    setJuz('')
+    if (s) {
+      // Nama flyer diisi awal dengan nama depannya saja — pengaju tinggal
+      // menyingkat sisanya, alih-alih mengetik ulang dari nol.
+      setNamaFlyer(s.full_name.split(' ')[0] ?? '')
+      setIsQuls(Boolean(s.program && s.program.includes('quls')))
+    } else {
+      setNamaFlyer('')
+      setIsQuls(false)
+    }
+  }
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -91,10 +115,11 @@ function FormTahfidz({ unit, redirectTo }: { unit: UjianUnit; redirectTo: string
     try {
       const hasil = await createTahfidzUjianAction({
         tipe,
-        juz,
-        nama_siswa: namaSiswa,
-        nama_ayah: namaAyah,
-        kelas,
+        juz: tipe === '1_juz' ? juzSah : juz,
+        student_id: siswa?.id ?? null,
+        nama_siswa: siswa?.full_name ?? '',
+        nama_flyer: namaFlyer,
+        kelas: siswa?.kelas ?? '',
         is_quls: isQuls,
         unit,
       })
@@ -111,90 +136,102 @@ function FormTahfidz({ unit, redirectTo }: { unit: UjianUnit; redirectTo: string
 
   return (
     <form onSubmit={submit} className="space-y-4">
+      {/* Siswa lebih dulu, dan bukan sekadar urutan yang enak dibaca: daftar
+          juz di bawah disaring oleh capaian anaknya, jadi memilih juz sebelum
+          memilih siswa berarti daftarnya berubah setelah pengaju memilih. */}
       <div className="space-y-1.5">
-        <Label htmlFor="tipe">Tipe ujian</Label>
-        <select
-          id="tipe"
-          value={tipe}
-          onChange={e => {
-            const nilai = e.target.value as TahfidzTipe
-            setTipe(nilai)
-            // Rentang juz untuk 3/5 juz tidak bisa ditebak, jadi dikosongkan
-            // supaya pengaju mengetiknya sendiri alih-alih mengirim '1'.
-            setJuz(nilai === '1_juz' ? '1' : '')
-          }}
-          className={SELECT_CLASS}
-        >
-          <option value="1_juz">1 Juz — Tasmi&apos; Juz</option>
-          <option value="3_juz">3 Juz — Tasmi&apos; 3 Juz</option>
-          <option value="5_juz">5 Juz — Tasmi&apos; 5 Juz</option>
-        </select>
-      </div>
-
-      <div className="space-y-1.5">
-        <Label htmlFor="juz">{tipe === '1_juz' ? 'Nomor juz' : 'Rentang juz'}</Label>
-        {tipe === '1_juz' ? (
-          <select id="juz" value={juz} onChange={e => setJuz(e.target.value)} className={SELECT_CLASS}>
-            {JUZ_OPTIONS.map(n => <option key={n} value={String(n)}>Juz {n}</option>)}
-          </select>
-        ) : (
-          <Input
-            id="juz"
-            className="h-9"
-            placeholder={tipe === '3_juz' ? '28-30' : '26-30'}
-            value={juz}
-            onChange={e => setJuz(e.target.value)}
-            required
-          />
+        <Label>Siswa</Label>
+        <PilihSiswa unit={unit} terpilih={siswa} onPilih={pilihSiswa} />
+        {siswa && (
+          <p className="text-xs text-muted-foreground">
+            Kelas &amp; capaian juz terisi dari data siswa, jadi tidak perlu diketik.
+          </p>
         )}
       </div>
 
-      {juz && (
-        <p className="rounded-lg bg-info-wash px-3 py-2 text-sm text-info">
-          Label: {getTahfidzLabel(tipe, juz)}
-        </p>
+      {siswa && (
+        <>
+          <div className="space-y-1.5">
+            <Label htmlFor="nama_flyer">Nama untuk flyer</Label>
+            <Input id="nama_flyer" className="h-9" value={namaFlyer}
+              onChange={e => setNamaFlyer(e.target.value)} placeholder="Contoh: Khansa A. C." required />
+            <p className="text-xs text-muted-foreground">
+              Yang tercantum di flyer &amp; broadcast. Sengaja bukan nama lengkap:
+              keduanya beredar ke luar sekolah.
+            </p>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="tipe">Tipe ujian</Label>
+            <select
+              id="tipe"
+              value={tipe}
+              onChange={e => {
+                setTipe(e.target.value as TahfidzTipe)
+                // Rentang tasmi' tidak bisa ditebak dari capaian, jadi
+                // dikosongkan supaya pengaju mengetiknya sendiri.
+                setJuz('')
+              }}
+              className={SELECT_CLASS}
+            >
+              <option value="1_juz">1 Juz — Tasmi&apos; Juz</option>
+              <option value="3_juz">3 Juz — Tasmi&apos; 3 Juz</option>
+              <option value="5_juz">5 Juz — Tasmi&apos; 5 Juz</option>
+            </select>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="juz">{tipe === '1_juz' ? 'Nomor juz' : 'Rentang juz'}</Label>
+            {tipe === '1_juz' ? (
+              <>
+                <select id="juz" value={juzSah} onChange={e => setJuz(e.target.value)} className={SELECT_CLASS}>
+                  {pilihanJuz.map(n => <option key={n} value={String(n)}>Juz {n}</option>)}
+                </select>
+                {siswa.sudahSampai > 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    Juz yang sudah dilewati tidak ditawarkan — {ringkasHafalan(siswa.sudahSampai)}.
+                  </p>
+                )}
+              </>
+            ) : (
+              <Input
+                id="juz"
+                className="h-9"
+                placeholder={tipe === '3_juz' ? '28-30' : '26-30'}
+                value={juz}
+                onChange={e => setJuz(e.target.value)}
+                required
+              />
+            )}
+          </div>
+
+          {(tipe === '1_juz' ? juzSah : juz) && (
+            <p className="rounded-lg bg-info-wash px-3 py-2 text-sm text-info">
+              Label: {getTahfidzLabel(tipe, tipe === '1_juz' ? juzSah : juz)}
+            </p>
+          )}
+
+          <label className="flex cursor-pointer items-start gap-3 rounded-lg border p-3 select-none">
+            <input
+              type="checkbox"
+              checked={isQuls}
+              onChange={e => setIsQuls(e.target.checked)}
+              className="mt-0.5 h-4 w-4 accent-primary"
+            />
+            <span>
+              <span className="text-sm font-medium">Program QULS</span>
+              <span className="mt-0.5 block text-xs text-muted-foreground">
+                Tercentang sendiri bila program siswa ini QULS. Boleh dikoreksi.
+              </span>
+            </span>
+          </label>
+        </>
       )}
-
-      <div className="space-y-1.5">
-        <Label htmlFor="nama_siswa">Nama siswa</Label>
-        <Input id="nama_siswa" className="h-9" value={namaSiswa}
-          onChange={e => setNamaSiswa(e.target.value)} placeholder="Nama lengkap siswa" required />
-      </div>
-
-      <div className="space-y-1.5">
-        <Label htmlFor="nama_ayah">Nama ayah</Label>
-        <Input id="nama_ayah" className="h-9" value={namaAyah}
-          onChange={e => setNamaAyah(e.target.value)} placeholder="Nama lengkap ayah" required />
-        <p className="text-xs text-muted-foreground">
-          Dipakai pada teks pengumuman ke wali murid setelah ujian selesai.
-        </p>
-      </div>
-
-      <div className="space-y-1.5">
-        <Label htmlFor="kelas">Kelas</Label>
-        <Input id="kelas" className="h-9" value={kelas}
-          onChange={e => setKelas(e.target.value)} placeholder="Contoh: 5A, 7B" required />
-      </div>
-
-      <label className="flex cursor-pointer items-start gap-3 rounded-lg border p-3 select-none">
-        <input
-          type="checkbox"
-          checked={isQuls}
-          onChange={e => setIsQuls(e.target.checked)}
-          className="mt-0.5 h-4 w-4 accent-primary"
-        />
-        <span>
-          <span className="text-sm font-medium">Program QULS</span>
-          <span className="mt-0.5 block text-xs text-muted-foreground">
-            Centang bila siswa ini termasuk program QULS.
-          </span>
-        </span>
-      </label>
 
       {error && <PesanError>{error}</PesanError>}
 
-      <Button type="submit" size="lg" className="w-full" disabled={loading}>
-        {loading ? 'Menyimpan…' : 'Ajukan ujian tahfidz'}
+      <Button type="submit" size="lg" className="w-full" disabled={loading || !siswa}>
+        {loading ? 'Menyimpan…' : siswa ? 'Ajukan ujian tahfidz' : 'Pilih siswa lebih dulu'}
       </Button>
     </form>
   )

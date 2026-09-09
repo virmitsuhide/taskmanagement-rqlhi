@@ -1293,8 +1293,11 @@ export const ujianTahfidz = pgTable('ujian_tahfidz', {
   tipe: text('tipe').notNull(),
   /** Nomor juz ('7') atau rentangnya ('28-30') — bentuknya tergantung tipe. */
   juz: text('juz').notNull(),
+  /** Siswa yang diuji. NULL = catatan lama yang belum dipetakan. */
+  student_id: uuid('student_id').references(() => students.id, { onDelete: 'set null' }),
   nama_siswa: text('nama_siswa').notNull(),
-  nama_ayah: text('nama_ayah').notNull(),
+  /** Nama singkat untuk flyer & broadcast. NULL = pakai nama_siswa. */
+  nama_flyer: text('nama_flyer'),
   kelas: text('kelas').notNull(),
   is_quls: boolean('is_quls').notNull().default(false),
   jadwal: timestamp('jadwal', { withTimezone: true }),

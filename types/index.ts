@@ -1337,8 +1337,11 @@ export interface UjianTahfidz {
   unit: UjianUnit
   tipe: TahfidzTipe
   juz: string
+  /** Siswa yang diuji. null = catatan lama yang belum dipetakan. */
+  student_id: string | null
   nama_siswa: string
-  nama_ayah: string
+  /** Nama singkat untuk flyer & broadcast. null = pakai nama_siswa. */
+  nama_flyer: string | null
   kelas: string
   is_quls: boolean
   jadwal: string | null

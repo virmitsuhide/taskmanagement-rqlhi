@@ -282,17 +282,32 @@ const DOA_PENUTUP = 'ونسأل الله أن يجعل القرآن رببع ق�
 const HARAPAN = 'Semoga Allāh jadikan Ananda semua Ahlul Quran yang hidup sesuai tuntunan Al Quran, dan berakhlak dengan akhlak Al Quran.'
 
 /**
+ * Nama yang boleh beredar ke luar.
+ *
+ * Flyer dan broadcast dibaca orang di luar sekolah, jadi yang tercantum bukan
+ * nama lengkap. nama_flyer diisi pengaju; catatan lama yang belum punya
+ * nilainya jatuh ke nama_siswa, yang saat itu memang sudah ditulis singkat.
+ */
+export function namaPublik(item: UjianTahfidz): string {
+  return (item.nama_flyer ?? '').trim() || item.nama_siswa
+}
+
+/**
  * Teks pengumuman WhatsApp untuk wali murid.
  *
  * Kalimat lanjutannya berbeda per tipe karena target berikutnya memang
  * berbeda — anak yang baru tasmi' 1 juz diarahkan ke 3-5 juz, yang sudah
  * 5 juz ke 10 juz.
+ *
+ * Nama ayah dilepas sejak migrasi 0059: teks ini beredar di grup wali murid,
+ * dan nama orang tua bukan sesuatu yang perlu ikut tersebar untuk mengabarkan
+ * capaian anaknya.
  */
 export function generateWAText(item: UjianTahfidz, gender: 'putra' | 'putri'): string {
   const isPutri = gender === 'putri'
-  const emoji = isPutri ? '🧕🏻' : '🧒🏻'
-  const putraPutri = isPutri ? 'Putri' : 'Putra'
+  const emoji = isPutri ? '\u{1F9D5}\u{1F3FB}' : '\u{1F9D2}\u{1F3FB}'
   const siswaSiswi = isPutri ? 'Siswi' : 'Siswa'
+  const nama = namaPublik(item)
   const kelasLine = `${siswaSiswi} Kelas ${item.kelas}${item.is_quls ? ' QULS' : ''} ${NAMA_UNIT_LENGKAP[item.unit]}`
 
   if (item.tipe === '3_juz') {
@@ -301,8 +316,7 @@ export function generateWAText(item: UjianTahfidz, gender: 'putra' | 'putri'): s
 Alhamdulillah, dengan rahmat dan taufik-Nya ﷻ, telah menghafal dan melaksanakan Ujian Al Quran
 
 📖 Tasmi' 3 Juz bil ghoib, Ananda:
-${emoji}${item.nama_siswa}
-${putraPutri} dari Bapak ${item.nama_ayah}
+${emoji}${nama}
 ${kelasLine}
 
 Kedepan insyaAllah Ananda akan melanjutkan hafalannya dengan target melaksanakan ujian hafalan 5-10 juz dengan Tasmi' sekali duduk.
@@ -324,7 +338,7 @@ Alhamdulillah, dengan rahmat dan taufik-Nya ﷻ, telah menghafal dan melaksanaka
 
 Juz ${item.juz} bil ghoib,  Ananda
 
-${emoji} ${item.nama_siswa}, ${putraPutri} dari Bapak ${item.nama_ayah}
+${emoji} ${nama}
 ${kelasLine}
 
 ${lanjutan}
@@ -339,8 +353,7 @@ ${WA_FOOTER}`
 export function generateFlyerText(item: UjianTahfidz): string {
   return `👑Laporan ${getTahfidzLabel(item.tipe, item.juz)}
 
-Nama : ${item.nama_siswa}
-Nama Ayah: ${item.nama_ayah}
+Nama : ${namaPublik(item)}
 Kelas : ${item.kelas}${item.is_quls ? ' QULS' : ''}
 Tanggal ujian : ${formatTanggal(item.jadwal)}
 Penguji: ${item.penguji ?? '-'}

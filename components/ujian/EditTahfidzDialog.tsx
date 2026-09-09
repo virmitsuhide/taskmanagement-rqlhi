@@ -32,7 +32,7 @@ export function EditTahfidzDialog({ item, pengujiOptions, onClose }: Props) {
   const router = useRouter()
   const [jadwal, setJadwal] = useState(toDatetimeLocalWIB(item.jadwal))
   const [penguji, setPenguji] = useState(item.penguji ?? '')
-  const [namaAyah, setNamaAyah] = useState(item.nama_ayah)
+  const [namaFlyer, setNamaFlyer] = useState(item.nama_flyer ?? item.nama_siswa)
   const [predikat, setPredikat] = useState<UjianPredikat | ''>(item.predikat ?? '')
   const [catatan, setCatatan] = useState(item.catatan ?? '')
   const [isQuls, setIsQuls] = useState(item.is_quls)
@@ -58,7 +58,7 @@ export function EditTahfidzDialog({ item, pengujiOptions, onClose }: Props) {
   // koordinator lazim menyalin teksnya sebelum menekan Simpan.
   const pratinjau: UjianTahfidz = {
     ...item,
-    nama_ayah: namaAyah,
+    nama_flyer: namaFlyer,
     penguji: penguji || item.penguji,
     predikat: (predikat || item.predikat) as UjianPredikat | null,
     is_quls: isQuls,
@@ -74,7 +74,7 @@ export function EditTahfidzDialog({ item, pengujiOptions, onClose }: Props) {
         penguji: penguji || null,
         predikat: predikat || null,
         catatan: catatan || null,
-        nama_ayah: namaAyah,
+        nama_flyer: namaFlyer,
         status: statusBaru(),
         is_quls: isQuls,
       })
@@ -165,9 +165,13 @@ export function EditTahfidzDialog({ item, pengujiOptions, onClose }: Props) {
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="nama_ayah">Nama ayah</Label>
-            <Input id="nama_ayah" className="h-9" value={namaAyah}
-              onChange={e => setNamaAyah(e.target.value)} />
+            <Label htmlFor="nama_flyer">Nama untuk flyer</Label>
+            <Input id="nama_flyer" className="h-9" value={namaFlyer}
+              onChange={e => setNamaFlyer(e.target.value)} />
+            <p className="text-xs text-muted-foreground">
+              Nama yang tercantum di flyer &amp; broadcast. Sengaja bukan nama
+              lengkap: keduanya beredar ke luar sekolah.
+            </p>
           </div>
 
           <div className="space-y-1.5">

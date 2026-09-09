@@ -15,7 +15,7 @@ import {
   formatTahsinLevels,
   getPredikatClass,
   getPredikatLabel,
-  getTahfidzLabel,
+  getTahfidzLabel, namaPublik,
   groupSiswaByLevel,
 } from '@/lib/rq/ujian'
 import type { UjianPredikat, UjianTahfidz, UjianTahsin, UjianUnit } from '@/types'
@@ -167,7 +167,7 @@ export function RekapUjian({ tahfidz, tahsin, month, year, bolehEkspor }: Props)
                     <p className="text-xs text-muted-foreground">
                       {getTahfidzLabel(item.tipe, item.juz)} · Kelas {item.kelas}
                     </p>
-                    <p className="mt-0.5 text-xs text-muted-foreground">Ayah: {item.nama_ayah}</p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">Nama flyer: {namaPublik(item)}</p>
                     <p className="mt-2 text-xs text-muted-foreground">
                       {formatJadwal(item.jadwal)}
                       {item.penguji && ` · ${item.penguji}`}
