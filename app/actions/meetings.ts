@@ -99,9 +99,28 @@ export async function updateMeetingAction(_: unknown, formData: FormData) {
     ? participantsRaw.split('\n').map(p => p.trim()).filter(Boolean)
     : []
 
+  // Jenis rapat boleh dipindah saat edit — koordinator kerap salah pilih antara
+  // rapat divisinya sendiri dan rapat kolaborasi. Syaratnya izin BUAT atas jenis
+  // TUJUAN, bukan izin edit: MEETING_EDIT.kumik memuat para koor supaya mereka
+  // bisa merapikan notulen kumik, jadi memakai izin edit di sini akan membuka
+  // jalan memindahkan rapat menjadi rapat Kumik yang tidak boleh mereka buat.
+  //
+  // Jenis yang tidak berubah tidak diperiksa: seorang koor SD yang mengedit
+  // notulen kumik memang tidak bisa membuat rapat kumik, dan tidak semestinya
+  // terhalang menyimpan suntingannya sendiri.
+  const requestedType = formData.get('type') as MeetingType | null
+  let type = existing.type as MeetingType
+  if (requestedType && requestedType !== existing.type) {
+    if (!canCreateMeeting(session.role, requestedType)) {
+      return { error: 'Anda tidak memiliki izin memindahkan rapat ke jenis itu.' }
+    }
+    type = requestedType
+  }
+
   const { error } = await supabase
     .from('meetings')
     .update({
+      type,
       subject: formData.get('subject') as string,
       date: formData.get('date') as string,
       start_time: (formData.get('start_time') as string) || null,

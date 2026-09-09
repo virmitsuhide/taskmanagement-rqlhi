@@ -75,10 +75,16 @@ export function MeetingForm({ allowedTypes, action, defaultValues, submitLabel =
         </CardHeader>
         <CardContent className="space-y-4 py-5">
           <FieldGroup title="Identitas">
-            {!defaultValues && (
+            {/* Satu pilihan bukan pilihan — jenisnya cukup dititipkan diam-diam
+                supaya form tidak memamerkan dropdown yang tak bisa diapa-apakan. */}
+            {allowedTypes.length > 1 ? (
               <div className="space-y-1.5">
                 <Label htmlFor="type">Jenis Rapat</Label>
-                <Select name="type" defaultValue={allowedTypes[0]} required>
+                <Select
+                  name="type"
+                  defaultValue={defaultValues?.type ?? allowedTypes[0]}
+                  required
+                >
                   <SelectTrigger id="type" className="w-full">
                     <SelectValue placeholder="Pilih jenis rapat" />
                   </SelectTrigger>
@@ -88,7 +94,15 @@ export function MeetingForm({ allowedTypes, action, defaultValues, submitLabel =
                     ))}
                   </SelectContent>
                 </Select>
+                {defaultValues && (
+                  <p className="text-xs text-muted-foreground">
+                    Mengubahnya memindahkan rapat ini beserta notulennya, dan bisa
+                    mengubah siapa saja yang berhak membacanya.
+                  </p>
+                )}
               </div>
+            ) : (
+              <input type="hidden" name="type" value={allowedTypes[0]} />
             )}
 
             <div className="space-y-1.5">
