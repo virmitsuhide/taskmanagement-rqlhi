@@ -67,7 +67,6 @@ export async function updateHalaqohAction(_: unknown, formData: FormData) {
 
   const id = formData.get('id') as string
   const name = (formData.get('name') as string)?.trim()
-  const jenjang = formData.get('jenjang') as Jenjang
   const program = bacaProgram(formData)
   const waliRaw = (formData.get('wali_teacher_id') as string) || ''
   const wali_teacher_id = (!waliRaw || waliRaw === 'none') ? null : waliRaw
@@ -78,10 +77,7 @@ export async function updateHalaqohAction(_: unknown, formData: FormData) {
   const tempat = ((formData.get('tempat') as string) ?? '').trim()
   const is_active = formData.get('is_active') === 'on'
 
-  if (!id || !name || !jenjang) return { error: 'Data tidak lengkap.' }
-  if (!canManageHalaqoh(session.role, jenjang, program)) {
-    return { error: 'Anda tidak memiliki izin untuk halaqoh program ini.' }
-  }
+  if (!id || !name) return { error: 'Data tidak lengkap.' }
 
   const supabase = createServerClient()
 
@@ -92,6 +88,17 @@ export async function updateHalaqohAction(_: unknown, formData: FormData) {
     .from('halaqoh').select('jenjang, program').eq('id', id).single()
   if (!existing || !canManageHalaqoh(session.role, existing.jenjang as Jenjang, existing.program as string | null)) {
     return { error: 'Anda tidak memiliki izin untuk halaqoh ini.' }
+  }
+
+  // Jenjang TIDAK diambil dari form. Sebuah halaqoh melekat pada unitnya lewat
+  // santri, sesi, dan pengampunya; memindahkannya antar unit adalah migrasi
+  // data, bukan satu dropdown. Nilainya diambil dari baris yang sudah ada,
+  // jadi form yang tidak lagi mengirim 'jenjang' pun tetap sah — dan yang
+  // menyisipkannya lewat request buatan tangan tidak bisa memindahkan apa pun.
+  const jenjang = existing.jenjang as Jenjang
+
+  if (!canManageHalaqoh(session.role, jenjang, program)) {
+    return { error: 'Anda tidak memiliki izin untuk halaqoh program ini.' }
   }
 
   const { error } = await supabase

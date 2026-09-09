@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { JENJANG_LABELS } from '@/lib/auth/permissions'
 import { sesiLabel } from '@/lib/rq/sesi'
 import { getProgramsForJenjang } from '@/lib/rq/programs'
+import { cn } from '@/lib/utils'
 import type { Jenjang, Teacher } from '@/types'
 
 // Radix Select melarang SelectItem value="". Pakai sentinel ini untuk opsi
@@ -83,18 +84,31 @@ export function HalaqohForm({ mode, allowedJenjang, allowedPrograms, teachers, i
         />
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2">
-        <div className="space-y-1.5">
-          <Label htmlFor="jenjang">Jenjang *</Label>
-          <Select name="jenjang" value={jenjang} onValueChange={v => onJenjangChange(v as Jenjang)}>
-            <SelectTrigger id="jenjang"><SelectValue placeholder="Pilih jenjang" /></SelectTrigger>
-            <SelectContent>
-              {allowedJenjang.map(j => (
-                <SelectItem key={j} value={j}>{JENJANG_LABELS[j]}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+      {/* Kolomnya menyesuaikan isi: saat edit hanya Program yang tersisa di
+          baris ini, dan grid dua kolom akan menyisakan separuh baris kosong. */}
+      <div className={cn('grid gap-3', mode === 'create' && programOptions.length > 0 && 'sm:grid-cols-2')}>
+        {mode === 'create' ? (
+          <div className="space-y-1.5">
+            <Label htmlFor="jenjang">Jenjang *</Label>
+            <Select name="jenjang" value={jenjang} onValueChange={v => onJenjangChange(v as Jenjang)}>
+              <SelectTrigger id="jenjang"><SelectValue placeholder="Pilih jenjang" /></SelectTrigger>
+              <SelectContent>
+                {allowedJenjang.map(j => (
+                  <SelectItem key={j} value={j}>{JENJANG_LABELS[j]}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        ) : (
+          // Unit tetap ditampilkan sebagai konteks — pilihan Program bergantung
+          // padanya — tapi bukan sebagai isian: memindahkan halaqoh antar unit
+          // menyeret santri, sesi, dan pengampunya, jadi itu bukan pekerjaan
+          // satu dropdown.
+          <p className="text-sm text-muted-foreground">
+            Unit <span className="font-medium text-foreground">{JENJANG_LABELS[jenjang]}</span>
+            {' '}&middot; tidak bisa diubah dari sini
+          </p>
+        )}
 
         {programOptions.length > 0 && (
           <div className="space-y-1.5">
@@ -131,18 +145,19 @@ export function HalaqohForm({ mode, allowedJenjang, allowedPrograms, teachers, i
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="space-y-1.5">
           <Label htmlFor="sesi">Sesi</Label>
-          <select
-            id="sesi"
-            name="sesi"
-            defaultValue={initial?.sesi ? String(initial.sesi) : ''}
-            disabled={isPending}
-            className="h-9 w-full rounded-md border bg-transparent px-3 text-sm"
-          >
-            <option value="">— belum ditentukan —</option>
-            {[1, 2, 3].map(s => (
-              <option key={s} value={s}>{sesiLabel(s)}</option>
-            ))}
-          </select>
+          {/* Dulu <select> mentah: tingginya, fontnya, dan cincin fokusnya
+              berbeda dari semua dropdown lain di form yang sama. */}
+          <Select name="sesi" defaultValue={initial?.sesi ? String(initial.sesi) : NONE}>
+            <SelectTrigger id="sesi" className="w-full">
+              <SelectValue placeholder="— belum ditentukan —" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={NONE}>— belum ditentukan —</SelectItem>
+              {[1, 2, 3].map(s => (
+                <SelectItem key={s} value={String(s)}>{sesiLabel(s)}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <p className="text-[11px] text-muted-foreground">
             Jam mengikuti sesi, tidak diatur per halaqoh.
           </p>
@@ -175,15 +190,24 @@ export function HalaqohForm({ mode, allowedJenjang, allowedPrograms, teachers, i
         />
       </div>
 
+      {/* Hanya muncul saat edit, dan dulu berupa checkbox telanjang yang
+          menggantung tanpa bingkai di antara field-field berbingkai. */}
       {mode === 'edit' && (
-        <label className="flex items-center gap-2 text-sm">
+        <label className="flex items-start gap-3 rounded-lg border p-3 cursor-pointer hover:bg-muted/40 transition-colors">
           <input
             type="checkbox"
             name="is_active"
             defaultChecked={initial?.is_active ?? true}
             disabled={isPending}
+            className="mt-0.5 size-4 accent-primary"
           />
-          Halaqoh aktif
+          <span className="space-y-0.5">
+            <span className="block text-sm font-medium">Halaqoh aktif</span>
+            <span className="block text-[11px] text-muted-foreground">
+              Kelompok nonaktif hilang dari daftar dan tidak bisa disetori, tapi
+              seluruh riwayat setorannya tetap tersimpan.
+            </span>
+          </span>
         </label>
       )}
 
