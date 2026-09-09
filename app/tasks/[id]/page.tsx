@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { getSession } from '@/lib/auth/session'
 import {
   canChangeTaskStatus, canEditTask, canDeleteTask, canManageSubtasks, isManagement,
-  ROLE_LABELS, TASK_PROBLEM_LABELS,
+  ROLE_LABELS, TASK_PROBLEM_LABELS, canViewTasks,
 } from '@/lib/auth/permissions'
 import { createServerClient } from '@/lib/supabase/server'
 import { updateTaskStatusFromFormAction } from '@/app/actions/tasks'
@@ -53,6 +53,9 @@ export default async function TaskDetailPage({
   const { skala } = await searchParams
   const session = await getSession()
   if (!session) redirect('/login')
+  // Amanah BPA & BPI tidak melewati modul tugas; tanpa baris ini alamatnya
+  // tetap terbuka walau menunya sudah disembunyikan.
+  if (!canViewTasks(session.role)) redirect('/rapat')
 
   const supabase = createServerClient()
   const { data: taskData } = await supabase

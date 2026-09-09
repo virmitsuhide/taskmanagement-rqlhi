@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { getSession } from '@/lib/auth/session'
-import { canAssignAnyTask, ROLE_LABELS } from '@/lib/auth/permissions'
+import { canAssignAnyTask, canViewTasks, ROLE_LABELS } from '@/lib/auth/permissions'
 import { createServerClient } from '@/lib/supabase/server'
 import { getGanttPeople } from '@/lib/data/gantt'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
@@ -35,6 +35,9 @@ function bucketOf(task: Task, selfUserId: string): 'pribadi_pendek' | 'pribadi_p
 export default async function TasksPage({ searchParams }: PageProps) {
   const session = await getSession()
   if (!session) redirect('/login')
+  // Amanah BPA & BPI tidak melewati modul tugas; tanpa baris ini alamatnya
+  // tetap terbuka walau menunya sudah disembunyikan.
+  if (!canViewTasks(session.role)) redirect('/rapat')
 
   const params = await searchParams
   const query = (params.q ?? '').trim()

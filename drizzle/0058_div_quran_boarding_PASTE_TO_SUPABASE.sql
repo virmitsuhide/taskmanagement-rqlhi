@@ -1,0 +1,53 @@
+-- ============================================================
+-- Div Qur'an Boarding Putra (BPA) & Putri (BPI) — dua peran pengurus baru
+-- ============================================================
+-- 📋 CARA PAKAI: Supabase SQL Editor → paste seluruh file → Run.
+--    Idempoten (boleh dijalankan ulang).
+--
+-- Yang berubah:
+--   • enum user_role : + div_quran_bpa, div_quran_bpi
+--
+-- ── SIAPA MEREKA ────────────────────────────────────────────
+--
+-- Pembina Qur'an santri asrama SMPIT LHI, dipisah putra & putri. Amanahnya
+-- sempit dan disengaja demikian: profil, pengajuan ujian, dan rapat Koor x
+-- Boarding. Tidak ada papan tugas, tidak ada data siswa, tidak ada halaqoh.
+--
+-- ── KENAPA DUA PERAN, BUKAN SATU ────────────────────────────
+--
+-- Wewenangnya memang identik hari ini, dan menggabungkannya jadi satu peran
+-- 'div_quran_boarding' akan lebih ringkas. Tapi asrama putra dan putri dibina
+-- terpisah, dan peran di aplikasi ini adalah KURSI, bukan sekadar kumpulan
+-- izin — kolom created_by pada rapat menyimpan siapa yang menulis notulen,
+-- dan itu kehilangan artinya kalau kedua pembina memakai kursi yang sama.
+-- Pemisahan ini juga yang memungkinkan wewenangnya berbeda kelak tanpa
+-- migrasi data.
+--
+-- ── UJIAN ───────────────────────────────────────────────────
+--
+-- getUjianUnits() memberi keduanya ['SMP'], setara koor SMP: santri asrama
+-- adalah santri SMPIT LHI, dan UjianUnit memang hanya mengenal 'SD' & 'SMP'.
+-- Ini lapisan aplikasi (lib/auth/permissions.ts), bukan database — sama
+-- seperti seluruh RBAC aplikasi ini.
+--
+-- ⚠️ Jalankan SQL ini SEBELUM men-deploy kodenya. Tanpa nilai enum-nya,
+--    pembuatan akunnya ditolak dengan
+--    'invalid input value for enum user_role'.
+--
+-- ⚠️ Nilai enum tidak bisa dihapus di Postgres. Kalau perlu rollback,
+--    harus membuat type baru.
+--
+-- ⚠️ Akunnya TIDAK dibuat di sini. Password harus di-hash bcrypt, dan itu
+--    tidak bisa dikerjakan SQL editor tanpa pgcrypto. Setelah SQL ini jalan:
+--        npm run seed:div-quran-boarding
+--    (memisahkannya juga menghindari jebakan Postgres "unsafe use of new
+--    value of enum type" — nilai enum baru tidak boleh dipakai di transaksi
+--    yang sama dengan ALTER TYPE-nya, dan SQL editor membungkus satu Run
+--    sebagai satu transaksi.)
+-- ============================================================
+
+ALTER TYPE "user_role" ADD VALUE IF NOT EXISTS 'div_quran_bpa';
+ALTER TYPE "user_role" ADD VALUE IF NOT EXISTS 'div_quran_bpi';
+
+-- Verifikasi (opsional):
+-- SELECT unnest(enum_range(NULL::user_role));   -- harus 13 baris

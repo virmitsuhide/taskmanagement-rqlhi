@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
 import { getSession } from '@/lib/auth/session'
+import { canViewTasks } from '@/lib/auth/permissions'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { RoutineForm } from '@/components/rutin/RoutineForm'
 import { Button } from '@/components/ui/button'
@@ -21,6 +22,9 @@ interface PageProps {
 export default async function TugasRutinBaruPage({ searchParams }: PageProps) {
   const session = await getSession()
   if (!session) redirect('/login')
+  // Amanah BPA & BPI tidak melewati modul tugas; tanpa baris ini alamatnya
+  // tetap terbuka walau menunya sudah disembunyikan.
+  if (!canViewTasks(session.role)) redirect('/rapat')
 
   // ?irama= dipakai kalau nanti ada pintasan "tambah tugas bulanan" langsung
   // dari kelompoknya; nilai asing diabaikan, bukan ditolak.

@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { getSession } from '@/lib/auth/session'
-import { canAssignAnyTask, getAssignableRoles } from '@/lib/auth/permissions'
+import { canAssignAnyTask, canViewTasks, getAssignableRoles } from '@/lib/auth/permissions'
 import { createServerClient } from '@/lib/supabase/server'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { TaskForm } from '@/components/tasks/TaskForm'
@@ -25,6 +25,9 @@ export default async function BuatTaskPage({
   const sp = await searchParams
   const session = await getSession()
   if (!session) redirect('/login')
+  // Amanah BPA & BPI tidak melewati modul tugas; tanpa baris ini alamatnya
+  // tetap terbuka walau menunya sudah disembunyikan.
+  if (!canViewTasks(session.role)) redirect('/rapat')
 
   const isPersonal = sp.personal === '1'
   // Akses: kalau delegasi, butuh canAssignAnyTask. Kalau personal, semua role boleh.

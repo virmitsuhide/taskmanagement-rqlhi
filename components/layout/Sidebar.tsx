@@ -15,7 +15,7 @@ import {
   canAccessProgramMenu, canEditAbout,
   canViewStudents, canViewHalaqoh, canViewTeachers, canViewAnalytics, canViewUnitAnalytics,
   canManageHomepage, canViewKpi, canManageAllAccounts, canManagePengurus, canManageEmployees, canViewUjian,
-  canAccessKpiPublikasi, canViewKpiBanding,
+  canAccessKpiPublikasi, canViewKpiBanding, canViewTasks,
 } from '@/lib/auth/permissions'
 import type { UserRole } from '@/types'
 import { logoutAction } from '@/app/actions/auth'
@@ -157,9 +157,13 @@ export function Sidebar({ role, displayName, username, lencanaKpi }: Props) {
             <NavItem href="/rapat" icon={<BookOpen className="h-4 w-4" />} label="Rapat & Notulen" active={isActive('/rapat')} />
             {/* Menempel di bawah Rapat & Notulen: keduanya irama kerja yang
                 berulang menurut kalender, bukan pekerjaan yang ditugaskan. */}
-            <NavItem href="/tugas-rutin" icon={<Repeat className="h-4 w-4" />} label="Tugas Rutin" active={isActive('/tugas-rutin')} />
-            <NavItem href="/tasks" icon={<CheckSquare className="h-4 w-4" />} label="Tugas" active={isActive('/tasks') && !pathname.startsWith('/tasks/board')} />
-            <NavItem href="/tasks/board" icon={<LayoutGrid className="h-4 w-4" />} label="Papan Tugas" active={pathname.startsWith('/tasks/board')} />
+            {canViewTasks(role) && (
+              <>
+                <NavItem href="/tugas-rutin" icon={<Repeat className="h-4 w-4" />} label="Tugas Rutin" active={isActive('/tugas-rutin')} />
+                <NavItem href="/tasks" icon={<CheckSquare className="h-4 w-4" />} label="Tugas" active={isActive('/tasks') && !pathname.startsWith('/tasks/board')} />
+                <NavItem href="/tasks/board" icon={<LayoutGrid className="h-4 w-4" />} label="Papan Tugas" active={pathname.startsWith('/tasks/board')} />
+              </>
+            )}
             {canViewHumasRequests(role) && (
               <NavItem href="/humas-request" icon={<ImageIcon className="h-4 w-4" />} label="Request Humas" active={isActive('/humas-request')} />
             )}

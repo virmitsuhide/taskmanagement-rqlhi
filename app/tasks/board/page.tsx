@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { getSession } from '@/lib/auth/session'
-import { canViewDivisiBoard, getBoardDivisions, canAssignAnyTask, ROLE_LABELS } from '@/lib/auth/permissions'
+import { canViewDivisiBoard, getBoardDivisions, canAssignAnyTask, canViewTasks, ROLE_LABELS } from '@/lib/auth/permissions'
 import { getBoardTasks, type BoardScope } from '@/lib/data/board'
 import { getGanttPeople } from '@/lib/data/gantt'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
@@ -19,6 +19,9 @@ interface PageProps {
 export default async function TaskBoardPage({ searchParams }: PageProps) {
   const session = await getSession()
   if (!session) redirect('/login')
+  // Amanah BPA & BPI tidak melewati modul tugas; tanpa baris ini alamatnya
+  // tetap terbuka walau menunya sudah disembunyikan.
+  if (!canViewTasks(session.role)) redirect('/rapat')
 
   const params = await searchParams
   const canDivisi = canViewDivisiBoard(session.role)

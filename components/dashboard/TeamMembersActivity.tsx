@@ -22,7 +22,9 @@ interface MemberGroup {
 // Peringkat jabatan (0 = paling tinggi). new_squad paling rendah → tampil terakhir.
 const ROLE_RANK: Record<UserRole, number> = {
   kepala_rq: 0, kumik: 1, sdm: 2, bendahara: 3,
-  koor_sd: 4, koor_smp: 5, koor_qulssd: 6, koor_ekstra: 7, humas: 8, div_training: 9, new_squad: 10,
+  koor_sd: 4, koor_smp: 5, koor_qulssd: 6, koor_ekstra: 7,
+  div_quran_bpa: 8, div_quran_bpi: 9,
+  humas: 10, div_training: 11, new_squad: 12,
 }
 
 function initials(name: string) {

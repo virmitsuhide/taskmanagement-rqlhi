@@ -17,7 +17,7 @@ import {
   canViewStudents, canViewHalaqoh, canViewTeachers, canViewAnalytics, canViewUnitAnalytics,
   canManageHomepage,
   canViewKpi, canManageAllAccounts, canManagePengurus, canManageEmployees, canViewUjian, canManageTeacherProfiles,
-  canAccessKpiPublikasi, canViewKpiBanding } from '@/lib/auth/permissions'
+  canAccessKpiPublikasi, canViewKpiBanding, canViewTasks } from '@/lib/auth/permissions'
 import type { UserRole } from '@/types'
 import { logoutAction } from '@/app/actions/auth'
 import { Logo } from '@/components/brand/Logo'
@@ -233,9 +233,13 @@ export function MobileNav({ role, displayName, username, lencanaKpi }: Props) {
                 <DrawerLink href="/humas/tentang" icon={<Info className="h-4 w-4" />} label="Tentang RQ" active={isActive('/humas/tentang')} onNavigate={close} />
               )}
               <DrawerLink href="/rapat" icon={<BookOpen className="h-4 w-4" />} label="Rapat & Notulen" active={isActive('/rapat')} onNavigate={close} />
-              <DrawerLink href="/tugas-rutin" icon={<Repeat className="h-4 w-4" />} label="Tugas Rutin" active={isActive('/tugas-rutin')} onNavigate={close} />
-              <DrawerLink href="/tasks" icon={<CheckSquare className="h-4 w-4" />} label="Tugas" active={isActive('/tasks')} onNavigate={close} />
-              <DrawerLink href="/tasks/board" icon={<LayoutGrid className="h-4 w-4" />} label="Papan Tugas" active={isActive('/tasks/board')} onNavigate={close} />
+              {canViewTasks(role) && (
+                <>
+                  <DrawerLink href="/tugas-rutin" icon={<Repeat className="h-4 w-4" />} label="Tugas Rutin" active={isActive('/tugas-rutin')} onNavigate={close} />
+                  <DrawerLink href="/tasks" icon={<CheckSquare className="h-4 w-4" />} label="Tugas" active={isActive('/tasks')} onNavigate={close} />
+                  <DrawerLink href="/tasks/board" icon={<LayoutGrid className="h-4 w-4" />} label="Papan Tugas" active={isActive('/tasks/board')} onNavigate={close} />
+                </>
+              )}
               {canViewHumasRequests(role) && (
                 <DrawerLink href="/humas-request" icon={<ImageIcon className="h-4 w-4" />} label="Request Humas" active={isActive('/humas-request')} onNavigate={close} />
               )}
@@ -328,14 +332,25 @@ export function MobileNav({ role, displayName, username, lencanaKpi }: Props) {
           <LayoutDashboard className="h-5 w-5" />
           Dashboard
         </Link>
-        <Link
-          href="/tasks"
-          aria-current={isActive('/tasks') ? 'page' : undefined}
-          className={cn('flex flex-col items-center gap-0.5 px-3 py-1 rounded-lg text-xs transition-colors', isActive('/tasks') ? 'text-primary' : 'text-muted-foreground')}
-        >
-          <CheckSquare className="h-5 w-5" />
-          Task
-        </Link>
+        {canViewTasks(role) ? (
+          <Link
+            href="/tasks"
+            aria-current={isActive('/tasks') ? 'page' : undefined}
+            className={cn('flex flex-col items-center gap-0.5 px-3 py-1 rounded-lg text-xs transition-colors', isActive('/tasks') ? 'text-primary' : 'text-muted-foreground')}
+          >
+            <CheckSquare className="h-5 w-5" />
+            Task
+          </Link>
+        ) : canViewUjian(role) ? (
+          <Link
+            href="/ujian/kelola"
+            aria-current={isActive('/ujian') ? 'page' : undefined}
+            className={cn('flex flex-col items-center gap-0.5 px-3 py-1 rounded-lg text-xs transition-colors', isActive('/ujian') ? 'text-primary' : 'text-muted-foreground')}
+          >
+            <ScrollText className="h-5 w-5" />
+            Ujian
+          </Link>
+        ) : null}
         <Link
           href="/rapat"
           aria-current={isActive('/rapat') ? 'page' : undefined}

@@ -30,7 +30,8 @@
     "kpi:maksimal": "tsx scripts/isi-kpi-maksimal.ts",
     "musyrif:penguji": "tsx scripts/musyrif-penguji.ts",
     "uji:gukar": "tsx scripts/uji-gukar-standar.ts",
-    "uji:kpi": "tsx scripts/uji-kpi.ts"
+    "uji:kpi": "tsx scripts/uji-kpi.ts",
+    "seed:div-quran-boarding": "tsx scripts/seed-div-quran-boarding.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",

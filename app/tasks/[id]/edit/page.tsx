@@ -1,7 +1,7 @@
 import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
 import { getSession } from '@/lib/auth/session'
-import { canEditTask } from '@/lib/auth/permissions'
+import { canEditTask, canViewTasks } from '@/lib/auth/permissions'
 import { createServerClient } from '@/lib/supabase/server'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { TaskEditForm } from '@/components/tasks/TaskEditForm'
@@ -13,6 +13,9 @@ export default async function TaskEditPage({ params }: { params: Promise<{ id: s
   const { id } = await params
   const session = await getSession()
   if (!session) redirect('/login')
+  // Amanah BPA & BPI tidak melewati modul tugas; tanpa baris ini alamatnya
+  // tetap terbuka walau menunya sudah disembunyikan.
+  if (!canViewTasks(session.role)) redirect('/rapat')
 
   const supabase = createServerClient()
   const { data } = await supabase

@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { getSession } from '@/lib/auth/session'
-import { ROLE_LABELS, canAssignAnyTask } from '@/lib/auth/permissions'
+import { ROLE_LABELS, canAssignAnyTask, canViewTasks } from '@/lib/auth/permissions'
 import { getGanttRows, getGanttPeople, resolveGanttTarget } from '@/lib/data/gantt'
 import { parseScale, GANTT_SCALES, today, daysBetween } from '@/lib/tasks/gantt'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
@@ -26,6 +26,9 @@ interface PageProps {
 export default async function GanttPage({ searchParams }: PageProps) {
   const session = await getSession()
   if (!session) redirect('/login')
+  // Amanah BPA & BPI tidak melewati modul tugas; tanpa baris ini alamatnya
+  // tetap terbuka walau menunya sudah disembunyikan.
+  if (!canViewTasks(session.role)) redirect('/rapat')
 
   const params = await searchParams
   const scale = parseScale(params.scale)

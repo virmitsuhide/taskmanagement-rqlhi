@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { Plus, Repeat, ChevronRight, CalendarDays, CalendarRange } from 'lucide-react'
 import { getSession } from '@/lib/auth/session'
+import { canViewTasks } from '@/lib/auth/permissions'
 import { getRoutineChecklist } from '@/lib/data/rutin'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { RoutineChecklist } from '@/components/rutin/RoutineChecklist'
@@ -17,6 +18,9 @@ import { RoutineChecklist } from '@/components/rutin/RoutineChecklist'
 export default async function TugasRutinPage() {
   const session = await getSession()
   if (!session) redirect('/login')
+  // Amanah BPA & BPI tidak melewati modul tugas; tanpa baris ini alamatnya
+  // tetap terbuka walau menunya sudah disembunyikan.
+  if (!canViewTasks(session.role)) redirect('/rapat')
 
   const groups = await getRoutineChecklist(session.userId)
   const total = groups.reduce((n, g) => n + g.total, 0)

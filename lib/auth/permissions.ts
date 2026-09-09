@@ -19,7 +19,7 @@ const DASHBOARD_ACCESS: Record<string, UserRole[]> = {
   'koor-ekstra': ['koor_ekstra'],
   humas: ['humas'],
   'div-training': ['div_training'],
-  pribadi: ['bendahara', 'new_squad'],
+  pribadi: ['bendahara', 'new_squad', 'div_quran_bpa', 'div_quran_bpi'],
 }
 
 export function canViewDashboard(role: UserRole, dashboardSlug: string): boolean {
@@ -41,7 +41,8 @@ const MEETING_CREATE: Record<MeetingType, UserRole[]> = {
   koor_smp: ['koor_smp'],
   koor_x_sd: ['koor_sd'],
   koor_x_smp: ['koor_smp'],
-  koor_x_boarding: ['koor_smp'],
+  // BPA & BPI ikut membuat supaya giliran menulis notulen bisa berpindah.
+  koor_x_boarding: ['koor_smp', 'div_quran_bpa', 'div_quran_bpi'],
   rq_x_quls: ['kumik'],
   humas_yayasan: ['humas'],
   tahsin_rekomendasi: ['koor_sd'],
@@ -56,7 +57,9 @@ const MEETING_EDIT: Record<MeetingType, UserRole[]> = {
   koor_smp: ['koor_smp'],
   koor_x_sd: ['koor_sd'],
   koor_x_smp: ['koor_smp'],
-  koor_x_boarding: ['koor_smp'],
+  // Notulis berhak membetulkan tulisannya sendiri; membuang rapat tidak
+  // ikut diberikan â itu tetap di koor SMP & Kepala RQ.
+  koor_x_boarding: ['koor_smp', 'div_quran_bpa', 'div_quran_bpi'],
   rq_x_quls: ['kumik'],
   humas_yayasan: ['humas'],
   tahsin_rekomendasi: ['koor_sd'],
@@ -89,18 +92,18 @@ const MEETING_VIEW: Record<MeetingType, UserRole[]> = {
   koor_smp: ['kepala_rq', 'kumik', 'sdm', 'bendahara', 'koor_smp'],
   koor_x_sd: ['kepala_rq', 'kumik', 'sdm', 'bendahara', 'koor_sd'],
   koor_x_smp: ['kepala_rq', 'kumik', 'sdm', 'bendahara', 'koor_smp'],
-  koor_x_boarding: ['kepala_rq', 'kumik', 'sdm', 'bendahara', 'koor_smp'],
-  // Rapat RQ x QULS dibatasi — koor & divisi lain tidak melihatnya. Koor QULS
+  koor_x_boarding: ['kepala_rq', 'kumik', 'sdm', 'bendahara', 'koor_smp', 'div_quran_bpa', 'div_quran_bpi'],
+  // Rapat RQ x QULS dibatasi â koor & divisi lain tidak melihatnya. Koor QULS
   // SD dikecualikan sejak jabatannya ada: dialah yang menjalankan hasil rapat
   // ini di lapangan, dan sebelumnya ia hanya bisa mendengarnya dari orang lain.
   rq_x_quls: ['kumik', 'kepala_rq', 'sdm', 'bendahara', 'koor_qulssd'],
-  // Rapat Humas dengan Yayasan — dipegang Humas, dipantau manajemen.
+  // Rapat Humas dengan Yayasan â dipegang Humas, dipantau manajemen.
   humas_yayasan: ['humas', 'kepala_rq', 'kumik', 'sdm', 'bendahara'],
-  // Rapat Tahsin Rekomendasi — dipegang koor SD, dipantau manajemen. Koor SMP
+  // Rapat Tahsin Rekomendasi â dipegang koor SD, dipantau manajemen. Koor SMP
   // sengaja di luar: rekomendasi tahsin di sini menyangkut siswa SD saja.
   tahsin_rekomendasi: ['kepala_rq', 'kumik', 'sdm', 'bendahara', 'koor_sd'],
   // Rapat internal guru QULS SD. Koor SD sengaja di luar: arah bacanya memang
-  // satu arah — koor QULS SD membaca notulen koor SD karena kelompoknya duduk
+  // satu arah â koor QULS SD membaca notulen koor SD karena kelompoknya duduk
   // di sesi & unit yang sama, tapi forum pembinaan tim sendiri tidak dibuka,
   // sama seperti rapat koor SMP yang tertutup bagi koor SD.
   quls_sd: ['kepala_rq', 'kumik', 'sdm', 'bendahara', 'koor_qulssd'],
@@ -127,7 +130,7 @@ export function canDeleteMeeting(role: UserRole, type: MeetingType): boolean {
  * Sengaja hanya Kepala RQ, dan sengaja BUKAN turunan dari canDeleteMeeting.
  * Membuang ke keranjang itu bisa dibatalkan, jadi wajar dipegang tiap
  * koordinator atas rapatnya sendiri. Mengosongkan keranjang tidak bisa
- * dibatalkan, jadi ia berhenti di satu orang — dan orang itu melihat seluruh
+ * dibatalkan, jadi ia berhenti di satu orang â dan orang itu melihat seluruh
  * isi keranjang lintas jenis rapat sebelum memutuskan.
  */
 export function canPurgeMeeting(role: UserRole): boolean {
@@ -153,7 +156,7 @@ export function getViewableMeetingTypes(role: UserRole): MeetingType[] {
  * itu tidak terjadi. Migrasi 0012 menambah koor_x_sd, koor_x_smp,
  * koor_x_boarding, dan rq_x_quls; keempat dashboard koor tetap memegang daftar
  * lamanya, sehingga seorang koor SMP yang membuat Rapat Koor x SMP tidak
- * menemukannya di dashboardnya sendiri — yang tampil justru rapat kumik.
+ * menemukannya di dashboardnya sendiri â yang tampil justru rapat kumik.
  *
  * Gagalnya diam-diam: tidak ada galat, hanya rapat yang tidak pernah muncul.
  */
@@ -163,13 +166,32 @@ export function getCreatableMeetingTypes(role: UserRole): MeetingType[] {
     .map(([type]) => type)
 }
 
-// Task assignment — who can assign to whom
+// Task assignment â who can assign to whom
+/**
+ * Boleh membuka modul Tugas: daftar, papan kanban, Gantt, dan Tugas Rutin.
+ *
+ * Yang dicatat di sini justru pengecualiannya, sebab hampir semua pengurus
+ * memilikinya. Div Quran BPA & BPI diangkat untuk satu urusan: pembinaan
+ * Quran santri asrama, lewat pengajuan ujian dan rapat Koor x Boarding.
+ * Papan tugas lintas divisi bukan bagian dari amanah itu.
+ *
+ * Menu Tugas, Papan Tugas, dan Tugas Rutin di sidebar TIDAK dijaga izin apa
+ * pun sebelum ini: ketiganya tampil untuk siapa saja yang berhasil login.
+ * Jadi tanpa fungsi ini, membatasi peran baru cuma berarti menyembunyikan
+ * tautannya, sementara alamatnya tetap terbuka bagi yang mengetiknya langsung.
+ */
+const TANPA_MODUL_TUGAS: UserRole[] = ['div_quran_bpa', 'div_quran_bpi']
+
+export function canViewTasks(role: UserRole): boolean {
+  return !TANPA_MODUL_TUGAS.includes(role)
+}
+
 const TASK_ASSIGN_TO: Record<UserRole, UserRole[]> = {
   kepala_rq: ['kepala_rq', 'kumik', 'sdm', 'bendahara', 'koor_ekstra', 'koor_sd', 'koor_smp', 'koor_qulssd', 'humas', 'div_training', 'new_squad'],
   kumik: ['koor_sd', 'koor_smp', 'koor_qulssd', 'koor_ekstra', 'humas', 'bendahara'],
   sdm: ['new_squad', 'div_training', 'humas', 'bendahara'],
   // Para koor menugasi divisinya sendiri, plus Humas. Humas ikut karena keempat
-  // koor memang sudah memantau papan Humas (getBoardDivisions di bawah) — tanpa
+  // koor memang sudah memantau papan Humas (getBoardDivisions di bawah) â tanpa
   // ini mereka melihat antrean desain & publikasi yang mereka butuhkan tapi
   // harus menitipkannya lewat kumik untuk mengisinya.
   koor_sd: ['koor_sd', 'humas'],
@@ -180,6 +202,10 @@ const TASK_ASSIGN_TO: Record<UserRole, UserRole[]> = {
   humas: [],
   div_training: [],
   new_squad: [],
+  // Modul tugas tidak diberikan ke BPA & BPI, jadi tidak ada yang bisa
+  // mereka tugasi â dan tidak ada yang boleh menugasi mereka.
+  div_quran_bpa: [],
+  div_quran_bpi: [],
 }
 
 export function canAssignTask(role: UserRole, targetRole: UserRole): boolean {
@@ -194,7 +220,7 @@ export function canAssignAnyTask(role: UserRole): boolean {
   return (TASK_ASSIGN_TO[role]?.length ?? 0) > 0
 }
 
-// Kanban board — divisi mana yang bisa user lihat di papan.
+// Kanban board â divisi mana yang bisa user lihat di papan.
 // Divisi sebuah task = role penerima (assignee).
 const ALL_ROLES: UserRole[] = [
   'kepala_rq', 'kumik', 'sdm', 'bendahara', 'koor_sd', 'koor_smp', 'koor_qulssd',
@@ -222,12 +248,12 @@ export function canViewDivisiBoard(role: UserRole): boolean {
  *
  * Sengaja diturunkan dari getBoardDivisions, bukan dari daftar izin baru:
  * papan kanban dan Gantt memperlihatkan kumpulan tugas yang sama persis, hanya
- * berbeda sumbu — kanban menyusunnya per status, Gantt per tanggal. Kalau
+ * berbeda sumbu â kanban menyusunnya per status, Gantt per tanggal. Kalau
  * keduanya punya aturan sendiri-sendiri, cepat atau lambat salah satu akan
  * bocor lebih luas dari yang lain tanpa ada yang menyadarinya.
  *
  * Diri sendiri selalu boleh, termasuk untuk role yang tidak memantau divisi
- * mana pun (bendahara, div_training, new_squad) — Gantt pribadi adalah alat
+ * mana pun (bendahara, div_training, new_squad) â Gantt pribadi adalah alat
  * kerja, bukan wewenang pengawasan.
  */
 export function canViewUserGantt(
@@ -244,7 +270,7 @@ export function canViewUserGantt(
  *
  * Ketiganya sudah memantau papan seluruh divisi (getBoardDivisions) dan
  * analitik agregat, jadi merekalah yang diberi tahu saat ada tugas disunting
- * atau dihapus — termasuk tugas pribadi yang pemiliknya adalah pemberi sekaligus
+ * atau dihapus â termasuk tugas pribadi yang pemiliknya adalah pemberi sekaligus
  * penerima, yang kalau tidak begitu tidak akan terpantau siapa pun.
  */
 const MANAGEMENT_ROLES: UserRole[] = ['kepala_rq', 'kumik', 'sdm']
@@ -253,7 +279,7 @@ export function isManagement(role: UserRole): boolean {
   return MANAGEMENT_ROLES.includes(role)
 }
 
-// Analitik RQ — dashboard agregat lintas divisi/halaqoh (manajemen)
+// Analitik RQ â dashboard agregat lintas divisi/halaqoh (manajemen)
 export function canViewAnalytics(role: UserRole): boolean {
   return isManagement(role)
 }
@@ -271,7 +297,7 @@ export function canViewUnitAnalytics(role: UserRole): boolean {
 /**
  * Unit (jenjang) mana yang boleh dilihat di Analitik per Unit.
  *
- * Untuk koor, cakupannya sama persis dengan getManageableJenjang() — satu unit
+ * Untuk koor, cakupannya sama persis dengan getManageableJenjang() â satu unit
  * saja. Bedanya di manajemen: kumik & SDM tidak mengelola jenjang apa pun tapi
  * tetap boleh melihat analitik seluruh unit.
  */
@@ -280,11 +306,11 @@ export function getAnalyticsJenjang(role: UserRole): Jenjang[] {
   return getManageableJenjang(role)
 }
 
-// Task status change — who can perform which transitions
+// Task status change â who can perform which transitions
 //
 // Pelaksana (assignee) menggerakkan tugasnya sendiri sampai kolom Review.
-// Pemberi tugas (assigner) hanya berwenang menutup review: Review → Selesai
-// atau Review → dikembalikan. Kepala RQ boleh semuanya.
+// Pemberi tugas (assigner) hanya berwenang menutup review: Review â Selesai
+// atau Review â dikembalikan. Kepala RQ boleh semuanya.
 const ASSIGNEE_TRANSITIONS: Partial<Record<TaskStatus, TaskStatus[]>> = {
   todo:        ['in_progress', 'problem'],
   in_progress: ['submitted', 'problem', 'todo'],
@@ -312,7 +338,7 @@ export function canChangeTaskStatus(
 
 /**
  * Boleh menyeret kartu di papan kanban? Hanya orang yang bersangkutan
- * (pelaksana atau pemberi tugas) dan Kepala RQ. Ini gerbang UI — server tetap
+ * (pelaksana atau pemberi tugas) dan Kepala RQ. Ini gerbang UI â server tetap
  * memvalidasi transisinya lewat canChangeTaskStatus.
  */
 export function canMoveTaskOnBoard(role: UserRole, isAssignee: boolean, isAssigner: boolean): boolean {
@@ -326,7 +352,7 @@ export function canMoveTaskOnBoard(role: UserRole, isAssignee: boolean, isAssign
  * adalah cara pelaksana mengatur pekerjaannya sendiri, dan pemberi tugas perlu
  * bisa ikut memecahnya saat mendelegasikan. Orang lain yang kebetulan bisa
  * MELIHAT tugas ini di papan divisi atau di Gantt bawahannya tetap tidak boleh
- * mengubah rencana kerja orang lain — melihat dan menyunting dua hal berbeda.
+ * mengubah rencana kerja orang lain â melihat dan menyunting dua hal berbeda.
  */
 export function canManageSubtasks(role: UserRole, isAssignee: boolean, isAssigner: boolean): boolean {
   return canMoveTaskOnBoard(role, isAssignee, isAssigner)
@@ -337,7 +363,7 @@ export function canManageSubtasks(role: UserRole, isAssignee: boolean, isAssigne
  *
  * Catatan penting soal `isAssigner`: pada tugas untuk diri sendiri, assigned_by
  * dan assigned_to berisi orang yang sama, sehingga satu bendera ini sekaligus
- * mencakup dua aturan yang diminta — "pemberi tugas boleh menghapus tugas yang
+ * mencakup dua aturan yang diminta â "pemberi tugas boleh menghapus tugas yang
  * ia delegasikan" dan "setiap pengurus boleh menghapus tugasnya sendiri".
  * Pelaksana yang menerima delegasi orang lain sengaja TIDAK bisa menghapus:
  * ia tidak boleh menghilangkan tugas yang dibebankan kepadanya.
@@ -357,7 +383,7 @@ export function canDeleteTask(
  *
  * Lebih sempit daripada hak menghapus: hanya tugas untuk diri sendiri, yaitu
  * saat pemberi dan penerimanya orang yang sama. Tugas hasil delegasi tidak
- * bisa disunting sepihak oleh pemberinya — mengubah isi tugas yang sudah
+ * bisa disunting sepihak oleh pemberinya â mengubah isi tugas yang sudah
  * dikerjakan orang lain menggeser kesepakatan tanpa jejak persetujuan.
  */
 export function canEditTask(
@@ -403,7 +429,7 @@ export function canPostTugasGuru(role: UserRole): PublicTarget | null {
 
 // Humas request
 //
-// Humas adalah penerima request, bukan pemohon — dia tidak request ke dirinya
+// Humas adalah penerima request, bukan pemohon â dia tidak request ke dirinya
 // sendiri. Jadi humas tidak boleh membuat request, tapi tetap harus bisa
 // membuka daftarnya untuk memproses request yang masuk.
 export function canRequestToHumas(role: UserRole): boolean {
@@ -429,11 +455,11 @@ export function canViewFinanceNotes(role: UserRole): boolean {
   return canManageFinanceNotes(role) || role === 'kepala_rq'
 }
 
-// Modul Keuangan (pencatatan → rekap → laporan BPH)
+// Modul Keuangan (pencatatan â rekap â laporan BPH)
 //
 // Aturan aksesnya sama dengan catatan keuangan: bendahara yang mencatat,
 // kepala RQ ikut membaca karena dialah yang menyampaikan laporannya ke BPH.
-// Dipisah jadi fungsi sendiri supaya kelak bisa berbeda — misal saat BPH
+// Dipisah jadi fungsi sendiri supaya kelak bisa berbeda â misal saat BPH
 // diberi akses baca laporan tanpa melihat transaksi satu per satu.
 /** Boleh mencatat transaksi, anggaran, dana titipan, dan narasi laporan. */
 export function canManageFinance(role: UserRole): boolean {
@@ -446,7 +472,7 @@ export function canViewFinance(role: UserRole): boolean {
 }
 
 /**
- * Kelola berita (buat, ubah, hapus) — sepenuhnya wewenang Humas.
+ * Kelola berita (buat, ubah, hapus) â sepenuhnya wewenang Humas.
  *
  * Kepala RQ sengaja tidak termasuk: penulisan berita digeser ke Humas. Kepala
  * RQ tetap bisa membaca berita lewat halaman publik /news yang terbuka untuk
@@ -461,7 +487,7 @@ export function canEditProgram(role: UserRole): boolean {
 }
 
 /**
- * Menu "Program RQ" di sidebar/mobile nav — hanya pengelola program.
+ * Menu "Program RQ" di sidebar/mobile nav â hanya pengelola program.
  * Halaman /program sendiri tetap publik (dilink dari header beranda).
  */
 export function canAccessProgramMenu(role: UserRole): boolean {
@@ -469,10 +495,10 @@ export function canAccessProgramMenu(role: UserRole): boolean {
 }
 
 /**
- * Kelola "Tentang RQ" (visi, misi, sejarah) — sepenuhnya wewenang Humas.
+ * Kelola "Tentang RQ" (visi, misi, sejarah) â sepenuhnya wewenang Humas.
  *
  * Kepala RQ sengaja tidak termasuk: pengelolaan halaman profil lembaga digeser
- * ke Humas, sejalan dengan berita. Yang hilang hanya hak menyuntingnya —
+ * ke Humas, sejalan dengan berita. Yang hilang hanya hak menyuntingnya â
  * halaman /tentang tetap terbuka untuk semua, jadi Kepala RQ masih bisa
  * membacanya seperti pembaca lain.
  */
@@ -488,13 +514,13 @@ export function canManageHomepage(role: UserRole): boolean {
   return role === 'kepala_rq' || role === 'humas'
 }
 
-// ─── PHASE 1B — Manajemen siswa, halaqoh, ustadz ────────────────────
+// âââ PHASE 1B â Manajemen siswa, halaqoh, ustadz ââââââââââââââââââââ
 
-// ── Penyempitan berbasis program ────────────────────────────────────
+// ââ Penyempitan berbasis program ââââââââââââââââââââââââââââââââââââ
 //
 // Sampai sini seluruh RBAC tahsin/tahfidz berpijak pada JENJANG saja: satu
 // koordinator memegang satu unit, habis perkara. Koor QULS SD memecah asumsi
-// itu — anaknya sejenjang penuh dengan anak koor SD (sama-sama 'sd', kelas
+// itu â anaknya sejenjang penuh dengan anak koor SD (sama-sama 'sd', kelas
 // yang sama, sesi yang sama), dan yang memisahkan hanya kolom `program`.
 //
 // Karena itu jenjang tetap menjadi saringan pertama, dan program menjadi
@@ -502,14 +528,14 @@ export function canManageHomepage(role: UserRole): boolean {
 // jenjang baru lewat jalur ini.
 
 /**
- * Arti `program` pada fungsi-fungsi di bawah — tiga keadaan, bukan dua:
+ * Arti `program` pada fungsi-fungsi di bawah â tiga keadaan, bukan dua:
  *
- *   undefined → pertanyaannya tingkat jenjang: "ada sesuatu di unit ini yang
+ *   undefined â pertanyaannya tingkat jenjang: "ada sesuatu di unit ini yang
  *               boleh saya sentuh?" Dipakai untuk memutuskan apakah menu,
  *               tombol, atau halaman ditampilkan sama sekali.
- *   null      → barisnya nyata dan programnya belum ditandai. Itu berarti
+ *   null      â barisnya nyata dan programnya belum ditandai. Itu berarti
  *               reguler, bukan QULS.
- *   string    → program baris itu apa adanya.
+ *   string    â program baris itu apa adanya.
  *
  * Membedakan undefined dari null penting: tanpa itu, tombol "Tambah Siswa"
  * milik koor QULS SD akan hilang hanya karena pertanyaannya belum menyebut
@@ -527,7 +553,7 @@ function programBolehDikelola(role: UserRole, jenjang: Jenjang, program: Program
 }
 
 /**
- * Program mana yang boleh DILIHAT role ini — dipakai menyaring kueri daftar.
+ * Program mana yang boleh DILIHAT role ini â dipakai menyaring kueri daftar.
  *
  * `null` berarti tanpa penyempitan. Hanya koor QULS SD yang dipersempit:
  * koor SD sengaja tetap melihat seluruh SD termasuk QULS (pemantauan tanpa
@@ -540,13 +566,13 @@ export function getViewableProgramScope(role: UserRole, jenjang: Jenjang): reado
 
 /**
  * Penyempitan program yang bisa dipasang sebagai SATU filter pada kueri daftar
- * lintas unit — `.in('program', …)`.
+ * lintas unit â `.in('program', â¦)`.
  *
  * Mengembalikan null kecuali seluruh unit yang boleh dilihat menyempit ke
  * daftar yang sama persis. Itu keadaan koor QULS SD, yang unitnya hanya SD.
  * Kalau kelak ada role yang menyempit berbeda-beda per unit, fungsi ini
  * menyerah dengan jujur alih-alih memasang filter yang salah untuk salah satu
- * unitnya — pemanggilnya lalu harus menyaring per baris.
+ * unitnya â pemanggilnya lalu harus menyaring per baris.
  */
 export function getListProgramScope(role: UserRole, jenjangList: Jenjang[]): readonly string[] | null {
   if (jenjangList.length === 0) return null
@@ -569,7 +595,7 @@ export function getSelectableProgramCodes(role: UserRole, jenjang: Jenjang): str
 
 /**
  * Semua NILAI program yang boleh disentuh role ini di satu jenjang, `null`
- * termasuk — dan null di sini berarti "belum ditandai / reguler", satu pilihan
+ * termasuk â dan null di sini berarti "belum ditandai / reguler", satu pilihan
  * yang sah seperti yang lain.
  *
  * Dipakai berkas impor dan pemindahan kelompok, yang perlu tahu bukan cuma
@@ -609,7 +635,7 @@ export function programScopeFor(
  *
  * Kumik ikut sejak daftar siswa punya CRUD sendiri. Sebelumnya ia hanya bisa
  * melihat, sehingga tiap salah ketik nama atau kelas harus dibawa ke Kepala RQ
- * atau koor unit — padahal Kumik-lah yang paling sering menemukannya saat
+ * atau koor unit â padahal Kumik-lah yang paling sering menemukannya saat
  * memeriksa rekap lintas unit.
  */
 export function canManageStudents(role: UserRole, jenjang?: Jenjang | null, program?: ProgramArg): boolean {
@@ -626,7 +652,7 @@ export function canManageStudents(role: UserRole, jenjang?: Jenjang | null, prog
 /**
  * Bisa lihat list siswa (read-only). Lebih luas dari manage.
  * - kepala_rq, kumik, sdm, bendahara: lihat semua
- * - koor_sd:     seluruh SD, QULS termasuk — memantau, tanpa hak ubah
+ * - koor_sd:     seluruh SD, QULS termasuk â memantau, tanpa hak ubah
  * - koor_qulssd: hanya SD berprogram QULS
  * - koor_smp:    jenjang masing-masing
  */
@@ -638,7 +664,7 @@ export function canViewStudents(role: UserRole, jenjang?: Jenjang | null, progra
 
 /**
  * Bisa manage halaqoh untuk jenjang tertentu.
- * Pattern sama dengan students — termasuk pemisahan QULS SD-nya.
+ * Pattern sama dengan students â termasuk pemisahan QULS SD-nya.
  */
 export function canManageHalaqoh(role: UserRole, jenjang?: Jenjang | null, program?: ProgramArg): boolean {
   return canManageStudents(role, jenjang, program)
@@ -652,7 +678,7 @@ export function canViewHalaqoh(role: UserRole, jenjang?: Jenjang | null, program
  * Tahun ajaran & pengacakan halaqoh tiap semester.
  *
  * Menetapkan semester berjalan mengubah acuan seluruh modul tahsin/tahfidz
- * sekaligus, jadi wewenangnya dipegang Kepala RQ dan Kumik saja — koordinator
+ * sekaligus, jadi wewenangnya dipegang Kepala RQ dan Kumik saja â koordinator
  * tetap bisa membagi santri di dalam semester yang sudah ditetapkan.
  */
 export function canManageTerms(role: UserRole): boolean {
@@ -674,7 +700,7 @@ export function canManageTeachers(role: UserRole): boolean {
 }
 
 /**
- * Mengelola profil kepegawaian & data diri guru — menu "Profil Guru".
+ * Mengelola profil kepegawaian & data diri guru â menu "Profil Guru".
  *
  * SDM saja. Yang disunting di sana bukan cuma data diri: unit penugasan, TMT,
  * dan jenis kepegawaian ikut di dalamnya, dan ketiganya menentukan rubrik KPI
@@ -683,14 +709,14 @@ export function canManageTeachers(role: UserRole): boolean {
  * guru.
  *
  * Guru sendiri tetap bisa melengkapi data dirinya lewat portal guru
- * (/guru/profil) — tapi hanya bagian pribadinya, tidak menyentuh ketiga kolom
+ * (/guru/profil) â tapi hanya bagian pribadinya, tidak menyentuh ketiga kolom
  * kepegawaian di atas.
  */
 /**
- * Mengelola akun & profil karyawan RQ — menu "Karyawan".
+ * Mengelola akun & profil karyawan RQ â menu "Karyawan".
  *
- * Sejalan dengan canManageTeachers: kepala RQ dan SDM. Karyawan bukan guru —
- * tidak mengampu halaqoh, tidak dinilai KPI — tapi urusan akun dan
+ * Sejalan dengan canManageTeachers: kepala RQ dan SDM. Karyawan bukan guru â
+ * tidak mengampu halaqoh, tidak dinilai KPI â tapi urusan akun dan
  * kepegawaiannya tetap di tangan yang sama.
  */
 export function canManageEmployees(role: UserRole): boolean {
@@ -710,11 +736,11 @@ export function canViewTeachers(role: UserRole): boolean {
 }
 
 /**
- * Jenjang mana yang bisa di-manage user — dipakai untuk filter UI di Siswa,
+ * Jenjang mana yang bisa di-manage user â dipakai untuk filter UI di Siswa,
  * Halaqoh, dan Ustadz/Guru.
  *
  * Koor dibatasi ke satu unit saja: koor SD hanya SD (bukan TPAIT/PAUD atau
- * SD Juara), koor SMP hanya SMP (bukan SMA) — sama dengan cakupan analitiknya.
+ * SD Juara), koor SMP hanya SMP (bukan SMA) â sama dengan cakupan analitiknya.
  */
 export function getManageableJenjang(role: UserRole): Jenjang[] {
   if (role === 'kepala_rq') return ['paud', 'sd', 'sd_juara', 'smp', 'sma']
@@ -735,7 +761,7 @@ export const JENJANG_LABELS: Record<Jenjang, string> = {
 }
 
 /**
- * Nama satuan pendidikan selengkapnya — untuk dokumen yang keluar dari
+ * Nama satuan pendidikan selengkapnya â untuk dokumen yang keluar dari
  * lingkaran pengurus, mis. rapor KPI yang diserahkan kepada guru.
  *
  * Terpisah dari JENJANG_LABELS dan bukan penggantinya. Label pendek dipakai di
@@ -753,7 +779,7 @@ export const UNIT_PENUGASAN_LABELS: Record<Jenjang, string> = {
 }
 
 /**
- * Label tab pemilih di Profil Guru — lima unit ditambah penampungan 'lain'.
+ * Label tab pemilih di Profil Guru â lima unit ditambah penampungan 'lain'.
  *
  * 'lain' bukan satuan pendidikan, jadi ia tidak boleh masuk ke
  * UNIT_PENUGASAN_LABELS: peta itu dipakai mencetak nama sekolah di rapor KPI
@@ -766,7 +792,7 @@ export const UNIT_PROFIL_LABELS: Record<Jenjang | 'lain', string> = {
 }
 
 /**
- * Label lingkup penugasan (0052) — dibaca SDM di formulir & ringkasan profil.
+ * Label lingkup penugasan (0052) â dibaca SDM di formulir & ringkasan profil.
  *
  * "Lintas unit" disebut lebih dulu daripada "yayasan" karena itulah yang
  * membedakannya dalam pekerjaan sehari-hari: yang menentukan bukan dari mana
@@ -774,11 +800,11 @@ export const UNIT_PROFIL_LABELS: Record<Jenjang | 'lain', string> = {
  */
 export const LINGKUP_PENUGASAN_LABELS: Record<LingkupPenugasan, string> = {
   unit:    'Satu unit sekolah',
-  yayasan: 'Lain-lain — lintas unit (yayasan)',
+  yayasan: 'Lain-lain â lintas unit (yayasan)',
 }
 
 /**
- * Label kategori guru (0053) — dipakai tab /ustadz dan formulir Profil Guru.
+ * Label kategori guru (0053) â dipakai tab /ustadz dan formulir Profil Guru.
  *
  * "Musyrif/ah" ditulis dengan kedua bentuknya, sebagaimana disebut sehari-hari;
  * satu nilai enum melayani musyrif maupun musyrifah karena yang dibedakannya
@@ -794,25 +820,25 @@ export const KATEGORI_GURU_LABELS: Record<KategoriGuru, string> = {
 /**
  * Keterangan satu kalimat per kategori, untuk formulir SDM.
  *
- * Perbedaan ketiganya tidak terbaca dari namanya — "Guru RQ" dan "Guru QULS SD"
- * sama-sama bisa mengajar di kelas QULS SD yang sama — jadi yang membedakan
+ * Perbedaan ketiganya tidak terbaca dari namanya â "Guru RQ" dan "Guru QULS SD"
+ * sama-sama bisa mengajar di kelas QULS SD yang sama â jadi yang membedakan
  * harus ikut tertulis di tempat SDM memilihnya.
  */
 export const KATEGORI_GURU_KETERANGAN: Record<KategoriGuru, string> = {
   guru_rq:        'Di bawah RQ. Bisa ditugaskan ke QULS SD, QULS SMP, maupun SD Juara.',
-  guru_quls_sd:   'Hanya mengajar di QULS SD, dan berada di bawah unit SD — bukan RQ.',
-  musyrif_smp:    'Guru Qur’an jam asrama SMPIT LHI; mengampu halaqoh santri boarding.',
-  guru_unit_lain: 'Guru Qur’an di unit selain SD & SMP — TPAIT LHI, SD LHI Juara, SMA LHI.',
+  guru_quls_sd:   'Hanya mengajar di QULS SD, dan berada di bawah unit SD â bukan RQ.',
+  musyrif_smp:    'Guru Qurâan jam asrama SMPIT LHI; mengampu halaqoh santri boarding.',
+  guru_unit_lain: 'Guru Qurâan di unit selain SD & SMP â TPAIT LHI, SD LHI Juara, SMA LHI.',
 }
 
-/** Urutan tampil kategori — mengikuti besarnya rombongan, bukan abjad. */
+/** Urutan tampil kategori â mengikuti besarnya rombongan, bukan abjad. */
 export const KATEGORI_GURU_ORDER: KategoriGuru[] = [
   'guru_rq', 'guru_quls_sd', 'musyrif_smp', 'guru_unit_lain',
 ]
 
 /**
  * Punya profil pengurus lengkap (data diri, pendidikan, kompetensi, riwayat).
- * New Squad dikecualikan — mereka hanya punya pengaturan akun dasar.
+ * New Squad dikecualikan â mereka hanya punya pengaturan akun dasar.
  */
 export function canHavePengurusProfile(role: UserRole): boolean {
   return role !== 'new_squad'
@@ -846,14 +872,16 @@ export const ROLE_LABELS: Record<UserRole, string> = {
   humas: 'Humas',
   div_training: 'Div Training',
   new_squad: 'New Squad',
+  div_quran_bpa: 'Div Qur’an BPA',
+  div_quran_bpi: 'Div Qur’an BPI',
 }
 
 /**
- * Nama resmi tiap jabatan pengurus — dipakai sebagai "Amanah Saat Ini".
+ * Nama resmi tiap jabatan pengurus â dipakai sebagai "Amanah Saat Ini".
  *
  * Diturunkan dari role, bukan diketik pengurus. Amanah adalah kursi yang
  * ditetapkan kepala RQ lewat /pengurus, jadi membiarkannya sebagai teks bebas
- * berarti dua orang di kursi yang sama bisa menulis nama jabatan yang berbeda —
+ * berarti dua orang di kursi yang sama bisa menulis nama jabatan yang berbeda â
  * dan itu persis yang terjadi sebelum ini: dari 11 akun, 4 terisi dengan gaya
  * penulisan yang tidak seragam dan 7 dibiarkan kosong.
  *
@@ -861,26 +889,29 @@ export const ROLE_LABELS: Record<UserRole, string> = {
  * ("Koor SD"), yang ini nama utuh untuk dokumen & profil.
  */
 export const AMANAH_LABELS: Record<UserRole, string> = {
-  kepala_rq:   "Kepala Rumah Qur’an",
+  kepala_rq:   "Kepala Rumah Qurâan",
   kumik:       "Kurikulum & Metodologi (Kumik)",
   sdm:         "Kadiv SDM RQ LHI",
   bendahara:   "Bendahara",
-  koor_sd:     "Koordinator Qur’an SD",
-  koor_smp:    "Koordinator Qur’an SMP",
+  koor_sd:     "Koordinator Qurâan SD",
+  koor_smp:    "Koordinator Qurâan SMP",
   koor_qulssd: "Koordinator QULS SD",
   koor_ekstra: "Koordinator Ekstra RQ LHI",
   humas:       "Humas RQ LHI",
   div_training:"Divisi Training",
   new_squad:   "New Squad",
+  div_quran_bpa: "Divisi Qur’an Boarding Putra",
+  div_quran_bpi: "Divisi Qur’an Boarding Putri",
 }
 
 /**
- * Urutan jabatan di halaman Pengurus — struktural, bukan abjad: pimpinan,
+ * Urutan jabatan di halaman Pengurus â struktural, bukan abjad: pimpinan,
  * lalu divisi penopang, lalu para koordinator lapangan.
  */
 export const JABATAN_ORDER: UserRole[] = [
   "kepala_rq", "kumik", "sdm", "bendahara",
   "koor_sd", "koor_smp", "koor_qulssd", "koor_ekstra",
+  "div_quran_bpa", "div_quran_bpi",
   "humas", "div_training", "new_squad",
 ]
 
@@ -888,7 +919,7 @@ export const JABATAN_ORDER: UserRole[] = [
  * Boleh menetapkan siapa yang menduduki tiap jabatan pengurus.
  *
  * Kepala RQ saja. Ini wewenang penempatan orang, satu tingkat di atas SDM yang
- * mengurus rekam kepegawaiannya — dan hasilnya menentukan profil siapa yang
+ * mengurus rekam kepegawaiannya â dan hasilnya menentukan profil siapa yang
  * tampil di akun jabatan tersebut.
  */
 export function canManagePengurus(role: UserRole): boolean {
@@ -962,6 +993,10 @@ export const DEFAULT_DASHBOARD: Record<UserRole, string> = {
   humas: 'humas',
   div_training: 'div-training',
   new_squad: 'pribadi',
+  // Menumpang dashboard pribadi: tugas mereka cuma profil, ujian, dan rapat,
+  // jadi tidak ada papan divisi yang perlu dibuatkan sendiri.
+  div_quran_bpa: 'pribadi',
+  div_quran_bpi: 'pribadi',
 }
 
 // Pembinaan Guru & Karyawan (Gukar)
@@ -987,13 +1022,13 @@ export function canManageGukar(role: UserRole): boolean {
 
 // Koreksi setoran santri
 //
-// Guru sengaja TIDAK diberi akses. Ia mencatat, pengurus yang membetulkan —
+// Guru sengaja TIDAK diberi akses. Ia mencatat, pengurus yang membetulkan â
 // begitu keputusannya, supaya riwayat capaian tidak bisa diubah diam-diam
 // oleh orang yang nilainya sedang dinilai.
 /**
  * Boleh menyunting & menghapus setoran santri.
  *
- * Kepala RQ dan Kumik untuk semua jenjang; koor hanya unitnya sendiri —
+ * Kepala RQ dan Kumik untuk semua jenjang; koor hanya unitnya sendiri â
  * cakupan yang sama dengan wewenangnya mengelola siswa.
  */
 export function canManageSetoran(role: UserRole, jenjang?: Jenjang | null, program?: ProgramArg): boolean {
@@ -1005,20 +1040,20 @@ export function canManageSetoran(role: UserRole, jenjang?: Jenjang | null, progr
  * Boleh menyunting & menghapus catatan pembinaan guru/karyawan.
  *
  * Pembinaan gukar programnya SDM, jadi SDM dan Kepala RQ yang membetulkan.
- * Pengampu tetap bisa mengisi kelompoknya sendiri — itu diperiksa terhadap
+ * Pengampu tetap bisa mengisi kelompoknya sendiri â itu diperiksa terhadap
  * gukar_groups.pengampu_id, bukan lewat fungsi ini.
  */
 export function canManageGukarSetoran(role: UserRole): boolean {
   return role === 'sdm' || role === 'kepala_rq'
 }
 
-// ── KPI bulanan guru Qur'an ────────────────────────────────────────
+// ââ KPI bulanan guru Qur'an ââââââââââââââââââââââââââââââââââââââââ
 
 /**
  * Siapa yang mengisi nilai KPI: SDM.
  *
  * Kepala RQ ikut diberi hak tulis karena ia atasan langsung fungsi SDM dan
- * perlu bisa membetulkan kalau SDM berhalangan — bukan supaya rutin mengisi.
+ * perlu bisa membetulkan kalau SDM berhalangan â bukan supaya rutin mengisi.
  */
 export function canInputKpi(role: UserRole): boolean {
   return role === 'sdm' || role === 'kepala_rq'
@@ -1042,7 +1077,7 @@ export function canViewKpi(role: UserRole): boolean {
  * pemantauan internal; rapor cetak adalah dokumen yang keluar dari lingkaran
  * pengurus dan diserahkan kepada guru yang bersangkutan, lengkap dengan kolom
  * tanda tangan. Yang menerbitkan dokumen kepegawaian di RQ adalah SDM, jadi
- * satu peran itu pula yang memegang tombolnya — termasuk tidak Kepala RQ,
+ * satu peran itu pula yang memegang tombolnya â termasuk tidak Kepala RQ,
  * supaya tidak ada dua pihak yang menerbitkan rapor yang sama dengan tanggal
  * terbit berbeda.
  */
@@ -1050,15 +1085,15 @@ export function canPrintKpiRapor(role: UserRole): boolean {
   return role === 'sdm'
 }
 
-// ── Pengesahan rapor KPI (0050) ────────────────────────────────────
+// ââ Pengesahan rapor KPI (0050) ââââââââââââââââââââââââââââââââââââ
 
 /**
- * Koordinator yang menaungi tiap unit — penanda tangan rapornya.
+ * Koordinator yang menaungi tiap unit â penanda tangan rapornya.
  *
  * Guru QULS SD ikut di bawah Koor SD: unitnya memang sd/sd_juara, dan
  * pemisahan pembinaan QULS SD belum sampai ke jalur pengesahan KPI. Kalau
  * kelak Koor QULS SD yang mengesahkan anak buahnya sendiri, cukup peta ini
- * yang berubah — lib/data/kpi-rapor.ts membacanya lewat koorPengesah(), tidak
+ * yang berubah â lib/data/kpi-rapor.ts membacanya lewat koorPengesah(), tidak
  * memelihara petanya sendiri.
  */
 const KOOR_PENGESAH: Partial<Record<Jenjang, UserRole>> = {
@@ -1071,13 +1106,13 @@ const KOOR_PENGESAH: Partial<Record<Jenjang, UserRole>> = {
  * Guru berlingkup yayasan disahkan Kepala RQ, bukan koordinator unit mana pun.
  *
  * Ini pengecualian yang sengaja dibuat, dan alasannya sama dengan alasan
- * Kepala RQ dikecualikan di tempat lain — hanya diterapkan terbalik. Tanda
+ * Kepala RQ dikecualikan di tempat lain â hanya diterapkan terbalik. Tanda
  * tangan pada rapor menyatakan "saya menyaksikan kinerja ini". Koor SD tidak
  * menyaksikan kinerja seorang guru yang tugasnya melintasi seluruh yayasan,
  * jadi tanda tangannya di sana adalah kesaksian yang tidak pernah terjadi.
  *
- * `lingkup` menang atas `unit`. Guru lintas yayasan boleh tetap punya unit —
- * unit itulah yang menentukan rubrik KPI mana yang dipakai (lihat paramFor) —
+ * `lingkup` menang atas `unit`. Guru lintas yayasan boleh tetap punya unit â
+ * unit itulah yang menentukan rubrik KPI mana yang dipakai (lihat paramFor) â
  * tapi unit tidak lagi menentukan siapa yang menandatangani.
  */
 export function koorPengesah(
@@ -1093,16 +1128,16 @@ export function koorPengesah(
  *
  * Terikat unit: Koor SMP tidak bisa menerbitkan rapor guru SD, meski
  * jabatannya setara. Yang disahkan adalah penilaian atas orang yang ia pimpin
- * langsung — di luar itu ia menandatangani sesuatu yang tidak ia saksikan.
+ * langsung â di luar itu ia menandatangani sesuatu yang tidak ia saksikan.
  *
  * Kepala RQ TIDAK ikut atas rapor guru unit. Bukan karena wewenangnya kurang,
  * melainkan karena tanda tangan pada rapor menyatakan "saya koordinator yang
  * menyaksikan kinerja ini". Kalau Kepala RQ perlu turun tangan atas rapor guru
- * unit, jalurnya reset — yang meninggalkan jejak — bukan menandatangani atas
+ * unit, jalurnya reset â yang meninggalkan jejak â bukan menandatangani atas
  * nama koordinator.
  *
  * Yang berlingkup yayasan justru sebaliknya (0052): di sana Kepala RQ-lah
- * atasan langsungnya, dan koor unit yang bukan. Alasannya satu dan sama —
+ * atasan langsungnya, dan koor unit yang bukan. Alasannya satu dan sama â
  * yang menandatangani adalah yang menyaksikan.
  */
 export function canPublishKpiRapor(
@@ -1117,7 +1152,7 @@ export function canPublishKpiRapor(
 /**
  * Punya halaman publikasi sama sekali? Dipakai untuk menampilkan menunya.
  *
- * Kepala RQ ikut sejak 0052 — bukan untuk menandatangani rapor guru unit
+ * Kepala RQ ikut sejak 0052 â bukan untuk menandatangani rapor guru unit
  * (canPublishKpiRapor tetap menolaknya per baris), melainkan karena rapor guru
  * berlingkup yayasan tidak punya meja lain untuk ditandatangani. Pemisahan
  * wewenangnya tetap utuh: yang menentukan bukan siapa yang boleh membuka
@@ -1130,8 +1165,8 @@ export function canAccessKpiPublikasi(role: UserRole): boolean {
 /**
  * Siapa yang memutus banding, per tingkat.
  *
- * Tingkat 1 sengketa FAKTA — SDM, sebab dialah pemegang data sumbernya.
- * Tingkat 2 sengketa PENILAIAN — Kepala RQ, dan putusannya final.
+ * Tingkat 1 sengketa FAKTA â SDM, sebab dialah pemegang data sumbernya.
+ * Tingkat 2 sengketa PENILAIAN â Kepala RQ, dan putusannya final.
  *
  * Koordinator tidak memutus di tingkat mana pun: dialah yang menandatangani
  * rapor yang disanggah, jadi menjadikannya hakim atas sanggahan terhadap tanda
@@ -1143,7 +1178,7 @@ export function canDecideKpiBanding(role: UserRole, tingkat: number): boolean {
   return false
 }
 
-/** Boleh membuka daftar banding — pemutus kedua tingkat, plus koordinator. */
+/** Boleh membuka daftar banding â pemutus kedua tingkat, plus koordinator. */
 export function canViewKpiBanding(role: UserRole): boolean {
   return role === 'sdm' || role === 'kepala_rq' || canAccessKpiPublikasi(role)
 }
@@ -1155,7 +1190,7 @@ export function canViewKpiBanding(role: UserRole): boolean {
  * dokumen yang sudah diserahkan dan mungkin sudah ditandatangani guru;
  * memberi hak mengubahnya kepada pihak yang sama yang menyusunnya membuat
  * tanda tangan guru tidak menjamin apa pun. Reset oleh Kepala RQ mengosongkan
- * nilainya, membatalkan kedua tanda tangan, dan menaikkan nomor versi —
+ * nilainya, membatalkan kedua tanda tangan, dan menaikkan nomor versi â
  * sehingga perubahan atas rapor terbit selalu kasat mata.
  */
 export function canResetKpiRapor(role: UserRole): boolean {
@@ -1175,7 +1210,7 @@ export function canViewKpiRaporSheet(role: UserRole): boolean {
 }
 
 /**
- * Kelola akun & password seluruh pengguna — khusus Kepala RQ.
+ * Kelola akun & password seluruh pengguna â khusus Kepala RQ.
  *
  * Tidak diberikan ke SDM meski SDM mengelola kepegawaian: hak ini mencakup
  * mengganti password Kepala RQ sendiri, jadi memberikannya ke peran lain
@@ -1185,17 +1220,17 @@ export function canManageAllAccounts(role: UserRole): boolean {
   return role === 'kepala_rq'
 }
 
-// ── Pembinaan Gukar ────────────────────────────────────────────────
+// ââ Pembinaan Gukar ââââââââââââââââââââââââââââââââââââââââââââââââ
 
 /**
  * Boleh mengampu pembinaan Guru & Karyawan?
  *
  * Pembinaan gukar adalah amanah yayasan, jadi hanya guru yang terikat langsung
- * dengan yayasan yang mengampunya — Tetap Yayasan dan Kontrak Yayasan. Guru
+ * dengan yayasan yang mengampunya â Tetap Yayasan dan Kontrak Yayasan. Guru
  * Kontrak RQ (OS) tidak, sebab ikatannya lewat pihak ketiga.
  *
  * Yang disaring PENGAMPU-nya, bukan peserta. Ke-161 peserta gukar adalah objek
- * pembinaan yang datang dari seluruh yayasan — PAUD, BPH, musyrif — dan status
+ * pembinaan yang datang dari seluruh yayasan â PAUD, BPH, musyrif â dan status
  * kepegawaian mereka tidak menentukan apa pun di sini.
  *
  * employment_type null diperlakukan sebagai TIDAK boleh: lebih baik seorang
@@ -1206,7 +1241,7 @@ export function canDoGukarPembinaan(employment: TeacherEmployment | null | undef
   return employment === 'tetap_yayasan' || employment === 'kontrak_yayasan'
 }
 
-// ── Pengajuan ujian tahsin & tahfidz ───────────────────────────────
+// ââ Pengajuan ujian tahsin & tahfidz âââââââââââââââââââââââââââââââ
 
 /**
  * Unit mana yang ujiannya boleh dikelola seorang pengurus.
@@ -1219,7 +1254,9 @@ export function canDoGukarPembinaan(employment: TeacherEmployment | null | undef
 export function getUjianUnits(role: UserRole): UjianUnit[] {
   if (role === 'kepala_rq' || role === 'kumik') return ['SD', 'SMP']
   if (role === 'koor_sd') return ['SD']
-  if (role === 'koor_smp') return ['SMP']
+  // BPA & BPI membina santri asrama SMPIT LHI, jadi cakupan ujiannya sama
+  // persis dengan koor SMP.
+  if (role === 'koor_smp' || role === 'div_quran_bpa' || role === 'div_quran_bpi') return ['SMP']
   return []
 }
 
@@ -1231,7 +1268,7 @@ export function canViewUjian(role: UserRole): boolean {
 /**
  * Boleh menjadwalkan, menilai, dan menghapus pengajuan di unit tertentu.
  *
- * Dipisah dari canViewUjian supaya pemeriksaannya selalu menyertakan unit —
+ * Dipisah dari canViewUjian supaya pemeriksaannya selalu menyertakan unit â
  * koor SD tidak boleh menyentuh antrian SMP walau kedua daftar itu tampil di
  * halaman yang sama. Unit datang dari baris di database, bukan dari form.
  */

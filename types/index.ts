@@ -11,6 +11,10 @@ export type UserRole =
   | 'humas'
   | 'div_training'
   | 'new_squad'
+  /** Divisi Qur'an Boarding Putra — membina santri asrama putra SMPIT LHI. */
+  | 'div_quran_bpa'
+  /** Divisi Qur'an Boarding Putri — membina santri asrama putri SMPIT LHI. */
+  | 'div_quran_bpi'
 
 export type MeetingType =
   | 'manajemen'

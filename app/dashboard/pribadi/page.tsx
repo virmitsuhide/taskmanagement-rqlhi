@@ -1,14 +1,14 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { getSession } from '@/lib/auth/session'
-import { canViewDashboard, canViewFinanceNotes, getViewableMeetingTypes } from '@/lib/auth/permissions'
+import { canViewDashboard, canViewFinanceNotes, canViewTasks, canViewUjian, getViewableMeetingTypes } from '@/lib/auth/permissions'
 import { getDashboardStats, getMyActiveTasks, getRecentMeetings, getPendingVerifications } from '@/lib/data/dashboard'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { DivisionStats } from '@/components/dashboard/DivisionStats'
 import { TaskCard } from '@/components/tasks/TaskCard'
 import { MeetingCard } from '@/components/rapat/MeetingCard'
 import { Button } from '@/components/ui/button'
-import { Plus, FileText } from 'lucide-react'
+import { Plus, FileText, ScrollText } from 'lucide-react'
 
 export default async function PribadiDashboardPage() {
   const session = await getSession()
@@ -16,11 +16,16 @@ export default async function PribadiDashboardPage() {
   if (!canViewDashboard(session.role, 'pribadi')) redirect('/dashboard')
 
   const meetingTypes = getViewableMeetingTypes(session.role)
+  // Dashboard ini dipakai bersama oleh bendahara, new squad, dan Div Quran
+  // BPA/BPI. Dua yang terakhir tidak memegang modul tugas, jadi seluruh bagian
+  // tugas dilewati: menariknya dari database hanya untuk menampilkan "tidak ada
+  // task aktif" beserta tombol Tambah yang akan ditolak halamannya.
+  const denganTugas = canViewTasks(session.role)
 
   const [stats, myTasks, pendingVerif, recentMeetings] = await Promise.all([
-    getDashboardStats(session.userId),
-    getMyActiveTasks(session.userId),
-    getPendingVerifications(session.userId),
+    denganTugas ? getDashboardStats(session.userId) : Promise.resolve(null),
+    denganTugas ? getMyActiveTasks(session.userId) : Promise.resolve([]),
+    denganTugas ? getPendingVerifications(session.userId) : Promise.resolve([]),
     meetingTypes.length ? getRecentMeetings(meetingTypes) : Promise.resolve([]),
   ])
 
@@ -28,7 +33,7 @@ export default async function PribadiDashboardPage() {
     <div>
       <DashboardHeader displayName={session.displayName} role={session.role} title="Dashboard Saya" showBack />
       <div className="p-4 md:p-6 space-y-6 max-w-4xl">
-        <DivisionStats {...stats} />
+        {stats && <DivisionStats {...stats} />}
 
         {pendingVerif.length > 0 && (
           <section>
@@ -39,22 +44,34 @@ export default async function PribadiDashboardPage() {
           </section>
         )}
 
-        <section>
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-sm font-semibold">Task Aktif Saya</h2>
-            <Button asChild size="sm" variant="outline">
-              <Link href="/tasks/baru"><Plus className="h-3 w-3 mr-1" />Tambah</Link>
-            </Button>
-          </div>
-          {myTasks.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-4">Tidak ada task aktif.</p>
-          ) : (
-            <div className="space-y-2">
-              {myTasks.map(task => <TaskCard key={task.id} task={task} showAssignee={false} showAssigner />)}
+        {denganTugas && (
+          <section>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-sm font-semibold">Task Aktif Saya</h2>
+              <Button asChild size="sm" variant="outline">
+                <Link href="/tasks/baru"><Plus className="h-3 w-3 mr-1" />Tambah</Link>
+              </Button>
             </div>
-          )}
-          <Link href="/tasks" className="text-xs text-primary hover:underline mt-2 inline-block">Lihat semua task →</Link>
-        </section>
+            {myTasks.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-4">Tidak ada task aktif.</p>
+            ) : (
+              <div className="space-y-2">
+                {myTasks.map(task => <TaskCard key={task.id} task={task} showAssignee={false} showAssigner />)}
+              </div>
+            )}
+            <Link href="/tasks" className="text-xs text-primary hover:underline mt-2 inline-block">Lihat semua task &rarr;</Link>
+          </section>
+        )}
+
+        {/* Tanpa modul tugas, dashboard ini nyaris kosong. Pintasan ujian
+            mengisinya dengan pekerjaan yang memang jadi amanah mereka. */}
+        {!denganTugas && canViewUjian(session.role) && (
+          <section>
+            <Button asChild variant="outline" size="sm">
+              <Link href="/ujian/kelola"><ScrollText className="h-3 w-3 mr-1" />Pengajuan Ujian</Link>
+            </Button>
+          </section>
+        )}
 
         {canViewFinanceNotes(session.role) && (
           <section>
