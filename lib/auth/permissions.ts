@@ -433,8 +433,18 @@ export function canPostTugasGuru(role: UserRole): PublicTarget | null {
 // sendiri. Jadi humas tidak boleh membuat request, tapi tetap harus bisa
 // membuka daftarnya untuk memproses request yang masuk.
 export function canRequestToHumas(role: UserRole): boolean {
-  return role !== 'new_squad' && role !== 'humas'
+  // Daftar-tolak, bukan daftar-izin: hampir semua divisi memang memesan
+  // publikasi ke Humas. Konsekuensinya tiap peran baru lolos secara default,
+  // dan itulah yang terjadi pada Div Quran BPA & BPI sampai baris ini ada.
+  //
+  // Humas melayani publikasi RQ LHI; pembinaan Quran santri asrama berjalan
+  // di unit yang berbeda dan tidak memesan lewat antrean itu.
+  return role !== 'new_squad'
+    && role !== 'humas'
+    && role !== 'div_quran_bpa'
+    && role !== 'div_quran_bpi'
 }
+
 
 /** Siapa yang boleh membuka halaman daftar request: pemohon + humas & kepala RQ. */
 export function canViewHumasRequests(role: UserRole): boolean {
