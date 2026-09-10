@@ -80,11 +80,8 @@ export async function updateStudentAction(_: unknown, formData: FormData) {
 
   const fields = pickStudentFields(formData)
   const is_active = formData.get('is_active') === 'on'
-  if (!fields.full_name || !fields.jenjang) {
-    return { error: 'Nama lengkap dan jenjang wajib diisi.' }
-  }
-  if (!canManageStudents(session.role, fields.jenjang, fields.program)) {
-    return { error: 'Anda tidak memiliki izin untuk siswa program ini.' }
+  if (!fields.full_name) {
+    return { error: 'Nama lengkap wajib diisi.' }
   }
 
   const supabase = createServerClient()
@@ -97,9 +94,23 @@ export async function updateStudentAction(_: unknown, formData: FormData) {
     return { error: 'Anda tidak memiliki izin untuk siswa ini.' }
   }
 
+  // Jenjang TIDAK diambil dari form. Ia menentukan halaqoh mana yang boleh
+  // ditempati, metode tahsin mana yang berlaku, dan siapa yang berwenang atas
+  // anak ini — memindahkannya antar unit menyeret semuanya, jadi itu bukan
+  // pekerjaan satu dropdown di formulir edit.
+  //
+  // Diambil dari baris yang sudah ada, bukan sekadar disembunyikan dari
+  // tampilan: request buatan tangan yang menyisipkan 'jenjang' pun tidak bisa
+  // memindahkan siswa ke unit lain.
+  const jenjang = existing.jenjang as Jenjang
+
+  if (!canManageStudents(session.role, jenjang, fields.program)) {
+    return { error: 'Anda tidak memiliki izin untuk siswa program ini.' }
+  }
+
   const { error } = await supabase
     .from('students')
-    .update({ ...fields, is_active })
+    .update({ ...fields, jenjang, is_active })
     .eq('id', id)
 
   if (error) {

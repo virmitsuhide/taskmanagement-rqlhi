@@ -136,7 +136,7 @@ export function StudentForm({
           </div>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div className="space-y-1.5">
             <Label htmlFor="gender">Jenis Kelamin</Label>
             <Select name="gender" defaultValue={initial?.gender ?? NONE}>
@@ -159,23 +159,37 @@ export function StudentForm({
       <fieldset className="space-y-3 border-t pt-4">
         <legend className="text-sm font-semibold mb-2">Akademik</legend>
 
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1.5">
-            <Label htmlFor="jenjang">Jenjang *</Label>
-            <Select name="jenjang" value={jenjang} onValueChange={v => onJenjangChange(v as Jenjang)}>
-              <SelectTrigger id="jenjang"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {allowedJenjang.map(j => (
-                  <SelectItem key={j} value={j}>{JENJANG_LABELS[j]}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+        {mode === 'create' ? (
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="jenjang">Jenjang *</Label>
+              <Select name="jenjang" value={jenjang} onValueChange={v => onJenjangChange(v as Jenjang)}>
+                <SelectTrigger id="jenjang"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {allowedJenjang.map(j => (
+                    <SelectItem key={j} value={j}>{JENJANG_LABELS[j]}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="kelas">Kelas</Label>
+              <Input id="kelas" name="kelas" placeholder="contoh: 4A" defaultValue={initial?.kelas ?? ''} disabled={isPending} />
+            </div>
           </div>
+        ) : (
           <div className="space-y-1.5">
             <Label htmlFor="kelas">Kelas</Label>
             <Input id="kelas" name="kelas" placeholder="contoh: 4A" defaultValue={initial?.kelas ?? ''} disabled={isPending} />
+            {/* Jenjang tetap disebut sebagai keterangan: pilihan program,
+                halaqoh, dan metode tahsin di bawah semuanya bergantung
+                padanya, jadi menghilangkannya sama sekali membuat daftar yang
+                menyempit terasa tanpa sebab. */}
+            <p className="text-[11px] text-muted-foreground">
+              Unit {JENJANG_LABELS[jenjang]} &middot; ikut kelas, tidak diubah dari sini.
+            </p>
           </div>
-        </div>
+        )}
 
         {programOptions.length > 0 && (
           <div className="space-y-1.5">
@@ -271,7 +285,7 @@ export function StudentForm({
           <Label htmlFor="wali_name">Nama Wali</Label>
           <Input id="wali_name" name="wali_name" defaultValue={initial?.wali_name ?? ''} disabled={isPending} />
         </div>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div className="space-y-1.5">
             <Label htmlFor="wali_phone">No. HP / WA</Label>
             <Input id="wali_phone" name="wali_phone" placeholder="08xx" defaultValue={initial?.wali_phone ?? ''} disabled={isPending} />
@@ -284,15 +298,24 @@ export function StudentForm({
       </fieldset>
 
       {mode === 'edit' && (
-        <label className="flex items-center gap-2 text-sm border-t pt-4">
-          <input
-            type="checkbox"
-            name="is_active"
-            defaultChecked={initial?.is_active ?? true}
-            disabled={isPending}
-          />
-          Siswa aktif
-        </label>
+        <div className="border-t pt-4">
+          <label className="flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors hover:bg-muted/40">
+            <input
+              type="checkbox"
+              name="is_active"
+              defaultChecked={initial?.is_active ?? true}
+              disabled={isPending}
+              className="mt-0.5 size-4 accent-primary"
+            />
+            <span className="space-y-0.5">
+              <span className="block text-sm font-medium">Siswa aktif</span>
+              <span className="block text-[11px] text-muted-foreground">
+                Siswa nonaktif hilang dari daftar kelas dan tidak bisa disetori,
+                tapi seluruh riwayat tahsin, tahfidz, dan rapornya tetap tersimpan.
+              </span>
+            </span>
+          </label>
+        </div>
       )}
 
       {state?.error && (
