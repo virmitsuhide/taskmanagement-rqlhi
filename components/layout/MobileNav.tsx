@@ -7,7 +7,7 @@ import {
   Menu, X, LayoutDashboard, CheckSquare, BookOpen,
   ImageIcon, Megaphone, FileText, User, LogOut, GraduationCap, Newspaper, LayoutGrid,
   Users, UserCog, BookMarked, BarChart3, LayoutTemplate, Info, Wallet, CalendarRange,
-  ClipboardCheck, KeyRound, ScrollText, Repeat, IdCard, UsersRound, Briefcase, Stamp, Scale,
+  ClipboardCheck, KeyRound, ScrollText, Repeat, IdCard, UsersRound, Briefcase, Stamp, Scale, ListChecks,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
@@ -17,7 +17,7 @@ import {
   canViewStudents, canViewHalaqoh, canViewTeachers, canViewAnalytics, canViewUnitAnalytics,
   canManageHomepage,
   canViewKpi, canManageAllAccounts, canManagePengurus, canManageEmployees, canViewUjian, canManageTeacherProfiles,
-  canAccessKpiPublikasi, canViewKpiBanding, canViewTasks } from '@/lib/auth/permissions'
+  canAccessKpiPublikasi, canViewKpiBanding, canViewTasks, canViewRoutineBoard } from '@/lib/auth/permissions'
 import type { UserRole } from '@/types'
 import { logoutAction } from '@/app/actions/auth'
 import { Logo } from '@/components/brand/Logo'
@@ -235,7 +235,10 @@ export function MobileNav({ role, displayName, username, lencanaKpi }: Props) {
               <DrawerLink href="/rapat" icon={<BookOpen className="h-4 w-4" />} label="Rapat & Notulen" active={isActive('/rapat')} onNavigate={close} />
               {canViewTasks(role) && (
                 <>
-                  <DrawerLink href="/tugas-rutin" icon={<Repeat className="h-4 w-4" />} label="Tugas Rutin" active={isActive('/tugas-rutin')} onNavigate={close} />
+                  <DrawerLink href="/tugas-rutin" icon={<Repeat className="h-4 w-4" />} label="Tugas Rutin" active={isActive('/tugas-rutin') && !pathname.startsWith('/tugas-rutin/papan')} onNavigate={close} />
+                  {canViewRoutineBoard(role) && (
+                    <DrawerLink href="/tugas-rutin/papan" icon={<ListChecks className="h-4 w-4" />} label="Papan Rutin" active={pathname.startsWith('/tugas-rutin/papan')} onNavigate={close} />
+                  )}
                   <DrawerLink href="/tasks" icon={<CheckSquare className="h-4 w-4" />} label="Tugas" active={isActive('/tasks')} onNavigate={close} />
                   <DrawerLink href="/tasks/board" icon={<LayoutGrid className="h-4 w-4" />} label="Papan Tugas" active={isActive('/tasks/board')} onNavigate={close} />
                 </>

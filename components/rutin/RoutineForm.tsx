@@ -1,13 +1,13 @@
 'use client'
 
 import { useActionState } from 'react'
-import { CalendarDays, CalendarRange } from 'lucide-react'
+import { CalendarDays, CalendarRange, CalendarClock, CalendarCheck2 } from 'lucide-react'
 import { createRoutineTaskAction } from '@/app/actions/rutin'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { CADENCES, CADENCE_LABELS } from '@/lib/rutin/periode'
+import { CADENCES, CADENCE_LABELS, CADENCE_RESET_LABELS } from '@/lib/rutin/periode'
 import type { RoutineCadence } from '@/types'
 
 /**
@@ -17,14 +17,11 @@ import type { RoutineCadence } from '@/types'
  * mengerjakan).
  */
 
-const CADENCE_DESC: Record<RoutineCadence, string> = {
-  pekanan: 'Dicentang ulang tiap Senin',
-  bulanan: 'Dicentang ulang tiap tanggal 1',
-}
-
 const CADENCE_ICON: Record<RoutineCadence, React.ComponentType<{ className?: string }>> = {
   pekanan: CalendarDays,
   bulanan: CalendarRange,
+  semesteran: CalendarClock,
+  tahunan: CalendarCheck2,
 }
 
 export function RoutineForm({ defaultCadence }: { defaultCadence?: RoutineCadence }) {
@@ -36,7 +33,7 @@ export function RoutineForm({ defaultCadence }: { defaultCadence?: RoutineCadenc
         <CardHeader className="border-b bg-muted/40 py-3.5">
           <CardTitle>Tugas Rutin Baru</CardTitle>
           <CardDescription>
-            Pekerjaan yang Anda ulang tiap pekan atau tiap bulan.
+            Pekerjaan yang Anda ulang menurut kalender — tiap pekan, bulan, semester, atau tahun ajaran.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-5 py-5">
@@ -51,7 +48,7 @@ export function RoutineForm({ defaultCadence }: { defaultCadence?: RoutineCadenc
               placeholder="mis. Rekap setoran hafalan seluruh halaqoh"
             />
             <p className="text-[11px] text-muted-foreground">
-              Tulis sejelas mungkin — inilah yang akan Anda baca tiap pekan di daftar centang.
+              Tulis sejelas mungkin — inilah yang akan Anda baca tiap periode di daftar laporan.
             </p>
           </div>
 
@@ -79,7 +76,7 @@ export function RoutineForm({ defaultCadence }: { defaultCadence?: RoutineCadenc
                         {CADENCE_LABELS[c]}
                       </span>
                       <span className="mt-0.5 block text-[11px] text-muted-foreground">
-                        {CADENCE_DESC[c]}
+                        {CADENCE_RESET_LABELS[c]}
                       </span>
                     </span>
                   </label>
@@ -98,7 +95,7 @@ export function RoutineForm({ defaultCadence }: { defaultCadence?: RoutineCadenc
         )}
         <div className="p-4">
           <Button type="submit" disabled={isPending} className="w-full">
-            {isPending ? 'Menyimpan…' : 'Tambahkan ke Checklist'}
+            {isPending ? 'Menyimpan…' : 'Tambahkan ke Daftar Rutin'}
           </Button>
         </div>
       </div>

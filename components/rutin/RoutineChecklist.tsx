@@ -4,28 +4,43 @@ import { useActionState, useEffect, useRef, useState, useTransition } from 'reac
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import {
-  Check, ChevronDown, ChevronUp, Pencil, Trash2, X, CircleCheckBig,
+  Check, ChevronDown, ChevronUp, Pencil, Trash2, X, CircleCheckBig, CircleAlert,
 } from 'lucide-react'
 import {
   deleteRoutineTaskAction, moveRoutineTaskAction,
-  toggleRoutineCheckAction, updateRoutineTaskAction,
+  setRoutineOutcomeAction, updateRoutineTaskAction,
 } from '@/app/actions/rutin'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { useConfirm } from '@/components/ui/confirm-dialog'
 import { CADENCES, CADENCE_LABELS, CADENCE_PERIOD_LABELS, labelPeriode } from '@/lib/rutin/periode'
+import { MAX_ALASAN } from '@/lib/rutin/status'
 import type { RoutineGroup } from '@/lib/data/rutin'
-import type { RoutineTaskState } from '@/types'
+import type { RoutineOutcome, RoutineTaskState } from '@/types'
 
 /**
  * Checklist tugas rutin untuk periode yang sedang berjalan.
  *
- * Centangnya dilaporkan optimistis: kotak langsung berubah, lalu server
- * menyusul. Mencentang daftar adalah gerakan beruntun — orang mencentang tiga
- * hal sekaligus tanpa menunggu — dan jeda satu perjalanan jaringan di tiap
- * ketukan membuatnya terasa macet. Kalau servernya menolak, keadaannya
- * dikembalikan dan alasannya ditampilkan.
+ * TIGA KEADAAN, BUKAN DUA
+ *
+ * Sebuah tugas rutin bisa belum dilaporkan, terlaksana, atau tidak terlaksana.
+ * Keadaan ketiga itu yang membuat kotak centang tunggal tidak lagi memadai:
+ * kotak kosong akan berarti dua hal sekaligus — "belum sempat saya buka" dan
+ * "sudah saya pastikan tidak jalan" — dan kepala RQ tidak bisa membedakan
+ * keduanya justru pada bagian yang paling ingin ia ketahui.
+ *
+ * Karena itu barisnya memakai dua tombol yang berdiri sendiri, bukan satu
+ * kotak yang berputar tiga keadaan. Kontrol yang berputar memaksa orang
+ * mengetuk berkali-kali sambil menebak urutannya, dan tidak punya cara
+ * menunjukkan keadaan mana yang sedang aktif sebelum diketuk.
+ *
+ * OPTIMISTIK HANYA UNTUK 'TERLAKSANA'
+ *
+ * Melapor terlaksana adalah gerakan beruntun — orang menandai tiga hal
+ * sekaligus tanpa menunggu — jadi tampilannya berubah lebih dulu dan server
+ * menyusul. 'Tidak terlaksana' tidak bisa begitu: alasannya wajib, jadi
+ * formnya harus muncul dan disimpan dulu sebelum ada yang bisa ditampilkan.
  */
 
 interface Props {
@@ -47,28 +62,35 @@ function GroupSection({ group }: { group: RoutineGroup }) {
   const confirm = useConfirm()
   const [pending, startTransition] = useTransition()
   const [editingId, setEditingId] = useState<string | null>(null)
+  /** Tugas yang form alasannya sedang terbuka. */
+  const [alasanId, setAlasanId] = useState<string | null>(null)
 
-  // Centang yang sudah diketuk tapi belum dikonfirmasi server.
-  const [optimistic, setOptimistic] = useState<Record<string, boolean>>({})
+  // Laporan yang sudah diketuk tapi belum dikonfirmasi server.
+  const [optimistic, setOptimistic] = useState<Record<string, RoutineOutcome | null>>({})
 
-  const items = group.items.map(i => ({
-    ...i,
-    done: optimistic[i.task.id] ?? i.done,
-  }))
-  const done = items.filter(i => i.done).length
+  const items = group.items.map(i =>
+    i.task.id in optimistic ? { ...i, outcome: optimistic[i.task.id], reason: null } : i,
+  )
+  const done = items.filter(i => i.outcome === 'terlaksana').length
+  const missed = items.filter(i => i.outcome === 'tidak_terlaksana').length
   const total = items.length
-  const persen = total === 0 ? 0 : Math.round((done / total) * 100)
+  const persen = (n: number) => (total === 0 ? 0 : (n / total) * 100)
 
-  function toggle(item: RoutineTaskState, next: boolean) {
+  function lupakanOptimistik(taskId: string) {
+    setOptimistic(o => {
+      const salin = { ...o }
+      delete salin[taskId]
+      return salin
+    })
+  }
+
+  /** Jalur cepat: terlaksana ⇄ belum. Tidak dipakai untuk 'tidak terlaksana'. */
+  function lapor(item: RoutineTaskState, next: RoutineOutcome | null) {
     setOptimistic(o => ({ ...o, [item.task.id]: next }))
     startTransition(async () => {
-      const res = await toggleRoutineCheckAction(item.task.id, next)
+      const res = await setRoutineOutcomeAction(item.task.id, next)
       if (res?.error) {
-        setOptimistic(o => {
-          const salin = { ...o }
-          delete salin[item.task.id]
-          return salin
-        })
+        lupakanOptimistik(item.task.id)
         toast.error(res.error)
         return
       }
@@ -97,16 +119,33 @@ function GroupSection({ group }: { group: RoutineGroup }) {
             {CADENCE_PERIOD_LABELS[group.cadence]} · {labelPeriode(group.cadence)}
           </span>
           {total > 0 && (
-            <span className="ml-auto rounded-full bg-background px-2 py-0.5 text-[11px] font-medium tabular-nums text-muted-foreground">
-              {done}/{total} selesai
+            <span className="ml-auto flex items-center gap-1.5">
+              {missed > 0 && (
+                <span className="rounded-full bg-destructive-wash px-2 py-0.5 text-[11px] font-medium tabular-nums text-destructive">
+                  {missed} tidak terlaksana
+                </span>
+              )}
+              <span className="rounded-full bg-background px-2 py-0.5 text-[11px] font-medium tabular-nums text-muted-foreground">
+                {done}/{total} terlaksana
+              </span>
             </span>
           )}
         </div>
+        {/*
+          Bilah bertumpuk, bukan satu bilah kemajuan. Tugas yang tidak
+          terlaksana sudah selesai diurus — ia tidak lagi "sisa pekerjaan" —
+          tapi juga bukan keberhasilan. Menampilkannya sebagai potongan merah
+          di bilah yang sama membuat ketiga keadaan itu terbaca sekaligus.
+        */}
         {total > 0 && (
-          <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-background">
+          <div className="mt-2 flex h-1.5 w-full overflow-hidden rounded-full bg-background">
             <div
-              className={`h-full rounded-full transition-[width] ${done === total ? 'bg-success' : 'bg-primary'}`}
-              style={{ width: `${persen}%` }}
+              className={`h-full transition-[width] ${done === total ? 'bg-success' : 'bg-primary'}`}
+              style={{ width: `${persen(done)}%` }}
+            />
+            <div
+              className="h-full bg-destructive/60 transition-[width]"
+              style={{ width: `${persen(missed)}%` }}
             />
           </div>
         )}
@@ -121,7 +160,7 @@ function GroupSection({ group }: { group: RoutineGroup }) {
         <div className="flex items-center gap-2 border-b border-success/20 bg-success-wash px-5 py-2.5 text-sm text-success">
           <CircleCheckBig className="h-4 w-4 shrink-0" />
           Semua tugas {CADENCE_LABELS[group.cadence].toLowerCase()} sudah dikerjakan
-          {group.cadence === 'pekanan' ? ' pekan ini' : ' bulan ini'}.
+          {LANJUTAN_PERIODE[group.cadence]}.
         </div>
       ) : null}
 
@@ -141,13 +180,41 @@ function GroupSection({ group }: { group: RoutineGroup }) {
               pending={pending}
               isFirst={i === 0}
               isLast={i === items.length - 1}
-              onToggle={next => toggle(item, next)}
+              alasanTerbuka={alasanId === item.task.id}
+              onLapor={next => {
+                // Menuju "tidak terlaksana" selalu lewat form alasannya —
+                // tidak ada jalan pintas yang bisa menghasilkan laporan
+                // tanpa sebab.
+                if (next === 'tidak_terlaksana') setAlasanId(item.task.id)
+                else {
+                  setAlasanId(null)
+                  lapor(item, next)
+                }
+              }}
+              onSimpanAlasan={alasan =>
+                new Promise<string | null>(resolve => {
+                  startTransition(async () => {
+                    const res = await setRoutineOutcomeAction(
+                      item.task.id, 'tidak_terlaksana', alasan,
+                    )
+                    if (res?.error) {
+                      resolve(res.error)
+                      return
+                    }
+                    lupakanOptimistik(item.task.id)
+                    setAlasanId(null)
+                    router.refresh()
+                    resolve(null)
+                  })
+                })
+              }
+              onBatalAlasan={() => setAlasanId(null)}
               onEdit={() => setEditingId(item.task.id)}
               onMove={dir => run(() => moveRoutineTaskAction(item.task.id, dir))}
               onDelete={async () => {
                 const ok = await confirm({
                   title: `Hapus tugas rutin "${item.task.description}"?`,
-                  description: 'Riwayat centangnya ikut terhapus.',
+                  description: 'Riwayat laporannya ikut terhapus.',
                   confirmText: 'Hapus tugas rutin',
                 })
                 if (!ok) return
@@ -161,65 +228,247 @@ function GroupSection({ group }: { group: RoutineGroup }) {
   )
 }
 
+/**
+ * Sejajarkan blok alasan dengan deskripsi tugasnya, bukan dengan tepi kartu —
+ * alasan adalah keterangan bagi tugas itu, dan lekukannya yang menyatakan
+ * begitu. Di layar sempit lekukan itu dilepas: 4,5rem dari lebar 360px terlalu
+ * mahal untuk teks yang justru perlu dibaca.
+ */
+const INDENT = 'sm:ml-[4.5rem]'
+
+const LANJUTAN_PERIODE: Record<RoutineGroup['cadence'], string> = {
+  pekanan: ' pekan ini',
+  bulanan: ' bulan ini',
+  semesteran: ' semester ini',
+  tahunan: ' tahun ajaran ini',
+}
+
 function ChecklistRow({
-  item, pending, isFirst, isLast, onToggle, onEdit, onMove, onDelete,
+  item, pending, isFirst, isLast, alasanTerbuka,
+  onLapor, onSimpanAlasan, onBatalAlasan, onEdit, onMove, onDelete,
 }: {
   item: RoutineTaskState
   pending: boolean
   isFirst: boolean
   isLast: boolean
-  onToggle: (next: boolean) => void
+  alasanTerbuka: boolean
+  onLapor: (next: RoutineOutcome | null) => void
+  onSimpanAlasan: (alasan: string) => Promise<string | null>
+  onBatalAlasan: () => void
   onEdit: () => void
   onMove: (dir: 'up' | 'down') => void
   onDelete: () => void
 }) {
-  const id = `rutin-${item.task.id}`
+  const terlaksana = item.outcome === 'terlaksana'
+  const gagal = item.outcome === 'tidak_terlaksana'
 
   return (
-    <div className="group flex items-start gap-3 px-5 py-3">
-      {/*
-        Kotak centang asli, bukan tombol bergaya kotak: pembaca layar,
-        navigasi Tab, dan tombol Spasi sudah bekerja apa adanya, dan label
-        yang menaungi seluruh deskripsi membuat sasaran ketukan di HP selebar
-        barisnya — bukan cuma kotak 16px.
-      */}
-      <input
-        id={id}
-        type="checkbox"
-        checked={item.done}
-        onChange={e => onToggle(e.target.checked)}
-        className="mt-0.5 h-4.5 w-4.5 shrink-0 cursor-pointer accent-primary"
-      />
+    <div className="group px-5 py-3">
+      <div className="flex items-start gap-3">
+        <StatusToggle
+          taskId={item.task.id}
+          outcome={item.outcome}
+          disabled={pending}
+          onLapor={onLapor}
+        />
 
-      <div className="min-w-0 flex-1">
-        <label
-          htmlFor={id}
-          className={`block cursor-pointer text-sm leading-snug ${
-            item.done ? 'text-muted-foreground line-through decoration-1' : ''
-          }`}
-        >
-          {item.task.description}
-        </label>
-        {item.done && item.checkedAt && (
-          <p className="mt-0.5 text-[11px] text-muted-foreground">
-            Dicentang {waktuSingkat(item.checkedAt)}
+        <div className="min-w-0 flex-1">
+          <p
+            className={`text-sm leading-snug ${
+              terlaksana ? 'text-muted-foreground line-through decoration-1' : ''
+            } ${gagal ? 'text-muted-foreground' : ''}`}
+          >
+            {item.task.description}
           </p>
-        )}
+          {item.outcome && item.checkedAt && (
+            <p className="mt-0.5 text-[11px] text-muted-foreground">
+              {terlaksana ? 'Terlaksana' : 'Dilaporkan tidak terlaksana'}{' '}
+              {waktuSingkat(item.checkedAt)}
+            </p>
+          )}
+        </div>
+
+        <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition focus-within:opacity-100 group-hover:opacity-100">
+          <IconBtn label="Naikkan" onClick={() => onMove('up')} disabled={isFirst || pending}>
+            <ChevronUp className="h-3.5 w-3.5" />
+          </IconBtn>
+          <IconBtn label="Turunkan" onClick={() => onMove('down')} disabled={isLast || pending}>
+            <ChevronDown className="h-3.5 w-3.5" />
+          </IconBtn>
+          <IconBtn label="Sunting" onClick={onEdit} disabled={pending}>
+            <Pencil className="h-3.5 w-3.5" />
+          </IconBtn>
+          <IconBtn label="Hapus" onClick={onDelete} disabled={pending} danger>
+            <Trash2 className="h-3.5 w-3.5" />
+          </IconBtn>
+        </div>
       </div>
 
-      <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition focus-within:opacity-100 group-hover:opacity-100">
-        <IconBtn label="Naikkan" onClick={() => onMove('up')} disabled={isFirst || pending}>
-          <ChevronUp className="h-3.5 w-3.5" />
-        </IconBtn>
-        <IconBtn label="Turunkan" onClick={() => onMove('down')} disabled={isLast || pending}>
-          <ChevronDown className="h-3.5 w-3.5" />
-        </IconBtn>
-        <IconBtn label="Sunting" onClick={onEdit} disabled={pending}>
-          <Pencil className="h-3.5 w-3.5" />
-        </IconBtn>
-        <IconBtn label="Hapus" onClick={onDelete} disabled={pending} danger>
-          <Trash2 className="h-3.5 w-3.5" />
-        </IconBtn>
+      {alasanTerbuka ? (
+        <FormAlasan
+          taskId={item.task.id}
+          awal={item.reason ?? ''}
+          onSimpan={onSimpanAlasan}
+          onBatal={onBatalAlasan}
+        />
+      ) : gagal && item.reason ? (
+        <div className={`${INDENT} mt-2 rounded-lg border border-destructive/20 bg-destructive-wash px-3 py-2`}>
+          <p className="flex items-start gap-1.5 text-xs leading-snug text-destructive">
+            <CircleAlert className="mt-px h-3.5 w-3.5 shrink-0" />
+            <span className="min-w-0 whitespace-pre-wrap break-words">{item.reason}</span>
+          </p>
+          {/* Alasan yang tidak bisa diralat memaksa orang membatalkan seluruh
+              laporannya hanya untuk membetulkan satu kalimat. */}
+          <button
+            type="button"
+            onClick={() => onLapor('tidak_terlaksana')}
+            className="mt-1 text-[11px] font-medium text-destructive underline underline-offset-2 hover:no-underline"
+          >
+            Ubah alasan
+          </button>
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+/**
+ * Dua tombol berdampingan: terlaksana dan tidak terlaksana.
+ *
+ * Mengetuk tombol yang sedang aktif membatalkannya — kembali ke "belum
+ * dilaporkan". Itu satu-satunya jalan keluar dari laporan yang salah ketuk,
+ * dan menaruhnya di tombol yang sama membuatnya bisa ditemukan tanpa menu.
+ */
+function StatusToggle({
+  taskId, outcome, disabled, onLapor,
+}: {
+  taskId: string
+  outcome: RoutineOutcome | null
+  disabled?: boolean
+  onLapor: (next: RoutineOutcome | null) => void
+}) {
+  const dasar =
+    'flex h-7 w-7 items-center justify-center rounded-md border transition disabled:opacity-40'
+
+  return (
+    <div
+      role="group"
+      aria-label="Status pelaksanaan"
+      className="mt-px flex shrink-0 items-center gap-1"
+    >
+      <button
+        type="button"
+        id={`rutin-ya-${taskId}`}
+        aria-pressed={outcome === 'terlaksana'}
+        disabled={disabled}
+        onClick={() => onLapor(outcome === 'terlaksana' ? null : 'terlaksana')}
+        title={outcome === 'terlaksana' ? 'Batalkan laporan' : 'Tandai terlaksana'}
+        className={`${dasar} ${
+          outcome === 'terlaksana'
+            ? 'border-success bg-success text-white'
+            : 'border-input text-muted-foreground hover:border-success/60 hover:text-success'
+        }`}
+      >
+        <Check className="h-4 w-4" />
+        <span className="sr-only">Terlaksana</span>
+      </button>
+      <button
+        type="button"
+        aria-pressed={outcome === 'tidak_terlaksana'}
+        disabled={disabled}
+        onClick={() => onLapor(outcome === 'tidak_terlaksana' ? null : 'tidak_terlaksana')}
+        title={
+          outcome === 'tidak_terlaksana' ? 'Batalkan laporan' : 'Tandai tidak terlaksana'
+        }
+        className={`${dasar} ${
+          outcome === 'tidak_terlaksana'
+            ? 'border-destructive bg-destructive text-white'
+            : 'border-input text-muted-foreground hover:border-destructive/60 hover:text-destructive'
+        }`}
+      >
+        <X className="h-4 w-4" />
+        <span className="sr-only">Tidak terlaksana</span>
+      </button>
+    </div>
+  )
+}
+
+/**
+ * Isian alasan tidak terlaksana.
+ *
+ * Muncul di tempat, bukan sebagai dialog. Alasannya pendek dan sering ditulis
+ * berurutan untuk beberapa tugas sekaligus; dialog yang harus dibuka-tutup
+ * tiap baris menambah dua ketukan pada pekerjaan yang sudah terasa seperti
+ * mengaku kalah.
+ */
+function FormAlasan({
+  taskId, awal, onSimpan, onBatal,
+}: {
+  taskId: string
+  awal: string
+  onSimpan: (alasan: string) => Promise<string | null>
+  onBatal: () => void
+}) {
+  const areaRef = useRef<HTMLTextAreaElement>(null)
+  const [alasan, setAlasan] = useState(awal)
+  const [error, setError] = useState<string | null>(null)
+  const [menyimpan, setMenyimpan] = useState(false)
+
+  useEffect(() => { areaRef.current?.focus() }, [])
+
+  async function simpan() {
+    const isi = alasan.trim()
+    if (!isi) {
+      setError('Tulis dulu alasan kenapa tugas ini tidak terlaksana.')
+      areaRef.current?.focus()
+      return
+    }
+    setMenyimpan(true)
+    const pesan = await onSimpan(isi)
+    setMenyimpan(false)
+    if (pesan) setError(pesan)
+  }
+
+  return (
+    <div className={`${INDENT} mt-2.5 rounded-lg border border-destructive/25 bg-destructive-wash/60 p-3`}>
+      <Label htmlFor={`alasan-${taskId}`} className="text-xs text-destructive">
+        Kenapa tidak terlaksana?
+      </Label>
+      <Textarea
+        ref={areaRef}
+        id={`alasan-${taskId}`}
+        rows={2}
+        maxLength={MAX_ALASAN}
+        value={alasan}
+        disabled={menyimpan}
+        onChange={e => { setAlasan(e.target.value); setError(null) }}
+        // Ctrl/⌘+Enter menyimpan; Enter sendiri tetap membuat baris baru
+        // karena alasan sering ditulis lebih dari satu kalimat.
+        onKeyDown={e => {
+          if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); simpan() }
+          if (e.key === 'Escape') onBatal()
+        }}
+        className="mt-1.5 bg-background"
+        placeholder="mis. Wali murid belum bisa dihubungi sampai akhir pekan"
+      />
+      <p className="mt-1 text-[11px] text-muted-foreground">
+        Alasan ini terbaca kepala RQ di papan tugas rutin. Tulis sebabnya, bukan
+        permintaan maafnya.
+      </p>
+      {error && <p className="mt-1.5 text-xs text-destructive">{error}</p>}
+      <div className="mt-2 flex items-center gap-2">
+        <Button
+          type="button"
+          size="sm"
+          variant="destructive"
+          onClick={simpan}
+          disabled={menyimpan}
+        >
+          {menyimpan ? 'Menyimpan…' : 'Simpan alasan'}
+        </Button>
+        <Button type="button" size="sm" variant="ghost" onClick={onBatal} disabled={menyimpan}>
+          Batal
+        </Button>
       </div>
     </div>
   )
@@ -325,14 +574,14 @@ function EditRow({
           <X className="mr-1 h-3.5 w-3.5" />Batal
         </Button>
         <span className="text-[11px] text-muted-foreground">
-          Memindah irama tidak menghapus riwayat centangnya.
+          Memindah irama tidak menghapus riwayat laporannya.
         </span>
       </div>
     </form>
   )
 }
 
-/** "hari ini 14.20" / "Sen, 31 Agu 14.20" — cukup untuk menandai kapan dicentang. */
+/** "hari ini 14.20" / "Sen, 31 Agu 14.20" — cukup untuk menandai kapan dilaporkan. */
 function waktuSingkat(iso: string): string {
   const d = new Date(iso)
   const jam = d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })

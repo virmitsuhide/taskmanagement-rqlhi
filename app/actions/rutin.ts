@@ -5,10 +5,11 @@ import { redirect } from 'next/navigation'
 import { createServerClient } from '@/lib/supabase/server'
 import { getSession } from '@/lib/auth/session'
 import { isCadence, kunciPeriode } from '@/lib/rutin/periode'
-import type { RoutineCadence } from '@/types'
+import { MAX_ALASAN, isOutcome } from '@/lib/rutin/status'
+import type { RoutineCadence, RoutineOutcome } from '@/types'
 
 /**
- * Tugas Rutin — tambah, sunting, hapus, dan centang.
+ * Tugas Rutin — tambah, sunting, hapus, dan melaporkan hasilnya.
  *
  * IZINNYA CUMA SATU: PEMILIK.
  *
@@ -17,12 +18,21 @@ import type { RoutineCadence } from '@/types'
  * dan tidak ada yang memverifikasinya. Setiap kueri di berkas ini menyaring
  * owner_id = pemanggil, jadi id yang dikirim dari peramban tidak bisa
  * menyentuh milik orang lain sekalipun ditebak dengan benar.
+ *
+ * Kepala RQ memantau hasilnya lewat /tugas-rutin/papan, tapi hanya membaca —
+ * tidak ada satu pun aksi di berkas ini yang bisa dipanggil atas nama orang
+ * lain, termasuk olehnya.
  */
 
 const MAX_DESKRIPSI = 300
 
 function refresh() {
   revalidatePath('/tugas-rutin')
+  // Papan kepala RQ menampilkan laporan yang sama; tanpa baris ini, laporan
+  // yang baru masuk baru terlihat di sana setelah cache-nya kedaluwarsa
+  // sendiri — dan itu persis jenis keterlambatan yang membuat orang berhenti
+  // memercayai papannya.
+  revalidatePath('/tugas-rutin/papan')
 }
 
 /** Baca & validasi isian form yang dipakai bersama oleh tambah dan sunting. */
@@ -34,7 +44,7 @@ function bacaForm(formData: FormData): { description: string; cadence: RoutineCa
   }
 
   const cadence = formData.get('cadence')
-  if (!isCadence(cadence)) return { error: 'Pilih dulu: pekanan atau bulanan.' }
+  if (!isCadence(cadence)) return { error: 'Pilih dulu irama pengulangannya.' }
 
   return { description, cadence }
 }
@@ -132,15 +142,44 @@ export async function deleteRoutineTaskAction(id: string) {
 }
 
 /**
- * Centang / batalkan centang untuk periode yang sedang berjalan.
+ * Laporkan hasil sebuah tugas rutin untuk periode yang sedang berjalan.
+ *
+ * Tiga keadaan, satu aksi: 'terlaksana', 'tidak_terlaksana' (wajib beralasan),
+ * dan null untuk membatalkan laporan — kembali ke "belum dilaporkan".
+ *
+ * KENAPA SATU AKSI, BUKAN TIGA
+ *
+ * Ketiganya menulis ke baris yang sama dan saling meniadakan: melaporkan
+ * terlaksana harus menghapus alasan yang mungkin tertinggal dari laporan
+ * sebelumnya, dan melaporkan tidak terlaksana harus menghapus jejak
+ * "terlaksana"-nya. Dipecah jadi tiga aksi, aturan saling-meniadakan itu
+ * harus diulang di tiap aksi dan cukup satu yang lupa untuk meninggalkan
+ * baris yang tidak konsisten.
  *
  * Periodenya dihitung di server, bukan dikirim peramban: jam perangkat bisa
- * meleset atau berzona lain, dan centang yang mendarat di kunci periode yang
+ * meleset atau berzona lain, dan laporan yang mendarat di kunci periode yang
  * salah akan terlihat hilang begitu halaman dimuat ulang.
  */
-export async function toggleRoutineCheckAction(id: string, done: boolean) {
+export async function setRoutineOutcomeAction(
+  id: string,
+  outcome: RoutineOutcome | null,
+  reason?: string,
+) {
   const session = await getSession()
   if (!session) return { error: 'Sesi tidak valid.' }
+  if (outcome !== null && !isOutcome(outcome)) return { error: 'Status tidak dikenali.' }
+
+  // Alasan divalidasi sebelum menyentuh database supaya pengurus mendapat
+  // kalimat yang bisa ditindaklanjuti, bukan pesan pelanggaran CHECK dari
+  // Postgres. CHECK-nya tetap ada sebagai jaring terakhir (migrasi 0060).
+  let alasan: string | null = null
+  if (outcome === 'tidak_terlaksana') {
+    alasan = (reason ?? '').trim()
+    if (!alasan) return { error: 'Tulis dulu alasan kenapa tugas ini tidak terlaksana.' }
+    if (alasan.length > MAX_ALASAN) {
+      return { error: `Alasan terlalu panjang (maksimal ${MAX_ALASAN} karakter).` }
+    }
+  }
 
   const supabase = createServerClient()
 
@@ -158,23 +197,40 @@ export async function toggleRoutineCheckAction(id: string, done: boolean) {
 
   const period = kunciPeriode(task.cadence as RoutineCadence)
 
-  if (done) {
-    // Kunci primer (task_id, period) membuat ini tahan diulang — dua ketukan
-    // cepat di HP tidak menghasilkan dua baris.
-    const { error } = await supabase
-      .from('routine_task_checks')
-      .upsert(
-        { task_id: id, period, checked_by: session.userId, checked_at: new Date().toISOString() },
-        { onConflict: 'task_id,period' },
-      )
-    if (error) return { error: 'Gagal menyimpan centang.' }
-  } else {
+  if (outcome === null) {
     const { error } = await supabase
       .from('routine_task_checks')
       .delete()
       .eq('task_id', id)
       .eq('period', period)
-    if (error) return { error: 'Gagal membatalkan centang.' }
+    if (error) return { error: 'Gagal membatalkan laporan.' }
+  } else {
+    // Kunci primer (task_id, period) membuat ini tahan diulang — dua ketukan
+    // cepat di HP tidak menghasilkan dua baris. `reason` selalu ikut ditulis,
+    // termasuk saat nilainya null, supaya alasan lama tidak bertahan ketika
+    // laporannya diralat menjadi terlaksana.
+    const { error } = await supabase
+      .from('routine_task_checks')
+      .upsert(
+        {
+          task_id: id,
+          period,
+          outcome,
+          reason: alasan,
+          checked_by: session.userId,
+          checked_at: new Date().toISOString(),
+        },
+        { onConflict: 'task_id,period' },
+      )
+    if (error) {
+      if (error.message?.includes('outcome') || error.message?.includes('routine_outcome')) {
+        return {
+          error:
+            'Status belum bisa disimpan: jalankan drizzle/0060_tugas_rutin_status_dan_papan_PASTE_TO_SUPABASE.sql di Supabase.',
+        }
+      }
+      return { error: 'Gagal menyimpan laporan.' }
+    }
   }
 
   refresh()

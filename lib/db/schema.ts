@@ -32,8 +32,12 @@ export const subtaskStatusEnum = pgEnum('subtask_status', ['todo', 'in_progress'
 export const taskProblemTypeEnum = pgEnum('task_problem_type', ['bottleneck', 'blocked', 'wip_limit', 'others'])
 /** Jenis peristiwa di task_history — memisahkan sunting/hapus dari ubah status. */
 export const taskHistoryActionEnum = pgEnum('task_history_action', ['status', 'edited', 'deleted', 'restored'])
-/** Irama pengulangan tugas rutin (0043). */
-export const routineCadenceEnum = pgEnum('routine_cadence', ['pekanan', 'bulanan'])
+/** Irama pengulangan tugas rutin (0043; semesteran & tahunan ditambah 0060). */
+export const routineCadenceEnum = pgEnum('routine_cadence', [
+  'pekanan', 'bulanan', 'semesteran', 'tahunan',
+])
+/** Hasil pelaksanaan tugas rutin pada satu periode (0060). */
+export const routineOutcomeEnum = pgEnum('routine_outcome', ['terlaksana', 'tidak_terlaksana'])
 export const taskSourceEnum = pgEnum('task_source', ['rapat', 'mandiri', 'home_publik', 'humas_request'])
 export const contentRequestTypeEnum = pgEnum('content_request_type', [
   'flyer_ujian', 'flyer_lain', 'video', 'lain_lain',
@@ -247,8 +251,15 @@ export const routineTasks = pgTable('routine_tasks', {
  */
 export const routineTaskChecks = pgTable('routine_task_checks', {
   task_id: uuid('task_id').notNull().references(() => routineTasks.id, { onDelete: 'cascade' }),
-  /** '2026-W36' (pekan ISO) atau '2026-08' — lihat lib/rutin/periode.ts. */
+  /** '2026-W36', '2026-08', '2026-S1', '2026-TA' — lihat lib/rutin/periode.ts. */
   period: text('period').notNull(),
+  /**
+   * Sejak 0060 adanya baris berarti "sudah dilaporkan", bukan lagi "sudah
+   * selesai"; yang menjawab selesai/tidak adalah kolom ini.
+   */
+  outcome: routineOutcomeEnum('outcome').notNull().default('terlaksana'),
+  /** Wajib terisi saat tidak_terlaksana, wajib NULL saat terlaksana — CHECK di 0060. */
+  reason: text('reason'),
   checked_by: uuid('checked_by').references(() => users.id, { onDelete: 'set null' }),
   checked_at: timestamp('checked_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [primaryKey({ columns: [t.task_id, t.period] })])

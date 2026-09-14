@@ -186,6 +186,25 @@ export function canViewTasks(role: UserRole): boolean {
   return !TANPA_MODUL_TUGAS.includes(role)
 }
 
+/**
+ * Boleh membuka papan tugas rutin seluruh pengurus.
+ *
+ * Kepala RQ saja, dan pembatasan ini lebih ketat daripada papan tugas biasa
+ * (getBoardDivisions, yang juga terbuka untuk kumik & SDM) karena isinya
+ * berbeda sifat. Papan tugas berisi pekerjaan yang ditugaskan dan memang
+ * dimaksudkan untuk dikoordinasi ramai-ramai. Tugas rutin disusun sendiri
+ * oleh tiap pengurus — termasuk alasan pribadi kenapa sesuatu tidak sempat
+ * dikerjakan pekan ini — dan membukanya ke sesama pengurus akan mengubah
+ * sifat kolom alasan itu: orang berhenti menulis sebab yang sebenarnya
+ * begitu tahu rekan sejawatnya ikut membaca.
+ *
+ * Kepala RQ adalah pengecualiannya karena dialah yang menilai amanah, dan
+ * penilaian itu memang sudah menjadi wewenangnya (lihat canManagePengurus).
+ */
+export function canViewRoutineBoard(role: UserRole): boolean {
+  return role === 'kepala_rq'
+}
+
 const TASK_ASSIGN_TO: Record<UserRole, UserRole[]> = {
   kepala_rq: ['kepala_rq', 'kumik', 'sdm', 'bendahara', 'koor_ekstra', 'koor_sd', 'koor_smp', 'koor_qulssd', 'humas', 'div_training', 'new_squad'],
   kumik: ['koor_sd', 'koor_smp', 'koor_qulssd', 'koor_ekstra', 'humas', 'bendahara'],

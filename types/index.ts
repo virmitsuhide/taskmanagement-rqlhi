@@ -55,8 +55,18 @@ export type TaskStatus = 'todo' | 'in_progress' | 'problem' | 'submitted' | 'don
 /** Jenis hambatan saat task berstatus 'problem' — menentukan warna kartu di papan. */
 export type TaskProblemType = 'bottleneck' | 'blocked' | 'wip_limit' | 'others'
 
-/** Irama pengulangan tugas rutin — lihat migrasi 0043. */
-export type RoutineCadence = 'pekanan' | 'bulanan'
+/** Irama pengulangan tugas rutin — 0043 (pekanan, bulanan) & 0060 (dua sisanya). */
+export type RoutineCadence = 'pekanan' | 'bulanan' | 'semesteran' | 'tahunan'
+
+/**
+ * Hasil pelaksanaan sebuah tugas rutin pada satu periode (0060).
+ *
+ * Tidak ada nilai 'belum' di sini, dan itu disengaja: "belum dilaporkan"
+ * adalah ketiadaan baris, bukan sebuah hasil. Memasukkannya ke enum akan
+ * membuat dua cara menyatakan hal yang sama — baris hilang, dan baris berisi
+ * 'belum' — yang pasti berbeda jawabannya suatu saat.
+ */
+export type RoutineOutcome = 'terlaksana' | 'tidak_terlaksana'
 
 /** Tugas rutin milik seorang pengurus. */
 export interface RoutineTask {
@@ -72,9 +82,11 @@ export interface RoutineTask {
 /** Satu tugas rutin beserta keadaannya pada periode yang sedang berjalan. */
 export interface RoutineTaskState {
   task: RoutineTask
-  /** Sudah dicentang untuk periode berjalan? */
-  done: boolean
-  /** Kapan dicentang — null bila belum. */
+  /** null = belum dilaporkan pada periode berjalan. */
+  outcome: RoutineOutcome | null
+  /** Sebab tugas tidak terlaksana — hanya terisi saat outcome 'tidak_terlaksana'. */
+  reason: string | null
+  /** Kapan dilaporkan — null bila belum. */
   checkedAt: string | null
 }
 

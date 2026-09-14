@@ -78,15 +78,66 @@ function pekanIso(d: Date): { tahun: number; pekan: number } {
 }
 
 /**
+ * Bulan (0-indeks) tempat tahun ajaran dimulai — Juli.
+ *
+ * KENAPA TAHUN AJARAN, BUKAN TAHUN KALENDER
+ *
+ * Tugas rutin semesteran dan tahunan lahir dari kalender kerja RQ: "sebar
+ * angket wali murid tiap awal semester", "susun rapor akhir tahun". Kalau
+ * periodenya dipatok ke tahun kalender, satu semester ajaran akan terbelah
+ * dua — pekerjaan yang dilakukan Desember dan Januari jatuh di periode yang
+ * berbeda padahal semesternya sama.
+ *
+ * KENAPA TIDAK DIBACA DARI academic_terms
+ *
+ * Tabel itu memang memuat tanggal semester yang sesungguhnya, dan memakainya
+ * akan lebih tepat satu-dua pekan di tiap pergantian. Tapi modul ini murni
+ * dan dipanggil juga dari komponen klien (label kelompok di checklist);
+ * menjadikannya async dan bergantung database berarti seluruh halaman
+ * checklist ikut menunggu satu query hanya untuk menulis judul — dan gagal
+ * total saat barisnya belum diisi. Aturan kalender di bawah tidak pernah
+ * gagal, dan selisih beberapa hari di pergantian semester tidak mengubah
+ * tugas mana yang perlu dikerjakan.
+ */
+const AWAL_TAHUN_AJARAN = 6
+
+/** Tahun ajaran yang memuat tanggal ini — 2026 berarti 2026/2027. */
+function tahunAjaran(d: Date): number {
+  return d.getMonth() >= AWAL_TAHUN_AJARAN ? d.getFullYear() : d.getFullYear() - 1
+}
+
+/** 1 = ganjil (Juli–Desember), 2 = genap (Januari–Juni). */
+function nomorSemester(d: Date): 1 | 2 {
+  return d.getMonth() >= AWAL_TAHUN_AJARAN ? 1 : 2
+}
+
+/** '2026/2027' — label tahun ajaran yang memuat tanggal ini. */
+export function labelTahunAjaran(iso: string = hariIni()): string {
+  const t = tahunAjaran(urai(iso))
+  return `${t}/${t + 1}`
+}
+
+/**
  * Kunci periode yang disimpan di routine_task_checks.period.
  *
- * '2026-W36' untuk pekanan, '2026-08' untuk bulanan. Keduanya terurut benar
+ * '2026-W36' pekanan, '2026-08' bulanan, '2026-S1' semester ganjil TA
+ * 2026/2027, '2026-TA' satu tahun ajaran penuh. Keempatnya terurut benar
  * secara leksikografis, jadi "periode terakhir" cukup ORDER BY period DESC.
+ *
+ * Bentuknya sengaja dibuat tidak mungkin bertabrakan satu sama lain: keempat
+ * irama berbagi satu kolom, dan kunci yang sama untuk dua irama berbeda akan
+ * membuat laporan pekanan terbaca sebagai laporan bulanan.
  */
 export function kunciPeriode(cadence: RoutineCadence, iso: string = hariIni()): string {
   const d = urai(iso)
   if (cadence === 'bulanan') {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+  }
+  if (cadence === 'semesteran') {
+    return `${tahunAjaran(d)}-S${nomorSemester(d)}`
+  }
+  if (cadence === 'tahunan') {
+    return `${tahunAjaran(d)}-TA`
   }
   const { tahun, pekan } = pekanIso(d)
   return `${tahun}-W${String(pekan).padStart(2, '0')}`
@@ -103,6 +154,16 @@ export function rentangPeriode(
       mulai: format(new Date(d.getFullYear(), d.getMonth(), 1, 12)),
       selesai: format(new Date(d.getFullYear(), d.getMonth() + 1, 0, 12)),
     }
+  }
+  if (cadence === 'semesteran') {
+    const ta = tahunAjaran(d)
+    return nomorSemester(d) === 1
+      ? { mulai: `${ta}-07-01`, selesai: `${ta}-12-31` }
+      : { mulai: `${ta + 1}-01-01`, selesai: `${ta + 1}-06-30` }
+  }
+  if (cadence === 'tahunan') {
+    const ta = tahunAjaran(d)
+    return { mulai: `${ta}-07-01`, selesai: `${ta + 1}-06-30` }
   }
   const senin = tambahHari(d, -indeksHari(d))
   return { mulai: format(senin), selesai: format(tambahHari(senin, 6)) }
@@ -129,6 +190,13 @@ export function labelPeriode(cadence: RoutineCadence, iso: string = hariIni()): 
     const d = urai(mulai)
     return `${BULAN[d.getMonth()]} ${d.getFullYear()}`
   }
+  if (cadence === 'semesteran') {
+    const ganjil = nomorSemester(urai(iso)) === 1
+    return `Semester ${ganjil ? 'Ganjil' : 'Genap'} ${labelTahunAjaran(iso)}`
+  }
+  if (cadence === 'tahunan') {
+    return `Tahun Ajaran ${labelTahunAjaran(iso)}`
+  }
   const a = urai(mulai)
   const b = urai(selesai)
   const kiri = a.getMonth() === b.getMonth()
@@ -140,16 +208,34 @@ export function labelPeriode(cadence: RoutineCadence, iso: string = hariIni()): 
 export const CADENCE_LABELS: Record<RoutineCadence, string> = {
   pekanan: 'Pekanan',
   bulanan: 'Bulanan',
+  semesteran: 'Semesteran',
+  tahunan: 'Tahunan',
 }
 
 /** Judul kelompok di halaman checklist, mis. "Pekan ini". */
 export const CADENCE_PERIOD_LABELS: Record<RoutineCadence, string> = {
   pekanan: 'Pekan ini',
   bulanan: 'Bulan ini',
+  semesteran: 'Semester ini',
+  tahunan: 'Tahun ajaran ini',
 }
 
-export const CADENCES: RoutineCadence[] = ['pekanan', 'bulanan']
+/** Kapan periodenya berganti — dipakai form tambah & catatan kaki checklist. */
+export const CADENCE_RESET_LABELS: Record<RoutineCadence, string> = {
+  pekanan: 'Dilaporkan ulang tiap Senin',
+  bulanan: 'Dilaporkan ulang tiap tanggal 1',
+  semesteran: 'Dilaporkan ulang tiap awal semester (Juli & Januari)',
+  tahunan: 'Dilaporkan ulang tiap awal tahun ajaran (Juli)',
+}
+
+/**
+ * Urutannya dari yang paling sering ke yang paling jarang — sama dengan
+ * urutan tampil kelompoknya di checklist dan di papan kepala RQ. Tugas
+ * pekanan yang dibuka tiap hari layak berada di atas tugas tahunan yang
+ * disentuh sekali setahun.
+ */
+export const CADENCES: RoutineCadence[] = ['pekanan', 'bulanan', 'semesteran', 'tahunan']
 
 export function isCadence(v: unknown): v is RoutineCadence {
-  return v === 'pekanan' || v === 'bulanan'
+  return typeof v === 'string' && (CADENCES as string[]).includes(v)
 }
