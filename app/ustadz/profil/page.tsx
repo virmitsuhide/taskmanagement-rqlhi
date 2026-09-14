@@ -4,7 +4,7 @@ import {
   ArrowLeft, UserRoundSearch, CircleAlert, ChartNoAxesColumn, Printer, MessageSquareText, IdCard,
 } from 'lucide-react'
 import { getSession } from '@/lib/auth/session'
-import { canManageTeacherProfiles, UNIT_PROFIL_LABELS } from '@/lib/auth/permissions'
+import { AMANAH_LABELS, canManageTeacherProfiles, UNIT_PROFIL_LABELS } from '@/lib/auth/permissions'
 import { getGuruUnit, getGuruProfile, type UnitProfil } from '@/lib/data/guru-profil'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { GuruProfileForm } from '@/components/profil/GuruProfileForm'
@@ -16,7 +16,7 @@ interface PageProps {
   searchParams: Promise<{ unit?: string; guru?: string }>
 }
 
-const UNITS: UnitProfil[] = ['sd', 'sd_juara', 'smp', 'paud', 'sma', 'lain']
+const UNITS: UnitProfil[] = ['sd', 'sd_juara', 'smp', 'paud', 'sma', 'lain', 'pengurus']
 
 /**
  * Profil Guru — kelola data diri & kepegawaian guru Qur'an. Khusus SDM.
@@ -35,7 +35,8 @@ export default async function ProfilGuruPage({ searchParams }: PageProps) {
   const unit = (UNITS.includes(p.unit as UnitProfil) ? p.unit : 'sd') as UnitProfil
 
   const daftar = await getGuruUnit(unit)
-  const terpilihId = daftar.find(g => g.id === p.guru)?.id ?? null
+  const terpilih = daftar.find(g => g.id === p.guru) ?? null
+  const terpilihId = terpilih?.id ?? null
 
   const { profile, perluMigrasi } = terpilihId
     ? await getGuruProfile(terpilihId)
@@ -63,10 +64,29 @@ export default async function ProfilGuruPage({ searchParams }: PageProps) {
           {/* Pemilih — selalu di atas, bahkan setelah profil terbuka */}
           <div className="mb-4 rounded-xl border bg-card p-4 shadow-sm">
             <GuruPicker unit={unit} daftar={daftar} terpilihId={terpilihId} />
+            {unit === 'pengurus' && (
+              /*
+                Dua hal yang akan disalahpahami tanpa disebutkan: daftarnya
+                bukan pemilahan (orangnya tetap ada di tab unitnya), dan
+                Bendahara tidak akan muncul karena ia karyawan — tercatat di
+                tabel employees, bukan teachers. Kalau kedua hal ini dibiarkan
+                tak dijelaskan, SDM akan menyimpulkan datanya hilang.
+              */
+              <p className="mt-3 text-[11px] text-muted-foreground">
+                Pemegang amanah pengurus menurut halaman <b>Pengurus</b> milik Kepala RQ.
+                Mereka juga tetap muncul di tab unitnya masing-masing. Pengurus yang
+                berstatus karyawan — bukan guru — dikelola lewat menu{' '}
+                <Link href="/karyawan" className="underline underline-offset-2 hover:no-underline">
+                  Karyawan RQ
+                </Link>
+                .
+              </p>
+            )}
             {daftar.length > 0 && belumLengkap > 0 && (
               <p className="mt-3 text-[11px] text-muted-foreground">
-                {belumLengkap} dari {daftar.length} guru di unit ini datanya belum lengkap —
-                ditandai di dalam dropdown.
+                {belumLengkap} dari {daftar.length}{' '}
+                {unit === 'pengurus' ? 'pengurus' : 'guru'} di daftar ini datanya belum
+                lengkap — ditandai di dalam dropdown.
               </p>
             )}
           </div>
@@ -86,7 +106,13 @@ export default async function ProfilGuruPage({ searchParams }: PageProps) {
 
           {daftar.length === 0 ? (
             <div className="rounded-xl border border-dashed bg-card py-12 text-center">
-              <p className="text-sm text-muted-foreground">{unit === "lain" ? "Semua guru sudah punya unit penugasan." : "Belum ada guru aktif di unit ini."}</p>
+              <p className="text-sm text-muted-foreground">
+                {unit === 'pengurus'
+                  ? 'Belum ada guru yang ditetapkan sebagai pemegang amanah pengurus. Penetapannya dilakukan Kepala RQ lewat halaman Pengurus.'
+                  : unit === 'lain'
+                    ? 'Semua guru sudah punya unit penugasan.'
+                    : 'Belum ada guru aktif di unit ini.'}
+              </p>
             </div>
           ) : profile ? (
             <>
@@ -99,7 +125,18 @@ export default async function ProfilGuruPage({ searchParams }: PageProps) {
                     <div className="min-w-0">
                       <h2 className="truncate text-base font-semibold">{profile.full_name}</h2>
                       <p className="text-[11px] text-muted-foreground">
-                        {UNIT_PROFIL_LABELS[unit]}
+                        {/*
+                          Di tab Pengurus RQ, yang disebut adalah amanahnya —
+                          "Pengurus RQ" di baris identitas tidak menambah apa
+                          pun yang belum terbaca dari tab yang sedang terbuka,
+                          sedangkan "Koor SD" menjawab kenapa orang ini ada di
+                          sini. Unit sekolahnya tetap tampil di formulir
+                          di bawah.
+                        */}
+                        {unit === 'pengurus' && terpilih?.amanah
+                          ? AMANAH_LABELS[terpilih.amanah]
+                          : UNIT_PROFIL_LABELS[unit]}
+                        {unit === 'pengurus' && terpilih && !terpilih.aktif && ' · nonaktif'}
                         {profile.employment_type && ` · ${TEACHER_EMPLOYMENT_LABELS[profile.employment_type]}`}
                         {profile.nip ? ` · NIP ${profile.nip}` : ' · NIP belum diisi'}
                       </p>

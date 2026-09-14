@@ -1,6 +1,6 @@
 import { createServerClient } from '@/lib/supabase/server'
 import { nilaiDari, MONTH_NAMES } from '@/lib/data/kpi'
-import type { GuruProfile, Jenjang, KpiMonthly, LingkupPenugasan } from '@/types'
+import type { GuruProfile, Jenjang, KpiMonthly, LingkupPenugasan, UserRole } from '@/types'
 
 /**
  * Lapisan data menu "Profil Guru" (SDM) dan riwayat KPI seorang guru.
@@ -42,10 +42,22 @@ export interface GuruRingkas {
    * sebelum kolom ini ada sama-sama tampil sebagai unit kosong.
    */
   lingkup: LingkupPenugasan
+  /**
+   * Amanah pengurus yang sedang diduduki, null kalau bukan pengurus. Hanya
+   * terisi pada tab 'pengurus' — enam tab lainnya tidak membutuhkannya, dan
+   * mengambilnya di sana berarti satu query tambahan yang hasilnya dibuang.
+   */
+  amanah: UserRole | null
+  /**
+   * Masih aktif sebagai guru? Selalu true di enam tab lain, yang memang
+   * menyaring is_active. Tab 'pengurus' sengaja tidak menyaringnya (lihat
+   * getGuruUnit), jadi di sanalah kolom ini punya arti.
+   */
+  aktif: boolean
 }
 
 /**
- * Tab pemilih di /ustadz/profil: lima unit, ditambah satu tempat penampungan.
+ * Tab pemilih di /ustadz/profil: lima unit, penampungan ‘lain’, dan Pengurus RQ.
  *
  * 'lain' BUKAN unit. Ia mengumpulkan guru yang `unit`-nya NULL — baik karena
  * penugasannya lintas yayasan maupun karena SDM memang belum mengisinya.
@@ -55,8 +67,20 @@ export interface GuruRingkas {
  * yang hanya bisa disunting dari halaman yang menyaring berdasarkan `unit`.
  * Delapan guru terkurung di sana sebelum tab ini ada — dua di antaranya
  * bahkan belum punya TMT sama sekali.
+ *
+ * 'pengurus' ditambahkan belakangan dan BUKAN pemilahan seperti enam lainnya.
+ * Enam tab pertama membelah guru menurut `unit` dan saling meniadakan — satu
+ * guru muncul di tepat satu tab. Tab ini memotong melintang: ia mengumpulkan
+ * guru yang memegang amanah pengurus (teachers.linked_user_id terisi, sama
+ * dengan yang dibaca halaman Pengurus milik kepala RQ), dan seorang Koor SD
+ * tetap muncul di tab SDIT LHI seperti sedia kala.
+ *
+ * Itu disengaja. SDM datang ke halaman ini dengan dua pertanyaan yang berbeda
+ * bentuk: "siapa saja guru SD" dan "mana profil si pemegang amanah". Membuat
+ * tab ini memindahkan orangnya keluar dari tab unitnya akan menjawab
+ * pertanyaan kedua dengan merusak jawaban pertama.
  */
-export type UnitProfil = Jenjang | 'lain'
+export type UnitProfil = Jenjang | 'lain' | 'pengurus'
 
 /**
  * Daftar guru aktif satu unit, terurut abjad.
@@ -67,19 +91,39 @@ export type UnitProfil = Jenjang | 'lain'
 export async function getGuruUnit(unit: UnitProfil): Promise<GuruRingkas[]> {
   const supabase = createServerClient()
 
-  // PostgREST membedakan "sama dengan" dari "bernilai NULL": .eq('unit', null)
-  // tidak menghasilkan apa-apa, sebab NULL tidak sama dengan apa pun termasuk
-  // dirinya sendiri. Penampungan 'lain' karena itu memakai .is(), bukan .eq().
-  const dasarQ = supabase
+  /**
+   * Saring baris menurut tab yang diminta.
+   *
+   * PostgREST membedakan "sama dengan" dari "bernilai NULL": .eq('unit', null)
+   * tidak menghasilkan apa-apa, sebab NULL tidak sama dengan apa pun termasuk
+   * dirinya sendiri. Penampungan 'lain' karena itu memakai .is(), bukan .eq().
+   *
+   * Tab 'pengurus' juga satu-satunya yang TIDAK menyaring is_active. Kursi
+   * pengurus dan keaktifan sebagai guru adalah dua hal terpisah — saat ini
+   * Bendahara dipegang orang yang is_active-nya false — dan menyaringnya akan
+   * membuat pemegang amanah menghilang dari tab yang justru dibuat untuk
+   * menemukannya. Alasan yang sama sudah dipakai getCalonPengurus() di
+   * lib/data/pengurus.ts; keduanya harus sepakat, kalau tidak halaman Pengurus
+   * milik kepala RQ dan tab ini akan menampilkan orang yang berbeda.
+   */
+  const penuhQ = supabase
     .from('teachers')
-    .select('id, full_name, nip, joined_at, lingkup_penugasan, education_history, quran_competencies')
+    // Satu literal utuh, bukan sambungan string: tipe PostgREST membaca daftar
+    // kolomnya dari teks literalnya, dan concat membuat hasil query jatuh ke
+    // GenericStringError.
+    .select('id, full_name, nip, joined_at, is_active, linked_user_id, lingkup_penugasan, education_history, quran_competencies')
     .is('deleted_at', null)
-    .eq('is_active', true)
 
-  const penuh = await (unit === 'lain' ? dasarQ.is('unit', null) : dasarQ.eq('unit', unit))
+  const penuh = await (
+    unit === 'pengurus' ? penuhQ.not('linked_user_id', 'is', null)
+    : unit === 'lain'   ? penuhQ.is('unit', null).eq('is_active', true)
+    :                     penuhQ.eq('unit', unit).eq('is_active', true)
+  )
 
   if (!penuh.error && penuh.data) {
-    return (penuh.data as Record<string, unknown>[])
+    const baris = penuh.data as Record<string, unknown>[]
+    const amanah = await petaAmanah(unit, baris)
+    return baris
       .map(t => ({
         id: t.id as string,
         full_name: t.full_name as string,
@@ -89,18 +133,25 @@ export async function getGuruUnit(unit: UnitProfil): Promise<GuruRingkas[]> {
           (Array.isArray(t.education_history) && t.education_history.length > 0) ||
           (Array.isArray(t.quran_competencies) && t.quran_competencies.length > 0),
         lingkup: (t.lingkup_penugasan ?? 'unit') as LingkupPenugasan,
+        amanah: amanah.get((t.linked_user_id ?? '') as string) ?? null,
+        aktif: t.is_active !== false,
       }))
       .sort(urutNama)
   }
 
   // Migrasi 0044/0052 belum jalan — daftarnya tetap tampil, hanya tanpa penanda.
-  const cadanganQ = supabase
+  // Tab 'pengurus' bersandar pada linked_user_id (0046) yang pasti juga belum
+  // ada bila 0044 belum dijalankan, jadi di jalur ini ia wajar berakhir kosong.
+  const dasarQ = supabase
     .from('teachers')
     .select('id, full_name, nip, joined_at')
     .is('deleted_at', null)
-    .eq('is_active', true)
 
-  const dasar = await (unit === 'lain' ? cadanganQ.is('unit', null) : cadanganQ.eq('unit', unit))
+  const dasar = await (
+    unit === 'pengurus' ? dasarQ.not('linked_user_id', 'is', null)
+    : unit === 'lain'   ? dasarQ.is('unit', null).eq('is_active', true)
+    :                     dasarQ.eq('unit', unit).eq('is_active', true)
+  )
 
   return ((dasar.data ?? []) as Record<string, unknown>[])
     .map(t => ({
@@ -110,8 +161,32 @@ export async function getGuruUnit(unit: UnitProfil): Promise<GuruRingkas[]> {
       joined_at: (t.joined_at ?? null) as string | null,
       profilTerisi: false,
       lingkup: 'unit' as LingkupPenugasan,
+      amanah: null,
+      aktif: true,
     }))
     .sort(urutNama)
+}
+
+/**
+ * userId → role, hanya untuk tab 'pengurus'.
+ *
+ * Enam tab lainnya tidak menampilkan amanah, jadi querynya dilewati sama
+ * sekali di sana alih-alih diambil lalu dibuang.
+ */
+async function petaAmanah(
+  unit: UnitProfil,
+  baris: Record<string, unknown>[],
+): Promise<Map<string, UserRole>> {
+  const peta = new Map<string, UserRole>()
+  if (unit !== 'pengurus') return peta
+
+  const ids = baris.map(t => t.linked_user_id).filter((v): v is string => typeof v === 'string')
+  if (ids.length === 0) return peta
+
+  const supabase = createServerClient()
+  const { data } = await supabase.from('users').select('id, role').in('id', ids)
+  for (const u of (data ?? []) as { id: string; role: UserRole }[]) peta.set(u.id, u.role)
+  return peta
 }
 
 /** Profil satu guru; `perluMigrasi` menandai 0044 belum dijalankan. */

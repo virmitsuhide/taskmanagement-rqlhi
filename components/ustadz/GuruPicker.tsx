@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
-import { UNIT_PROFIL_LABELS } from '@/lib/auth/permissions'
+import { ROLE_LABELS, UNIT_PROFIL_LABELS } from '@/lib/auth/permissions'
 import type { GuruRingkas, UnitProfil } from '@/lib/data/guru-profil'
 
 /**
@@ -27,7 +27,10 @@ import type { GuruRingkas, UnitProfil } from '@/lib/data/guru-profil'
 const inputCls =
   'h-9 w-full rounded-md border border-input bg-card px-3 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring'
 
-const UNITS: UnitProfil[] = ['sd', 'sd_juara', 'smp', 'paud', 'sma', 'lain']
+// 'pengurus' sengaja di urutan terakhir, sesudah 'lain'. Enam yang pertama
+// adalah pemilahan menurut unit; yang terakhir memotong melintang, dan
+// menyelipkannya di tengah akan membuatnya terbaca sebagai unit ketujuh.
+const UNITS: UnitProfil[] = ['sd', 'sd_juara', 'smp', 'paud', 'sma', 'lain', 'pengurus']
 
 interface Props {
   unit: UnitProfil
@@ -48,7 +51,7 @@ export function GuruPicker({ unit, daftar, terpilihId }: Props) {
     <div className="grid gap-3 sm:grid-cols-2">
       <div className="space-y-1.5">
         <label htmlFor="pilih-unit" className="text-xs font-medium text-muted-foreground">
-          Unit penugasan
+          Unit penugasan & kelompok
         </label>
         <select
           id="pilih-unit"
@@ -67,7 +70,8 @@ export function GuruPicker({ unit, daftar, terpilihId }: Props) {
 
       <div className="space-y-1.5">
         <label htmlFor="pilih-guru" className="text-xs font-medium text-muted-foreground">
-          Nama guru <span className="font-normal">({daftar.length} orang, urut abjad)</span>
+          {unit === 'pengurus' ? 'Nama pengurus' : 'Nama guru'}{' '}
+          <span className="font-normal">({daftar.length} orang, urut abjad)</span>
         </label>
         <select
           id="pilih-guru"
@@ -76,7 +80,7 @@ export function GuruPicker({ unit, daftar, terpilihId }: Props) {
           disabled={daftar.length === 0}
           onChange={e => router.push(href(unit, e.target.value || null))}
         >
-          <option value="">— pilih guru —</option>
+          <option value="">— pilih {unit === 'pengurus' ? 'pengurus' : 'guru'} —</option>
           {daftar.map(g => (
             <option key={g.id} value={g.id}>
               {g.full_name}
@@ -85,6 +89,13 @@ export function GuruPicker({ unit, daftar, terpilihId }: Props) {
                   lintas yayasan dan yang unitnya sekadar belum diisi — dan
                   membedakannya adalah satu-satunya alasan tab itu ada. */}
               {unit === 'lain' && (g.lingkup === 'yayasan' ? ' · lintas yayasan' : ' · unit belum diisi')}
+              {/* Di tab Pengurus RQ, amanahnya disebut lebih dulu — itulah yang
+                  dicari SDM di sini, bukan namanya sendiri. "Nonaktif" ikut
+                  ditandai karena tab ini satu-satunya yang tidak menyaring
+                  is_active: kursi pengurus tidak lepas hanya karena seseorang
+                  berhenti aktif mengajar. */}
+              {unit === 'pengurus' && g.amanah && ` · ${ROLE_LABELS[g.amanah]}`}
+              {unit === 'pengurus' && !g.aktif && ' · nonaktif'}
               {/* Dua penanda yang paling sering dicari SDM, langsung di daftar
                   supaya tidak perlu membuka satu per satu untuk menemukannya. */}
               {!g.joined_at ? ' · TMT belum diisi' : !g.profilTerisi ? ' · profil kosong' : ''}

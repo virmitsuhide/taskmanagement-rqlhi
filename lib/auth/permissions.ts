@@ -815,9 +815,14 @@ export const UNIT_PENUGASAN_LABELS: Record<Jenjang, string> = {
  * yang diserahkan kepada guru, dan "Lain-lain" di kop sebuah rapor tidak
  * menyebut apa pun. Yang ini semata untuk layar pengurus.
  */
-export const UNIT_PROFIL_LABELS: Record<Jenjang | 'lain', string> = {
+export const UNIT_PROFIL_LABELS: Record<Jenjang | 'lain' | 'pengurus', string> = {
   ...UNIT_PENUGASAN_LABELS,
   lain: 'Lain-lain / lintas yayasan',
+  // 'pengurus' berbeda sifat dari enam pilihan di atasnya: yang lain memilah
+  // guru menurut `unit` dan saling meniadakan, sedangkan yang ini memotong
+  // melintang — seorang Koor SD tetap muncul di SDIT LHI maupun di sini.
+  // Lihat UnitProfil di lib/data/guru-profil.ts untuk alasan lengkapnya.
+  pengurus: 'Pengurus RQ',
 }
 
 /**
