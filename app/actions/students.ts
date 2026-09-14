@@ -4,9 +4,12 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createServerClient } from '@/lib/supabase/server'
 import { getSession } from '@/lib/auth/session'
-import { canManageStudents, getManageableJenjang, programScopeFor } from '@/lib/auth/permissions'
+import {
+  canManageStudents, getManageableJenjang, programScopeFor, JENJANG_LABELS,
+} from '@/lib/auth/permissions'
 import { hariIni, syncHalaqohMembership, syncHalaqohMemberships } from '@/lib/data/halaqoh-membership'
 import { periksaBaris, tandaiNisKembar, type BarisSiswa, type RujukanImpor } from '@/lib/rq/siswa-impor'
+import { kelasJelas, POLA_KELAS } from '@/lib/rq/kelas'
 import type { Gender, Jenjang } from '@/types'
 
 /** Ubah string kosong atau sentinel 'none' (dari Radix Select) menjadi null. */
@@ -298,8 +301,12 @@ const TINGKAT_AKHIR: Partial<Record<Jenjang, number>> = {
   sd: 6, sd_juara: 6, smp: 9, sma: 12,
 }
 
-/** Kelas yang bisa dinaikkan: angka di depan, sisanya rombel yang dipertahankan. */
-const POLA_KELAS = /^(\d+)([A-Za-z].*)$/
+/*
+ * Kelas yang bisa dinaikkan — angka di depan, sisanya rombel yang
+ * dipertahankan — dibaca dari lib/rq/kelas.ts, satu tempat bersama halaman
+ * pembenahan kelas. Selama keduanya memakai pola yang sama, tidak mungkin ada
+ * anak yang dinyatakan beres di satu layar tapi tetap dilewati di layar lain.
+ */
 
 export interface RencanaKenaikan {
   naik: number
@@ -486,4 +493,73 @@ export async function naikkanKelasAction(termId: string) {
     dilewati: [...dilewati].map(([kelas, jumlah]) => ({ kelas, jumlah }))
       .sort((a, b) => b.jumlah - a.jumlah),
   }
+}
+
+// ─── Pembenahan kelas ────────────────────────────────────────────────────────
+
+/**
+ * Memindahkan sekumpulan siswa ke satu kelas yang jelas.
+ *
+ * Dipakai halaman /siswa/kelas untuk membereskan nilai sisa impor seperti
+ * '4.0': tingkatnya masih terbaca, rombelnya hilang. Yang dipilih manusia di
+ * sini adalah DUA hal — siapa saja anaknya dan rombel mana tujuannya — jadi
+ * tidak ada yang ditebak mesin, hanya diketikkan sekali untuk banyak baris
+ * alih-alih membuka formulir sunting 31 kali.
+ *
+ * Sengaja menerima banyak id: 31 dari 33 anak yang bermasalah ada di tingkat
+ * yang sama, dan operator membacanya dari daftar rombel sekolah per kelompok,
+ * bukan per anak.
+ */
+export async function pindahkanKelasAction(ids: string[], kelas: string) {
+  const session = await getSession()
+  if (!session) return { error: 'Sesi tidak valid.' }
+
+  const tujuan = kelas.trim()
+  if (!tujuan) return { error: 'Kelas tujuan wajib diisi.' }
+  if (ids.length === 0) return { error: 'Belum ada siswa yang dipilih.' }
+
+  const supabase = createServerClient()
+  const { data, error: bacaGagal } = await supabase
+    .from('students')
+    .select('id, full_name, jenjang, program')
+    .in('id', ids)
+
+  if (bacaGagal || !data) return { error: 'Gagal membaca data siswa.' }
+  if (data.length !== ids.length) return { error: 'Sebagian siswa tidak ditemukan.' }
+
+  const rows = data as { id: string; full_name: string; jenjang: Jenjang; program: string | null }[]
+
+  // Izin diperiksa per baris memakai keadaan yang TERSIMPAN, bukan yang
+  // dikirim peramban — pola yang sama dengan updateStudentAction. Daftar id
+  // adalah JSON biasa yang bisa disusun siapa saja, jadi satu id milik koor
+  // lain yang diselipkan ke dalamnya harus tertolak di sini.
+  for (const s of rows) {
+    if (!canManageStudents(session.role, s.jenjang, s.program)) {
+      return { error: `Anda tidak memiliki izin atas ${s.full_name}.` }
+    }
+  }
+
+  // Tujuan wajib lolos aturan yang sama dengan yang membuat baris ini muncul
+  // di daftar. Tanpa ini, '4.0' bisa ditukar dengan '4.1' dan halamannya
+  // tampak berkurang padahal tidak ada yang selesai.
+  const tolak = rows.find(s => !kelasJelas(s.jenjang, tujuan))
+  if (tolak) {
+    return {
+      error: `'${tujuan}' belum berbentuk kelas yang utuh untuk ${JENJANG_LABELS[tolak.jenjang]} ` +
+        '— tulis tingkat lalu rombelnya, mis. 4B.',
+    }
+  }
+
+  const { error } = await supabase
+    .from('students')
+    .update({ kelas: tujuan, updated_at: new Date().toISOString() })
+    .in('id', ids)
+
+  if (error) return { error: 'Gagal memindahkan siswa.' }
+
+  revalidatePath('/siswa')
+  revalidatePath('/siswa/kelas')
+  for (const s of rows) revalidatePath(`/siswa/${s.id}`)
+
+  return { jumlah: rows.length, kelas: tujuan }
 }

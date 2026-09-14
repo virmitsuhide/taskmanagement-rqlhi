@@ -9,9 +9,10 @@ import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { SearchInput } from '@/components/ui/search-input'
 import { Button } from '@/components/ui/button'
 import { SiswaRowActions } from '@/components/siswa/SiswaRowActions'
-import { Plus, Users, Upload, ArrowDown, ArrowUp } from 'lucide-react'
+import { Plus, Users, Upload, ArrowDown, ArrowUp, AlertTriangle } from 'lucide-react'
 import { SURAH } from '@/lib/rq/quran'
 import { tingkatOf } from '@/lib/rq/sesi'
+import { kelasJelas } from '@/lib/rq/kelas'
 import type { Jenjang } from '@/types'
 
 /**
@@ -94,11 +95,13 @@ export default async function SiswaListPage({ searchParams }: PageProps) {
   // ── Cakupan: jenjang & kelas seluruh siswa yang boleh dilihat.
   // Dua kolom untuk ~700 baris — dari sinilah angka pada tab unit dan daftar
   // kelasnya dihitung, sehingga keduanya selalu jujur terhadap pencarian aktif.
-  let scopeQuery = supabase.from('students').select('jenjang, kelas').eq('is_active', true)
+  let scopeQuery = supabase.from('students').select('jenjang, kelas, program').eq('is_active', true)
   if (programScope) scopeQuery = scopeQuery.in('program', programScope as string[])
   if (query) scopeQuery = scopeQuery.or(`full_name.ilike.%${query}%,nis.ilike.%${query}%`)
   const { data: scopeData } = await scopeQuery
-  const scopeRows = (scopeData ?? []) as { jenjang: Jenjang; kelas: string | null }[]
+  const scopeRows = (scopeData ?? []) as {
+    jenjang: Jenjang; kelas: string | null; program: string | null
+  }[]
 
   const jenjangCount = new Map<Jenjang, number>()
   for (const row of scopeRows) jenjangCount.set(row.jenjang, (jenjangCount.get(row.jenjang) ?? 0) + 1)
@@ -142,6 +145,25 @@ export default async function SiswaListPage({ searchParams }: PageProps) {
     perTingkat.set(t, daftar)
   }
   const tingkatList = [...perTingkat.keys()].sort((a, b) => a - b)
+
+  /*
+    Anak yang kelasnya belum jelas — '4.0' dan kawan-kawannya dari impor Excel.
+
+    Mereka TETAP terhitung pada tingkatnya di deretan atas; tab ini menyorot,
+    bukan memindahkan. Sebuah tab "belum jelas" yang mengambil alih 31 anak
+    dari Kelas 4 akan membuat jumlah di tab Kelas 4 tidak lagi cocok dengan
+    jumlah anak kelas 4 yang sebenarnya — dan itu persoalan kedua, bukan
+    perbaikan atas yang pertama.
+
+    Disaring per program juga, bukan cuma jenjang: koor SD melihat siswa QULS
+    tetapi tidak boleh menyuntingnya, dan tab yang menghitung anak yang tak
+    bisa ia sentuh hanya mengantarnya ke halaman kosong.
+  */
+  const belumJelas = scopeRows.filter(
+    r => r.jenjang === jenjang
+      && !kelasJelas(r.jenjang, r.kelas)
+      && canManageStudents(session.role, r.jenjang, r.program),
+  ).length
   const tingkat = perTingkat.has(Number(params.tingkat))
     ? Number(params.tingkat)
     : tingkatList[0] ?? null
@@ -308,7 +330,7 @@ export default async function SiswaListPage({ searchParams }: PageProps) {
         </div>
 
         {/* Tingkat — lapis pertama. Tanpa "Semua Kelas". */}
-        {tingkatList.length > 0 && (
+        {(tingkatList.length > 0 || belumJelas > 0) && (
           <div className="flex gap-1 mb-3 overflow-x-auto border-b">
             {tingkatList.map(t => (
               <Link
@@ -328,6 +350,22 @@ export default async function SiswaListPage({ searchParams }: PageProps) {
                 </span>
               </Link>
             ))}
+
+            {/* Tab pembenahan — hilang sendiri begitu tidak ada lagi yang
+                menggantung, jadi ia tidak pernah jadi tab kosong yang harus
+                dijelaskan. Warnanya sengaja berbeda: ini bukan tingkat kelas
+                yang sejajar dengan tetangganya, melainkan pekerjaan yang belum
+                selesai yang kebetulan tinggal di deretan yang sama. */}
+            {belumJelas > 0 && (
+              <Link
+                href="/siswa/kelas"
+                className="ml-auto inline-flex items-center gap-1.5 whitespace-nowrap border-b-2 border-transparent px-3 py-1.5 -mb-px text-xs font-medium text-warning transition-colors hover:border-warning"
+              >
+                <AlertTriangle className="h-3.5 w-3.5" />
+                Belum jelas
+                <span className="opacity-70 tabular-nums">({belumJelas})</span>
+              </Link>
+            )}
           </div>
         )}
 
