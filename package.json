@@ -31,6 +31,7 @@
     "musyrif:penguji": "tsx scripts/musyrif-penguji.ts",
     "uji:gukar": "tsx scripts/uji-gukar-standar.ts",
     "uji:kpi": "tsx scripts/uji-kpi.ts",
+    "uji:batas-juz": "tsx scripts/uji-batas-juz.ts",
     "seed:div-quran-boarding": "tsx scripts/seed-div-quran-boarding.ts",
     "impor:tmt": "tsx scripts/impor-tmt-guru.ts"
   },

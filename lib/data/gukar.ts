@@ -2,6 +2,7 @@ import { createServerClient } from '@/lib/supabase/server'
 import { canDoGukarPembinaan } from '@/lib/auth/permissions'
 import type { TeacherEmployment } from '@/types'
 import { type PeriodKey, periodsYearToDate, toPeriodDate } from '@/lib/finance/period'
+import type { TahapJilid } from '@/lib/rq/gukar-setoran'
 import type { GukarGroup, GukarMonthly, GukarParticipant } from '@/types'
 
 /**
@@ -257,4 +258,127 @@ export async function bolehMengampuGukar(teacherId: string): Promise<boolean> {
     .maybeSingle()
 
   return canDoGukarPembinaan((data?.employment_type ?? null) as TeacherEmployment | null)
+}
+
+// ─── Setoran terukur: metode, tahapan, & posisi bulan lalu (0061) ────────────
+
+/**
+ * Metode tahsin yang boleh dipilih pembina gukar.
+ *
+ * Disaring ke UMMI & Syajaroh atas ketetapan RQ LHI. KIBAR aktif di
+ * tahsin_methods tapi dipakai santri SD Juara, bukan pegawai — menawarkannya
+ * di sini hanya akan menghasilkan catatan yang tidak ada padanannya di
+ * pembinaan yang sebenarnya.
+ *
+ * Nama metode dicocokkan tanpa memandang huruf besar-kecil: tabelnya memuat
+ * 'UMMI' yang aktif dan 'Ummi' lama yang sudah tidak aktif, dan hanya yang
+ * aktif yang lolos.
+ */
+const METODE_GUKAR = ['ummi', 'syajaroh']
+
+export interface MetodeTahsin {
+  id: string
+  name: string
+}
+
+export async function getMetodeGukar(): Promise<MetodeTahsin[]> {
+  const supabase = createServerClient()
+  const { data } = await supabase
+    .from('tahsin_methods')
+    .select('id, name')
+    .eq('is_active', true)
+    .order('name')
+
+  return ((data ?? []) as MetodeTahsin[])
+    .filter(m => METODE_GUKAR.includes(m.name.toLowerCase()))
+}
+
+/**
+ * Tahapan tiap metode — jilid berbuku sampai Lulus Tahsin.
+ *
+ * Diambil sekaligus untuk semua metode yang dipakai gukar, bukan per metode
+ * saat dipilih: jumlahnya belasan baris, dan mengambilnya di muka membuat
+ * dropdown jilid berganti isi tanpa menunggu perjalanan ke server saat
+ * pembina berpindah metode.
+ */
+export async function getTahapanGukar(): Promise<Record<string, TahapJilid[]>> {
+  const metode = await getMetodeGukar()
+  if (metode.length === 0) return {}
+
+  const supabase = createServerClient()
+  const { data } = await supabase
+    .from('jilid_levels')
+    .select('id, method_id, label, order_num, total_pages, is_quran, is_terminal')
+    .in('method_id', metode.map(m => m.id))
+    .order('order_num')
+
+  const peta: Record<string, TahapJilid[]> = {}
+  for (const m of metode) peta[m.id] = []
+  for (const row of (data ?? []) as (TahapJilid & { method_id: string })[]) {
+    peta[row.method_id]?.push({
+      id: row.id,
+      label: row.label,
+      order_num: row.order_num,
+      total_pages: row.total_pages,
+      is_quran: row.is_quran,
+      is_terminal: row.is_terminal,
+    })
+  }
+  return peta
+}
+
+/**
+ * Catatan bulan SEBELUM `period` untuk sekumpulan peserta.
+ *
+ * Bukan "bulan lalu menurut kalender" melainkan catatan terakhir yang ada
+ * sebelum periode ini — pembinaan bisa bolong sebulan, dan jarak yang
+ * ditempuh tetap harus dihitung dari titik terakhir yang benar-benar
+ * tercatat, bukan dari nol.
+ */
+export async function getPosisiSebelumnya(
+  participantIds: string[],
+  period: PeriodKey,
+): Promise<Record<string, GukarMonthly>> {
+  if (participantIds.length === 0) return {}
+
+  const supabase = createServerClient()
+  const { data } = await supabase
+    .from('gukar_monthly')
+    .select('*')
+    .in('participant_id', participantIds)
+    .lt('period', toPeriodDate(period))
+    .order('period', { ascending: false })
+
+  // Baris datang terurut menurun, jadi yang pertama ditemui untuk tiap
+  // peserta adalah yang paling baru.
+  const peta: Record<string, GukarMonthly> = {}
+  for (const row of (data ?? []) as GukarMonthly[]) {
+    if (!peta[row.participant_id]) peta[row.participant_id] = row
+  }
+  return peta
+}
+
+/** Daftar surah untuk dropdown — nomor, nama, dan panjangnya. */
+export interface SuratRingkas {
+  id: number
+  nama: string
+  ayat: number
+}
+
+/**
+ * 114 surah dari surat_master.
+ *
+ * Diambil di server lalu dioper ke formulir, bukan dibaca ulang tiap kali
+ * pengampu membuka isian: daftarnya tidak pernah berubah, dan 114 baris yang
+ * dikirim sekali jauh lebih murah daripada satu perjalanan jaringan tiap kali
+ * dropdown dibuka.
+ */
+export async function getDaftarSurat(): Promise<SuratRingkas[]> {
+  const supabase = createServerClient()
+  const { data } = await supabase
+    .from('surat_master')
+    .select('id, name_latin, total_ayat')
+    .order('id')
+  return ((data ?? []) as { id: number; name_latin: string; total_ayat: number }[])
+    .map(s => ({ id: s.id, nama: s.name_latin, ayat: s.total_ayat }))
 }

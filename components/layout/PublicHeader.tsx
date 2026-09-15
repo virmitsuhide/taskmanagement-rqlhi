@@ -4,6 +4,8 @@ import { Button } from '@/components/ui/button'
 import { Logo } from '@/components/brand/Logo'
 import { getSiteSettings } from '@/lib/data/site'
 import { getSession } from '@/lib/auth/session'
+import { getTeacherSession } from '@/lib/auth/teacher-session'
+import { logoutTeacherAction } from '@/app/actions/teacher-auth'
 import { createServerClient } from '@/lib/supabase/server'
 import { ROLE_LABELS, DEFAULT_DASHBOARD, sapaanName } from '@/lib/auth/permissions'
 import { HeaderUserCard } from './HeaderUserCard'
@@ -76,9 +78,51 @@ async function getHeaderProfile(userId: string) {
   } | null
 }
 
+/**
+ * Profil ringkas seorang guru untuk kartu di header.
+ *
+ * Tabel yang dibaca berbeda — guru tinggal di `teachers`, pengurus di `users`
+ * — jadi tidak bisa memakai getHeaderProfile() yang sama.
+ */
+async function getTeacherHeaderProfile(teacherId: string) {
+  const supabase = createServerClient()
+  const { data } = await supabase
+    .from('teachers')
+    .select('sapaan, nickname, full_name, photo_url, photo_focus')
+    .eq('id', teacherId)
+    .maybeSingle()
+  return data as {
+    sapaan: string | null
+    nickname: string | null
+    full_name: string
+    photo_url: string | null
+    photo_focus: PhotoFocus | null
+  } | null
+}
+
 export async function PublicHeader() {
-  const [settings, session] = await Promise.all([getSiteSettings(), getSession()])
+  /*
+    DUA SESI, BUKAN SATU.
+
+    Guru dan pengurus masuk lewat pintu yang berbeda dan memakai cookie yang
+    berbeda. Header ini dulu hanya menanyakan getSession() — sesi pengurus —
+    sehingga guru yang sudah masuk lalu membuka halaman publik (dari tautan
+    pengumuman di dashboardnya, misalnya) disambut tombol "Masuk", seolah
+    sesinya hilang.
+
+    Sesi pengurus diperiksa lebih dulu karena ia yang punya menu lebih luas;
+    keduanya bisa saja hidup bersamaan di satu peramban, dan kalau begitu yang
+    ditampilkan adalah yang wewenangnya lebih besar.
+  */
+  const [settings, session, teacher] = await Promise.all([
+    getSiteSettings(),
+    getSession(),
+    getTeacherSession().catch(() => null),
+  ])
   const profile = session ? await getHeaderProfile(session.userId).catch(() => null) : null
+  const teacherProfile = !session && teacher
+    ? await getTeacherHeaderProfile(teacher.teacherId).catch(() => null)
+    : null
 
   return (
     <header className="sticky top-0 z-50 border-b bg-background/85 backdrop-blur supports-[backdrop-filter]:bg-background/70">
@@ -113,6 +157,20 @@ export async function PublicHeader() {
             photoUrl={profile?.photo_url ?? null}
             photoFocus={profile?.photo_focus ?? null}
             dashboardHref={`/dashboard/${DEFAULT_DASHBOARD[session.role]}`}
+          />
+        ) : teacher ? (
+          <HeaderUserCard
+            name={sapaanName(
+              teacherProfile?.sapaan,
+              teacherProfile?.nickname,
+              teacherProfile?.full_name ?? teacher.fullName,
+            )}
+            roleLabel="Guru"
+            photoUrl={teacherProfile?.photo_url ?? null}
+            photoFocus={teacherProfile?.photo_focus ?? null}
+            dashboardHref="/guru"
+            profileHref="/guru/profil"
+            logout={logoutTeacherAction}
           />
         ) : (
           <Button asChild size="sm" className="shrink-0">

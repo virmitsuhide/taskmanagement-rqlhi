@@ -32,6 +32,39 @@ export function posisiJuz(juz: number | string): number | null {
 }
 
 /**
+ * Juz yang sudah TUNTAS menurut setoran harian, dari juz yang sedang dihafal.
+ *
+ * Sengaja berbeda satu angka dari posisiJuz(), dan bedanya bukan kekeliruan:
+ * juz yang sedang disetor belum selesai, sedangkan juz yang sudah diujikan
+ * sudah. Anak yang setorannya berada di juz 26 baru tuntas 4 juz (30, 29, 28,
+ * 27); anak yang LULUS UJIAN juz 26 tuntas 5 juz.
+ *
+ * Keduanya tinggal di berkas ini supaya perbedaan itu terbaca berdampingan.
+ * Sebelumnya aturan setoran hidup sebagai juzHafalCount() di
+ * lib/data/analytics.ts — dua salinan urutan juz yang sama, di dua berkas
+ * yang tidak saling menyebut.
+ */
+export function juzSelesaiSetoran(juzBerjalan: number | null | undefined): number {
+  if (juzBerjalan === null || juzBerjalan === undefined) return 0
+  const p = posisiJuz(juzBerjalan)
+  return p === null ? 0 : p - 1
+}
+
+/**
+ * Juz terjauh dalam URUTAN hafalan dari sekumpulan nomor juz — bukan yang
+ * angkanya terbesar. Dari [30, 29, 2] yang terjauh adalah 2, bukan 30.
+ */
+export function juzTerjauh(daftar: number[]): number | null {
+  let terjauh: number | null = null
+  let posisiTerjauh = 0
+  for (const j of daftar) {
+    const p = posisiJuz(j)
+    if (p !== null && p > posisiTerjauh) { posisiTerjauh = p; terjauh = j }
+  }
+  return terjauh
+}
+
+/**
  * Posisi tertinggi yang tersentuh sebuah catatan ujian.
  *
  * Tasmi' menyimpan rentang ("26-30", "1-5"), bukan satu angka, jadi yang
@@ -69,6 +102,18 @@ export function totalJuzHafalan(juzTeksList: string[]): number {
     if (p !== null && p > tertinggi) tertinggi = p
   }
   return tertinggi
+}
+
+/**
+ * Nomor juz yang tercakup oleh sebuah capaian sejumlah `total` juz.
+ *
+ * Kebalikan dari totalJuzHafalan(): yang itu mengubah catatan menjadi angka,
+ * yang ini mengubah angka kembali menjadi daftar juz-nya. Dipakai peta
+ * belajar untuk menandai lingkaran mana yang harus menyala — 6 juz berarti
+ * 30, 29, 28, 27, 26, 1, bukan 1 sampai 6.
+ */
+export function daftarJuzSelesai(total: number): number[] {
+  return URUTAN_JUZ.slice(0, Math.max(0, Math.min(total, URUTAN_JUZ.length)))
 }
 
 /**

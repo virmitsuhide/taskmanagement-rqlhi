@@ -1086,6 +1086,14 @@ export interface GukarParticipant {
   /** Kunci baris STANDAR_PERAN, mis. 'guru_kelas'. Kosong = pakai ambang inti. */
   kategori_peran: string
   is_active: boolean
+  /**
+   * Metode tahsin yang dipakai membina orang ini (0061) — UMMI atau Syajaroh.
+   *
+   * Tinggal di peserta, bukan di baris bulanan, karena ia ditetapkan sekali
+   * lalu tidak berganti. NULL = belum dipilih; begitu terisi, formulir
+   * menguncinya.
+   */
+  metode_id: string | null
 }
 
 /** Catatan satu peserta pada satu bulan. */
@@ -1110,8 +1118,28 @@ export interface GukarMonthly {
   hadir_3: boolean
   hadir_4: boolean
   hadir_5: boolean
+  /** Kolom lama pra-0061 — diganti dua kolom setoran di bawah. */
   jumlah_halaman: number
   catatan: string
+
+  // ── Posisi & setoran terukur (0061) ──────────────────────────────
+  /** Tahap tahsin yang sedang dijalani — baris jilid_levels. */
+  jilid_id: string | null
+  /** Halaman di dalam jilid berbuku. NULL pada tahap Al-Qur'an & Lulus. */
+  halaman: number | null
+  /** Surat & ayat terakhir yang dibaca, saat tahapnya Al-Qur'an. */
+  tahsin_surat: number | null
+  tahsin_ayat: number | null
+  /** Surat & ayat terakhir yang DISETORKAN hafalannya. */
+  tahfidz_surat: number | null
+  tahfidz_ayat: number | null
+  /**
+   * Jarak yang ditempuh bulan ini dalam halaman — dihitung saat menyimpan,
+   * bukan saat dibaca, supaya angka yang sudah dilaporkan tidak berubah
+   * sendiri ketika catatan bulan sebelumnya disunting. Lihat migrasi 0061.
+   */
+  setoran_tahsin_halaman: number
+  setoran_tahfidz_halaman: number
 }
 
 /** Ambang kehadiran yang dipakai rekap — mengikuti kolom "Kekurangan (75%)". */
@@ -1376,6 +1404,17 @@ export interface UjianSiswa {
    * pada pengajuannya.
    */
   level?: string
+  /**
+   * Tautan ke baris students (0062). Opsional demi pengajuan lama yang
+   * namanya diketik bebas dan tidak bisa dicocokkan lagi.
+   *
+   * Inilah yang membuat kelulusan bisa masuk ke capaian anaknya: tanpa id,
+   * yang tersimpan hanya sebuah nama, dan tidak ada cara mengetahui siswa
+   * mana yang naik jilid.
+   */
+  student_id?: string | null
+  /** Kelas saat diajukan — ikut disimpan supaya flyer tidak perlu query ulang. */
+  kelas?: string | null
 }
 
 export interface UjianTahsin {

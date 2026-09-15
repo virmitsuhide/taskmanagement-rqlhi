@@ -240,13 +240,26 @@ function FormTahfidz({ unit, redirectTo }: { unit: UjianUnit; redirectTo: string
 // ─── Tahsin ──────────────────────────────────────────────────────────────────
 
 /** Satu capaian/level beserta daftar siswanya. */
+/**
+ * Satu baris siswa di pengajuan tahsin.
+ *
+ * `pilihan` menyimpan anak yang benar-benar dipilih dari daftar halaqoh.
+ * Selama null, barisnya belum sah — nama yang hanya diketik tidak lagi
+ * diterima, sebab nama tanpa tautan tidak bisa dinaikkan jilidnya saat lulus
+ * dan tidak bisa dihitung analitik. Persoalan yang sama sudah diselesaikan
+ * lebih dulu di pengajuan tahfidz; pengajuan tahsin tertinggal.
+ */
+interface BarisSiswaTahsin {
+  pilihan: SaranSiswa | null
+}
+
 interface KelompokLevel {
   level: string
-  siswa: { nama: string }[]
+  siswa: BarisSiswaTahsin[]
 }
 
 function kelompokKosong(): KelompokLevel {
-  return { level: '', siswa: [{ nama: '' }] }
+  return { level: '', siswa: [{ pilihan: null }] }
 }
 
 function FormTahsin({ unit, redirectTo }: { unit: UjianUnit; redirectTo: string }) {
@@ -261,10 +274,15 @@ function FormTahsin({ unit, redirectTo }: { unit: UjianUnit; redirectTo: string 
     setKelompok(prev => prev.map((g, i) => (i === gi ? { ...g, level } : g)))
   }
 
-  function ubahNama(gi: number, si: number, nama: string) {
+  function ubahSiswa(gi: number, si: number, pilihan: SaranSiswa | null) {
     setKelompok(prev => prev.map((g, i) =>
-      i === gi ? { ...g, siswa: g.siswa.map((s, j) => (j === si ? { nama } : s)) } : g))
+      i === gi ? { ...g, siswa: g.siswa.map((s, j) => (j === si ? { pilihan } : s)) } : g))
   }
+
+  /** Anak yang sudah dipakai di baris lain — supaya tidak diajukan dua kali. */
+  const sudahDipakai = new Set(
+    kelompok.flatMap(g => g.siswa.map(s => s.pilihan?.id).filter(Boolean) as string[]),
+  )
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
@@ -276,18 +294,26 @@ function FormTahsin({ unit, redirectTo }: { unit: UjianUnit; redirectTo: string 
     const levelDipakai: string[] = []
     for (const g of kelompok) {
       const level = g.level.trim()
-      const nama = g.siswa.map(s => s.nama.trim()).filter(Boolean)
-      if (!level && nama.length === 0) continue
+      const dipilih = g.siswa.map(s => s.pilihan).filter((s): s is SaranSiswa => Boolean(s))
+      if (!level && dipilih.length === 0) continue
       if (!level) {
         setError('Pilih level untuk setiap capaian.')
         return
       }
-      if (nama.length === 0) {
-        setError(`Level "${level}" belum punya siswa. Tambahkan minimal satu nama.`)
+      if (dipilih.length === 0) {
+        setError(`Level "${level}" belum punya siswa. Pilih minimal satu nama dari halaqoh Anda.`)
         return
       }
       if (!levelDipakai.includes(level)) levelDipakai.push(level)
-      for (const n of nama) siswa.push({ nama: n, predikat: null, level })
+      for (const s of dipilih) {
+        siswa.push({
+          nama: s.full_name,
+          predikat: null,
+          level,
+          student_id: s.id,
+          kelas: s.kelas,
+        })
+      }
     }
 
     if (siswa.length === 0) {
@@ -361,15 +387,19 @@ function FormTahsin({ unit, redirectTo }: { unit: UjianUnit; redirectTo: string 
 
             <div className="space-y-2">
               {group.siswa.map((s, si) => (
-                <div key={si} className="flex items-center gap-2">
-                  <span className="w-5 shrink-0 text-right text-xs text-muted-foreground">{si + 1}.</span>
-                  <Input
-                    aria-label={`Nama siswa ${si + 1}`}
-                    className="h-9"
-                    placeholder={`Nama siswa ${si + 1}`}
-                    value={s.nama}
-                    onChange={e => ubahNama(gi, si, e.target.value)}
-                  />
+                <div key={si} className="flex items-start gap-2">
+                  <span className="mt-2 w-5 shrink-0 text-right text-xs text-muted-foreground">{si + 1}.</span>
+                  {/* Ketik nama → muncul anak dari halaqoh yang diampu saja.
+                      Penyaringan halaqohnya dikerjakan server (lihat
+                      cariSiswaUjianAction), bukan komponen ini. */}
+                  <div className="min-w-0 flex-1">
+                    <PilihSiswa
+                      unit={unit}
+                      terpilih={s.pilihan}
+                      onPilih={p => ubahSiswa(gi, si, p)}
+                      kecualikan={sudahDipakai}
+                    />
+                  </div>
                   {group.siswa.length > 1 && (
                     <Button
                       type="button" variant="ghost" size="icon-sm"
@@ -387,7 +417,7 @@ function FormTahsin({ unit, redirectTo }: { unit: UjianUnit; redirectTo: string 
             <Button
               type="button" variant="ghost" size="sm"
               onClick={() => setKelompok(prev => prev.map((g, i) =>
-                i === gi ? { ...g, siswa: [...g.siswa, { nama: '' }] } : g))}
+                i === gi ? { ...g, siswa: [...g.siswa, { pilihan: null }] } : g))}
             >
               <Plus className="mr-1 h-4 w-4" /> Tambah siswa
             </Button>

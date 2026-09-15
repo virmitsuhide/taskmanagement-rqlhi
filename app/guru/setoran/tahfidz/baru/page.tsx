@@ -67,7 +67,7 @@ export default async function NewTahfidzSetoranPage({ searchParams }: PageProps)
         </div>
 
         {students.length === 0 ? (
-          <div className="rounded-xl border border-dashed bg-white py-10 text-center text-sm text-muted-foreground">
+          <div className="rounded-xl border border-dashed bg-card py-10 text-center text-sm text-muted-foreground">
             Belum ada siswa di halaqoh Anda. Hubungi admin untuk assign siswa.
           </div>
         ) : (

@@ -359,3 +359,51 @@ Tanggal ujian : ${formatTanggal(item.jadwal)}
 Penguji: ${item.penguji ?? '-'}
 Predikat: ${getPredikatLabel(item.predikat)}`
 }
+
+// ─── Mencocokkan level ujian dengan tahap metode ─────────────────────────────
+
+export interface TahapLevel {
+  id: string
+  label: string
+  order_num: number
+  is_quran: boolean
+}
+
+/**
+ * Cocokkan level yang tertulis di ujian dengan tahap pada metode anaknya.
+ *
+ * Kosakatanya berbeda di dua tempat. TAHSIN_LEVELS memakai istilah ujian
+ * ("Jilid 3", "Al-Qur'an", "Gharib"), sedangkan jilid_levels memakai label
+ * metodenya sendiri — UMMI menuliskan "Al-Qur'an T1", Syajaroh menuliskan
+ * "Talaqqi Al-Qur'an". Tanpa penerjemahan ini, ujian Al-Qur'an tidak akan
+ * pernah menemukan tahapnya dan tidak ada anak yang naik.
+ *
+ * Yang tidak dikenali dikembalikan null, bukan ditebak ke tahap terdekat:
+ * menaikkan anak ke tahap yang keliru jauh lebih merugikan daripada tidak
+ * menaikkannya sama sekali — yang kedua ketahuan dan bisa dibetulkan.
+ */
+export function cocokkanLevelUjian(tahapan: TahapLevel[], level: string): TahapLevel | null {
+  const rapikan = (t: string) => t.toLowerCase().replace(/['’]/g, '').replace(/\s+/g, ' ').trim()
+  const l = rapikan(level)
+  if (!l) return null
+
+  const persis = tahapan.find(t => rapikan(t.label) === l)
+  if (persis) return persis
+
+  const jilid = /jilid\s*(\d+)/.exec(l)
+  if (jilid) return tahapan.find(t => rapikan(t.label) === `jilid ${jilid[1]}`) ?? null
+
+  if (l.includes('ghorib') || l.includes('gharib') || l.includes('ghoroib')) {
+    return tahapan.find(t => rapikan(t.label).includes('ghorib') || rapikan(t.label).includes('gharib')) ?? null
+  }
+  if (l.includes('tajwid')) {
+    return tahapan.find(t => rapikan(t.label).includes('tajwid')) ?? null
+  }
+  // "Al-Qur'an" menunjuk tahap Qur'an PERTAMA metode itu — T1 pada UMMI,
+  // "Talaqqi Al-Qur'an" pada Syajaroh & KIBAR.
+  if (l.includes('quran') || l.includes('qur an') || l.includes('talaqqi')) {
+    return tahapan.find(t => t.is_quran) ?? null
+  }
+  return null
+}
+

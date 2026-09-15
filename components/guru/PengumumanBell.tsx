@@ -93,7 +93,7 @@ export function PengumumanBell({ items, barusanCount }: { items: PublicPost[]; b
               {items.map(p => (
                 <li key={p.id}>
                   <Link
-                    href={`/pengumuman/${p.id}`}
+                    href={`/guru/pengumuman/${p.id}`}
                     onClick={() => setOpen(false)}
                     className="block px-3 py-2.5 transition-colors hover:bg-accent"
                   >

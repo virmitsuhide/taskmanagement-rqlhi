@@ -10,6 +10,7 @@ import type { Jenjang, TahfidzKind } from '@/types'
 import { TAHFIDZ_KIND_META } from '@/lib/tahsin'
 import { URUTAN_JUZ_TAHFIDZ, type NodeLevel } from '@/lib/rq/peta-belajar'
 import { PetaLevel } from '@/components/siswa/PetaLevel'
+import { getJuzUjianSiswa } from '@/lib/data/hafalan'
 
 interface PageProps {
   params: Promise<{ id: string }>
@@ -175,25 +176,56 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
   const juzTasmi = new Set(tasmiLogs.filter(t => t.status === 'lulus').flatMap(t =>
     Array.from({ length: Math.max(0, t.juz_to - t.juz_from + 1) }, (_, i) => t.juz_from + i)))
 
+  /*
+    Juz yang tuntas lewat pengajuan ujian yang sudah berstatus 'selesai'.
+
+    Sebelumnya peta ini hanya membaca juz_progress, yaitu setoran harian —
+    dan baris setoran ziyadah baru ada setelah anak lulus tahsin. Akibatnya
+    anak yang sudah LULUS UJIAN juz 1 tetap melihat seluruh jalurnya
+    terkunci, seolah ia belum menghafal apa pun. Lulus ujian juz 1 berarti
+    enam juz tuntas menurut urutan RQ LHI (30, 29, 28, 27, 26, 1); lima juz
+    sebelumnya tidak perlu dibuktikan ulang lewat setoran.
+  */
+  const ujianSelesai = await getJuzUjianSiswa(id)
+
   const nodeTahfidz: NodeLevel[] = URUTAN_JUZ_TAHFIDZ.map(juz => {
     const prog = juzMap.get(juz)
     const total = AYAT_PER_JUZ[juz] ?? 1
-    const pct = prog ? Math.min(100, Math.round((prog.ayat_hafal / total) * 100)) : 0
+    const pctSetoran = prog ? Math.min(100, Math.round((prog.ayat_hafal / total) * 100)) : 0
+    const lulusUjian = ujianSelesai.selesai.has(juz)
+
+    // Ujian menang atas setoran, tidak pernah sebaliknya: ia pengakuan resmi
+    // bahwa juz itu tuntas, sementara setoran hanya mencatat sejauh mana
+    // pekerjaannya berjalan. Anak yang setorannya baru 40% tapi sudah lulus
+    // ujian tetap tuntas — bukan 40%.
+    const pct = lulusUjian ? 100 : pctSetoran
     const status: NodeLevel['status'] = pct >= 100 ? 'selesai' : pct > 0 ? 'proses' : 'terkunci'
+
+    const rincian = prog
+      ? `${prog.ayat_hafal}/${total} ayat setoran${prog.mutqin ? ' · mutqin' : ''}`
+      : 'belum ada setoran'
+
     return {
       key: `juz-${juz}`,
       label: String(juz),
       caption: `Juz ${juz}`,
       status,
       progressPct: pct,
-      badge: juzTasmi.has(juz) ? '🎤' : juzDiuji.has(juz) ? '✓' : undefined,
-      title: prog
-        ? `Juz ${juz}: ${prog.ayat_hafal}/${total} ayat (${pct}%)${prog.mutqin ? ' · mutqin' : ''}${juzDiuji.has(juz) ? ' · sudah diuji' : ''}${juzTasmi.has(juz) ? ' · lulus tasmi\x27' : ''}`
-        : `Juz ${juz}: belum dimulai`,
+      badge: juzTasmi.has(juz) ? '🎤' : (juzDiuji.has(juz) || lulusUjian) ? '✓' : undefined,
+      title: lulusUjian
+        // Sumbernya disebutkan, bukan disamarkan jadi "100%": guru perlu tahu
+        // bahwa angka ini datang dari ujian dan bukan dari buku setorannya,
+        // supaya ia tidak mengira catatannya sendiri hilang.
+        ? `Juz ${juz}: tuntas — lulus ujian${ujianSelesai.terakhir ? ` (${tanggalPendek(ujianSelesai.terakhir)})` : ''} · ${rincian}`
+        : prog
+          ? `Juz ${juz}: ${prog.ayat_hafal}/${total} ayat (${pct}%)${prog.mutqin ? ' · mutqin' : ''}${juzDiuji.has(juz) ? ' · sudah diuji' : ''}${juzTasmi.has(juz) ? ' · lulus tasmi\x27' : ''}`
+          : `Juz ${juz}: belum dimulai`,
     }
   })
 
-  const juzHafal = juzProgress.filter(j => j.ayat_hafal >= (AYAT_PER_JUZ[j.juz_number] ?? 1)).length
+  // Jumlah juz tuntas: setoran atau ujian, mana pun yang lebih jauh.
+  const juzHafalSetoran = juzProgress.filter(j => j.ayat_hafal >= (AYAT_PER_JUZ[j.juz_number] ?? 1)).length
+  const juzHafal = Math.max(juzHafalSetoran, ujianSelesai.jumlah)
 
   const initials = student.full_name.split(' ').slice(0, 2).map((w: string) => w[0]).join('').toUpperCase()
   const setoranUrl = `/guru/setoran/tahsin/baru?student=${id}`
@@ -212,7 +244,7 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
         )}
 
         {/* Hero */}
-        <div className="rounded-xl border bg-white p-5">
+        <div className="rounded-xl border bg-card p-5">
           <div className="flex items-start gap-4 flex-wrap">
             <div
               className="w-14 h-14 rounded-xl flex items-center justify-center text-xl font-bold text-white shrink-0"
@@ -289,7 +321,7 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
             <h2 className="text-sm font-semibold mb-3 flex items-center gap-2">
               <BookOpen className="h-4 w-4" /> Peta Tahsin
             </h2>
-            <div className="rounded-xl border border-dashed bg-white p-6 text-center">
+            <div className="rounded-xl border border-dashed bg-card p-6 text-center">
               <p className="text-sm font-medium">Murni tahfidz</p>
               <p className="mt-1 text-xs text-muted-foreground">
                 Anak ini tidak mengikuti program tahsin, jadi tidak ada peta jilid untuknya.
@@ -311,7 +343,7 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
               { label: 'Juz sudah diuji', nilai: juzDiuji.size, ket: 'lulus kenaikan juz' },
               { label: "Tasmi' dilalui", nilai: tasmiCount ?? 0, ket: 'sesi lulus' },
             ].map(k => (
-              <div key={k.label} className="rounded-xl border bg-white px-3 py-2.5">
+              <div key={k.label} className="rounded-xl border bg-card px-3 py-2.5">
                 <p className="text-[11px] text-muted-foreground leading-tight">{k.label}</p>
                 <p className="text-2xl font-bold tabular-nums leading-tight">{k.nilai}</p>
                 <p className="text-[10px] text-muted-foreground/80">{k.ket}</p>
@@ -341,7 +373,7 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
         <section>
           <h2 className="text-sm font-semibold mb-3">Riwayat Setoran Tahsin</h2>
           {!logs || logs.length === 0 ? (
-            <div className="rounded-xl border border-dashed bg-white py-8 text-center text-sm text-muted-foreground">
+            <div className="rounded-xl border border-dashed bg-card py-8 text-center text-sm text-muted-foreground">
               Belum ada setoran tercatat.
               <div className="mt-3">
                 <Button asChild size="sm" variant="outline">
@@ -350,7 +382,7 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
               </div>
             </div>
           ) : (
-            <div className="rounded-xl border bg-white divide-y">
+            <div className="rounded-xl border bg-card divide-y">
               {logs.map(log => {
                 const jilid = (log.jilid as unknown as { label: string } | null)?.label ?? '—'
                 return (
@@ -389,7 +421,7 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
         {promotions && promotions.length > 0 && (
           <section>
             <h2 className="text-sm font-semibold mb-3">🎉 Kenaikan Jilid</h2>
-            <div className="rounded-xl border bg-white divide-y">
+            <div className="rounded-xl border bg-card divide-y">
               {promotions.map(p => {
                 const from = (p.from_jilid as unknown as { label: string } | null)?.label ?? '?'
                 const to = (p.to_jilid as unknown as { label: string } | null)?.label ?? '?'
@@ -410,7 +442,7 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
         <section>
           <h2 className="text-sm font-semibold mb-3">Riwayat Setoran Tahfidz</h2>
           {tahfidzLogs.length === 0 ? (
-            <div className="rounded-xl border border-dashed bg-white py-8 text-center text-sm text-muted-foreground">
+            <div className="rounded-xl border border-dashed bg-card py-8 text-center text-sm text-muted-foreground">
               Belum ada setoran tahfidz.
               <div className="mt-3">
                 <Button asChild size="sm" variant="outline">
@@ -419,7 +451,7 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
               </div>
             </div>
           ) : (
-            <div className="rounded-xl border bg-white divide-y">
+            <div className="rounded-xl border bg-card divide-y">
               {tahfidzLogs.map(log => {
                 const suratName = log.surat?.name_latin ?? '—'
                 return (
@@ -456,7 +488,7 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
         {tasmiLogs.length > 0 && (
           <section>
             <h2 className="text-sm font-semibold mb-3">🎤 Riwayat Tasmi&apos;</h2>
-            <div className="rounded-xl border bg-white divide-y">
+            <div className="rounded-xl border bg-card divide-y">
               {tasmiLogs.map(log => (
                 <div key={log.id} className="p-3">
                   <div className="flex items-center justify-between gap-2">
@@ -489,7 +521,7 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
         {juzPromotions.length > 0 && (
           <section>
             <h2 className="text-sm font-semibold mb-3">🏆 Juz Selesai (Mutqin)</h2>
-            <div className="rounded-xl border bg-white p-4 flex flex-wrap gap-2">
+            <div className="rounded-xl border bg-card p-4 flex flex-wrap gap-2">
               {juzPromotions.map(p => (
                 <span
                   key={p.id}
@@ -524,4 +556,11 @@ function ScoreBadge({ nilai, sikap }: { nilai: number | null; sikap: number | nu
       <span className="text-muted-foreground"> · sikap {sikap ?? '—'}</span>
     </span>
   )
+}
+
+/** "16 Sep 2026" — cukup untuk menandai kapan ujiannya, tanpa jam. */
+function tanggalPendek(iso: string): string {
+  return new Date(iso).toLocaleDateString('id-ID', {
+    timeZone: 'Asia/Jakarta', day: 'numeric', month: 'short', year: 'numeric',
+  })
 }

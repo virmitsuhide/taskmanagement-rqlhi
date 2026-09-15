@@ -46,7 +46,7 @@ export default async function GuruStatistikPage() {
         </div>
 
         {/* Sparkline 7 hari */}
-        <section className="rounded-xl border bg-white p-5">
+        <section className="rounded-xl border bg-card p-5">
           <h2 className="text-sm font-semibold mb-4">Aktivitas Setoran (7 Hari Terakhir)</h2>
           <div className="flex items-end justify-between gap-2 h-40">
             {daily.map(d => {
@@ -83,7 +83,7 @@ export default async function GuruStatistikPage() {
               {halaqohSummary.map(h => {
                 const pct = h.studentCount > 0 ? Math.round((h.setorTodayCount / h.studentCount) * 100) : 0
                 return (
-                  <div key={h.id} className="rounded-xl border bg-white p-4">
+                  <div key={h.id} className="rounded-xl border bg-card p-4">
                     <div className="flex items-center justify-between">
                       <p className="font-medium text-sm">{h.name}</p>
                       <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
@@ -111,11 +111,11 @@ export default async function GuruStatistikPage() {
             <span className="text-xs font-normal text-muted-foreground">(belum setor ≥ 3 hari)</span>
           </h2>
           {attention.length === 0 ? (
-            <div className="rounded-xl border bg-white py-8 text-center text-sm text-muted-foreground">
+            <div className="rounded-xl border bg-card py-8 text-center text-sm text-muted-foreground">
               🎉 Semua siswa aktif setor. Tidak ada yang terlewat.
             </div>
           ) : (
-            <div className="rounded-xl border bg-white divide-y">
+            <div className="rounded-xl border bg-card divide-y">
               {attention.map(s => (
                 <Link
                   key={s.id}
@@ -149,7 +149,7 @@ export default async function GuruStatistikPage() {
 
 function BigStat({ num, label, sub, accent }: { num: number; label: string; sub: string; accent?: boolean }) {
   return (
-    <div className="rounded-xl border bg-white p-4" style={accent && num > 0 ? { background: 'var(--success-wash)', borderColor: 'var(--success)' } : undefined}>
+    <div className="rounded-xl border bg-card p-4" style={accent && num > 0 ? { background: 'var(--success-wash)', borderColor: 'var(--success)' } : undefined}>
       <div
         className="text-3xl font-extrabold leading-none"
         style={{ fontFamily: 'var(--font-playfair), serif', color: accent && num > 0 ? 'var(--success)' : 'var(--foreground)' }}

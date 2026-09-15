@@ -13,6 +13,15 @@ interface Props {
   unit: UjianUnit
   terpilih: SaranSiswa | null
   onPilih: (siswa: SaranSiswa | null) => void
+  /**
+   * Id siswa yang sudah dipakai di baris lain pada formulir yang sama.
+   *
+   * Pengajuan tahsin mendaftarkan banyak anak sekaligus, dan nama yang mirip
+   * membuat satu anak mudah terpilih dua kali. Menyembunyikannya dari saran
+   * lebih baik daripada menolaknya saat menyimpan — kekeliruan yang tidak
+   * pernah bisa dibuat tidak perlu pesan galat.
+   */
+  kecualikan?: Set<string>
 }
 
 /**
@@ -28,7 +37,7 @@ interface Props {
  * kelas yang terisi sendiri (jadi tidak ada lagi "VII A" vs "7A"), dan capaian
  * juz yang langsung diketahui sehingga pilihan juz bisa disaring.
  */
-export function PilihSiswa({ unit, terpilih, onPilih }: Props) {
+export function PilihSiswa({ unit, terpilih, onPilih, kecualikan }: Props) {
   const [kueri, setKueri] = useState('')
   const [hasil, setHasil] = useState<SaranSiswa[]>([])
   const [mencari, setMencari] = useState(false)
@@ -49,7 +58,9 @@ export function PilihSiswa({ unit, terpilih, onPilih }: Props) {
   // Hasil TIDAK dikosongkan lewat setState saat ketikan memendek — ia cukup
   // diturunkan dari kuerinya. Mengosongkannya di dalam effect memicu render
   // beruntun untuk sesuatu yang sudah bisa dihitung saat render.
-  const tampil = cukupPanjang ? hasil : []
+  const tampil = cukupPanjang
+    ? (kecualikan ? hasil.filter(s => !kecualikan.has(s.id) || s.id === terpilih?.id) : hasil)
+    : []
 
   // Jeda 250 ms: mengetik "Muhammad" tanpa ini menembakkan delapan permintaan,
   // dan yang datang belakangan belum tentu jawaban ketikan terakhir.
@@ -108,10 +119,15 @@ export function PilihSiswa({ unit, terpilih, onPilih }: Props) {
         <div className="absolute z-30 mt-1 max-h-64 w-full overflow-y-auto rounded-lg border bg-popover p-1 shadow-lg">
           {mencari && <p className="px-3 py-2 text-sm text-muted-foreground">Mencari…</p>}
 
+          {/* Sejak pencarian guru dibatasi ke halaqohnya sendiri, "tidak
+              ketemu" paling sering berarti anaknya memang bukan asuhannya —
+              bukan salah ketik. Sebabnya disebutkan supaya guru tidak
+              mengulang-ulang ejaan yang sebenarnya sudah benar. */}
           {!mencari && tampil.length === 0 && (
             <p className="px-3 py-2 text-sm text-muted-foreground">
-              Tidak ada siswa {unit} bernama itu. Periksa ejaannya, atau daftarkan
-              siswanya lebih dulu lewat menu Siswa.
+              Tidak ada siswa {unit} bernama itu di halaqoh Anda. Yang bisa diajukan
+              hanya anak yang Anda ampu — koordinator yang mengajukan anak dari
+              halaqoh lain.
             </p>
           )}
 

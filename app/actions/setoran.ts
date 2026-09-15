@@ -90,6 +90,41 @@ export async function createTahsinLogAction(_: unknown, formData: FormData) {
     .maybeSingle()
   if (!student) return { error: 'Siswa tidak ditemukan.' }
 
+  /*
+    DUA ATURAN JILID, DITEGAKKAN DI SINI — BUKAN DI FORMULIR.
+
+    Formulir sudah mengunci pilihan jilid dan memasang batas `max` pada
+    halaman, tapi keduanya hanya menghentikan orang yang memakai formulir.
+    FormData bisa disusun siapa saja, dan setoran yang mendarat di jilid yang
+    belum ditempuh merusak riwayat kenaikan tanpa meninggalkan jejak.
+
+    1) Jilid harus jilid yang sedang dijalani. Perpindahan punya pintunya
+       sendiri — centang "naik jilid", yang mencatat baris di
+       jilid_promotions. Siswa yang belum punya posisi (setoran pertama)
+       dikecualikan: di situlah jilid awalnya ditetapkan.
+
+    2) Halaman tidak boleh melewati panjang jilidnya. "Jilid 2 halaman 45"
+       untuk buku 40 halaman bukan sekadar salah ketik — ia terbawa ke rekap
+       bulanan sebagai kemajuan yang tidak pernah terjadi.
+  */
+  if (student.current_jilid_id && jilidId !== student.current_jilid_id) {
+    return {
+      error: 'Siswa sedang di jilid lain. Pakai centang "naik jilid" untuk memindahkannya.',
+    }
+  }
+
+  const { data: jilidRow } = await supabase
+    .from('jilid_levels')
+    .select('label, total_pages')
+    .eq('id', jilidId)
+    .maybeSingle()
+  const jilid = jilidRow as { label: string; total_pages: number | null } | null
+
+  if (halaman !== null && halaman < 1) return { error: 'Halaman minimal 1.' }
+  if (halaman !== null && jilid?.total_pages && halaman > jilid.total_pages) {
+    return { error: `${jilid.label} hanya ${jilid.total_pages} halaman — halaman ${halaman} tidak ada.` }
+  }
+
   // 1. Insert log setoran. Id-nya ditangkap supaya kenaikan jilid bisa
   // ditautkan ke setoran penyebabnya — tautan itu yang membuat koreksi dan
   // penghapusan bisa membersihkan diri sendiri (lihat migrasi 0027).

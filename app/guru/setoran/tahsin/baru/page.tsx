@@ -27,7 +27,7 @@ export default async function NewTahsinSetoranPage({ searchParams }: PageProps) 
           .order('full_name')
       : Promise.resolve({ data: [] as unknown[] }),
     supabase.from('tahsin_methods').select('id, name').eq('is_active', true).order('name'),
-    supabase.from('jilid_levels').select('id, label, method_id, order_num').order('order_num'),
+    supabase.from('jilid_levels').select('id, label, method_id, order_num, total_pages').order('order_num'),
   ])
 
   const students = ((studentsRes.data ?? []) as unknown as Array<{
@@ -58,7 +58,7 @@ export default async function NewTahsinSetoranPage({ searchParams }: PageProps) 
         </div>
 
         {students.length === 0 ? (
-          <div className="rounded-xl border border-dashed bg-white py-10 text-center text-sm text-muted-foreground">
+          <div className="rounded-xl border border-dashed bg-card py-10 text-center text-sm text-muted-foreground">
             Belum ada siswa di halaqoh Anda. Hubungi admin untuk assign siswa.
           </div>
         ) : (

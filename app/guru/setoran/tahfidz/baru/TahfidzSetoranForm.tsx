@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { ScoreInput } from '@/components/setoran/ScoreInput'
+import { StarInput } from '@/components/setoran/StarInput'
 import { TAHFIDZ_KIND_META, TASMI_SCOPES } from '@/lib/tahsin'
 import type { TahfidzKind, TasmiScope } from '@/types'
 
@@ -387,11 +387,11 @@ function ScoreFields() {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-muted/30 rounded-lg p-4">
         <div>
           <p className="text-xs font-medium mb-1.5">Nilai Tahfidz</p>
-          <ScoreInput name="nilai_tahfidz" />
+          <StarInput name="nilai_tahfidz" />
         </div>
         <div>
           <p className="text-xs font-medium mb-1.5">Nilai Sikap</p>
-          <ScoreInput name="nilai_sikap" />
+          <StarInput name="nilai_sikap" />
         </div>
       </div>
     </fieldset>

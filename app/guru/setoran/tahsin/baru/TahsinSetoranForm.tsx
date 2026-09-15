@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { ScoreInput } from '@/components/setoran/ScoreInput'
+import { StarInput, harusMengulang } from '@/components/setoran/StarInput'
 import { methodsForJenjang } from '@/lib/tahsin'
 import type { Jenjang } from '@/types'
 
@@ -22,7 +22,11 @@ interface StudentOption {
   current_jilid_page: number | null
 }
 interface MethodOption { id: string; name: string }
-interface JilidOption { id: string; label: string; method_id: string; order_num: number }
+interface JilidOption {
+  id: string; label: string; method_id: string; order_num: number
+  /** null untuk tahap tak berbuku — Al-Qur'an, Talaqqi, Lulus Tahsin. */
+  total_pages: number | null
+}
 
 interface Props {
   students: StudentOption[]
@@ -39,6 +43,7 @@ export function TahsinSetoranForm({ students, methods, jilidLevels, defaultStude
   const [studentId, setStudentId] = useState(defaultStudentId ?? '')
   const [methodId, setMethodId] = useState(initialStudent?.current_method_id ?? '')
   const [status, setStatus] = useState<'lulus' | 'ulang'>('lulus')
+  const [jilidId, setJilidId] = useState(initialStudent?.current_jilid_id ?? '')
 
   const selectedStudent = students.find(s => s.id === studentId) ?? null
 
@@ -58,7 +63,18 @@ export function TahsinSetoranForm({ students, methods, jilidLevels, defaultStude
     setStudentId(id)
     const s = students.find(x => x.id === id)
     if (s?.current_method_id) setMethodId(s.current_method_id)
+    setJilidId(s?.current_jilid_id ?? '')
   }
+
+  /**
+   * Jilid yang sedang dijalani siswa. Selama terisi, ia tidak bisa diganti
+   * dari formulir — hanya kenaikan jilid yang memindahkannya.
+   */
+  const jilidTerkunci = selectedStudent?.current_jilid_id
+    ? jilidLevels.find(j => j.id === selectedStudent.current_jilid_id) ?? null
+    : null
+  const jilidAktif = jilidTerkunci ?? jilidOptions.find(j => j.id === jilidId) ?? null
+  const maksHalaman = jilidAktif?.total_pages ?? null
 
   const today = new Date().toISOString().slice(0, 10)
 
@@ -113,20 +129,57 @@ export function TahsinSetoranForm({ students, methods, jilidLevels, defaultStude
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="jilid_id">Jilid *</Label>
-            <Select name="jilid_id" defaultValue={selectedStudent?.current_jilid_id ?? ''} disabled={!methodId} required>
-              <SelectTrigger id="jilid_id"><SelectValue placeholder="Jilid" /></SelectTrigger>
-              <SelectContent>
-                {jilidOptions.map(j => <SelectItem key={j.id} value={j.id}>{j.label}</SelectItem>)}
-              </SelectContent>
-            </Select>
+            {/*
+              JILID TERKUNCI PADA POSISI SISWA.
+
+              Anak berjalan di satu jilid sampai ia naik, dan kenaikan itu
+              punya pintunya sendiri — centang "Naik jilid" di bawah, yang
+              mencatat jilid_promotions dan memindahkan posisinya. Membiarkan
+              jilid bebas dipilih tiap setoran membuat dua hal bisa terjadi
+              tanpa jejak: setoran tercatat di jilid yang belum ditempuh, dan
+              anak "naik" tanpa satu pun baris kenaikan — sehingga riwayatnya
+              tidak pernah menyebutkan kapan ia lulus.
+            */}
+            {jilidTerkunci ? (
+              <>
+                <input type="hidden" name="jilid_id" value={jilidTerkunci.id} />
+                <div className="flex h-9 items-center rounded-md border bg-muted/40 px-3 text-sm">
+                  {jilidTerkunci.label}
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  Terkunci — terbuka ke jilid berikutnya setelah naik jilid.
+                </p>
+              </>
+            ) : (
+              <>
+                <Select name="jilid_id" value={jilidId} onValueChange={setJilidId} disabled={!methodId} required>
+                  <SelectTrigger id="jilid_id"><SelectValue placeholder="Jilid" /></SelectTrigger>
+                  <SelectContent>
+                    {jilidOptions.map(j => <SelectItem key={j.id} value={j.id}>{j.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                <p className="text-[11px] text-muted-foreground">
+                  Jilid awal — setelah setoran pertama, pilihan ini terkunci.
+                </p>
+              </>
+            )}
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="halaman">Halaman</Label>
+            {/* Batas atasnya panjang jilid itu sendiri. Dipasang sebagai `max`
+                agar peramban menolaknya lebih dulu, dan diperiksa ulang di
+                server action — atribut max hanya menghentikan formulir. */}
             <Input
               id="halaman" name="halaman" type="number" min={1}
+              max={maksHalaman ?? undefined}
               defaultValue={selectedStudent?.current_jilid_page ?? ''}
               disabled={isPending}
             />
+            <p className="text-[11px] text-muted-foreground">
+              {maksHalaman
+                ? `${jilidAktif?.label} berisi ${maksHalaman} halaman.`
+                : 'Tahap ini tidak berhalaman buku.'}
+            </p>
           </div>
         </div>
 
@@ -148,11 +201,17 @@ export function TahsinSetoranForm({ students, methods, jilidLevels, defaultStude
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-muted/30 rounded-lg p-4">
           <div>
             <p className="text-xs font-medium mb-1.5">Nilai Tahsin</p>
-            <ScoreInput name="nilai_tahsin" />
+            {/* Di bawah 3 bintang otomatis menandai setoran ini mengulang —
+                itu aturan RQ, jadi guru tidak perlu mengingatnya sendiri lalu
+                menekan tombol status yang kedua kalinya. */}
+            <StarInput
+              name="nilai_tahsin"
+              onChange={b => { if (b > 0) setStatus(harusMengulang(b) ? 'ulang' : 'lulus') }}
+            />
           </div>
           <div>
             <p className="text-xs font-medium mb-1.5">Nilai Sikap</p>
-            <ScoreInput name="nilai_sikap" />
+            <StarInput name="nilai_sikap" />
           </div>
         </div>
       </fieldset>

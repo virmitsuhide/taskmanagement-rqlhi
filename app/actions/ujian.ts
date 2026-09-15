@@ -6,6 +6,8 @@ import { getSession } from '@/lib/auth/session'
 import { getTeacherSession } from '@/lib/auth/teacher-session'
 import { canManageUjian, canSubmitUjian, getUjianUnits } from '@/lib/auth/permissions'
 import { getUnitUjianGuru } from '@/lib/data/ujian'
+import { cocokkanLevelUjian, type TahapLevel } from '@/lib/rq/ujian'
+import { getTeacherStudents } from '@/lib/data/teacher'
 import { totalJuzHafalan } from '@/lib/rq/hafalan'
 import type {
   TahfidzTipe,
@@ -15,7 +17,12 @@ import type {
   UjianUnit,
 } from '@/types'
 
-type Result = { error?: string; success?: boolean }
+type Result = {
+  error?: string
+  success?: boolean
+  /** Tersimpan, tapi ada bagian yang perlu ditindaklanjuti manusia. */
+  warning?: string
+}
 
 /**
  * Halaman yang perlu disegarkan setiap pengajuan berubah.
@@ -205,7 +212,15 @@ export async function createTahsinUjianAction(input: {
   const namaKelompok = input.nama_kelompok.trim()
   const sesi = input.sesi.trim()
   const siswa = input.siswa
-    .map(s => ({ nama: s.nama.trim(), predikat: null, level: s.level?.trim() || undefined }))
+    .map(s => ({
+      nama: s.nama.trim(),
+      predikat: null,
+      level: s.level?.trim() || undefined,
+      // Tautan ke students — inilah yang membuat kelulusan bisa menaikkan
+      // jilid anaknya nanti. Pengajuan lama tanpa id tetap diterima.
+      student_id: s.student_id ?? null,
+      kelas: s.kelas ?? null,
+    }))
     .filter(s => s.nama)
 
   if (!namaKelompok) return { error: 'Nama kelompok wajib diisi.' }
@@ -250,12 +265,168 @@ export async function updateTahsinUjianAction(
     const supabase = createServerClient()
     const { error } = await supabase.from('ujian_tahsin').update(data).eq('id', id)
     if (error) return { error: error.message }
+
+    // Baru setelah barisnya tersimpan: kelulusan diteruskan ke capaian anak.
+    // Urutannya penting — kalau penyimpanan gagal, tidak boleh ada anak yang
+    // sudah terlanjur dinaikkan atas ujian yang tidak tercatat.
+    if (data.status === 'selesai') {
+      const tidakCocok = await terapkanKelulusanTahsin(id)
+      if (tidakCocok.length > 0) {
+        /*
+          Dilaporkan sebagai PERINGATAN, bukan galat: ujiannya sendiri sudah
+          tersimpan dengan benar dan tidak boleh dibatalkan karenanya. Yang
+          gagal hanya penerusan capaian untuk sebagian anak, dan koordinator
+          perlu tahu siapa — kalau didiamkan, anak-anak itu tertinggal di
+          jilid lama tanpa seorang pun menyadarinya.
+        */
+        segarkan()
+        return {
+          success: true,
+          warning:
+            `Ujian tersimpan, tapi capaian ${tidakCocok.length} anak belum bisa dinaikkan — ` +
+            `level ujiannya tidak ada di metode tahsin mereka: ${tidakCocok.join(', ')}.`,
+        }
+      }
+    }
   } catch (e) {
     return { error: e instanceof Error ? e.message : 'Gagal menyimpan perubahan.' }
   }
 
   segarkan()
   return { success: true }
+}
+
+/**
+ * Teruskan hasil ujian tahsin ke capaian siswa.
+ *
+ * MASALAH YANG DISELESAIKAN
+ *
+ * Sebelum ini ujian berhenti sebagai catatan: seorang anak lulus Jilid 3,
+ * barisnya rapi, tapi students.current_jilid_id tidak bergerak. Analitik
+ * tetap menghitungnya belum naik, dan satu-satunya jalan capaian masuk ke
+ * sistem adalah centang "naik jilid" di setoran harian — dikerjakan orang
+ * lain pada waktu lain, dan karenanya sering tidak dikerjakan.
+ *
+ * YANG DILAKUKAN, DAN YANG SENGAJA TIDAK
+ *
+ * Anak yang predikatnya 'lulus' dinaikkan ke tahap berikutnya dalam metode
+ * yang sedang ia jalani, persis seperti centang "naik jilid": satu baris di
+ * jilid_promotions, lalu current_jilid_id berpindah dan halamannya kembali
+ * ke 1. Yang predikatnya 'mengulang' atau belum dinilai tidak disentuh sama
+ * sekali.
+ *
+ * Anak tanpa student_id — pengajuan lama yang namanya diketik bebas — juga
+ * dilewati. Menebak siapa yang dimaksud dari sebuah nama berarti berisiko
+ * menaikkan anak yang keliru, dan kekeliruan seperti itu baru ketahuan
+ * berbulan-bulan kemudian lewat rapor yang tidak masuk akal.
+ *
+ * TIDAK BISA MENAIKKAN DUA KALI
+ *
+ * Koordinator lazim menyimpan ulang baris yang sama — meralat predikat
+ * seorang anak, lalu menyimpan lagi. Tanpa penjagaan, tiap penyimpanan akan
+ * menaikkan satu jilid lagi. Indeks unik (student_id, source_ujian_id) di
+ * migrasi 0062 membuat itu mustahil, dan di sini kegagalannya diabaikan
+ * dengan tenang: "sudah pernah dinaikkan" bukan galat yang perlu dilaporkan.
+ */
+async function terapkanKelulusanTahsin(ujianId: string): Promise<string[]> {
+  const supabase = createServerClient()
+  /** Anak yang level ujiannya tidak punya padanan di metodenya. */
+  const tidakCocok: string[] = []
+
+  const { data: ujian } = await supabase
+    .from('ujian_tahsin')
+    .select('id, siswa, level')
+    .eq('id', ujianId)
+    .maybeSingle()
+  if (!ujian) return tidakCocok
+
+  const ujianLevel = (ujian.level ?? '') as string
+  const daftar = (ujian.siswa ?? []) as UjianSiswa[]
+  const lulus = daftar.filter(s => s.predikat === 'lulus' && s.student_id)
+  if (lulus.length === 0) return tidakCocok
+
+  const { data: siswaRows } = await supabase
+    .from('students')
+    .select('id, current_method_id, current_jilid_id')
+    .in('id', lulus.map(s => s.student_id as string))
+
+  const posisi = new Map(
+    ((siswaRows ?? []) as {
+      id: string; current_method_id: string | null; current_jilid_id: string | null
+    }[]).map(s => [s.id, s]),
+  )
+
+
+  for (const anak of lulus) {
+    const s = posisi.get(anak.student_id as string)
+    if (!s?.current_method_id) continue
+
+    const { data: tahapanRows } = await supabase
+      .from('jilid_levels')
+      .select('id, label, order_num, is_quran')
+      .eq('method_id', s.current_method_id)
+      .order('order_num')
+    const tahapan = (tahapanRows ?? []) as TahapLevel[]
+    if (tahapan.length === 0) continue
+
+    /*
+      LEVEL UJIAN YANG MENENTUKAN, BUKAN POSISI TERCATAT.
+
+      Yang dibuktikan anak di ruang ujian adalah level yang diujikan. Kalau
+      kenaikan diturunkan dari current_jilid_id, seorang anak yang posisinya
+      tertinggal — lazim terjadi, sebab setoran harian tidak selalu dicatat —
+      akan naik ke jilid yang keliru meski ia baru saja lulus jilid yang
+      lebih tinggi.
+    */
+    const levelUjian = (anak.level ?? ujianLevel ?? '').trim()
+    const diuji = cocokkanLevelUjian(tahapan, levelUjian)
+    if (!diuji) {
+      // Level ujian tidak punya padanan di metode anak ini — misal ujian
+      // "Jilid 6" untuk anak Syajaroh yang jilidnya hanya sampai 5. Ditinggal
+      // apa adanya, bukan ditebak: menebak berarti memindahkan anak ke tahap
+      // yang tidak pernah ia tempuh.
+      tidakCocok.push(`${anak.nama} (level "${levelUjian || '—'}")`)
+      continue
+    }
+
+    const berikutnya = tahapan.find(t => t.order_num > diuji.order_num)
+    // Sudah di tahap terakhir metode ini — tidak ada ke mana lagi ia naik.
+    if (!berikutnya) continue
+
+    const { error: gagalNaik } = await supabase.from('jilid_promotions').insert({
+      student_id: s.id,
+      from_jilid_id: diuji.id,
+      to_jilid_id: berikutnya.id,
+      promotion_date: new Date().toISOString().slice(0, 10),
+      catatan: `Lulus ujian tahsin ${diuji.label}`,
+      source_ujian_id: ujianId,
+    })
+    // Bentrok indeks unik = anak ini sudah dinaikkan oleh ujian yang sama.
+    if (gagalNaik) continue
+
+    /*
+      KENAIKAN TIDAK PERNAH MEMUNDURKAN.
+
+      "Level ujian yang menang" berlaku untuk menentukan DARI MANA ia naik,
+      bukan untuk menarik kembali anak yang sudah lebih jauh. Anak yang
+      posisinya sudah di Jilid 5 lalu lulus ujian Jilid 3 — susulan, atau
+      ujian yang baru sempat dinilai — tetap di Jilid 5; barisan
+      jilid_promotions-nya tetap mencatat kelulusan itu sebagai fakta, tapi
+      posisinya tidak diturunkan. Memundurkan anak berarti menghapus setoran
+      berbulan-bulan dari layar guru yang mengampunya.
+    */
+    const sekarang = s.current_jilid_id
+      ? tahapan.find(t => t.id === s.current_jilid_id)
+      : null
+    if (sekarang && sekarang.order_num >= berikutnya.order_num) continue
+
+    await supabase
+      .from('students')
+      .update({ current_jilid_id: berikutnya.id, current_jilid_page: 1 })
+      .eq('id', s.id)
+  }
+
+  return tidakCocok
 }
 
 export async function deleteTahsinUjianAction(id: string): Promise<Result> {
@@ -451,14 +622,34 @@ export async function cariSiswaUjianAction(
   // 'SD' mencakup SD reguler dan SD Juara; keduanya diuji di antrean yang sama.
   const jenjang = pengaju.unit === 'SD' ? ['sd', 'sd_juara'] : ['smp']
 
-  const { data: siswa } = await supabase
+  /*
+    GURU HANYA BOLEH MENGAJUKAN ANAK HALAQOHNYA SENDIRI.
+
+    Sebelum ini pencarian menjangkau seluruh siswa satu unit — 493 anak untuk
+    SD — sehingga seorang guru bisa mengajukan anak yang tidak pernah ia
+    ampu, biasanya karena namanya mirip. Salah ajukan seperti itu baru
+    ketahuan di hari ujian, saat anaknya tidak tahu ia terdaftar.
+
+    Pengurus (koordinator, kumik) tidak dibatasi: mereka memang mengajukan
+    lintas halaqoh, dan itulah sebabnya cabangnya dipisah di sini alih-alih
+    menyaring semua orang dengan aturan yang sama.
+  */
+  let idHalaqoh: string[] | null = null
+  if (pengaju.teacherId) {
+    const milik = await getTeacherStudents(pengaju.teacherId)
+    if (milik.length === 0) return []
+    idHalaqoh = milik.map(s => s.id)
+  }
+
+  let kueriSiswa = supabase
     .from('students')
     .select('id, full_name, kelas, program')
     .in('jenjang', jenjang)
     .eq('is_active', true)
     .ilike('full_name', `%${q}%`)
-    .order('full_name')
-    .limit(8)
+  if (idHalaqoh) kueriSiswa = kueriSiswa.in('id', idHalaqoh)
+
+  const { data: siswa } = await kueriSiswa.order('full_name').limit(8)
 
   if (!siswa || siswa.length === 0) return []
 

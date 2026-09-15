@@ -73,7 +73,7 @@ export default async function GuruRaporPage({ params, searchParams }: PageProps)
           <div className="flex items-center gap-1.5">
             <Link
               href={`/guru/siswa/${id}/rapor?year=${prev.y}&month=${prev.m}`}
-              className="w-8 h-8 rounded-md border bg-white flex items-center justify-center hover:bg-muted"
+              className="w-8 h-8 rounded-md border bg-card flex items-center justify-center hover:bg-muted"
               aria-label="Bulan sebelumnya"
             >
               <ChevronLeft className="h-4 w-4" />
@@ -81,7 +81,7 @@ export default async function GuruRaporPage({ params, searchParams }: PageProps)
             <span className="text-sm font-semibold min-w-[140px] text-center">{data.period.monthLabel}</span>
             <Link
               href={isCurrentMonth ? '#' : `/guru/siswa/${id}/rapor?year=${next.y}&month=${next.m}`}
-              className={`w-8 h-8 rounded-md border bg-white flex items-center justify-center ${isCurrentMonth ? 'opacity-40 pointer-events-none' : 'hover:bg-muted'}`}
+              className={`w-8 h-8 rounded-md border bg-card flex items-center justify-center ${isCurrentMonth ? 'opacity-40 pointer-events-none' : 'hover:bg-muted'}`}
               aria-label="Bulan berikutnya"
             >
               <ChevronRight className="h-4 w-4" />

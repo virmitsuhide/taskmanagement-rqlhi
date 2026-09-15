@@ -3,7 +3,10 @@ import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
 import { getTeacherSession } from '@/lib/auth/teacher-session'
 import { getCurrentTerm, formatTerm } from '@/lib/data/terms'
-import { getGukarGroup, getGukarMonthly, getGukarParticipants, bolehMengampuGukar } from '@/lib/data/gukar'
+import {
+  getGukarGroup, getGukarMonthly, getGukarParticipants, bolehMengampuGukar,
+  getMetodeGukar, getTahapanGukar, getPosisiSebelumnya, getDaftarSurat,
+} from '@/lib/data/gukar'
 import { GukarMonthBoard } from '@/components/gukar/GukarMonthBoard'
 import { currentPeriod, isValidPeriod } from '@/lib/finance/period'
 
@@ -30,8 +33,20 @@ export default async function GukarGroupPage({ params, searchParams }: PageProps
   // Halaman daftar yang menjelaskan alasannya.
   if (!(await bolehMengampuGukar(session.teacherId))) redirect('/guru/gukar')
 
-  const [term, participants] = await Promise.all([getCurrentTerm(), getGukarParticipants(id)])
-  const monthly = await getGukarMonthly(participants.map(p => p.id), period)
+  const [term, participants, metode, tahapan] = await Promise.all([
+    getCurrentTerm(),
+    getGukarParticipants(id),
+    getMetodeGukar(),
+    getTahapanGukar(),
+  ])
+  const ids = participants.map(p => p.id)
+  // Posisi bulan sebelumnya ikut diambil: formulir memakainya untuk mengunci
+  // pilihan surat dan untuk menghitung jarak yang ditempuh bulan ini.
+  const [monthly, sebelumnya, surat] = await Promise.all([
+    getGukarMonthly(ids, period),
+    getPosisiSebelumnya(ids, period),
+    getDaftarSurat(),
+  ])
 
   return (
     <div>
@@ -54,6 +69,10 @@ export default async function GukarGroupPage({ params, searchParams }: PageProps
           period={period}
           participants={participants}
           monthly={Object.fromEntries(monthly)}
+          metode={metode}
+          tahapan={tahapan}
+          sebelumnya={sebelumnya}
+          surat={surat}
         />
       </div>
     </div>

@@ -77,7 +77,7 @@ export default async function TeacherHomePage() {
             <ul className="divide-y">
               {pengumuman.items.map(pos => (
                 <li key={pos.id}>
-                  <Link href={`/pengumuman/${pos.id}`} className="block px-4 py-3 transition-colors hover:bg-accent">
+                  <Link href={`/guru/pengumuman/${pos.id}`} className="block px-4 py-3 transition-colors hover:bg-accent">
                     <p className={`text-[11px] font-medium ${
                       pos.priority === 'penting' ? 'text-destructive'
                         : pos.priority === 'pengingat' ? 'text-warning' : 'text-primary'
@@ -122,15 +122,15 @@ export default async function TeacherHomePage() {
             </div>
 
             {students.length === 0 ? (
-              <div className="rounded-xl border border-dashed bg-white py-10 text-center text-sm text-muted-foreground">
+              <div className="rounded-xl border border-dashed bg-card py-10 text-center text-sm text-muted-foreground">
                 Anda belum mengampu halaqoh manapun. Hubungi admin untuk assign halaqoh.
               </div>
             ) : antrian.length === 0 ? (
-              <div className="rounded-xl border bg-white py-10 text-center text-sm text-muted-foreground">
+              <div className="rounded-xl border bg-card py-10 text-center text-sm text-muted-foreground">
                 🎉 Semua siswa sudah setor hari ini. Barakallahu fiik!
               </div>
             ) : (
-              <div className="rounded-xl border bg-white divide-y">
+              <div className="rounded-xl border bg-card divide-y">
                 {antrian.map(s => {
                   const d = daysAgo(s.last_setoran_date)
                   return (
@@ -164,7 +164,7 @@ export default async function TeacherHomePage() {
           {/* Sidebar statistik */}
           <aside className="space-y-4">
             {/* Aktivitas pekan ini */}
-            <div className="rounded-xl border bg-white p-4">
+            <div className="rounded-xl border bg-card p-4">
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-sm font-semibold">📈 Aktivitas Pekan Ini</h3>
                 <Link href="/guru/statistik" className="text-[11px] text-muted-foreground hover:underline">Detail →</Link>
@@ -179,7 +179,7 @@ export default async function TeacherHomePage() {
 
             {/* Ringkasan halaqoh */}
             {halaqohSummary.length > 0 && (
-              <div className="rounded-xl border bg-white p-4">
+              <div className="rounded-xl border bg-card p-4">
                 <h3 className="text-sm font-semibold mb-3">📿 Halaqoh Saya</h3>
                 <div className="space-y-3">
                   {halaqohSummary.map(h => {
@@ -234,7 +234,7 @@ function StatCard({ num, label, tone }: { num: number; label: string; tone?: 'ok
 
 function QuickAction({ href, emoji, title, desc }: { href: string; emoji: string; title: string; desc: string }) {
   return (
-    <Link href={href} className="rounded-xl border bg-white p-4 hover:border-[var(--primary)] transition-colors">
+    <Link href={href} className="rounded-xl border bg-card p-4 hover:border-[var(--primary)] transition-colors">
       <div className="w-9 h-9 rounded-lg flex items-center justify-center mb-2" style={{ background: 'var(--primary-wash)' }}>
         {emoji}
       </div>

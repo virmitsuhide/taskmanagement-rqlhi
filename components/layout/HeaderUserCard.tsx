@@ -10,11 +10,23 @@ import type { PhotoFocus } from '@/types'
 interface Props {
   /** Sudah dalam bentuk "Ust. Habib" / "Usth. Aul". */
   name: string
-  /** Label jabatan, mis. "Kepala RQ". */
+  /** Label jabatan, mis. "Kepala RQ" atau "Guru". */
   roleLabel: string
   photoUrl: string | null
   photoFocus?: PhotoFocus | null
   dashboardHref: string
+  /**
+   * Ke mana "Profil Saya" menuju. Pengurus ke /profil, guru ke /guru/profil.
+   * Dulu tertulis mati sebagai /profil, dan itu melempar guru ke halaman yang
+   * bahkan tidak boleh ia buka.
+   */
+  profileHref?: string
+  /**
+   * Aksi keluar. Sesi pengurus dan sesi guru memakai cookie yang berbeda, jadi
+   * tombol keluar yang salah akan menghapus cookie yang bukan miliknya — dan
+   * orangnya tetap terlihat masuk.
+   */
+  logout?: () => Promise<void>
 }
 
 /**
@@ -22,7 +34,11 @@ interface Props {
  * menggantikan tombol "Masuk". Bagian kiri (foto + nama) menuju profil,
  * chevron di kanan membuka dropdown berisi jalan kembali ke dashboard.
  */
-export function HeaderUserCard({ name, roleLabel, photoUrl, photoFocus, dashboardHref }: Props) {
+export function HeaderUserCard({
+  name, roleLabel, photoUrl, photoFocus, dashboardHref,
+  profileHref = '/profil',
+  logout = logoutAction,
+}: Props) {
   const [open, setOpen] = useState(false)
   const wrapRef = useRef<HTMLDivElement>(null)
   const btnRef = useRef<HTMLButtonElement>(null)
@@ -47,7 +63,7 @@ export function HeaderUserCard({ name, roleLabel, photoUrl, photoFocus, dashboar
     <div ref={wrapRef} className="relative shrink-0">
       <div className="flex items-center rounded-xl border bg-card shadow-sm overflow-hidden">
         <Link
-          href="/profil"
+          href={profileHref}
           title="Buka profil"
           className="flex items-center gap-2.5 pl-2 pr-3 py-1.5 hover:bg-accent transition-colors min-w-0"
         >
@@ -93,7 +109,7 @@ export function HeaderUserCard({ name, roleLabel, photoUrl, photoFocus, dashboar
             Dashboard
           </Link>
           <Link
-            href="/profil"
+            href={profileHref}
             role="menuitem"
             onClick={() => setOpen(false)}
             className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm hover:bg-accent transition-colors"
@@ -101,7 +117,7 @@ export function HeaderUserCard({ name, roleLabel, photoUrl, photoFocus, dashboar
             <UserRound className="h-4 w-4 shrink-0" />
             Profil Saya
           </Link>
-          <form action={logoutAction}>
+          <form action={logout}>
             <button
               type="submit"
               role="menuitem"

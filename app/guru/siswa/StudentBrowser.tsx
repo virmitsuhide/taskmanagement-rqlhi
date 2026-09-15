@@ -123,7 +123,7 @@ export function StudentBrowser({ students }: Props) {
             value={q}
             onChange={e => setQ(e.target.value)}
             placeholder="Cari nama siswa atau kelas…"
-            className="h-10 w-full rounded-lg border bg-white pl-9 pr-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40"
+            className="h-10 w-full rounded-lg border bg-card pl-9 pr-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40"
           />
         </div>
 
@@ -137,7 +137,7 @@ export function StudentBrowser({ students }: Props) {
                 onClick={() => setBy(k.key)}
                 className={cn(
                   'whitespace-nowrap rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
-                  by === k.key ? 'bg-white shadow-sm' : 'text-muted-foreground hover:text-foreground',
+                  by === k.key ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
                 )}
               >
                 {k.label}
@@ -153,7 +153,7 @@ export function StudentBrowser({ students }: Props) {
       </div>
 
       {groups.length === 0 ? (
-        <div className="rounded-xl border border-dashed bg-white py-10 text-center">
+        <div className="rounded-xl border border-dashed bg-card py-10 text-center">
           <p className="text-sm text-muted-foreground">Tidak ada siswa yang cocok.</p>
         </div>
       ) : (
@@ -164,7 +164,7 @@ export function StudentBrowser({ students }: Props) {
                 {judul}
                 <span className="text-xs font-normal text-muted-foreground">({list.length} siswa)</span>
               </h2>
-              <div className="divide-y rounded-xl border bg-white">
+              <div className="divide-y rounded-xl border bg-card">
                 {list.map(s => {
                   const last = lastLabel(s.last_setoran_date)
                   const phone = phoneOf(s)
@@ -204,7 +204,7 @@ export function StudentBrowser({ students }: Props) {
                               value={draft}
                               onChange={e => setDraft(e.target.value)}
                               placeholder="08xx / +62xx — kosongkan untuk menghapus"
-                              className="h-8 w-56 rounded-md border bg-white px-2 text-xs outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40"
+                              className="h-8 w-56 rounded-md border bg-card px-2 text-xs outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40"
                             />
                             <button
                               type="button"

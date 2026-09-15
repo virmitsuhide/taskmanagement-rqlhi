@@ -32,6 +32,45 @@ export const TAHAP_TAHSIN = [
 
 export type TahapTahsin = (typeof TAHAP_TAHSIN)[number]
 
+/**
+ * Terjemahkan tahap dari jilid_levels menjadi salah satu nilai TAHAP_TAHSIN.
+ *
+ * KENAPA PENERJEMAHAN INI HARUS ADA
+ *
+ * Sejak 0061, pembina memilih metode & jilid dari jilid_levels — tabel yang
+ * sama dengan yang dipakai santri, dengan label sendiri ("Ghoroibul Qur'an",
+ * "Al-Qur'an T1", "Talaqqi Mandiri"). Tapi seluruh analitik SDM menggolongkan
+ * gukar lewat kolom tahap_tahsin yang kosakatanya lebih ringkas dan sudah
+ * dipakai laporan 2026.
+ *
+ * Tanpa jembatan ini, catatan yang diisi lewat formulir baru akan masuk ke
+ * analitik sebagai "tak tercatat" — bukan karena datanya hilang, melainkan
+ * karena dituliskan dengan kosakata yang tidak dikenali pembacanya.
+ *
+ * Metode Syajaroh seluruhnya dipetakan ke 'Syajaroh': penggolongan SDM memang
+ * memperlakukannya sebagai satu kategori sendiri, tidak dipecah per jilid.
+ */
+export function tahapTahsinDari(
+  metode: string,
+  label: string,
+  isQuran: boolean,
+): TahapTahsin | '' {
+  if (metode.toLowerCase() === 'syajaroh') return 'Syajaroh'
+
+  const l = label.toLowerCase()
+  if (isQuran || l.includes('al-qur') || l.includes('talaqqi')) return "Al-Qur'an"
+  if (l.includes('ghorib') || l.includes('gharib') || l.includes('ghoroib')) return 'Ghorib'
+  if (l.includes('tajwid')) return 'Tajwid'
+  if (l.includes('tashih') || l.includes('lulus')) return 'Tashih'
+
+  const jilid = /jilid\s*([1-6])/i.exec(label)
+  if (jilid) return `Jilid ${jilid[1]}` as TahapTahsin
+
+  // Label yang tidak dikenali dibiarkan kosong, bukan ditebak: "tak tercatat"
+  // di analitik lebih jujur daripada golongan yang salah.
+  return ''
+}
+
 /** Tahap yang berada DI ATAS atau setara ambang "Lulus UMMI Jilid 6". */
 const TAHAP_LANJUT = new Set<string>(["Al-Qur'an", 'Ghorib', 'Tajwid', 'Tashih'])
 

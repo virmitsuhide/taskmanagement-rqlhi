@@ -1,6 +1,7 @@
 import { createServerClient } from '@/lib/supabase/server'
 import { UNIT_ORDER, UNIT_LABELS, PROGRAMS_BY_JENJANG, programLabel } from '@/lib/rq/programs'
-import { totalJuzHafalan } from '@/lib/rq/hafalan'
+import { juzSelesaiSetoran, juzTerjauh, totalJuzHafalan } from '@/lib/rq/hafalan'
+import { getJuzUjianPerSiswa, juzGabunganPerSiswa } from '@/lib/data/hafalan'
 import { TAHFIDZ_TARGETS } from '@/lib/rq/targets'
 import type { Jenjang } from '@/types'
 
@@ -338,18 +339,17 @@ export async function getUnitProgramAnalytics(): Promise<UnitAnalytics[]> {
   })
 }
 
-// ─── Analitik pembelajaran lengkap per Unit (tabs + tahsin & tahfidz) ─
-// Urutan hafalan RQ LHI: 30→26 lalu 1→25.
-function juzOrderPos(juz: number): number {
-  // posisi kontigu dalam urutan hafalan (30→0 … 26→4, 1→5 … 25→29)
-  return juz >= 26 ? 30 - juz : juz + 4
-}
-function juzHafalCount(currentJuz: number | null): number {
-  // Jumlah juz yang SUDAH tuntas (juz yang sedang dihafal tak dihitung).
-  // Urutan 30→26 lalu 1→25: juz 30→0, 26→4, juz 1→5, …, juz 25→29.
-  if (currentJuz === null) return 0
-  return currentJuz >= 26 ? 30 - currentJuz : currentJuz + 4
-}
+/*
+ * ─── Analitik pembelajaran lengkap per Unit (tabs + tahsin & tahfidz) ─
+ *
+ * Urutan hafalan RQ LHI (30→26 lalu 1→25) tidak lagi ditulis ulang di sini.
+ * Berkas ini dulu menyimpan salinannya sendiri sebagai juzOrderPos() dan
+ * juzHafalCount() — rumus yang sama persis dengan lib/rq/hafalan.ts, di dua
+ * berkas yang tidak saling menyebut, sehingga salinan ini tidak akan pernah
+ * tahu kalau aslinya berubah. Sekarang keduanya diambil dari sana:
+ * juzTerjauh() untuk "juz mana yang paling jauh", juzSelesaiSetoran() untuk
+ * "berapa juz yang sudah tuntas".
+ */
 const numOrNull = (v: number | string | null): number | null => {
   if (v === null) return null
   const n = Number(v)
@@ -429,10 +429,19 @@ export async function getUnitLearning(): Promise<UnitLearning[]> {
   }
   const currentJuzByStudent = new Map<string, number>()
   for (const [sid, list] of juzByStudent) {
-    let best = list[0], bestPos = juzOrderPos(list[0])
-    for (const j of list) { const p = juzOrderPos(j); if (p > bestPos) { bestPos = p; best = j } }
-    currentJuzByStudent.set(sid, best)
+    const terjauh = juzTerjauh(list)
+    if (terjauh !== null) currentJuzByStudent.set(sid, terjauh)
   }
+
+  // Jumlah juz tuntas per siswa: setoran digabung dengan ujian yang sudah
+  // selesai. Histogram "juz berjalan" di bawah tetap murni dari setoran —
+  // ia menjawab "sedang di juz berapa", pertanyaan yang tidak dijawab ujian.
+  const juzGabungan = juzGabunganPerSiswa(
+    (juzProgressRes.data ?? []) as {
+      student_id: string; juz_number: number; ayat_hafal: number; mutqin: boolean
+    }[],
+    await getJuzUjianPerSiswa(),
+  )
 
   // Program buckets (capaian + ujian) per (jenjang, program)
   const bkey = (jenjang: Jenjang, program: string | null) => `${jenjang}::${program ?? ''}`
@@ -523,12 +532,13 @@ export async function getUnitLearning(): Promise<UnitLearning[]> {
     }
     const juzHistogram = [...juzHistMap.entries()].map(([juz, students]) => ({ juz, students })).sort((a, b) => a.juz - b.juz)
 
-    // Sebaran JUMLAH JUZ dihafal per kelas
+    // Sebaran JUMLAH JUZ dihafal per kelas — setoran digabung dengan ujian,
+    // lihat lib/data/hafalan.ts.
     const kelasJuz = new Map<string, number[]>()
     for (const s of unitStudents) {
       const kelas = s.kelas ?? '—'
       if (!kelasJuz.has(kelas)) kelasJuz.set(kelas, [])
-      kelasJuz.get(kelas)!.push(juzHafalCount(currentJuzByStudent.get(s.id) ?? null))
+      kelasJuz.get(kelas)!.push(juzGabungan.get(s.id) ?? 0)
     }
     const juzByKelas = [...kelasJuz.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([kelas, counts]) => {
       const distMap = new Map<number, number>()
@@ -575,15 +585,17 @@ export interface HafalanBoard {
 
 export async function getUnitHafalanBoards(): Promise<HafalanBoard[]> {
   const supabase = createServerClient()
-  const [studentsRes, juzProgressRes] = await Promise.all([
+  const [studentsRes, juzProgressRes, juzUjian] = await Promise.all([
     supabase.from('students').select('id, full_name, jenjang, kelas').eq('is_active', true),
     supabase.from('juz_progress').select('student_id, juz_number, ayat_hafal, mutqin'),
+    getJuzUjianPerSiswa(),
   ])
   const students = (studentsRes.data ?? []) as { id: string; full_name: string; jenjang: Jenjang; kelas: string | null }[]
+  const jpRows = (juzProgressRes.data ?? []) as { student_id: string; juz_number: number; ayat_hafal: number; mutqin: boolean }[]
 
   const totalAyat = new Map<string, number>()
   const juzList = new Map<string, number[]>()
-  for (const r of (juzProgressRes.data ?? []) as { student_id: string; juz_number: number; ayat_hafal: number; mutqin: boolean }[]) {
+  for (const r of jpRows) {
     totalAyat.set(r.student_id, (totalAyat.get(r.student_id) ?? 0) + (r.ayat_hafal ?? 0))
     if ((r.ayat_hafal ?? 0) > 0 || r.mutqin) {
       if (!juzList.has(r.student_id)) juzList.set(r.student_id, [])
@@ -592,10 +604,14 @@ export async function getUnitHafalanBoards(): Promise<HafalanBoard[]> {
   }
   const currentJuz = new Map<string, number>()
   for (const [sid, list] of juzList) {
-    let best = list[0], bestPos = juzOrderPos(list[0])
-    for (const j of list) { const p = juzOrderPos(j); if (p > bestPos) { bestPos = p; best = j } }
-    currentJuz.set(sid, best)
+    const terjauh = juzTerjauh(list)
+    if (terjauh !== null) currentJuz.set(sid, terjauh)
   }
+
+  // Jumlah juz diambil dari sumber yang paling jauh — setoran atau ujian.
+  // Lihat lib/data/hafalan.ts: anak yang masih di program tahsin tidak pernah
+  // punya setoran ziyadah, jadi tanpa ini capaian ujiannya terbaca nol.
+  const juzGabungan = juzGabunganPerSiswa(jpRows, juzUjian)
 
   return UNIT_ORDER.map(jenjang => {
     const us = students.filter(s => s.jenjang === jenjang)
@@ -603,10 +619,21 @@ export async function getUnitHafalanBoards(): Promise<HafalanBoard[]> {
       id: s.id, name: s.full_name, kelas: s.kelas,
       totalAyat: totalAyat.get(s.id) ?? 0,
       cj: currentJuz.get(s.id) ?? null,
-      juzCount: juzHafalCount(currentJuz.get(s.id) ?? null),
+      juzUjian: juzUjian.get(s.id) ?? 0,
+      juzCount: juzGabungan.get(s.id) ?? 0,
     }))
+    /*
+      Diurutkan menurut JUZ lebih dulu, baru ayat.
+
+      Sebelumnya ayat yang menentukan, dan itu diam-diam meniadakan seluruh
+      penggabungan di atas: capaian ujian tidak membawa hitungan ayat, jadi
+      anak yang lulus ujian 10 juz tetap ber-totalAyat 0 dan tidak pernah
+      sampai ke sepuluh besar — betapapun benar angka juz-nya. Papan ini
+      bernama papan hafalan, dan juz memang ukuran utamanya; ayat tetap
+      dipakai sebagai pemisah saat juz-nya sama.
+    */
     const top10 = [...enriched]
-      .sort((a, b) => b.totalAyat - a.totalAyat || b.juzCount - a.juzCount)
+      .sort((a, b) => b.juzCount - a.juzCount || b.totalAyat - a.totalAyat)
       .slice(0, 10)
       .map(e => ({ id: e.id, name: e.name, kelas: e.kelas, juzCount: e.juzCount, totalAyat: e.totalAyat }))
 
@@ -614,12 +641,15 @@ export async function getUnitHafalanBoards(): Promise<HafalanBoard[]> {
     const target = TAHFIDZ_TARGETS[jenjang]
     let below = 0, on = 0, above = 0
     if (target) {
-      const targetPos = juzOrderPos(target.juz)
+      // Target dinyatakan sebagai nomor juz; yang dibandingkan jumlah juz
+      // tuntas, supaya capaian ujian ikut terhitung. Anak yang LULUS ujian
+      // juz 26 tuntas 5 juz, sementara yang baru MENYETOR juz 26 tuntas 4 —
+      // dan target "juz 26" berarti yang kedua.
+      const targetJuz = juzSelesaiSetoran(target.juz)
       for (const e of enriched) {
-        if (e.cj === null) { below++; continue } // belum mulai tahfidz → di bawah target
-        const pos = juzOrderPos(e.cj)
-        if (pos < targetPos) below++
-        else if (pos === targetPos) on++
+        if (e.juzCount === 0 && e.cj === null) { below++; continue } // belum mulai tahfidz
+        if (e.juzCount < targetJuz) below++
+        else if (e.juzCount === targetJuz) on++
         else above++
       }
     }
