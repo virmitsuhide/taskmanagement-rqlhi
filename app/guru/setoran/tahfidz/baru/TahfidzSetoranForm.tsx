@@ -2,15 +2,15 @@
 
 import { useActionState, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { createTahfidzLogAction, createTasmiLogAction } from '@/app/actions/setoran'
+import { createTahfidzLogAction } from '@/app/actions/setoran'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { StarInput } from '@/components/setoran/StarInput'
-import { TAHFIDZ_KIND_META, TASMI_SCOPES } from '@/lib/tahsin'
-import type { TahfidzKind, TasmiScope } from '@/types'
+import { TAHFIDZ_KIND_META } from '@/lib/tahsin'
+import type { TahfidzKind } from '@/types'
 
 interface StudentOption {
   id: string
@@ -27,7 +27,7 @@ interface SuratOption {
 interface Props {
   students: StudentOption[]
   surat: SuratOption[]
-  /** Juz yang sudah diujikan (dijuz'iyahkan) per siswa — untuk hint muroja'ah lama. */
+  /** Juz teruji per siswa (dari ujian yang selesai) — untuk hint muroja'ah lama. */
   completedJuzByStudent?: Record<string, number[]>
   defaultStudentId?: string
 }
@@ -38,7 +38,7 @@ export function TahfidzSetoranForm({ students, surat, completedJuzByStudent = {}
   const router = useRouter()
   const initialStudent = students.find(s => s.id === defaultStudentId) ?? null
   const [studentId, setStudentId] = useState(defaultStudentId ?? '')
-  const [kind, setKind] = useState<TahfidzKind>('ziyadah')
+  const [kind, setKind] = useState<Exclude<TahfidzKind, 'tasmi'>>('ziyadah')
 
   const completedJuz = completedJuzByStudent[studentId] ?? []
 
@@ -78,8 +78,8 @@ export function TahfidzSetoranForm({ students, surat, completedJuzByStudent = {}
       {/* Jenis setoran */}
       <div className="space-y-1.5">
         <Label>Jenis Setoran</Label>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-          {(['ziyadah', 'murojaah_baru', 'murojaah_lama', 'tasmi'] as TahfidzKind[]).map(k => {
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+          {(['ziyadah', 'murojaah_baru', 'murojaah_lama'] as const).map(k => {
             const meta = TAHFIDZ_KIND_META[k]
             const active = kind === k
             return (
@@ -102,17 +102,15 @@ export function TahfidzSetoranForm({ students, surat, completedJuzByStudent = {}
         </div>
       </div>
 
-      {kind === 'tasmi' ? (
-        <TasmiSubForm studentId={studentId} onCancel={() => router.back()} />
-      ) : (
-        <DailySubForm
-          studentId={studentId}
-          kind={kind}
-          surat={surat}
-          completedJuz={completedJuz}
-          onCancel={() => router.back()}
-        />
-      )}
+      {/* Tasmi' 3 & 5 juz tidak lagi dicatat di sini — kini jenis ujian di
+          Pengajuan Ujian, supaya satu tasmi' tidak tercatat di dua tempat. */}
+      <DailySubForm
+        studentId={studentId}
+        kind={kind}
+        surat={surat}
+        completedJuz={completedJuz}
+        onCancel={() => router.back()}
+      />
     </div>
   )
 }
@@ -152,8 +150,8 @@ function DailySubForm({
       {kind === 'murojaah_lama' && (
         <div className="text-xs rounded-lg px-3 py-2 border" style={{ background: meta.bg, color: meta.fg, borderColor: meta.fg }}>
           {completedJuz.length > 0
-            ? <>Juz yang sudah diujikan: {completedJuz.sort((a, b) => a - b).map(j => `Juz ${j}`).join(', ')}. Pilih surat dari salah satu juz tersebut.</>
-            : <>Belum ada juz yang diujikan untuk siswa ini — biasanya muroja&apos;ah lama dipakai setelah ada juz yang lulus.</>}
+            ? <>Juz teruji: {completedJuz.sort((a, b) => a - b).map(j => `Juz ${j}`).join(', ')}. Pilih surat dari salah satu juz tersebut.</>
+            : <>Belum ada juz teruji untuk siswa ini — muroja&apos;ah lama biasanya dipakai setelah ada juz yang lulus ujian.</>}
         </div>
       )}
 
@@ -230,21 +228,6 @@ function DailySubForm({
         </div>
       </div>
 
-      {/* Naik juz (hanya ziyadah) */}
-      {kind === 'ziyadah' && (
-        <label className="flex items-start gap-2.5 rounded-lg border p-3 cursor-pointer" style={{ background: 'var(--primary-wash)', borderColor: 'var(--border)' }}>
-          <input type="checkbox" name="naik_juz" className="mt-0.5" style={{ accentColor: 'var(--primary)' }} disabled={isPending} />
-          <div>
-            <p className="font-medium text-sm">
-              🎉 Tandai {selectedSurat ? `Juz ${selectedSurat.juz_start}` : 'juz ini'} selesai (mutqin)
-            </p>
-            <p className="text-xs text-muted-foreground">
-              Centang jika siswa khatam &amp; lulus ujian juz ini. Akan tercatat di riwayat kenaikan juz.
-            </p>
-          </div>
-        </label>
-      )}
-
       {state?.error && (
         <p className="text-sm text-destructive bg-destructive/10 px-3 py-2 rounded-md">{state.error}</p>
       )}
@@ -252,124 +235,6 @@ function DailySubForm({
       <div className="flex gap-2 pt-2">
         <Button type="submit" disabled={isPending || !studentId || ayatOutOfRange} style={{ background: 'var(--primary)', borderColor: 'var(--primary)' }}>
           {isPending ? 'Menyimpan...' : 'Simpan Setoran'}
-        </Button>
-        <Button type="button" variant="outline" onClick={onCancel} disabled={isPending}>
-          Batal
-        </Button>
-      </div>
-    </form>
-  )
-}
-
-// ─── Setoran tasmi' (3 / 5 juz) ─────────────────────────────────────
-function TasmiSubForm({ studentId, onCancel }: { studentId: string; onCancel: () => void }) {
-  const [state, formAction, isPending] = useActionState(createTasmiLogAction, null)
-  const [scope, setScope] = useState<TasmiScope>(3)
-  const [juzFrom, setJuzFrom] = useState('')
-  const [status, setStatus] = useState<'lulus' | 'ulang'>('lulus')
-
-  const from = juzFrom ? Number(juzFrom) : null
-  const to = from !== null ? from + scope - 1 : null
-  const rangeValid = from !== null && from >= 1 && to !== null && to <= 30
-
-  return (
-    <form action={formAction} className="space-y-5">
-      <input type="hidden" name="student_id" value={studentId} />
-      <input type="hidden" name="scope_juz" value={scope} />
-      <input type="hidden" name="juz_to" value={to ?? ''} />
-      <input type="hidden" name="status" value={status} />
-
-      {/* Cakupan */}
-      <fieldset className="border-t pt-4 space-y-3">
-        <legend className="text-sm font-semibold mb-1">Cakupan Tasmi&apos;</legend>
-        <div className="grid grid-cols-2 gap-3 max-w-xs">
-          {TASMI_SCOPES.map(sc => (
-            <button
-              key={sc}
-              type="button"
-              onClick={() => setScope(sc)}
-              className="rounded-lg border p-3 text-center transition-colors"
-              style={scope === sc
-                ? { borderColor: '#b45309', background: 'var(--warning-wash)', color: '#b45309' }
-                : { borderColor: 'var(--border)', background: 'var(--card)' }}
-            >
-              <p className="font-semibold text-sm">{sc} Juz</p>
-            </button>
-          ))}
-        </div>
-
-        <div className="grid grid-cols-2 gap-3 max-w-xs">
-          <div className="space-y-1.5">
-            <Label htmlFor="juz_from">Mulai Juz *</Label>
-            <Input
-              id="juz_from" name="juz_from" type="number" min={1} max={30}
-              value={juzFrom} onChange={e => setJuzFrom(e.target.value)}
-              required disabled={isPending} placeholder="1"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Sampai Juz</Label>
-            <div className="h-9 px-3 flex items-center rounded-md border bg-muted/40 text-sm text-muted-foreground">
-              {to !== null ? `Juz ${to}` : '—'}
-            </div>
-          </div>
-        </div>
-        {from !== null && !rangeValid && (
-          <p className="text-xs text-destructive">Rentang juz di luar 1–30. Periksa juz mulai.</p>
-        )}
-        {rangeValid && (
-          <div className="text-xs rounded-lg px-3 py-2" style={{ background: 'var(--warning-wash)', color: '#b45309' }}>
-            Tasmi&apos; {scope} juz: Juz {from} – {to}
-          </div>
-        )}
-      </fieldset>
-
-      <ScoreFields />
-
-      {/* Status */}
-      <fieldset className="border-t pt-4">
-        <legend className="text-sm font-semibold mb-3">Hasil</legend>
-        <div className="grid grid-cols-2 gap-3 max-w-md">
-          <button
-            type="button"
-            onClick={() => setStatus('lulus')}
-            className="rounded-lg border p-3 text-left transition-colors"
-            style={status === 'lulus' ? { borderColor: 'var(--success)', background: 'var(--success-wash)' } : { borderColor: 'var(--border)', background: 'var(--card)' }}
-          >
-            <p className="font-medium text-sm">✅ Lulus</p>
-            <p className="text-xs text-muted-foreground">Tasmi&apos; tuntas</p>
-          </button>
-          <button
-            type="button"
-            onClick={() => setStatus('ulang')}
-            className="rounded-lg border p-3 text-left transition-colors"
-            style={status === 'ulang' ? { borderColor: 'var(--warning)', background: 'var(--warning-wash)' } : { borderColor: 'var(--border)', background: 'var(--card)' }}
-          >
-            <p className="font-medium text-sm">🔁 Ulang</p>
-            <p className="text-xs text-muted-foreground">Perlu diulang</p>
-          </button>
-        </div>
-      </fieldset>
-
-      {/* Catatan + tanggal */}
-      <div className="grid grid-cols-1 sm:grid-cols-[1fr_180px] gap-3 border-t pt-4">
-        <div className="space-y-1.5">
-          <Label htmlFor="catatan_tasmi">Catatan Guru</Label>
-          <Textarea id="catatan_tasmi" name="catatan" rows={2} placeholder="contoh: lancar, beberapa ayat perlu diperbaiki..." disabled={isPending} />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="setoran_date_tasmi">Tanggal Setor</Label>
-          <Input id="setoran_date_tasmi" name="setoran_date" type="date" defaultValue={today()} disabled={isPending} />
-        </div>
-      </div>
-
-      {state?.error && (
-        <p className="text-sm text-destructive bg-destructive/10 px-3 py-2 rounded-md">{state.error}</p>
-      )}
-
-      <div className="flex gap-2 pt-2">
-        <Button type="submit" disabled={isPending || !studentId || !rangeValid} style={{ background: '#b45309', borderColor: '#b45309' }}>
-          {isPending ? 'Menyimpan...' : "Simpan Tasmi'"}
         </Button>
         <Button type="button" variant="outline" onClick={onCancel} disabled={isPending}>
           Batal

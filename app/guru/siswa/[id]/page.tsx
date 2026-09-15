@@ -11,6 +11,7 @@ import { TAHFIDZ_KIND_META } from '@/lib/tahsin'
 import { URUTAN_JUZ_TAHFIDZ, type NodeLevel } from '@/lib/rq/peta-belajar'
 import { PetaLevel } from '@/components/siswa/PetaLevel'
 import { getJuzUjianSiswa } from '@/lib/data/hafalan'
+import { getJuzDrillPerSiswa } from '@/lib/data/drill-tahfidz'
 
 interface PageProps {
   params: Promise<{ id: string }>
@@ -40,7 +41,7 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
   const { data: studentRaw } = await supabase
     .from('students')
     .select(`
-      id, full_name, nis, gender, kelas, jenjang, current_jilid_page,
+      id, full_name, nis, gender, kelas, jenjang, current_jilid_page, tahsin_drill_sejak,
       halaqoh:halaqoh!students_halaqoh_id_fkey(id, name),
       current_method:tahsin_methods!students_current_method_id_fkey(id, name),
       current_jilid:jilid_levels!students_current_jilid_id_fkey(id, label, is_terminal, is_quran)
@@ -53,6 +54,7 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
   const student = studentRaw as unknown as {
     id: string; full_name: string; nis: string | null; gender: 'L' | 'P' | null
     kelas: string | null; jenjang: string; current_jilid_page: number | null
+    tahsin_drill_sejak: string | null
     halaqoh: { id: string; name: string } | null
     current_method: { id: string; name: string } | null
     current_jilid: { id: string; label: string; is_terminal: boolean; is_quran: boolean } | null
@@ -61,7 +63,7 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
   // Riwayat 15 setoran tahsin terakhir
   const { data: logs } = await supabase
     .from('tahsin_logs')
-    .select('id, setoran_date, halaman, baris_dari, baris_ke, nilai_tahsin, nilai_sikap, status, catatan, jilid:jilid_levels!tahsin_logs_jilid_id_fkey(label)')
+    .select('id, setoran_date, halaman, baris_dari, baris_ke, nilai_tahsin, nilai_sikap, status, catatan, drill, jilid:jilid_levels!tahsin_logs_jilid_id_fkey(label)')
     .eq('student_id', id)
     .order('setoran_date', { ascending: false })
     .order('created_at', { ascending: false })
@@ -173,8 +175,30 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
   })
 
   const juzDiuji = new Set(juzPromotions.map(p => p.juz_number))
-  const juzTasmi = new Set(tasmiLogs.filter(t => t.status === 'lulus').flatMap(t =>
-    Array.from({ length: Math.max(0, t.juz_to - t.juz_from + 1) }, (_, i) => t.juz_from + i)))
+
+  /*
+    Tasmi' 3 & 5 juz kini jenis ujian di modul pengajuan, jadi sumber
+    utamanya ujian_tahfidz yang selesai dan tidak mengulang. tasmi_logs lama
+    tetap ikut dibaca supaya catatan sebelum perubahan ini tidak hilang.
+  */
+  const { data: tasmiUjianRows } = await supabase
+    .from('ujian_tahfidz')
+    .select('juz, predikat')
+    .eq('student_id', id)
+    .eq('status', 'selesai')
+    .in('tipe', ['3_juz', '5_juz'])
+  const tasmiUjian = ((tasmiUjianRows ?? []) as { juz: string; predikat: string | null }[])
+    .filter(t => t.predikat !== 'mengulang')
+  const juzTasmi = new Set<number>([
+    ...tasmiLogs.filter(t => t.status === 'lulus').flatMap(t =>
+      Array.from({ length: Math.max(0, t.juz_to - t.juz_from + 1) }, (_, i) => t.juz_from + i)),
+    ...tasmiUjian.flatMap(t => {
+      const n = String(t.juz).match(/\d+/g)?.map(Number) ?? []
+      if (n.length === 0) return []
+      const dari = Math.min(...n), ke = Math.max(...n)
+      return Array.from({ length: ke - dari + 1 }, (_, i) => dari + i)
+    }),
+  ])
 
   /*
     Juz yang tuntas lewat pengajuan ujian yang sudah berstatus 'selesai'.
@@ -186,7 +210,11 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
     enam juz tuntas menurut urutan RQ LHI (30, 29, 28, 27, 26, 1); lima juz
     sebelumnya tidak perlu dibuktikan ulang lewat setoran.
   */
-  const ujianSelesai = await getJuzUjianSiswa(id)
+  const [ujianSelesai, drillTahfidz] = await Promise.all([
+    getJuzUjianSiswa(id),
+    // Juz yang ziyadahnya tuntas dan menunggu diajukan ujian 1 juz (0065).
+    getJuzDrillPerSiswa([id]).then(p => p.get(id) ?? []),
+  ])
 
   const nodeTahfidz: NodeLevel[] = URUTAN_JUZ_TAHFIDZ.map(juz => {
     const prog = juzMap.get(juz)
@@ -201,9 +229,7 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
     const pct = lulusUjian ? 100 : pctSetoran
     const status: NodeLevel['status'] = pct >= 100 ? 'selesai' : pct > 0 ? 'proses' : 'terkunci'
 
-    const rincian = prog
-      ? `${prog.ayat_hafal}/${total} ayat setoran${prog.mutqin ? ' · mutqin' : ''}`
-      : 'belum ada setoran'
+    const rincian = prog ? `${prog.ayat_hafal}/${total} ayat setoran` : 'belum ada setoran'
 
     return {
       key: `juz-${juz}`,
@@ -216,9 +242,9 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
         // Sumbernya disebutkan, bukan disamarkan jadi "100%": guru perlu tahu
         // bahwa angka ini datang dari ujian dan bukan dari buku setorannya,
         // supaya ia tidak mengira catatannya sendiri hilang.
-        ? `Juz ${juz}: tuntas — lulus ujian${ujianSelesai.terakhir ? ` (${tanggalPendek(ujianSelesai.terakhir)})` : ''} · ${rincian}`
+        ? `Juz ${juz}: teruji — lulus ujian${ujianSelesai.terakhir ? ` (${tanggalPendek(ujianSelesai.terakhir)})` : ''} · ${rincian}`
         : prog
-          ? `Juz ${juz}: ${prog.ayat_hafal}/${total} ayat (${pct}%)${prog.mutqin ? ' · mutqin' : ''}${juzDiuji.has(juz) ? ' · sudah diuji' : ''}${juzTasmi.has(juz) ? ' · lulus tasmi\x27' : ''}`
+          ? `Juz ${juz}: ${prog.ayat_hafal}/${total} ayat (${pct}%)${juzDiuji.has(juz) ? ' · sudah diuji' : ''}${juzTasmi.has(juz) ? ' · lulus tasmi\x27' : ''}`
           : `Juz ${juz}: belum dimulai`,
     }
   })
@@ -277,6 +303,25 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
                       : 'Belum ada data tahsin'}
                   </span>
                 )}
+                {student.tahsin_drill_sejak && (
+                  <span
+                    className="inline-flex items-center gap-1.5 text-sm px-2.5 py-1 rounded-lg font-medium"
+                    style={{ background: 'var(--warning-wash)', color: 'var(--warning)' }}
+                    title="Sudah lulus halaman terakhir — jilid berikutnya terbuka setelah lulus ujian tahsin"
+                  >
+                    🔁 DRILL sejak {tanggalPendek(student.tahsin_drill_sejak)} · menunggu ujian
+                  </span>
+                )}
+                {drillTahfidz.map(d => (
+                  <span
+                    key={d.juz}
+                    className="inline-flex items-center gap-1.5 text-sm px-2.5 py-1 rounded-lg font-medium"
+                    style={{ background: 'var(--warning-wash)', color: 'var(--warning)' }}
+                    title="Ziyadah juz ini sudah tuntas — ajukan ujian 1 juz lewat menu Pengajuan Ujian"
+                  >
+                    ✨ Juz {d.juz} DRILL sejak {tanggalPendek(d.sejak)} · ajukan ujian
+                  </span>
+                ))}
                 <span className="inline-flex items-center gap-1.5 text-sm px-2.5 py-1 rounded-lg" style={{ background: 'var(--success-wash)', color: 'var(--success)' }}>
                   <Sparkles className="h-4 w-4" />
                   {juzAktif ? `Tahfidz Juz ${juzAktif} · ${totalAyatHafal} ayat` : 'Belum ada hafalan'}
@@ -340,8 +385,8 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
           <div className="mb-2 grid grid-cols-3 gap-2">
             {[
               { label: 'Juz dihafal', nilai: juzHafal, ket: `dari 30 juz` },
-              { label: 'Juz sudah diuji', nilai: juzDiuji.size, ket: 'lulus kenaikan juz' },
-              { label: "Tasmi' dilalui", nilai: tasmiCount ?? 0, ket: 'sesi lulus' },
+              { label: 'Juz teruji', nilai: ujianSelesai.jumlah, ket: 'lulus ujian' },
+              { label: "Tasmi' dilalui", nilai: (tasmiCount ?? 0) + tasmiUjian.length, ket: 'ujian 3/5 juz lulus' },
             ].map(k => (
               <div key={k.label} className="rounded-xl border bg-card px-3 py-2.5">
                 <p className="text-[11px] text-muted-foreground leading-tight">{k.label}</p>
@@ -365,7 +410,7 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
             ]}
           />
           <p className="mt-2 text-[11px] text-muted-foreground">
-            ✓ = sudah diuji kenaikan juz · 🎤 = sudah lulus tasmi&apos;
+            ✓ = juz teruji (lulus ujian) · 🎤 = sudah lulus tasmi&apos;
           </p>
         </section>
 
@@ -390,7 +435,9 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
                     <div className="flex items-center justify-between gap-2">
                       <p className="text-sm font-medium">
                         {jilid} · hal. {log.halaman ?? '—'}
+                        {/* Baris dari/ke tidak lagi diisi; catatan lama tetap terbaca. */}
                         {log.baris_dari && log.baris_ke ? ` (baris ${log.baris_dari}-${log.baris_ke})` : ''}
+                        {log.drill ? ' · drill' : ''}
                       </p>
                       <span
                         className="text-[11px] px-2 py-0.5 rounded-full shrink-0"
@@ -517,22 +564,24 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
           </section>
         )}
 
-        {/* Riwayat kenaikan juz */}
-        {juzPromotions.length > 0 && (
+        {/* Juz teruji — dari ujian yang selesai, menggantikan "mutqin" */}
+        {ujianSelesai.selesai.size > 0 && (
           <section>
-            <h2 className="text-sm font-semibold mb-3">🏆 Juz Selesai (Mutqin)</h2>
+            <h2 className="text-sm font-semibold mb-3">🏆 Juz Teruji</h2>
             <div className="rounded-xl border bg-card p-4 flex flex-wrap gap-2">
-              {juzPromotions.map(p => (
+              {URUTAN_JUZ_TAHFIDZ.filter(j => ujianSelesai.selesai.has(j)).map(j => (
                 <span
-                  key={p.id}
+                  key={j}
                   className="text-xs px-2.5 py-1 rounded-full font-medium"
                   style={{ background: 'var(--success-wash)', color: 'var(--success)' }}
-                  title={new Date(p.promotion_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
                 >
-                  Juz {p.juz_number} ✓
+                  Juz {j} ✓
                 </span>
               ))}
             </div>
+            <p className="mt-1.5 text-[11px] text-muted-foreground">
+              Diakui lewat Pengajuan Ujian yang sudah selesai, mengikuti urutan hafalan RQ.
+            </p>
           </section>
         )}
       </div>

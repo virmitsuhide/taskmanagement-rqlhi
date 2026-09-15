@@ -5,37 +5,49 @@ import { redirect } from 'next/navigation'
 import { createServerClient } from '@/lib/supabase/server'
 import { getTeacherSession } from '@/lib/auth/teacher-session'
 import { canTeacherAccessStudent } from '@/lib/data/teacher'
+import { catatDrillSetelahZiyadah } from '@/lib/data/drill-tahfidz'
 import type { TahsinStatus, TahfidzKind } from '@/types'
 
 /**
  * KEBIJAKAN POSISI SISWA setelah setoran tahsin (ditetapkan RQ LHI).
  *
- *  - LULUS : maju ke halaman berikutnya (halaman + 1). Form setoran berikutnya
- *            otomatis menunjuk halaman baru. Saat halaman terakhir jilid,
- *            guru centang "naik jilid" yang akan meng-override ke jilid baru.
- *  - ULANG : posisi TIDAK bergeser — pointer tetap di posisi lama sampai
- *            siswa benar-benar lulus halaman tersebut.
+ *  - LULUS : maju ke halaman berikutnya (halaman + 1).
+ *  - LULUS di HALAMAN TERAKHIR jilid : posisi tetap di halaman itu dan anak
+ *            masuk DRILL — mengulang jilid tersebut sampai lulus ujian tahsin.
+ *  - ULANG : posisi TIDAK bergeser.
+ *  - Selama DRILL : setoran tetap dicatat (latihan drill, halaman bebas di
+ *            jilid itu) tapi posisi tidak bergerak sama sekali.
+ *
+ * Naik jilid TIDAK lagi lewat setoran harian. Satu-satunya pintunya kelulusan
+ * ujian tahsin (terapkanKelulusanTahsin di actions/ujian.ts), yang sekaligus
+ * mengakhiri drill. Dua pintu untuk satu peristiwa berarti dua catatan yang
+ * bisa saling bertentangan — anak "naik" di setoran padahal belum pernah diuji.
  */
 function resolveStudentPosition(opts: {
   status: TahsinStatus
   methodId: string | null
   jilidId: string | null
   halaman: number | null
+  totalHalaman: number | null
+  sedangDrill: boolean
   current: { method_id: string | null; jilid_id: string | null; page: number | null }
-}): { current_method_id: string | null; current_jilid_id: string | null; current_jilid_page: number | null } {
-  if (opts.status === 'ulang') {
-    // Pertahankan posisi lama
-    return {
-      current_method_id: opts.current.method_id,
-      current_jilid_id: opts.current.jilid_id,
-      current_jilid_page: opts.current.page,
-    }
+}): { current_method_id: string | null; current_jilid_id: string | null; current_jilid_page: number | null; masukDrill: boolean } {
+  const tetap = {
+    current_method_id: opts.current.method_id ?? opts.methodId,
+    current_jilid_id: opts.current.jilid_id ?? opts.jilidId,
+    current_jilid_page: opts.current.page,
+    masukDrill: false,
   }
-  // LULUS: maju satu halaman
+  if (opts.sedangDrill || opts.status === 'ulang' || opts.halaman === null) return tetap
+
+  if (opts.totalHalaman !== null && opts.halaman >= opts.totalHalaman) {
+    return { ...tetap, current_jilid_page: opts.totalHalaman, masukDrill: true }
+  }
   return {
     current_method_id: opts.methodId,
     current_jilid_id: opts.jilidId,
-    current_jilid_page: opts.halaman !== null ? opts.halaman + 1 : opts.current.page,
+    current_jilid_page: opts.halaman + 1,
+    masukDrill: false,
   }
 }
 
@@ -55,40 +67,48 @@ function readScore(formData: FormData, field: string): number | null {
   return value
 }
 
-export async function createTahsinLogAction(_: unknown, formData: FormData) {
-  const session = await getTeacherSession()
-  if (!session) return { error: 'Sesi guru tidak valid.' }
+/** Nilai 0-100 dari angka mentah; di luar rentang dianggap tidak dinilai. */
+function nilaiSah(v: unknown): number | null {
+  if (v === null || v === undefined || String(v).trim() === '') return null
+  const n = Number(v)
+  return Number.isFinite(n) && n >= 0 && n <= 100 ? n : null
+}
 
-  const studentId = formData.get('student_id') as string
-  if (!studentId) return { error: 'Siswa belum dipilih.' }
+export interface InputSetoranTahsin {
+  student_id: string
+  method_id: string | null
+  jilid_id: string | null
+  halaman: number | null
+  nilai_tahsin: number | null
+  nilai_sikap: number | null
+  status: TahsinStatus
+  catatan: string | null
+  setoran_date: string
+}
+
+/**
+ * Inti penyimpanan satu setoran tahsin — dipakai setoran satu-satu dan
+ * setoran per sesi, supaya aturan jilid, halaman, dan drill hanya ditulis
+ * sekali. Mengembalikan pesan galat, atau null bila tersimpan.
+ */
+async function simpanSetoranTahsin(teacherId: string, input: InputSetoranTahsin): Promise<string | null> {
+  const { student_id: studentId, method_id: methodId, jilid_id: jilidId, halaman, status } = input
 
   // Guru hanya boleh setor untuk siswa di halaqoh yang diampu
-  const allowed = await canTeacherAccessStudent(session.teacherId, studentId)
-  if (!allowed) return { error: 'Anda tidak mengampu siswa ini.' }
+  const allowed = await canTeacherAccessStudent(teacherId, studentId)
+  if (!allowed) return 'Anda tidak mengampu siswa ini.'
 
-  const methodId = (formData.get('method_id') as string) || null
-  const jilidId = (formData.get('jilid_id') as string) || null
-  const halaman = formData.get('halaman') ? Number(formData.get('halaman')) : null
-  const barisDari = formData.get('baris_dari') ? Number(formData.get('baris_dari')) : null
-  const barisKe = formData.get('baris_ke') ? Number(formData.get('baris_ke')) : null
-  const nilaiTahsin = readScore(formData, 'nilai_tahsin')
-  const nilaiSikap = readScore(formData, 'nilai_sikap')
-  const status = ((formData.get('status') as string) || 'lulus') as TahsinStatus
-  const catatan = ((formData.get('catatan') as string) || '').trim() || null
-  const setoranDate = (formData.get('setoran_date') as string) || new Date().toISOString().slice(0, 10)
-  const naikJilid = formData.get('naik_jilid') === 'on'
-
-  if (!jilidId) return { error: 'Jilid wajib dipilih.' }
+  if (!jilidId) return 'Jilid wajib dipilih.'
 
   const supabase = createServerClient()
 
   // Ambil halaqoh & posisi siswa saat ini
   const { data: student } = await supabase
     .from('students')
-    .select('halaqoh_id, current_method_id, current_jilid_id, current_jilid_page')
+    .select('halaqoh_id, current_method_id, current_jilid_id, current_jilid_page, tahsin_drill_sejak')
     .eq('id', studentId)
     .maybeSingle()
-  if (!student) return { error: 'Siswa tidak ditemukan.' }
+  if (!student) return 'Siswa tidak ditemukan.'
 
   /*
     DUA ATURAN JILID, DITEGAKKAN DI SINI — BUKAN DI FORMULIR.
@@ -98,19 +118,16 @@ export async function createTahsinLogAction(_: unknown, formData: FormData) {
     FormData bisa disusun siapa saja, dan setoran yang mendarat di jilid yang
     belum ditempuh merusak riwayat kenaikan tanpa meninggalkan jejak.
 
-    1) Jilid harus jilid yang sedang dijalani. Perpindahan punya pintunya
-       sendiri — centang "naik jilid", yang mencatat baris di
-       jilid_promotions. Siswa yang belum punya posisi (setoran pertama)
-       dikecualikan: di situlah jilid awalnya ditetapkan.
+    1) Jilid harus jilid yang sedang dijalani. Perpindahan hanya lewat
+       kelulusan ujian tahsin. Siswa yang belum punya posisi (setoran
+       pertama) dikecualikan: di situlah jilid awalnya ditetapkan.
 
     2) Halaman tidak boleh melewati panjang jilidnya. "Jilid 2 halaman 45"
        untuk buku 40 halaman bukan sekadar salah ketik — ia terbawa ke rekap
        bulanan sebagai kemajuan yang tidak pernah terjadi.
   */
   if (student.current_jilid_id && jilidId !== student.current_jilid_id) {
-    return {
-      error: 'Siswa sedang di jilid lain. Pakai centang "naik jilid" untuk memindahkannya.',
-    }
+    return 'Siswa sedang di jilid lain. Jilid hanya berpindah setelah lulus ujian tahsin.'
   }
 
   const { data: jilidRow } = await supabase
@@ -120,87 +137,199 @@ export async function createTahsinLogAction(_: unknown, formData: FormData) {
     .maybeSingle()
   const jilid = jilidRow as { label: string; total_pages: number | null } | null
 
-  if (halaman !== null && halaman < 1) return { error: 'Halaman minimal 1.' }
+  if (halaman !== null && halaman < 1) return 'Halaman minimal 1.'
   if (halaman !== null && jilid?.total_pages && halaman > jilid.total_pages) {
-    return { error: `${jilid.label} hanya ${jilid.total_pages} halaman — halaman ${halaman} tidak ada.` }
+    return `${jilid.label} hanya ${jilid.total_pages} halaman — halaman ${halaman} tidak ada.`
   }
 
-  // 1. Insert log setoran. Id-nya ditangkap supaya kenaikan jilid bisa
-  // ditautkan ke setoran penyebabnya — tautan itu yang membuat koreksi dan
-  // penghapusan bisa membersihkan diri sendiri (lihat migrasi 0027).
-  const { data: logRow, error: logErr } = await supabase.from('tahsin_logs').insert({
+  const sedangDrill = Boolean(student.tahsin_drill_sejak)
+
+  const { error: logErr } = await supabase.from('tahsin_logs').insert({
     student_id: studentId,
-    teacher_id: session.teacherId,
+    teacher_id: teacherId,
     halaqoh_id: student.halaqoh_id,
-    setoran_date: setoranDate,
+    setoran_date: input.setoran_date,
     method_id: methodId,
     jilid_id: jilidId,
-    halaman: halaman,
-    baris_dari: barisDari,
-    baris_ke: barisKe,
-    nilai_tahsin: nilaiTahsin,
-    nilai_sikap: nilaiSikap,
+    halaman,
+    nilai_tahsin: input.nilai_tahsin,
+    nilai_sikap: input.nilai_sikap,
     status,
-    catatan,
-  }).select('id').single()
-  if (logErr || !logRow) return { error: 'Gagal menyimpan setoran.' }
+    catatan: input.catatan,
+    drill: sedangDrill,
+  })
+  if (logErr) return 'Gagal menyimpan setoran.'
 
-  // 2. Tentukan update posisi siswa
-  const position = resolveStudentPosition({
+  const { masukDrill, ...posisi } = resolveStudentPosition({
     status, methodId, jilidId, halaman,
+    totalHalaman: jilid?.total_pages ?? null,
+    sedangDrill,
     current: {
       method_id: student.current_method_id,
       jilid_id: student.current_jilid_id,
       page: student.current_jilid_page,
     },
   })
-  const studentUpdate: Record<string, unknown> = { ...position }
+  await supabase
+    .from('students')
+    .update(masukDrill ? { ...posisi, tahsin_drill_sejak: input.setoran_date } : posisi)
+    .eq('id', studentId)
 
-  // 3. Jika naik jilid: cari jilid berikutnya (order_num + 1) di metode sama
-  if (naikJilid && methodId && jilidId) {
-    const { data: currentLevel } = await supabase
-      .from('jilid_levels')
-      .select('order_num')
-      .eq('id', jilidId)
-      .maybeSingle()
+  return null
+}
 
-    if (currentLevel) {
-      const { data: nextLevel } = await supabase
-        .from('jilid_levels')
-        .select('id')
-        .eq('method_id', methodId)
-        .gt('order_num', currentLevel.order_num)
-        .order('order_num', { ascending: true })
-        .limit(1)
-        .maybeSingle()
-
-      if (nextLevel) {
-        // Catat riwayat kenaikan
-        await supabase.from('jilid_promotions').insert({
-          student_id: studentId,
-          from_jilid_id: jilidId,
-          to_jilid_id: nextLevel.id,
-          promoted_by: session.teacherId,
-          promotion_date: setoranDate,
-          catatan: catatan,
-          source_log_id: logRow.id,
-        })
-        // Pindahkan siswa ke jilid baru, halaman reset ke 1
-        studentUpdate.current_jilid_id = nextLevel.id
-        studentUpdate.current_jilid_page = 1
-      }
-    }
-  }
-
-  await supabase.from('students').update(studentUpdate).eq('id', studentId)
-
+function segarkanSetoran(studentIds: string[]) {
   revalidatePath('/guru/siswa')
-  revalidatePath(`/guru/siswa/${studentId}`)
+  for (const id of studentIds) revalidatePath(`/guru/siswa/${id}`)
   revalidatePath('/guru')
+}
+
+export async function createTahsinLogAction(_: unknown, formData: FormData) {
+  const session = await getTeacherSession()
+  if (!session) return { error: 'Sesi guru tidak valid.' }
+
+  const studentId = formData.get('student_id') as string
+  if (!studentId) return { error: 'Siswa belum dipilih.' }
+
+  const galat = await simpanSetoranTahsin(session.teacherId, {
+    student_id: studentId,
+    method_id: (formData.get('method_id') as string) || null,
+    jilid_id: (formData.get('jilid_id') as string) || null,
+    halaman: formData.get('halaman') ? Number(formData.get('halaman')) : null,
+    nilai_tahsin: readScore(formData, 'nilai_tahsin'),
+    nilai_sikap: readScore(formData, 'nilai_sikap'),
+    status: ((formData.get('status') as string) || 'lulus') as TahsinStatus,
+    catatan: ((formData.get('catatan') as string) || '').trim() || null,
+    setoran_date: (formData.get('setoran_date') as string) || new Date().toISOString().slice(0, 10),
+  })
+  if (galat) return { error: galat }
+
+  segarkanSetoran([studentId])
   redirect(`/guru/siswa/${studentId}?setoran=ok`)
 }
 
+export interface HasilSetoranSesi {
+  tersimpan: number
+  /** Per anak yang gagal: nama + alasannya, supaya bisa dibetulkan satu per satu. */
+  gagal: { student_id: string; pesan: string }[]
+  error?: string
+}
+
+/**
+ * Setoran tahsin satu sesi sekaligus. Tiap anak disimpan sendiri-sendiri
+ * lewat inti yang sama; satu anak gagal tidak menggagalkan yang lain, dan
+ * yang gagal dikembalikan agar tetap tampil di formulir untuk dibetulkan.
+ */
+export async function createTahsinLogSesiAction(baris: InputSetoranTahsin[]): Promise<HasilSetoranSesi> {
+  const session = await getTeacherSession()
+  if (!session) return { tersimpan: 0, gagal: [], error: 'Sesi guru tidak valid.' }
+  if (baris.length === 0) return { tersimpan: 0, gagal: [], error: 'Belum ada anak yang diisi.' }
+
+  const gagal: HasilSetoranSesi['gagal'] = []
+  let tersimpan = 0
+  for (const b of baris) {
+    const galat = await simpanSetoranTahsin(session.teacherId, {
+      ...b,
+      nilai_tahsin: nilaiSah(b.nilai_tahsin),
+      nilai_sikap: nilaiSah(b.nilai_sikap),
+      status: b.status === 'ulang' ? 'ulang' : 'lulus',
+      catatan: b.catatan?.trim() || null,
+    })
+    if (galat) gagal.push({ student_id: b.student_id, pesan: galat })
+    else tersimpan++
+  }
+
+  segarkanSetoran(baris.map(b => b.student_id))
+  return { tersimpan, gagal }
+}
+
 // ─── TAHFIDZ ────────────────────────────────────────────────────────
+//
+// Setoran tahfidz hanya mencatat ziyadah & muroja'ah. Dua hal yang dulu ada
+// di sini sengaja dicabut:
+//
+//  • "Tandai juz selesai (mutqin)" — pengakuan bahwa satu juz tuntas kini
+//    datang dari pengajuan ujian yang berstatus selesai (juz teruji), bukan
+//    dari centang guru pada setoran harian.
+//  • Tasmi' 3 & 5 juz — sudah menjadi jenis ujian di modul pengajuan ujian.
+//    Mencatatnya di dua tempat membuat satu tasmi' bisa terhitung dua kali
+//    atau saling bertentangan. Riwayat tasmi' lama dimasukkan koordinator
+//    lewat halaman ujian (Catat Riwayat).
+
+export interface InputSetoranTahfidz {
+  student_id: string
+  kind: TahfidzKind
+  surat_id: number | null
+  ayat_dari: number | null
+  ayat_ke: number | null
+  nilai_tahfidz: number | null
+  nilai_sikap: number | null
+  catatan: string | null
+  setoran_date: string
+}
+
+const JENIS_SETORAN_TAHFIDZ: TahfidzKind[] = ['ziyadah', 'murojaah_baru', 'murojaah_lama']
+
+async function simpanSetoranTahfidz(teacherId: string, input: InputSetoranTahfidz): Promise<string | null> {
+  const { student_id: studentId, surat_id: suratId, ayat_dari: ayatDari, ayat_ke: ayatKe } = input
+
+  const allowed = await canTeacherAccessStudent(teacherId, studentId)
+  if (!allowed) return 'Anda tidak mengampu siswa ini.'
+
+  if (!JENIS_SETORAN_TAHFIDZ.includes(input.kind)) return 'Jenis setoran tidak dikenal.'
+  if (!suratId) return 'Surat wajib dipilih.'
+  if (!ayatDari || !ayatKe) return 'Rentang ayat wajib diisi.'
+  if (ayatKe < ayatDari) return 'Ayat akhir tidak boleh lebih kecil dari ayat awal.'
+
+  const supabase = createServerClient()
+
+  // Validasi rentang ayat terhadap data surat
+  const { data: surat } = await supabase
+    .from('surat_master')
+    .select('total_ayat, name_latin')
+    .eq('id', suratId)
+    .maybeSingle()
+  if (!surat) return 'Surat tidak ditemukan.'
+  if (ayatKe > surat.total_ayat) return `Surat ${surat.name_latin} hanya punya ${surat.total_ayat} ayat.`
+
+  const { data: student } = await supabase
+    .from('students')
+    .select('halaqoh_id')
+    .eq('id', studentId)
+    .maybeSingle()
+  if (!student) return 'Siswa tidak ditemukan.'
+
+  // Trigger DB upsert_juz_progress otomatis menambah ayat_hafal ke
+  // juz_progress (hanya untuk kind='ziyadah').
+  const { data: logRow, error: logErr } = await supabase.from('tahfidz_logs').insert({
+    student_id: studentId,
+    teacher_id: teacherId,
+    halaqoh_id: student.halaqoh_id,
+    setoran_date: input.setoran_date,
+    kind: input.kind,
+    surat_id: suratId,
+    ayat_dari: ayatDari,
+    ayat_ke: ayatKe,
+    nilai_tahfidz: input.nilai_tahfidz,
+    nilai_sikap: input.nilai_sikap,
+    catatan: input.catatan,
+  }).select('id').single()
+  if (logErr) return 'Gagal menyimpan setoran tahfidz.'
+
+  // Ziyadah yang menuntaskan sebuah juz membuka masa drill juz itu — awal
+  // hitungan lama anak menyiapkan ujian 1 juz (0065).
+  if (input.kind === 'ziyadah') {
+    await catatDrillSetelahZiyadah(studentId, {
+      id: (logRow?.id as string | undefined) ?? null,
+      surat_id: suratId,
+      ayat_dari: ayatDari,
+      ayat_ke: ayatKe,
+      setoran_date: input.setoran_date,
+    })
+  }
+  return null
+}
+
 export async function createTahfidzLogAction(_: unknown, formData: FormData) {
   const session = await getTeacherSession()
   if (!session) return { error: 'Sesi guru tidak valid.' }
@@ -208,145 +337,42 @@ export async function createTahfidzLogAction(_: unknown, formData: FormData) {
   const studentId = formData.get('student_id') as string
   if (!studentId) return { error: 'Siswa belum dipilih.' }
 
-  const allowed = await canTeacherAccessStudent(session.teacherId, studentId)
-  if (!allowed) return { error: 'Anda tidak mengampu siswa ini.' }
-
-  const kind = ((formData.get('kind') as string) || 'ziyadah') as TahfidzKind
-  const suratId = formData.get('surat_id') ? Number(formData.get('surat_id')) : null
-  const ayatDari = formData.get('ayat_dari') ? Number(formData.get('ayat_dari')) : null
-  const ayatKe = formData.get('ayat_ke') ? Number(formData.get('ayat_ke')) : null
-  const nilaiTahfidz = readScore(formData, 'nilai_tahfidz')
-  const nilaiSikap = readScore(formData, 'nilai_sikap')
-  const catatan = ((formData.get('catatan') as string) || '').trim() || null
-  const setoranDate = (formData.get('setoran_date') as string) || new Date().toISOString().slice(0, 10)
-  const naikJuz = formData.get('naik_juz') === 'on'
-
-  if (!suratId) return { error: 'Surat wajib dipilih.' }
-  if (!ayatDari || !ayatKe) return { error: 'Rentang ayat wajib diisi.' }
-  if (ayatKe < ayatDari) return { error: 'Ayat akhir tidak boleh lebih kecil dari ayat awal.' }
-
-  const supabase = createServerClient()
-
-  // Validasi rentang ayat terhadap data surat
-  const { data: surat } = await supabase
-    .from('surat_master')
-    .select('total_ayat, juz_start, name_latin')
-    .eq('id', suratId)
-    .maybeSingle()
-  if (!surat) return { error: 'Surat tidak ditemukan.' }
-  if (ayatKe > surat.total_ayat) {
-    return { error: `Surat ${surat.name_latin} hanya punya ${surat.total_ayat} ayat.` }
-  }
-
-  const { data: student } = await supabase
-    .from('students')
-    .select('halaqoh_id')
-    .eq('id', studentId)
-    .maybeSingle()
-  if (!student) return { error: 'Siswa tidak ditemukan.' }
-
-  // Insert log — trigger DB upsert_juz_progress otomatis menambah ayat_hafal
-  // ke juz_progress (hanya untuk kind='ziyadah')
-  const { data: logRow, error: logErr } = await supabase.from('tahfidz_logs').insert({
+  const galat = await simpanSetoranTahfidz(session.teacherId, {
     student_id: studentId,
-    teacher_id: session.teacherId,
-    halaqoh_id: student.halaqoh_id,
-    setoran_date: setoranDate,
-    kind,
-    surat_id: suratId,
-    ayat_dari: ayatDari,
-    ayat_ke: ayatKe,
-    nilai_tahfidz: nilaiTahfidz,
-    nilai_sikap: nilaiSikap,
-    catatan,
-  }).select('id').single()
-  if (logErr || !logRow) return { error: 'Gagal menyimpan setoran tahfidz.' }
+    kind: ((formData.get('kind') as string) || 'ziyadah') as TahfidzKind,
+    surat_id: formData.get('surat_id') ? Number(formData.get('surat_id')) : null,
+    ayat_dari: formData.get('ayat_dari') ? Number(formData.get('ayat_dari')) : null,
+    ayat_ke: formData.get('ayat_ke') ? Number(formData.get('ayat_ke')) : null,
+    nilai_tahfidz: readScore(formData, 'nilai_tahfidz'),
+    nilai_sikap: readScore(formData, 'nilai_sikap'),
+    catatan: ((formData.get('catatan') as string) || '').trim() || null,
+    setoran_date: (formData.get('setoran_date') as string) || new Date().toISOString().slice(0, 10),
+  })
+  if (galat) return { error: galat }
 
-  // Naik juz: tandai juz surat ini sebagai selesai (mutqin) + catat riwayat.
-  // Hanya berlaku untuk ziyadah (penyelesaian hafalan), bukan muroja'ah.
-  if (naikJuz && kind === 'ziyadah') {
-    const juzNumber = surat.juz_start
-
-    // Tandai mutqin di juz_progress (upsert agar baris pasti ada)
-    await supabase.from('juz_progress').upsert(
-      { student_id: studentId, juz_number: juzNumber, mutqin: true, updated_at: new Date().toISOString() },
-      { onConflict: 'student_id,juz_number' },
-    )
-
-    // Catat promosi (unique student+juz; abaikan kalau sudah ada)
-    const { error: promErr } = await supabase.from('juz_promotions').insert({
-      student_id: studentId,
-      juz_number: juzNumber,
-      promoted_by: session.teacherId,
-      promotion_date: setoranDate,
-      catatan,
-      source_log_id: logRow.id,
-    })
-    // 23505 = sudah pernah dipromosikan; bukan error fatal
-    if (promErr && promErr.code !== '23505') {
-      // log lain tetap tersimpan; cukup beri tahu sebagian gagal
-      return { error: 'Setoran tersimpan, tetapi gagal mencatat kenaikan juz.' }
-    }
-  }
-
-  revalidatePath('/guru/siswa')
-  revalidatePath(`/guru/siswa/${studentId}`)
-  revalidatePath('/guru')
+  segarkanSetoran([studentId])
   redirect(`/guru/siswa/${studentId}?setoran=tahfidz_ok`)
 }
 
-// ─── TASMI' (setoran 3 / 5 juz sekaligus) ───────────────────────────
-export async function createTasmiLogAction(_: unknown, formData: FormData) {
+/** Setoran tahfidz satu sesi sekaligus — pola yang sama dengan tahsin. */
+export async function createTahfidzLogSesiAction(baris: InputSetoranTahfidz[]): Promise<HasilSetoranSesi> {
   const session = await getTeacherSession()
-  if (!session) return { error: 'Sesi guru tidak valid.' }
+  if (!session) return { tersimpan: 0, gagal: [], error: 'Sesi guru tidak valid.' }
+  if (baris.length === 0) return { tersimpan: 0, gagal: [], error: 'Belum ada anak yang diisi.' }
 
-  const studentId = formData.get('student_id') as string
-  if (!studentId) return { error: 'Siswa belum dipilih.' }
-
-  const allowed = await canTeacherAccessStudent(session.teacherId, studentId)
-  if (!allowed) return { error: 'Anda tidak mengampu siswa ini.' }
-
-  const scopeJuz = formData.get('scope_juz') ? Number(formData.get('scope_juz')) : null
-  const juzFrom = formData.get('juz_from') ? Number(formData.get('juz_from')) : null
-  const juzTo = formData.get('juz_to') ? Number(formData.get('juz_to')) : null
-  const nilaiTahfidz = readScore(formData, 'nilai_tahfidz')
-  const nilaiSikap = readScore(formData, 'nilai_sikap')
-  const status = ((formData.get('status') as string) || 'lulus') as TahsinStatus
-  const catatan = ((formData.get('catatan') as string) || '').trim() || null
-  const setoranDate = (formData.get('setoran_date') as string) || new Date().toISOString().slice(0, 10)
-
-  if (scopeJuz !== 3 && scopeJuz !== 5) return { error: 'Cakupan tasmi harus 3 atau 5 juz.' }
-  if (!juzFrom || !juzTo) return { error: 'Rentang juz wajib diisi.' }
-  if (juzFrom < 1 || juzTo > 30 || juzTo < juzFrom) return { error: 'Rentang juz tidak valid (1–30).' }
-  if (juzTo - juzFrom + 1 !== scopeJuz) {
-    return { error: `Rentang juz tidak sesuai: tasmi ${scopeJuz} juz harus ${scopeJuz} juz berurutan.` }
+  const gagal: HasilSetoranSesi['gagal'] = []
+  let tersimpan = 0
+  for (const b of baris) {
+    const galat = await simpanSetoranTahfidz(session.teacherId, {
+      ...b,
+      nilai_tahfidz: nilaiSah(b.nilai_tahfidz),
+      nilai_sikap: nilaiSah(b.nilai_sikap),
+      catatan: b.catatan?.trim() || null,
+    })
+    if (galat) gagal.push({ student_id: b.student_id, pesan: galat })
+    else tersimpan++
   }
 
-  const supabase = createServerClient()
-  const { data: student } = await supabase
-    .from('students')
-    .select('halaqoh_id')
-    .eq('id', studentId)
-    .maybeSingle()
-  if (!student) return { error: 'Siswa tidak ditemukan.' }
-
-  const { error: logErr } = await supabase.from('tasmi_logs').insert({
-    student_id: studentId,
-    teacher_id: session.teacherId,
-    halaqoh_id: student.halaqoh_id,
-    setoran_date: setoranDate,
-    scope_juz: scopeJuz,
-    juz_from: juzFrom,
-    juz_to: juzTo,
-    nilai_tahfidz: nilaiTahfidz,
-    nilai_sikap: nilaiSikap,
-    status,
-    catatan,
-  })
-  if (logErr) return { error: 'Gagal menyimpan setoran tasmi.' }
-
-  revalidatePath('/guru/siswa')
-  revalidatePath(`/guru/siswa/${studentId}`)
-  revalidatePath('/guru')
-  redirect(`/guru/siswa/${studentId}?setoran=tasmi_ok`)
+  segarkanSetoran(baris.map(b => b.student_id))
+  return { tersimpan, gagal }
 }

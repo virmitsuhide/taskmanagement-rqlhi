@@ -1,13 +1,22 @@
+'use client'
+
 import Link from 'next/link'
-import { Check, ScrollText } from 'lucide-react'
+import { Check, ScrollText, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { sembunyikanKartu, useKartuTersembunyi } from './kartu-tersembunyi'
 import {
   formatJadwalSingkat, formatTahsinLevels, formatTanggalSingkat, getPredikatLabel, getTahfidzLabel,
 } from '@/lib/rq/ujian'
 import type { UjianStatus, UjianTahfidz, UjianTahsin } from '@/types'
 
-/** Ujian selesai tetap tampil sekian hari supaya hasilnya sempat terbaca. */
-const HASIL_TAMPIL_HARI = 14
+/**
+ * Ujian selesai tetap tampil sekian hari supaya hasilnya sempat terbaca, lalu
+ * hilang dari beranda — termasuk dari "tampilkan lagi". Dihitung dari
+ * selesai_at (saat koordinator menandai selesai), bukan tanggal ujiannya.
+ */
+const HASIL_TAMPIL_HARI = 7
+
+const RUANG = 'progres-ujian'
 
 interface Baris {
   id: string
@@ -41,7 +50,7 @@ function masihTampil(status: UjianStatus, selesaiAt: string | null | undefined, 
  * ajukan sendiri maupun yang diajukan koordinator untuk anak halaqohnya
  * (pengajuan sering disampaikan lisan lalu dimasukkan koordinator).
  *
- * Hanya yang masih berjalan, ditambah yang baru selesai dua pekan terakhir —
+ * Hanya yang masih berjalan, ditambah yang baru selesai sepekan terakhir —
  * riwayat lengkapnya ada di halaman Pengajuan Ujian. Beranda menjawab
  * "anak mana yang sedang menunggu apa", bukan "apa saja yang pernah terjadi".
  */
@@ -82,11 +91,19 @@ export function ProgresUjianGuru({ teacherId, tahfidz, tahsin, idSiswa }: {
       }),
   ].sort((a, b) => URUTAN[a.status] - URUTAN[b.status] || b.diajukan.localeCompare(a.diajukan))
 
-  const berjalan = baris.filter(b => b.status !== 'selesai').length
+  // Kunci memuat status: kartu yang disembunyikan saat "Diajukan" muncul lagi
+  // begitu dijadwalkan — tahap baru adalah kabar baru yang tidak boleh
+  // tertelan oleh tombol tutup yang ditekan untuk tahap sebelumnya.
+  const kunci = (b: Baris) => `${b.id}:${b.status}`
+  const tersembunyi = useKartuTersembunyi(RUANG, teacherId)
+  // Kartu yang ditutup tidak bisa dimunculkan kembali dari beranda; riwayat
+  // lengkapnya tetap ada di halaman Pengajuan Ujian.
+  const tampil = baris.filter(b => !tersembunyi.has(kunci(b)))
+  const berjalan = tampil.filter(b => b.status !== 'selesai').length
 
   return (
-    <section className="mb-6 overflow-hidden rounded-xl border bg-card">
-      <div className="flex items-center gap-2 border-b px-4 py-2.5">
+    <section className="mb-6 rounded-xl border bg-card">
+      <div className="flex flex-wrap items-center gap-2 border-b px-4 py-2.5">
         <ScrollText className="h-4 w-4 text-muted-foreground" />
         <h2 className="text-sm font-semibold">Progres Ujian Anak</h2>
         {berjalan > 0 && (
@@ -99,7 +116,7 @@ export function ProgresUjianGuru({ teacherId, tahfidz, tahsin, idSiswa }: {
         </Link>
       </div>
 
-      {baris.length === 0 ? (
+      {tampil.length === 0 ? (
         <div className="px-4 py-8 text-center">
           <p className="text-sm text-muted-foreground">Tidak ada anak yang sedang diajukan ujian.</p>
           <Link href="/guru/ujian/baru" className="mt-2 inline-block text-xs font-medium text-primary hover:underline">
@@ -107,24 +124,30 @@ export function ProgresUjianGuru({ teacherId, tahfidz, tahsin, idSiswa }: {
           </Link>
         </div>
       ) : (
-        <ul className="divide-y">
-          {baris.map(b => (
-            <li key={b.id} className="px-4 py-3">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium">{b.judul}</p>
-                  <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                    {b.ujian} · {b.rincian}{b.olehLain ? ` · diajukan ${b.olehLain}` : ''}
-                  </p>
-                </div>
-                {b.hasil && <span className="shrink-0 text-xs font-medium text-success">{b.hasil}</span>}
-              </div>
+        <ul className="grid gap-3 p-3 sm:grid-cols-2">
+          {tampil.map(b => (
+            <li key={b.id} className="relative rounded-lg border bg-background p-3 pr-9">
+              <button
+                type="button"
+                onClick={() => sembunyikanKartu(RUANG, teacherId, kunci(b))}
+                aria-label={`Sembunyikan ${b.judul} dari beranda`}
+                title="Sembunyikan dari beranda"
+                className="absolute right-1.5 top-1.5 inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition hover:bg-accent hover:text-foreground"
+              >
+                <X className="h-4 w-4" />
+              </button>
+
+              <p className="truncate text-sm font-medium">{b.judul}</p>
+              <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">
+                {b.ujian} · {b.rincian}{b.olehLain ? ` · diajukan ${b.olehLain}` : ''}
+              </p>
+              {b.hasil && <p className="mt-1 text-xs font-medium text-success">{b.hasil}</p>}
 
               <Tahapan status={b.status} />
 
               <p className="mt-1.5 text-[11px] text-muted-foreground">
                 {b.status === 'diajukan'
-                  ? `Diajukan ${formatTanggalSingkat(b.diajukan)} · menunggu dijadwalkan koordinator`
+                  ? `Diajukan ${formatTanggalSingkat(b.diajukan)} · menunggu dijadwalkan`
                   : `${formatJadwalSingkat(b.jadwal)} · ${b.penguji || 'Penguji belum ditentukan'}`}
               </p>
             </li>

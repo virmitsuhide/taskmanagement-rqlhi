@@ -2,12 +2,15 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { History, Link2, ListChecks, PlusCircle, UserCheck } from 'lucide-react'
+import { ArchiveRestore, History, Link2, ListChecks, PlusCircle, UserCheck } from 'lucide-react'
 
 const MENU = [
   { href: '/ujian/kelola',  label: 'Kelola',  icon: ListChecks },
   { href: '/ujian/ajukan',  label: 'Ajukan',  icon: PlusCircle },
   { href: '/ujian/riwayat', label: 'Riwayat', icon: History    },
+  // Tasmi' 3 & 5 juz sebelum sistem — pintunya di sini sejak setoran guru
+  // tidak lagi punya jenis tasmi'.
+  { href: '/ujian/catat-riwayat', label: 'Catat Riwayat', icon: ArchiveRestore },
   { href: '/ujian/penguji', label: 'Penguji', icon: UserCheck  },
   // Sementara: hilang sendiri dari kebiasaan begitu semua catatan lama
   // terpasang, tapi tetap perlu pintu selama masih ada yang menganggur.

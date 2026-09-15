@@ -177,7 +177,17 @@ export function StudentBrowser({ students }: Props) {
                             {initials(s.full_name)}
                           </div>
                           <div className="min-w-0 flex-1">
-                            <p className="truncate text-sm font-medium">{s.full_name}</p>
+                            <p className="flex items-center gap-1.5 text-sm font-medium">
+                              <span className="truncate">{s.full_name}</span>
+                              {s.tahsin_drill_sejak && (
+                                <span
+                                  className="shrink-0 rounded-full bg-warning-wash px-1.5 py-px text-[10px] font-semibold text-warning"
+                                  title={`Drill sejak ${s.tahsin_drill_sejak} — menunggu lulus ujian tahsin`}
+                                >
+                                  DRILL
+                                </span>
+                              )}
+                            </p>
                             <p className="truncate text-xs text-muted-foreground">
                               {s.current_method_name
                                 ? `${s.current_method_name}${s.current_jilid_label ? ' ' + s.current_jilid_label : ''}${s.current_jilid_page ? ' · hal. ' + s.current_jilid_page : ''}`

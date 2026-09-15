@@ -49,6 +49,8 @@ export interface TeacherStudentRow {
   current_method_name: string | null
   current_jilid_label: string | null
   current_jilid_page: number | null
+  /** Tanggal masuk drill tahsin (0064); null = tidak sedang drill. */
+  tahsin_drill_sejak: string | null
   last_setoran_date: string | null
   /** Sesi halaqoh (1-3). Null kalau halaqohnya belum punya sesi. */
   sesi: number | null
@@ -74,7 +76,7 @@ export async function getTeacherStudents(teacherId: string): Promise<TeacherStud
   const { data: students } = await supabase
     .from('students')
     .select(`
-      id, full_name, nis, gender, kelas, jenjang, halaqoh_id, current_jilid_page,
+      id, full_name, nis, gender, kelas, jenjang, halaqoh_id, current_jilid_page, tahsin_drill_sejak,
       wali_name, wali_phone,
       halaqoh:halaqoh!students_halaqoh_id_fkey(name, sesi),
       current_method:tahsin_methods!students_current_method_id_fkey(name),
@@ -87,6 +89,7 @@ export async function getTeacherStudents(teacherId: string): Promise<TeacherStud
   const rows = (students ?? []) as unknown as Array<{
     id: string; full_name: string; nis: string | null; gender: 'L' | 'P' | null
     kelas: string | null; jenjang: string; halaqoh_id: string | null; current_jilid_page: number | null
+    tahsin_drill_sejak: string | null
     wali_name: string | null; wali_phone: string | null
     halaqoh: { name: string; sesi: number | null } | null
     current_method: { name: string } | null
@@ -136,6 +139,7 @@ export async function getTeacherStudents(teacherId: string): Promise<TeacherStud
     current_method_name: r.current_method?.name ?? null,
     current_jilid_label: r.current_jilid?.label ?? null,
     current_jilid_page: r.current_jilid_page,
+    tahsin_drill_sejak: r.tahsin_drill_sejak,
     last_setoran_date: lastMap.get(r.id) ?? null,
     sesi: r.halaqoh?.sesi ?? null,
     wali_phone: r.wali_phone,

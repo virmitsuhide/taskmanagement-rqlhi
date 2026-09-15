@@ -3,7 +3,7 @@ import { UNIT_ORDER, UNIT_LABELS, PROGRAMS_BY_JENJANG, programLabel } from '@/li
 import { juzSelesaiSetoran, juzTerjauh, totalJuzHafalan } from '@/lib/rq/hafalan'
 import { getJuzUjianPerSiswa, juzGabunganPerSiswa } from '@/lib/data/hafalan'
 import { TAHFIDZ_TARGETS } from '@/lib/rq/targets'
-import { getPredikatLabel } from '@/lib/rq/ujian'
+import { getPredikatLabel, tanggalWIB } from '@/lib/rq/ujian'
 import type { Jenjang, UjianPredikat } from '@/types'
 
 function isoDate(d: Date): string {
@@ -29,7 +29,7 @@ export interface RqAnalytics {
     jilidPromotions: number
     juzPromotions: number
   }
-  juzMutqinTotal: number
+  juzTerujiTotal: number
 }
 
 const JENJANG_ORDER: Jenjang[] = ['paud', 'sd', 'sd_juara', 'smp', 'sma']
@@ -44,7 +44,7 @@ export async function getRqAnalytics(): Promise<RqAnalytics> {
   const [
     studentsRes, teachersRes, halaqohRes,
     tahsinMonthRes, tahfidzMonthRes, jilidPromRes, juzPromRes,
-    juzProgressRes,
+    juzUjianPerSiswa,
   ] = await Promise.all([
     supabase.from('students').select('jenjang').eq('is_active', true),
     supabase.from('teachers').select('*', { count: 'exact', head: true }).eq('is_active', true).is('deleted_at', null),
@@ -53,7 +53,7 @@ export async function getRqAnalytics(): Promise<RqAnalytics> {
     supabase.from('tahfidz_logs').select('*', { count: 'exact', head: true }).gte('setoran_date', monthStartIso).lte('setoran_date', monthEndIso),
     supabase.from('jilid_promotions').select('*', { count: 'exact', head: true }).gte('promotion_date', monthStartIso).lte('promotion_date', monthEndIso),
     supabase.from('juz_promotions').select('*', { count: 'exact', head: true }).gte('promotion_date', monthStartIso).lte('promotion_date', monthEndIso),
-    supabase.from('juz_progress').select('mutqin'),
+    getJuzUjianPerSiswa(),
   ])
 
   const studentsByJenjangMap = new Map<Jenjang, number>()
@@ -65,7 +65,9 @@ export async function getRqAnalytics(): Promise<RqAnalytics> {
   const studentsByJenjang = JENJANG_ORDER
     .map(j => ({ jenjang: j, count: studentsByJenjangMap.get(j) ?? 0 }))
 
-  const juzMutqinTotal = ((juzProgressRes.data ?? []) as { mutqin: boolean }[]).filter(j => j.mutqin).length
+  // Juz teruji = juz yang diakui tuntas lewat ujian selesai. Menggantikan
+  // hitungan centang "mutqin" di setoran harian, yang sudah dicabut.
+  const juzTerujiTotal = [...juzUjianPerSiswa.values()].reduce((n, j) => n + j, 0)
 
   return {
     overview: {
@@ -81,7 +83,7 @@ export async function getRqAnalytics(): Promise<RqAnalytics> {
       jilidPromotions: jilidPromRes.count ?? 0,
       juzPromotions: juzPromRes.count ?? 0,
     },
-    juzMutqinTotal,
+    juzTerujiTotal,
   }
 }
 
@@ -91,7 +93,7 @@ type Avg2 = { nilai: number | null; sikap: number | null }
 
 export interface TahsinTahfidzAnalytics {
   monthLabel: string
-  totals: { activeStudents: number; lulusTahsin: number; totalAyatHafal: number; juzMutqin: number }
+  totals: { activeStudents: number; lulusTahsin: number; totalAyatHafal: number; juzTeruji: number }
   byJenjang: { jenjang: Jenjang; count: number }[]
   byMethod: { method: string; count: number }[]
   levelDistribution: {
@@ -162,7 +164,7 @@ export async function getTahsinTahfidzAnalytics(): Promise<TahsinTahfidzAnalytic
   // Juz
   const juzProgress = (juzProgressRes.data ?? []) as { student_id: string; juz_number: number; ayat_hafal: number; mutqin: boolean }[]
   const totalAyatHafal = juzProgress.reduce((sum, j) => sum + (j.ayat_hafal ?? 0), 0)
-  const juzMutqin = juzProgress.filter(j => j.mutqin).length
+  const juzTeruji = juzProgress.filter(j => j.mutqin).length
   // Histogram: juz tertinggi yang dicapai tiap siswa
   const maxJuzByStudent = new Map<string, number>()
   for (const j of juzProgress) {
@@ -201,7 +203,7 @@ export async function getTahsinTahfidzAnalytics(): Promise<TahsinTahfidzAnalytic
 
   return {
     monthLabel: `${MONTH_ID[now.getMonth()]} ${now.getFullYear()}`,
-    totals: { activeStudents: students.length, lulusTahsin, totalAyatHafal, juzMutqin },
+    totals: { activeStudents: students.length, lulusTahsin, totalAyatHafal, juzTeruji },
     byJenjang,
     byMethod,
     levelDistribution,
@@ -217,7 +219,7 @@ export interface ProgramAnalytics {
   label: string
   studentCount: number
   tahsin: { lulus: number; belumLulus: number }
-  tahfidz: { totalAyatHafal: number; juzMutqin: number }
+  tahfidz: { totalAyatHafal: number; juzTeruji: number }
   /** `predikat` terisi bila barisnya datang dari modul ujian (tanpa nilai angka). */
   juziyah: { studentName: string; juz: number; score: number | null; predikat?: string | null; date: string }[]
   tasmi: { studentName: string; scopeJuz: number; juzFrom: number; juzTo: number; status: string; date: string }[]
@@ -236,13 +238,13 @@ interface Bucket {
   lulus: number
   belumLulus: number
   totalAyatHafal: number
-  juzMutqin: number
+  juzTeruji: number
   juziyah: ProgramAnalytics['juziyah']
   tasmi: ProgramAnalytics['tasmi']
 }
 
 function emptyBucket(): Bucket {
-  return { studentCount: 0, lulus: 0, belumLulus: 0, totalAyatHafal: 0, juzMutqin: 0, juziyah: [], tasmi: [] }
+  return { studentCount: 0, lulus: 0, belumLulus: 0, totalAyatHafal: 0, juzTeruji: 0, juziyah: [], tasmi: [] }
 }
 
 const EXAM_LIMIT = 20
@@ -286,7 +288,7 @@ export async function getUnitProgramAnalytics(): Promise<UnitAnalytics[]> {
     if (!meta) continue
     const b = getBucket(bucketKey(meta.jenjang, meta.program))
     b.totalAyatHafal += row.ayat_hafal ?? 0
-    if (row.mutqin) b.juzMutqin++
+    if (row.mutqin) b.juzTeruji++
   }
 
   for (const row of (juzPromRes.data ?? []) as { student_id: string; juz_number: number; exam_score: number | string | null; promotion_date: string }[]) {
@@ -313,7 +315,7 @@ export async function getUnitProgramAnalytics(): Promise<UnitAnalytics[]> {
       code, label,
       studentCount: b.studentCount,
       tahsin: { lulus: b.lulus, belumLulus: b.belumLulus },
-      tahfidz: { totalAyatHafal: b.totalAyatHafal, juzMutqin: b.juzMutqin },
+      tahfidz: { totalAyatHafal: b.totalAyatHafal, juzTeruji: b.juzTeruji },
       juziyah: [...b.juziyah].sort(byDateDesc).slice(0, EXAM_LIMIT),
       tasmi: [...b.tasmi].sort(byDateDesc).slice(0, EXAM_LIMIT),
     }
@@ -443,11 +445,12 @@ export async function getUnitLearning(): Promise<UnitLearning[]> {
   // Jumlah juz tuntas per siswa: setoran digabung dengan ujian yang sudah
   // selesai. Histogram "juz berjalan" di bawah tetap murni dari setoran —
   // ia menjawab "sedang di juz berapa", pertanyaan yang tidak dijawab ujian.
+  const juzUjianUnit = await getJuzUjianPerSiswa()
   const juzGabungan = juzGabunganPerSiswa(
     (juzProgressRes.data ?? []) as {
       student_id: string; juz_number: number; ayat_hafal: number; mutqin: boolean
     }[],
-    await getJuzUjianPerSiswa(),
+    juzUjianUnit,
   )
 
   // Program buckets (capaian + ujian) per (jenjang, program)
@@ -463,7 +466,12 @@ export async function getUnitLearning(): Promise<UnitLearning[]> {
   for (const r of (juzProgressRes.data ?? []) as { student_id: string; ayat_hafal: number; mutqin: boolean }[]) {
     const s = stById.get(r.student_id); if (!s) continue
     const m = metaOf(s); const b = getB(bkey(m.jenjang, m.program))
-    b.totalAyatHafal += r.ayat_hafal ?? 0; if (r.mutqin) b.juzMutqin++
+    b.totalAyatHafal += r.ayat_hafal ?? 0
+  }
+  // Juz teruji per program: jumlah juz tuntas lewat ujian selesai.
+  for (const [sid, n] of juzUjianUnit) {
+    const s = stById.get(sid); if (!s) continue
+    const m = metaOf(s); getB(bkey(m.jenjang, m.program)).juzTeruji += n
   }
   for (const r of (juzPromRes.data ?? []) as { student_id: string; juz_number: number; exam_score: number | string | null; promotion_date: string }[]) {
     const s = stById.get(r.student_id); if (!s) continue
@@ -505,7 +513,7 @@ export async function getUnitLearning(): Promise<UnitLearning[]> {
     return {
       code, label, studentCount: b.studentCount,
       tahsin: { lulus: b.lulus, belumLulus: b.belumLulus },
-      tahfidz: { totalAyatHafal: b.totalAyatHafal, juzMutqin: b.juzMutqin },
+      tahfidz: { totalAyatHafal: b.totalAyatHafal, juzTeruji: b.juzTeruji },
       juziyah: [...b.juziyah].sort(byDateDesc).slice(0, EXAM_LIMIT),
       tasmi: [...b.tasmi].sort(byDateDesc).slice(0, EXAM_LIMIT),
     }
@@ -947,4 +955,202 @@ export async function getHafalanUjianPerUnit(): Promise<HafalanUjianUnit[]> {
       top10: [...anak].sort((a, b) => b.juz - a.juz || a.name.localeCompare(b.name)).slice(0, 10),
     }
   }).filter(u => u.siswaTeruji > 0)
+}
+
+// ─── Siswa DRILL tahsin (0064) ──────────────────────────────────────
+
+export interface SiswaDrill {
+  id: string
+  name: string
+  kelas: string | null
+  jilid: string | null
+  halaqoh: string | null
+  sejak: string
+  /** Hari sejak masuk drill — makin lama, makin perlu ditanyakan. */
+  hari: number
+  /** Ujian tahsin yang menunggu untuk anak ini: belum diajukan / diajukan / dijadwalkan. */
+  ujian: 'belum' | 'diajukan' | 'dijadwalkan'
+}
+
+export interface DrillUnit {
+  jenjang: Jenjang
+  label: string
+  siswa: SiswaDrill[]
+  /** Sudah drill tapi belum ada pengajuan ujian sama sekali — yang paling perlu ditindaklanjuti. */
+  belumDiajukan: number
+}
+
+/**
+ * Anak yang sedang DRILL — sudah lulus halaman terakhir jilid dan tertahan
+ * sampai lulus ujian tahsin.
+ *
+ * Status pengajuannya ikut dibaca, sebab pertanyaan manajemen bukan sekadar
+ * "berapa yang drill", melainkan "siapa yang tertahan karena ujiannya belum
+ * diajukan". Drill yang lama tanpa pengajuan berarti anak menunggu sesuatu
+ * yang tidak sedang diurus siapa pun.
+ */
+export async function getSiswaDrill(): Promise<DrillUnit[]> {
+  const supabase = createServerClient()
+  const [siswaRes, ujianRes] = await Promise.all([
+    supabase
+      .from('students')
+      .select(
+        'id, full_name, jenjang, kelas, tahsin_drill_sejak,' +
+        ' jilid:jilid_levels!students_current_jilid_id_fkey(label),' +
+        ' halaqoh:halaqoh!students_halaqoh_id_fkey(name)',
+      )
+      .eq('is_active', true)
+      .not('tahsin_drill_sejak', 'is', null),
+    supabase.from('ujian_tahsin').select('status, siswa').in('status', ['diajukan', 'dijadwalkan']),
+  ])
+  // Migrasi 0064 belum jalan → kolomnya tidak ada; papan cukup tidak tampil.
+  if (siswaRes.error) return []
+
+  const statusUjian = new Map<string, 'diajukan' | 'dijadwalkan'>()
+  for (const u of (ujianRes.data ?? []) as { status: 'diajukan' | 'dijadwalkan'; siswa: { student_id?: string | null }[] }[]) {
+    for (const s of u.siswa ?? []) {
+      if (!s.student_id) continue
+      // Dijadwalkan lebih maju daripada diajukan — itu yang ditampilkan.
+      if (statusUjian.get(s.student_id) !== 'dijadwalkan') statusUjian.set(s.student_id, u.status)
+    }
+  }
+
+  const hariIni = new Date(new Date().toISOString().slice(0, 10)).getTime()
+  const rows = (siswaRes.data ?? []) as unknown as Array<{
+    id: string; full_name: string; jenjang: Jenjang; kelas: string | null; tahsin_drill_sejak: string
+    jilid: { label: string } | null; halaqoh: { name: string } | null
+  }>
+
+  return UNIT_ORDER.map(jenjang => {
+    const siswa = rows
+      .filter(r => r.jenjang === jenjang)
+      .map((r): SiswaDrill => ({
+        id: r.id,
+        name: r.full_name,
+        kelas: r.kelas,
+        jilid: r.jilid?.label ?? null,
+        halaqoh: r.halaqoh?.name ?? null,
+        sejak: r.tahsin_drill_sejak,
+        hari: Math.max(0, Math.round((hariIni - new Date(r.tahsin_drill_sejak).getTime()) / 86_400_000)),
+        ujian: statusUjian.get(r.id) ?? 'belum',
+      }))
+      .sort((a, b) => b.hari - a.hari)
+    return {
+      jenjang,
+      label: UNIT_LABELS[jenjang],
+      siswa,
+      belumDiajukan: siswa.filter(s => s.ujian === 'belum').length,
+    }
+  }).filter(u => u.siswa.length > 0)
+}
+
+// ─── Drill tahfidz: lama menyiapkan ujian 1 juz (0065) ──────────────
+
+export interface StatLama {
+  /** Jumlah juz yang sudah diajukan ujiannya — sampel rata-rata. */
+  n: number
+  rata: number | null
+  median: number | null
+  tercepat: number | null
+  terlama: number | null
+}
+
+export interface DrillTahfidzAnalitik {
+  /** Juz yang ziyadahnya tuntas tapi belum diajukan ujian, terlama dahulu. */
+  sedang: {
+    id: string; name: string; kelas: string | null; halaqoh: string | null
+    jenjang: Jenjang; juz: number; sejak: string; hari: number
+  }[]
+  keseluruhan: StatLama
+  /** Per juz, berurutan menurut urutan hafalan RQ (30, 29, … lalu 1 …). */
+  perJuz: ({ juz: number } & StatLama)[]
+  perUnit: ({ jenjang: Jenjang; label: string } & StatLama)[]
+}
+
+function statLama(hari: number[]): StatLama {
+  if (hari.length === 0) return { n: 0, rata: null, median: null, tercepat: null, terlama: null }
+  const urut = [...hari].sort((a, b) => a - b)
+  const tengah = Math.floor(urut.length / 2)
+  return {
+    n: urut.length,
+    rata: Math.round((urut.reduce((a, b) => a + b, 0) / urut.length) * 10) / 10,
+    median: urut.length % 2 ? urut[tengah] : (urut[tengah - 1] + urut[tengah]) / 2,
+    tercepat: urut[0],
+    terlama: urut[urut.length - 1],
+  }
+}
+
+/** Selisih hari kalender antara dua tanggal YYYY-MM-DD; tidak pernah negatif. */
+function selisihHari(dari: string, ke: string): number {
+  return Math.max(0, Math.round((new Date(ke).getTime() - new Date(dari).getTime()) / 86_400_000))
+}
+
+/**
+ * Lama anak menyiapkan ujian 1 juz: dari ziyadah juz itu tuntas sampai
+ * ujiannya diajukan.
+ *
+ * Pengajuan yang lebih dulu dari tuntasnya ziyadah — guru mengajukan sebelum
+ * setoran terakhir tercatat — dihitung nol hari, bukan negatif. Median ikut
+ * ditampilkan di samping rata-rata: satu anak yang tertahan setahun cukup
+ * untuk menyeret rata-rata sebuah juz jauh dari kebiasaan sebenarnya.
+ *
+ * @param jenjangBoleh batasi ke unit tertentu (koordinator); kosong = semua.
+ */
+export async function getDrillTahfidz(jenjangBoleh?: Jenjang[]): Promise<DrillTahfidzAnalitik> {
+  const kosong: DrillTahfidzAnalitik = { sedang: [], keseluruhan: statLama([]), perJuz: [], perUnit: [] }
+  const supabase = createServerClient()
+
+  const { data: drillRows, error } = await supabase
+    .from('tahfidz_juz_drill')
+    .select(
+      'student_id, juz_number, selesai_ziyadah, ujian_id,' +
+      ' siswa:students!tahfidz_juz_drill_student_id_fkey(full_name, jenjang, kelas, is_active,' +
+      ' halaqoh:halaqoh!students_halaqoh_id_fkey(name))',
+    )
+  // Migrasi 0065 belum jalan → tabelnya tidak ada; papan cukup kosong.
+  if (error || !drillRows) return kosong
+
+  const rows = (drillRows as unknown as Array<{
+    student_id: string; juz_number: number; selesai_ziyadah: string; ujian_id: string | null
+    siswa: { full_name: string; jenjang: Jenjang; kelas: string | null; is_active: boolean; halaqoh: { name: string } | null } | null
+  }>).filter(r => r.siswa && (!jenjangBoleh || jenjangBoleh.includes(r.siswa.jenjang)))
+
+  const ujianIds = rows.map(r => r.ujian_id).filter((id): id is string => Boolean(id))
+  const diajukan = new Map<string, string>()
+  if (ujianIds.length > 0) {
+    const { data: ujian } = await supabase.from('ujian_tahfidz').select('id, created_at').in('id', ujianIds)
+    for (const u of (ujian ?? []) as { id: string; created_at: string }[]) diajukan.set(u.id, tanggalWIB(u.created_at))
+  }
+
+  const hariIni = tanggalWIB(new Date())
+  const sedang: DrillTahfidzAnalitik['sedang'] = []
+  const selesai: { juz: number; jenjang: Jenjang; hari: number }[] = []
+
+  for (const r of rows) {
+    const s = r.siswa!
+    const tglAju = r.ujian_id ? diajukan.get(r.ujian_id) : undefined
+    if (tglAju) {
+      selesai.push({ juz: r.juz_number, jenjang: s.jenjang, hari: selisihHari(r.selesai_ziyadah, tglAju) })
+    } else if (s.is_active) {
+      sedang.push({
+        id: `${r.student_id}:${r.juz_number}`, name: s.full_name, kelas: s.kelas, halaqoh: s.halaqoh?.name ?? null,
+        jenjang: s.jenjang, juz: r.juz_number, sejak: r.selesai_ziyadah, hari: selisihHari(r.selesai_ziyadah, hariIni),
+      })
+    }
+  }
+
+  const juzAda = [...new Set(selesai.map(x => x.juz))].sort((a, b) => urutanJuz(a) - urutanJuz(b))
+  return {
+    sedang: sedang.sort((a, b) => b.hari - a.hari),
+    keseluruhan: statLama(selesai.map(x => x.hari)),
+    perJuz: juzAda.map(juz => ({ juz, ...statLama(selesai.filter(x => x.juz === juz).map(x => x.hari)) })),
+    perUnit: UNIT_ORDER
+      .map(jenjang => ({ jenjang, label: UNIT_LABELS[jenjang], ...statLama(selesai.filter(x => x.jenjang === jenjang).map(x => x.hari)) }))
+      .filter(u => u.n > 0),
+  }
+}
+
+/** Posisi juz dalam urutan hafalan RQ: 30, 29, 28, 27, 26, lalu 1…25. */
+function urutanJuz(juz: number): number {
+  return juz >= 26 ? 30 - juz : juz + 4
 }

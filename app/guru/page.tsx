@@ -9,7 +9,7 @@ import { getUjianGuru, getUnitUjianGuru } from '@/lib/data/ujian'
 import { getNotifUjianGuru } from '@/lib/data/ujian-notifikasi'
 import { ProgresUjianGuru } from '@/components/guru/ProgresUjianGuru'
 import { TandaiUjianGuruDilihat } from '@/components/guru/TandaiUjianGuruDilihat'
-import { Megaphone } from 'lucide-react'
+import { PengumumanBeranda } from '@/components/guru/PengumumanBeranda'
 
 const MONTH_ID = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember']
 const DAY_ID = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu']
@@ -71,34 +71,11 @@ export default async function TeacherHomePage() {
           diletakkan.
         */}
         {pengumuman.items.length > 0 && (
-          <section className="mb-6 overflow-hidden rounded-xl border bg-card">
-            <div className="flex items-center gap-2 border-b px-4 py-2.5">
-              <Megaphone className="h-4 w-4 text-muted-foreground" />
-              <h2 className="text-sm font-semibold">Pengumuman</h2>
-              {pengumuman.barusanCount > 0 && (
-                <span className="ml-auto rounded-full bg-destructive/10 px-2 py-0.5 text-[11px] font-medium text-destructive">
-                  {pengumuman.barusanCount} baru
-                </span>
-              )}
-            </div>
-            <ul className="divide-y">
-              {pengumuman.items.map(pos => (
-                <li key={pos.id}>
-                  <Link href={`/guru/pengumuman/${pos.id}`} className="block px-4 py-3 transition-colors hover:bg-accent">
-                    <p className={`text-[11px] font-medium ${
-                      pos.priority === 'penting' ? 'text-destructive'
-                        : pos.priority === 'pengingat' ? 'text-warning' : 'text-primary'
-                    }`}>
-                      {pos.type === 'tugas_guru' ? 'Tugas Guru' : 'Pengumuman'}
-                      {pos.due_date ? ` · tenggat ${pos.due_date}` : ''}
-                    </p>
-                    <p className="mt-0.5 text-sm font-medium">{pos.title}</p>
-                    <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{pos.content}</p>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </section>
+          <PengumumanBeranda
+            teacherId={session.teacherId}
+            items={pengumuman.items}
+            barusanCount={pengumuman.barusanCount}
+          />
         )}
 
         {/* Lencana dipadamkan di sini — di layar tempat pengumumannya benar-benar
@@ -128,7 +105,7 @@ export default async function TeacherHomePage() {
         {/* Quick action */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-8">
           <QuickAction href="/guru/setoran/tahsin/baru" emoji="📖" title="Setor Tahsin" desc="Catat bacaan jilid harian" />
-          <QuickAction href="/guru/setoran/tahfidz/baru" emoji="✨" title="Setor Tahfidz" desc="Ziyadah / muroja'ah / tasmi'" />
+          <QuickAction href="/guru/setoran/tahfidz/baru" emoji="✨" title="Setor Tahfidz" desc="Ziyadah / muroja'ah" />
           <QuickAction href="/guru/siswa" emoji="👥" title="Siswa Saya" desc="Lihat semua siswa & progress" />
         </div>
 

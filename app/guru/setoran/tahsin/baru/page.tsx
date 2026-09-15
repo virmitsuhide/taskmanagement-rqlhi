@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { getTeacherSession } from '@/lib/auth/teacher-session'
 import { getTeacherHalaqohIds } from '@/lib/data/teacher'
@@ -21,7 +22,7 @@ export default async function NewTahsinSetoranPage({ searchParams }: PageProps) 
     halaqohIds.length > 0
       ? supabase
           .from('students')
-          .select('id, full_name, jenjang, current_method_id, current_jilid_id, current_jilid_page, halaqoh:halaqoh!students_halaqoh_id_fkey(name)')
+          .select('id, full_name, jenjang, current_method_id, current_jilid_id, current_jilid_page, tahsin_drill_sejak, halaqoh:halaqoh!students_halaqoh_id_fkey(name)')
           .in('halaqoh_id', halaqohIds)
           .eq('is_active', true)
           .order('full_name')
@@ -33,6 +34,7 @@ export default async function NewTahsinSetoranPage({ searchParams }: PageProps) 
   const students = ((studentsRes.data ?? []) as unknown as Array<{
     id: string; full_name: string; jenjang: string; current_method_id: string | null
     current_jilid_id: string | null; current_jilid_page: number | null
+    tahsin_drill_sejak: string | null
     halaqoh: { name: string } | null
   }>).map(s => ({
     id: s.id,
@@ -42,19 +44,25 @@ export default async function NewTahsinSetoranPage({ searchParams }: PageProps) 
     current_method_id: s.current_method_id,
     current_jilid_id: s.current_jilid_id,
     current_jilid_page: s.current_jilid_page,
+    tahsin_drill_sejak: s.tahsin_drill_sejak,
   }))
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--secondary)' }}>
       <div className="max-w-4xl mx-auto px-4 md:px-6 py-6">
-        <div className="mb-5">
-          <p className="text-[11px] uppercase tracking-[1.8px] text-muted-foreground">Setoran Harian</p>
-          <h1
-            className="text-2xl font-extrabold tracking-tight"
-            style={{ fontFamily: 'var(--font-playfair), Georgia, serif' }}
-          >
-            📖 Setor Tahsin
-          </h1>
+        <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <p className="text-[11px] uppercase tracking-[1.8px] text-muted-foreground">Setoran Harian</p>
+            <h1
+              className="text-2xl font-extrabold tracking-tight"
+              style={{ fontFamily: 'var(--font-playfair), Georgia, serif' }}
+            >
+              📖 Setor Tahsin
+            </h1>
+          </div>
+          <Link href="/guru/setoran/tahsin/sesi" className="text-sm font-medium text-primary hover:underline">
+            Setor satu sesi sekaligus →
+          </Link>
         </div>
 
         {students.length === 0 ? (

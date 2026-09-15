@@ -4,7 +4,9 @@ import { getSession } from '@/lib/auth/session'
 import {
   canViewAnalytics, canViewUnitAnalytics, getAnalyticsJenjang, JENJANG_LABELS,
 } from '@/lib/auth/permissions'
-import { getUnitLearning } from '@/lib/data/analytics'
+import { getDrillTahfidz, getSiswaDrill, getUnitLearning } from '@/lib/data/analytics'
+import { DrillTahsinBoard } from '@/components/dashboard/DrillTahsinBoard'
+import { DrillTahfidzBoard } from '@/components/dashboard/DrillTahfidzBoard'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { UnitProgramAnalytics } from '@/components/dashboard/UnitProgramAnalytics'
 import { BookOpen, ClipboardList } from 'lucide-react'
@@ -18,8 +20,12 @@ export default async function AnalitikUnitPage() {
   const allowedJenjang = getAnalyticsJenjang(session.role)
   const isFullAccess = canViewAnalytics(session.role)
 
-  const allUnits = await getUnitLearning()
+  const [allUnits, drillSemua, drillTahfidz] = await Promise.all([
+    getUnitLearning(), getSiswaDrill(), getDrillTahfidz(allowedJenjang),
+  ])
   const units = allUnits.filter(u => allowedJenjang.includes(u.jenjang))
+  // Koordinator unit perlu tahu siapa yang tertahan drill di unitnya sendiri.
+  const drill = drillSemua.filter(u => allowedJenjang.includes(u.jenjang))
 
   const scopeLabel = isFullAccess
     ? 'Capaian Qur’ani per Unit'
@@ -96,6 +102,10 @@ export default async function AnalitikUnitPage() {
         ) : (
           <UnitProgramAnalytics units={units} />
         )}
+
+        <DrillTahsinBoard units={drill} />
+
+        <DrillTahfidzBoard data={drillTahfidz} showUnit={isFullAccess} />
       </div>
     </div>
   )

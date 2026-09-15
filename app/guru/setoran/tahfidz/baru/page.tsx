@@ -1,4 +1,6 @@
+import Link from 'next/link'
 import { redirect } from 'next/navigation'
+import { getJuzTerujiPerSiswa } from '@/lib/data/hafalan'
 import { getTeacherSession } from '@/lib/auth/teacher-session'
 import { getTeacherHalaqohIds } from '@/lib/data/teacher'
 import { createServerClient } from '@/lib/supabase/server'
@@ -40,30 +42,27 @@ export default async function NewTahfidzSetoranPage({ searchParams }: PageProps)
     halaqoh_name: s.halaqoh?.name ?? null,
   }))
 
-  // Juz yang sudah diujikan per siswa — untuk hint muroja'ah lama
-  const completedJuzByStudent: Record<string, number[]> = {}
-  const studentIds = students.map(s => s.id)
-  if (studentIds.length > 0) {
-    const { data: proms } = await supabase
-      .from('juz_promotions')
-      .select('student_id, juz_number')
-      .in('student_id', studentIds)
-    for (const p of (proms ?? []) as Array<{ student_id: string; juz_number: number }>) {
-      ;(completedJuzByStudent[p.student_id] ??= []).push(p.juz_number)
-    }
-  }
+  // Juz teruji per siswa — untuk hint muroja'ah lama. Sumbernya ujian yang
+  // sudah selesai, bukan centang "mutqin" di setoran yang sudah dicabut.
+  const juzTeruji = await getJuzTerujiPerSiswa(students.map(s => s.id))
+  const completedJuzByStudent: Record<string, number[]> = Object.fromEntries(juzTeruji)
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--secondary)' }}>
       <div className="max-w-4xl mx-auto px-4 md:px-6 py-6">
-        <div className="mb-5">
-          <p className="text-[11px] uppercase tracking-[1.8px] text-muted-foreground">Setoran Harian</p>
-          <h1
-            className="text-2xl font-extrabold tracking-tight"
-            style={{ fontFamily: 'var(--font-playfair), Georgia, serif' }}
-          >
-            ✨ Setor Tahfidz
-          </h1>
+        <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <p className="text-[11px] uppercase tracking-[1.8px] text-muted-foreground">Setoran Harian</p>
+            <h1
+              className="text-2xl font-extrabold tracking-tight"
+              style={{ fontFamily: 'var(--font-playfair), Georgia, serif' }}
+            >
+              ✨ Setor Tahfidz
+            </h1>
+          </div>
+          <Link href="/guru/setoran/tahfidz/sesi" className="text-sm font-medium text-primary hover:underline">
+            Setor satu sesi sekaligus →
+          </Link>
         </div>
 
         {students.length === 0 ? (

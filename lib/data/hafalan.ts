@@ -93,6 +93,33 @@ export async function getJuzUjianPerSiswa(): Promise<Map<string, number>> {
 }
 
 /**
+ * Nomor juz teruji per siswa, untuk sekelompok siswa sekaligus.
+ *
+ * "Juz teruji" menggantikan istilah "mutqin" di sisi guru: juz yang diakui
+ * tuntas lewat ujian yang sudah selesai, diturunkan dari urutan hafalan
+ * (lulus juz 1 = 30, 29, 28, 27, 26, 1).
+ */
+export async function getJuzTerujiPerSiswa(studentIds: string[]): Promise<Map<string, number[]>> {
+  const peta = new Map<string, number[]>()
+  if (studentIds.length === 0) return peta
+
+  const supabase = createServerClient()
+  const { data, error } = await supabase
+    .from('ujian_tahfidz')
+    .select('student_id, juz')
+    .in('student_id', studentIds)
+    .eq('status', 'selesai')
+  if (error || !data) return peta
+
+  const perSiswa = new Map<string, string[]>()
+  for (const r of data as { student_id: string; juz: string }[]) {
+    perSiswa.set(r.student_id, [...(perSiswa.get(r.student_id) ?? []), String(r.juz)])
+  }
+  for (const [id, daftar] of perSiswa) peta.set(id, daftarJuzSelesai(totalJuzHafalan(daftar)))
+  return peta
+}
+
+/**
  * Juz yang sudah dinyatakan tuntas lewat ujian untuk SATU siswa.
  *
  * Mengembalikan nomor juz-nya, bukan sekadar jumlahnya, supaya peta belajar

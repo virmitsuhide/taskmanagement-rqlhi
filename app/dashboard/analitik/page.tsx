@@ -3,7 +3,9 @@ import Link from 'next/link'
 import { getSession } from '@/lib/auth/session'
 import { canViewAnalytics, canViewGukarRecap } from '@/lib/auth/permissions'
 import { UNIT_LABELS } from '@/lib/rq/programs'
-import { getRqAnalytics, getUnitHafalanBoards, getSetoranTrend, getHafalanUjianPerUnit } from '@/lib/data/analytics'
+import { getRqAnalytics, getUnitHafalanBoards, getSetoranTrend, getHafalanUjianPerUnit, getSiswaDrill, getDrillTahfidz } from '@/lib/data/analytics'
+import { DrillTahsinBoard } from '@/components/dashboard/DrillTahsinBoard'
+import { DrillTahfidzBoard } from '@/components/dashboard/DrillTahfidzBoard'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { UnitHafalanBoard } from '@/components/dashboard/UnitHafalanBoard'
 import { HafalanUjianBoard } from '@/components/dashboard/HafalanUjianBoard'
@@ -15,8 +17,9 @@ export default async function AnalitikPage() {
   if (!session) redirect('/login')
   if (!canViewAnalytics(session.role)) redirect('/dashboard')
 
-  const [a, boards, trend, hafalanUjian] = await Promise.all([
-    getRqAnalytics(), getUnitHafalanBoards(), getSetoranTrend(), getHafalanUjianPerUnit(),
+  const [a, boards, trend, hafalanUjian, drill, drillTahfidz] = await Promise.all([
+    getRqAnalytics(), getUnitHafalanBoards(), getSetoranTrend(), getHafalanUjianPerUnit(), getSiswaDrill(),
+    getDrillTahfidz(),
   ])
   const maxJenjang = Math.max(1, ...a.overview.studentsByJenjang.map(j => j.count))
 
@@ -98,7 +101,7 @@ export default async function AnalitikPage() {
           </div>
           <p className="text-xs text-muted-foreground mt-4">
             <Sparkles className="h-3 w-3 inline mr-1" />
-            {a.juzMutqinTotal} juz sudah ditandai mutqin di seluruh RQ.
+            {a.juzTerujiTotal} juz teruji (lulus ujian) di seluruh RQ.
           </p>
         </section>
 
@@ -136,6 +139,10 @@ export default async function AnalitikPage() {
         <UnitHafalanBoard boards={boards} />
 
         <HafalanUjianBoard units={hafalanUjian} />
+
+        <DrillTahsinBoard units={drill} />
+
+        <DrillTahfidzBoard data={drillTahfidz} />
       </div>
     </div>
   )

@@ -306,7 +306,7 @@ function ProgramPanel({ program, showExams, singleProgram }: {
         <span className="text-[11px] text-muted-foreground">· {program.studentCount} siswa</span>
         <div className="ml-auto flex items-center gap-2">
           {program.tahsin.lulus > 0 && <Badge tone="green">{program.tahsin.lulus} lulus tahsin</Badge>}
-          {program.tahfidz.juzMutqin > 0 && <Badge tone="blue">{program.tahfidz.juzMutqin} juz mutqin</Badge>}
+          {program.tahfidz.juzTeruji > 0 && <Badge tone="blue">{program.tahfidz.juzTeruji} juz teruji</Badge>}
           <ChevronDown className={cn('h-4 w-4 text-muted-foreground transition-transform', open && 'rotate-180')} />
         </div>
       </button>
@@ -317,7 +317,7 @@ function ProgramPanel({ program, showExams, singleProgram }: {
             <Stat icon={<BookOpen className="h-3.5 w-3.5" />} label="Lulus Tahsin" value={program.tahsin.lulus} accent />
             <Stat icon={<BookOpen className="h-3.5 w-3.5" />} label="Masih Tahsin" value={program.tahsin.belumLulus} />
             <Stat icon={<Sparkles className="h-3.5 w-3.5" />} label="Total Ayat Hafal" value={program.tahfidz.totalAyatHafal} />
-            <Stat icon={<Award className="h-3.5 w-3.5" />} label="Juz Mutqin" value={program.tahfidz.juzMutqin} />
+            <Stat icon={<Award className="h-3.5 w-3.5" />} label="Juz Teruji" value={program.tahfidz.juzTeruji} />
           </div>
 
           {showExams && (

@@ -1,0 +1,64 @@
+import Link from 'next/link'
+import { redirect } from 'next/navigation'
+import { getTeacherSession } from '@/lib/auth/teacher-session'
+import { createServerClient } from '@/lib/supabase/server'
+import { getHalaqohSesiGuru, getSiswaSesiTahfidz, pilihHalaqoh } from '@/lib/data/setoran-sesi'
+import { PilihSesi } from '@/components/setoran/PilihSesi'
+import { SetoranSesiTahfidz, type SuratPilihan } from '@/components/setoran/SetoranSesiTahfidz'
+
+interface PageProps {
+  searchParams: Promise<{ halaqoh?: string }>
+}
+
+export default async function SetoranSesiTahfidzPage({ searchParams }: PageProps) {
+  const session = await getTeacherSession()
+  if (!session) redirect('/guru/login')
+
+  const { halaqoh: diminta } = await searchParams
+  const daftar = await getHalaqohSesiGuru(session.teacherId)
+  const halaqoh = pilihHalaqoh(daftar, diminta)
+
+  const supabase = createServerClient()
+  const [siswa, suratRes] = await Promise.all([
+    halaqoh ? getSiswaSesiTahfidz(halaqoh.id) : Promise.resolve([]),
+    supabase.from('surat_master').select('id, name_latin, total_ayat, juz_start').order('id'),
+  ])
+
+  return (
+    <div className="min-h-screen" style={{ background: 'var(--secondary)' }}>
+      <div className="max-w-3xl mx-auto px-4 md:px-6 py-6 space-y-4">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <p className="text-[11px] uppercase tracking-[1.8px] text-muted-foreground">Setoran per Sesi</p>
+            <h1
+              className="text-2xl font-extrabold tracking-tight"
+              style={{ fontFamily: 'var(--font-playfair), Georgia, serif' }}
+            >
+              ✨ Setor Tahfidz — {halaqoh?.sesi ? `Sesi ${halaqoh.sesi}` : halaqoh?.name ?? 'Sesi'}
+            </h1>
+          </div>
+          <Link href="/guru/setoran/tahfidz/baru" className="text-sm text-muted-foreground hover:underline">
+            Setor satu-satu →
+          </Link>
+        </div>
+
+        {!halaqoh ? (
+          <div className="rounded-xl border border-dashed bg-card py-10 text-center text-sm text-muted-foreground">
+            Anda belum mengampu halaqoh. Hubungi admin untuk assign halaqoh.
+          </div>
+        ) : (
+          <>
+            <PilihSesi daftar={daftar} terpilih={halaqoh.id} basePath="/guru/setoran/tahfidz/sesi" />
+            {siswa.length === 0 ? (
+              <div className="rounded-xl border border-dashed bg-card py-10 text-center text-sm text-muted-foreground">
+                Belum ada siswa di sesi ini.
+              </div>
+            ) : (
+              <SetoranSesiTahfidz key={halaqoh.id} siswa={siswa} surat={(suratRes.data ?? []) as SuratPilihan[]} />
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  )
+}

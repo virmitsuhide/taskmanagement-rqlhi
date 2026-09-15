@@ -20,6 +20,8 @@ interface StudentOption {
   current_method_id: string | null
   current_jilid_id: string | null
   current_jilid_page: number | null
+  /** Tanggal masuk drill; null = tidak sedang drill. */
+  tahsin_drill_sejak: string | null
 }
 interface MethodOption { id: string; name: string }
 interface JilidOption {
@@ -64,6 +66,7 @@ export function TahsinSetoranForm({ students, methods, jilidLevels, defaultStude
     const s = students.find(x => x.id === id)
     if (s?.current_method_id) setMethodId(s.current_method_id)
     setJilidId(s?.current_jilid_id ?? '')
+    setHalamanIsi(String(s?.current_jilid_page ?? ''))
   }
 
   /**
@@ -75,6 +78,10 @@ export function TahsinSetoranForm({ students, methods, jilidLevels, defaultStude
     : null
   const jilidAktif = jilidTerkunci ?? jilidOptions.find(j => j.id === jilidId) ?? null
   const maksHalaman = jilidAktif?.total_pages ?? null
+  const sedangDrill = Boolean(selectedStudent?.tahsin_drill_sejak)
+  // Halaman yang sedang diketik — hanya untuk memberi tahu bahwa setoran ini
+  // akan membawa anak masuk drill. Nilai sesungguhnya tetap dikirim lewat form.
+  const [halamanIsi, setHalamanIsi] = useState(String(initialStudent?.current_jilid_page ?? ''))
 
   const today = new Date().toISOString().slice(0, 10)
 
@@ -133,8 +140,8 @@ export function TahsinSetoranForm({ students, methods, jilidLevels, defaultStude
               JILID TERKUNCI PADA POSISI SISWA.
 
               Anak berjalan di satu jilid sampai ia naik, dan kenaikan itu
-              punya pintunya sendiri — centang "Naik jilid" di bawah, yang
-              mencatat jilid_promotions dan memindahkan posisinya. Membiarkan
+              punya pintunya sendiri — kelulusan ujian tahsin, yang mencatat
+              jilid_promotions dan memindahkan posisinya. Membiarkan
               jilid bebas dipilih tiap setoran membuat dua hal bisa terjadi
               tanpa jejak: setoran tercatat di jilid yang belum ditempuh, dan
               anak "naik" tanpa satu pun baris kenaikan — sehingga riwayatnya
@@ -147,7 +154,7 @@ export function TahsinSetoranForm({ students, methods, jilidLevels, defaultStude
                   {jilidTerkunci.label}
                 </div>
                 <p className="text-[11px] text-muted-foreground">
-                  Terkunci — terbuka ke jilid berikutnya setelah naik jilid.
+                  Terkunci — terbuka ke jilid berikutnya setelah lulus ujian tahsin.
                 </p>
               </>
             ) : (
@@ -170,9 +177,11 @@ export function TahsinSetoranForm({ students, methods, jilidLevels, defaultStude
                 agar peramban menolaknya lebih dulu, dan diperiksa ulang di
                 server action — atribut max hanya menghentikan formulir. */}
             <Input
+              key={studentId}
               id="halaman" name="halaman" type="number" min={1}
               max={maksHalaman ?? undefined}
               defaultValue={selectedStudent?.current_jilid_page ?? ''}
+              onChange={e => setHalamanIsi(e.target.value)}
               disabled={isPending}
             />
             <p className="text-[11px] text-muted-foreground">
@@ -183,16 +192,16 @@ export function TahsinSetoranForm({ students, methods, jilidLevels, defaultStude
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-3 max-w-xs">
-          <div className="space-y-1.5">
-            <Label htmlFor="baris_dari">Baris dari</Label>
-            <Input id="baris_dari" name="baris_dari" type="number" min={1} disabled={isPending} />
+        {sedangDrill && (
+          <div className="rounded-lg border px-3 py-2 text-xs" style={{ background: 'var(--warning-wash)', borderColor: 'var(--warning)', color: 'var(--warning)' }}>
+            <p className="font-semibold">🔁 Sedang DRILL {jilidAktif?.label ?? ''}</p>
+            <p className="mt-0.5">
+              Sudah lulus halaman terakhir{selectedStudent?.tahsin_drill_sejak ? ` sejak ${selectedStudent.tahsin_drill_sejak}` : ''}.
+              Setoran ini dicatat sebagai latihan drill — halaman boleh mana saja di jilid ini, dan posisi
+              tidak bergerak. Jilid berikutnya terbuka setelah anak lulus ujian tahsin.
+            </p>
           </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="baris_ke">Baris ke</Label>
-            <Input id="baris_ke" name="baris_ke" type="number" min={1} disabled={isPending} />
-          </div>
-        </div>
+        )}
       </fieldset>
 
       {/* Penilaian */}
@@ -258,17 +267,12 @@ export function TahsinSetoranForm({ students, methods, jilidLevels, defaultStude
         </div>
       </div>
 
-      {/* Naik jilid (hanya saat lulus) */}
-      {status === 'lulus' && (
-        <label className="flex items-start gap-2.5 rounded-lg border p-3 cursor-pointer" style={{ background: 'var(--primary-wash)', borderColor: 'var(--border)' }}>
-          <input type="checkbox" name="naik_jilid" className="mt-0.5" style={{ accentColor: 'var(--primary)' }} disabled={isPending} />
-          <div>
-            <p className="font-medium text-sm">🎉 Naik jilid setelah setoran ini</p>
-            <p className="text-xs text-muted-foreground">
-              Centang jika siswa lulus ujian jilid ini & naik ke jilid berikutnya. Halaman akan di-reset ke 1.
-            </p>
-          </div>
-        </label>
+      {/* Pemberitahuan masuk drill — naik jilid tidak lagi dari setoran. */}
+      {!sedangDrill && status === 'lulus' && maksHalaman !== null && Number(halamanIsi) >= maksHalaman && (
+        <p className="rounded-lg border px-3 py-2 text-xs" style={{ background: 'var(--primary-wash)', borderColor: 'var(--border)' }}>
+          🎯 Ini halaman terakhir {jilidAktif?.label}. Setelah disimpan, anak masuk <strong>DRILL</strong> sampai
+          lulus ujian tahsin — ajukan ujiannya lewat menu Pengajuan Ujian.
+        </p>
       )}
 
       {state?.error && (

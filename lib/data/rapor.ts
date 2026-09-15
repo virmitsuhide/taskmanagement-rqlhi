@@ -1,5 +1,6 @@
 import { createServerClient } from '@/lib/supabase/server'
 import { AYAT_PER_JUZ } from '@/types'
+import { getJuzUjianSiswa } from '@/lib/data/hafalan'
 
 const MONTH_ID = [
   'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
@@ -50,7 +51,7 @@ export interface RaporData {
     currentJuz: number | null
     currentJuzPercent: number | null
     totalAyatHafal: number
-    juzMutqinCount: number
+    juzTerujiCount: number
     promotions: { juz: number; date: string }[]
   }
 }
@@ -167,7 +168,8 @@ export async function getStudentRaporData(
     ? Math.min(100, Math.round((currentJuzAyat / (AYAT_PER_JUZ[currentJuz] ?? 1)) * 100))
     : null
   const totalAyatHafal = juzProgress.reduce((sum, j) => sum + j.ayat_hafal, 0)
-  const juzMutqinCount = juzProgress.filter(j => j.mutqin).length
+  // Juz teruji dari ujian yang selesai — bukan lagi centang mutqin setoran.
+  const juzTerujiCount = (await getJuzUjianSiswa(studentId)).jumlah
 
   return {
     student: {
@@ -207,7 +209,7 @@ export async function getStudentRaporData(
       currentJuz,
       currentJuzPercent,
       totalAyatHafal,
-      juzMutqinCount,
+      juzTerujiCount,
       promotions: (juzPromRes.data ?? []).map(p => ({ juz: p.juz_number, date: p.promotion_date })),
     },
   }

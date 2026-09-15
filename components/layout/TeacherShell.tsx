@@ -62,6 +62,8 @@ export async function TeacherShell({ children }: { children: React.ReactNode }) 
       items: [
         { label: 'Setor Tahsin', href: '/guru/setoran/tahsin/baru', icon: <BookOpen /> },
         { label: 'Setor Tahfidz', href: '/guru/setoran/tahfidz/baru', icon: <Sparkles /> },
+        // Satu sesi sekaligus — cara yang lebih cepat saat seluruh halaqoh setor.
+        { label: 'Setor per Sesi', href: '/guru/setoran/tahsin/sesi', icon: <Users /> },
         { label: 'Capaian Bulanan', href: '/guru/capaian', icon: <CalendarCheck /> },
         { label: 'Statistik', href: '/guru/statistik', icon: <BarChart3 /> },
       ],

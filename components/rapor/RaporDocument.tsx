@@ -72,8 +72,8 @@ export function RaporDocument({ data }: { data: RaporData }) {
           <Row k="Muroja'ah Bulan Ini" v={`${tahfidz.murojaahCount}x`} />
           <Row k="Nilai Tahfidz" v={<Score value={tahfidz.avgTahfidz} />} />
           <Row k="Nilai Sikap" v={<Score value={tahfidz.avgSikap} />} />
-          {tahfidz.juzMutqinCount > 0 && (
-            <Row k="Juz Mutqin" v={<span style={{ color: '#15803d', fontWeight: 600 }}>{tahfidz.juzMutqinCount} juz</span>} />
+          {tahfidz.juzTerujiCount > 0 && (
+            <Row k="Juz Teruji" v={<span style={{ color: '#15803d', fontWeight: 600 }}>{tahfidz.juzTerujiCount} juz</span>} />
           )}
           {tahfidz.promotions.length > 0 && (
             <Row k="Juz Selesai Bulan Ini" v={

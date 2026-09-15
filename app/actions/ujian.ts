@@ -6,8 +6,9 @@ import { getSession } from '@/lib/auth/session'
 import { getTeacherSession } from '@/lib/auth/teacher-session'
 import { canManageUjian, canSubmitUjian, getUjianUnits } from '@/lib/auth/permissions'
 import { getUnitUjianGuru } from '@/lib/data/ujian'
-import { cocokkanLevelUjian, type TahapLevel } from '@/lib/rq/ujian'
+import { cocokkanLevelUjian, getTahfidzLabel, type TahapLevel } from '@/lib/rq/ujian'
 import { getTeacherHalaqohIds, getTeacherStudents } from '@/lib/data/teacher'
+import { tautkanUjianKeDrill } from '@/lib/data/drill-tahfidz'
 import { totalJuzHafalan } from '@/lib/rq/hafalan'
 import type {
   TahfidzTipe,
@@ -161,7 +162,7 @@ export async function createTahfidzUjianAction(input: {
     // ingatan pengaju. Centang manual tetap berlaku untuk anak di luar itu.
     const isQuls = input.is_quls || (input.student_id ? await siswaQuls(input.student_id) : false)
 
-    const { error } = await supabase.from('ujian_tahfidz').insert({
+    const { data: baru, error } = await supabase.from('ujian_tahfidz').insert({
       unit: pengaju.unit,
       tipe: input.tipe,
       juz,
@@ -173,8 +174,12 @@ export async function createTahfidzUjianAction(input: {
       status: 'diajukan',
       created_by_teacher: pengaju.teacherId,
       created_by_user: pengaju.userId,
-    })
+    }).select('id').single()
     if (error) return { error: error.message }
+
+    // Pengajuan 1 juz menutup masa drill juz itu — ujung hitungan lama
+    // persiapan ujian (0065).
+    if (input.tipe === '1_juz' && baru) await tautkanUjianKeDrill(input.student_id, juz, baru.id as string)
   } catch (e) {
     return { error: e instanceof Error ? e.message : 'Gagal menyimpan pengajuan.' }
   }
@@ -458,9 +463,11 @@ async function terapkanKelulusanTahsin(ujianId: string): Promise<string[]> {
       : null
     if (sekarang && sekarang.order_num >= berikutnya.order_num) continue
 
+    // Lulus ujian = akhir masa drill (0064). Satu-satunya pintu keluar drill,
+    // sebagaimana ujian kini satu-satunya pintu naik jilid.
     await supabase
       .from('students')
-      .update({ current_jilid_id: berikutnya.id, current_jilid_page: 1 })
+      .update({ current_jilid_id: berikutnya.id, current_jilid_page: 1, tahsin_drill_sejak: null })
       .eq('id', s.id)
   }
 
@@ -741,6 +748,123 @@ export async function cariSiswaUjianAction(
     sudahSampai: totalJuzHafalan(perSiswa.get(s.id) ?? []),
   }))
 }
+
+// ─── Riwayat ujian tahfidz lama (koordinator) ────────────────────────────────
+
+/**
+ * Mencatat tasmi' / juz'iyyah yang terjadi sebelum sistem dipakai.
+ *
+ * Tasmi' 3 & 5 juz dulu tidak pernah masuk sistem, dan setoran tahfidz guru
+ * kini tidak lagi punya pintu tasmi'. Tanpa jalan ini, hafalan anak yang
+ * sudah lulus tasmi' bertahun lalu terbaca nol di juz teruji dan analitik.
+ *
+ * Hanya pengurus berwenang unit (koordinator, kepala, kumik) — bukan guru:
+ * catatan ini langsung berstatus 'selesai' dan langsung menjadi capaian, tanpa
+ * melewati antrian yang biasanya memeriksanya.
+ *
+ * Tanggal ujian ikut dikirim sebagai dijadwalkan_at & selesai_at (dihormati
+ * trigger sejak 0064), supaya guru tidak menerima notifikasi "ujian selesai"
+ * untuk ujian yang terjadi berbulan-bulan lalu.
+ */
+export async function catatRiwayatTahfidzAction(input: {
+  unit: UjianUnit
+  student_id: string
+  tipe: TahfidzTipe
+  juz_dari: number
+  juz_sampai: number | null
+  tanggal: string
+  penguji: string
+  predikat: UjianPredikat
+  catatan: string
+}): Promise<Result> {
+  const pengurus = await getSession()
+  if (!pengurus || !canManageUjian(pengurus.role, input.unit)) {
+    return { error: 'Hanya pengurus unit yang bisa mencatat riwayat ujian.' }
+  }
+
+  if (!input.student_id) return { error: 'Pilih siswa lebih dulu.' }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(input.tanggal)) return { error: 'Tanggal ujian wajib diisi.' }
+  if (input.tanggal > new Date().toISOString().slice(0, 10)) {
+    return { error: 'Riwayat hanya untuk ujian yang sudah terjadi — tanggalnya tidak boleh di masa depan.' }
+  }
+  if (!PREDIKAT_SAH.includes(input.predikat)) return { error: 'Predikat wajib dipilih.' }
+
+  const dari = Number(input.juz_dari)
+  if (!Number.isInteger(dari) || dari < 1 || dari > 30) return { error: 'Nomor juz harus 1–30.' }
+
+  let juz: string
+  if (input.tipe === '1_juz') {
+    juz = String(dari)
+  } else {
+    const cakupan = input.tipe === '3_juz' ? 3 : 5
+    const sampai = Number(input.juz_sampai)
+    if (!Number.isInteger(sampai) || sampai < 1 || sampai > 30) return { error: 'Juz akhir harus 1–30.' }
+    const [a, b] = [Math.min(dari, sampai), Math.max(dari, sampai)]
+    if (b - a + 1 !== cakupan) return { error: `Tasmi' ${cakupan} juz harus mencakup ${cakupan} juz berurutan.` }
+    juz = `${a}-${b}`
+  }
+
+  try {
+    const supabase = createServerClient()
+    const { data: siswa } = await supabase
+      .from('students')
+      .select('id, full_name, kelas, jenjang, program, halaqoh:halaqoh!students_halaqoh_id_fkey(program)')
+      .eq('id', input.student_id)
+      .maybeSingle()
+    const s = siswa as {
+      id: string; full_name: string; kelas: string | null; jenjang: string; program: string | null
+      halaqoh: { program: string | null } | null
+    } | null
+    if (!s) return { error: 'Siswa tidak ditemukan.' }
+    const jenjangUnit = input.unit === 'SD' ? ['sd', 'sd_juara'] : ['smp']
+    if (!jenjangUnit.includes(s.jenjang)) return { error: `Siswa ini bukan siswa unit ${input.unit}.` }
+
+    // Satu ujian yang sama tidak dicatat dua kali — lazim terjadi saat
+    // memasukkan riwayat dari beberapa buku catatan sekaligus.
+    const { data: kembar } = await supabase
+      .from('ujian_tahfidz')
+      .select('id')
+      .eq('student_id', s.id)
+      .eq('tipe', input.tipe)
+      .eq('juz', juz)
+      .eq('status', 'selesai')
+      .limit(1)
+    if (kembar && kembar.length > 0) {
+      return { error: `${s.full_name} sudah punya catatan ${getTahfidzLabel(input.tipe, juz)} yang selesai.` }
+    }
+
+    const waktu = new Date(`${input.tanggal}T08:00:00+07:00`).toISOString()
+    const { data: baru, error } = await supabase.from('ujian_tahfidz').insert({
+      unit: input.unit,
+      tipe: input.tipe,
+      juz,
+      student_id: s.id,
+      nama_siswa: s.full_name,
+      nama_flyer: s.full_name.split(' ')[0] ?? s.full_name,
+      kelas: s.kelas ?? '',
+      is_quls: programQuls(s.program) || programQuls(s.halaqoh?.program),
+      jadwal: waktu,
+      penguji: input.penguji.trim() || null,
+      predikat: input.predikat,
+      catatan: input.catatan.trim() || 'Riwayat ujian sebelum sistem',
+      status: 'selesai',
+      dijadwalkan_at: waktu,
+      selesai_at: waktu,
+      created_by_user: pengurus.userId,
+    }).select('id').single()
+    if (error) return { error: error.message }
+    if (input.tipe === '1_juz' && baru) await tautkanUjianKeDrill(s.id, juz, baru.id as string)
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : 'Gagal mencatat riwayat.' }
+  }
+
+  segarkan()
+  revalidatePath('/dashboard/analitik')
+  revalidatePath('/dashboard/analitik/unit')
+  return { success: true }
+}
+
+const PREDIKAT_SAH: UjianPredikat[] = ['mumtaz', 'jayyid_jiddan', 'jayyid', 'maqbul', 'mengulang']
 
 // ─── Pilihan ustadz → sesi → siswa untuk pengajuan tahsin ────────────────────
 
