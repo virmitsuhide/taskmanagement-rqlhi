@@ -17,6 +17,8 @@ import { deleteTahfidzUjianAction, deleteTahsinUjianAction } from '@/app/actions
 import type { UjianTahfidz, UjianTahsin } from '@/types'
 
 interface Props {
+  /** Guru yang sedang masuk — hanya pengajuannya sendiri yang bisa ditarik. */
+  teacherId: string
   tahfidz: UjianTahfidz[]
   tahsin: UjianTahsin[]
 }
@@ -33,7 +35,7 @@ type Sasaran =
  * kembali pengajuan yang belum dijadwalkan, untuk memperbaiki salah ketik
  * tanpa harus menitip pesan ke koordinator.
  */
-export function PengajuanGuru({ tahfidz, tahsin }: Props) {
+export function PengajuanGuru({ teacherId, tahfidz, tahsin }: Props) {
   const router = useRouter()
   const [sasaran, setSasaran] = useState<Sasaran | null>(null)
   const [error, setError] = useState('')
@@ -55,9 +57,10 @@ export function PengajuanGuru({ tahfidz, tahsin }: Props) {
     return (
       <div className="rounded-xl border border-dashed py-14 text-center">
         <ClipboardList className="mx-auto mb-3 h-8 w-8 text-muted-foreground/40" />
-        <p className="text-sm font-medium">Anda belum pernah mengajukan ujian</p>
+        <p className="text-sm font-medium">Belum ada ujian untuk anak halaqoh Anda</p>
         <p className="mt-1 text-xs text-muted-foreground">
-          Pengajuan yang Anda buat akan muncul di sini beserta jadwal dan hasilnya.
+          Pengajuan Anda — atau yang diajukan koordinator untuk anak Anda — akan muncul di
+          sini beserta jadwal dan hasilnya.
         </p>
       </div>
     )
@@ -87,9 +90,10 @@ export function PengajuanGuru({ tahfidz, tahsin }: Props) {
                 jadwal={item.jadwal}
                 penguji={item.penguji}
                 dibuat={item.created_at}
+                olehLain={item.created_by_teacher === teacherId ? null : item.created_by_user ? 'koordinator' : 'guru lain'}
                 hasil={item.predikat ? getPredikatLabel(item.predikat) : null}
                 hasilKelas={getPredikatClass(item.predikat)}
-                onTarik={item.status === 'diajukan'
+                onTarik={item.status === 'diajukan' && item.created_by_teacher === teacherId
                   ? () => setSasaran({ jenis: 'tahfidz', id: item.id, nama: item.nama_siswa })
                   : undefined}
               />
@@ -116,9 +120,10 @@ export function PengajuanGuru({ tahfidz, tahsin }: Props) {
                   jadwal={item.jadwal}
                   penguji={item.penguji}
                   dibuat={item.created_at}
+                  olehLain={item.created_by_teacher === teacherId ? null : item.created_by_user ? 'koordinator' : 'guru lain'}
                   hasil={item.status === 'selesai' ? `${lulus}/${item.siswa.length} lulus` : null}
                   hasilKelas="text-success font-medium"
-                  onTarik={item.status === 'diajukan'
+                  onTarik={item.status === 'diajukan' && item.created_by_teacher === teacherId
                     ? () => setSasaran({ jenis: 'tahsin', id: item.id, nama: item.nama_kelompok })
                     : undefined}
                 />
@@ -154,7 +159,7 @@ export function PengajuanGuru({ tahfidz, tahsin }: Props) {
 }
 
 function Kartu({
-  judul, rincian, status, jadwal, penguji, dibuat, hasil, hasilKelas, onTarik,
+  judul, rincian, status, jadwal, penguji, dibuat, olehLain, hasil, hasilKelas, onTarik,
 }: {
   judul: string
   rincian: string
@@ -162,6 +167,7 @@ function Kartu({
   jadwal: string | null
   penguji: string | null
   dibuat: string
+  olehLain: string | null
   hasil: string | null
   hasilKelas: string
   onTarik?: () => void
@@ -194,7 +200,7 @@ function Kartu({
 
       <div className="mt-2.5 flex items-center justify-between gap-2 border-t pt-2.5">
         <span className="text-xs text-muted-foreground">
-          Diajukan {formatTanggalSingkat(dibuat)}
+          Diajukan {formatTanggalSingkat(dibuat)}{olehLain ? ` oleh ${olehLain}` : ''}
         </span>
         {onTarik && (
           <Button variant="ghost" size="sm" className="text-destructive" onClick={onTarik}>

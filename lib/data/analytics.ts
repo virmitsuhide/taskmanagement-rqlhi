@@ -3,7 +3,8 @@ import { UNIT_ORDER, UNIT_LABELS, PROGRAMS_BY_JENJANG, programLabel } from '@/li
 import { juzSelesaiSetoran, juzTerjauh, totalJuzHafalan } from '@/lib/rq/hafalan'
 import { getJuzUjianPerSiswa, juzGabunganPerSiswa } from '@/lib/data/hafalan'
 import { TAHFIDZ_TARGETS } from '@/lib/rq/targets'
-import type { Jenjang } from '@/types'
+import { getPredikatLabel } from '@/lib/rq/ujian'
+import type { Jenjang, UjianPredikat } from '@/types'
 
 function isoDate(d: Date): string {
   return d.toISOString().slice(0, 10)
@@ -217,7 +218,8 @@ export interface ProgramAnalytics {
   studentCount: number
   tahsin: { lulus: number; belumLulus: number }
   tahfidz: { totalAyatHafal: number; juzMutqin: number }
-  juziyah: { studentName: string; juz: number; score: number | null; date: string }[]
+  /** `predikat` terisi bila barisnya datang dari modul ujian (tanpa nilai angka). */
+  juziyah: { studentName: string; juz: number; score: number | null; predikat?: string | null; date: string }[]
   tasmi: { studentName: string; scopeJuz: number; juzFrom: number; juzTo: number; status: string; date: string }[]
 }
 
@@ -378,7 +380,7 @@ export interface UnitLearning {
 export async function getUnitLearning(): Promise<UnitLearning[]> {
   const supabase = createServerClient()
 
-  const [studentsRes, methodsRes, levelsRes, juzProgressRes, juzPromRes, tasmiRes, tahsinRes, tahfidzRes, halaqohRes, htRes] = await Promise.all([
+  const [studentsRes, methodsRes, levelsRes, juzProgressRes, juzPromRes, tasmiRes, tahsinRes, tahfidzRes, halaqohRes, htRes, ujianTahfidzRes] = await Promise.all([
     supabase.from('students').select('id, full_name, jenjang, kelas, program, current_method_id, current_jilid_id').eq('is_active', true),
     supabase.from('tahsin_methods').select('id, name').eq('is_active', true),
     supabase.from('jilid_levels').select('id, method_id, label, order_num, is_terminal, is_quran'),
@@ -389,6 +391,11 @@ export async function getUnitLearning(): Promise<UnitLearning[]> {
     supabase.from('tahfidz_logs').select('student_id, setoran_date, kind, nilai_tahfidz, nilai_sikap'),
     supabase.from('halaqoh').select('id, jenjang, wali_teacher_id').eq('is_active', true),
     supabase.from('halaqoh_teachers').select('halaqoh_id, teacher_id'),
+    supabase
+      .from('ujian_tahfidz')
+      .select('student_id, tipe, juz, predikat, jadwal, updated_at')
+      .not('student_id', 'is', null)
+      .eq('status', 'selesai'),
   ])
 
   interface S { id: string; full_name: string; jenjang: Jenjang; kelas: string | null; program: string | null; method: string | null; jilid: string | null }
@@ -465,6 +472,32 @@ export async function getUnitLearning(): Promise<UnitLearning[]> {
   for (const r of (tasmiRes.data ?? []) as { student_id: string; scope_juz: number; juz_from: number; juz_to: number; status: string; setoran_date: string }[]) {
     const s = stById.get(r.student_id); if (!s) continue
     const m = metaOf(s); getB(bkey(m.jenjang, m.program)).tasmi.push({ studentName: s.full_name, scopeJuz: r.scope_juz, juzFrom: r.juz_from, juzTo: r.juz_to, status: r.status, date: r.setoran_date })
+  }
+  /*
+    Hasil modul ujian (ujian_tahfidz) ikut masuk ke dua daftar di atas.
+
+    juz_promotions & tasmi_logs hanya terisi dari alur setoran, dan alur itu
+    nyaris tidak dipakai — ujian yang sesungguhnya diajukan dan dinilai lewat
+    modul ujian. Tanpa ini, seluruh 30-an ujian SMP yang sudah selesai tidak
+    muncul di sini dan daftarnya terbaca "Belum ada". Tipe 1 juz = juz'iyyah;
+    3 & 5 juz = tasmi'. Predikat 'mengulang' dicatat sebagai ulang, sisanya lulus.
+  */
+  for (const r of (ujianTahfidzRes.data ?? []) as {
+    student_id: string; tipe: string; juz: string; predikat: string | null
+    jadwal: string | null; updated_at: string
+  }[]) {
+    const s = stById.get(r.student_id); if (!s) continue
+    const b = getB(bkey(metaOf(s).jenjang, metaOf(s).program))
+    const date = r.jadwal ?? r.updated_at
+    const angka = String(r.juz).match(/\d+/g)?.map(Number) ?? []
+    if (angka.length === 0) continue
+    if (r.tipe === '1_juz') {
+      b.juziyah.push({ studentName: s.full_name, juz: angka[0], score: null, predikat: getPredikatLabel(r.predikat as UjianPredikat | null), date })
+    } else {
+      const scopeJuz = r.tipe === '3_juz' ? 3 : 5
+      const juzFrom = Math.min(...angka), juzTo = Math.max(...angka)
+      b.tasmi.push({ studentName: s.full_name, scopeJuz, juzFrom, juzTo, status: r.predikat === 'mengulang' ? 'ulang' : 'lulus', date })
+    }
   }
   const byDateDesc = <T extends { date: string }>(a: T, b: T) => b.date.localeCompare(a.date)
   const toProg = (jenjang: Jenjang, code: string | null, label: string): ProgramAnalytics => {

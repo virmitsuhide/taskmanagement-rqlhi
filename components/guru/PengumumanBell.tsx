@@ -2,8 +2,10 @@
 
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
-import { Bell, Megaphone } from 'lucide-react'
+import { Bell, Megaphone, ScrollText } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { BarisNotifUjian } from '@/components/ujian/BarisNotifUjian'
+import type { NotifUjian } from '@/lib/data/ujian-notifikasi'
 import type { PublicPost } from '@/types'
 
 /**
@@ -33,8 +35,15 @@ function sejakKapan(iso: string): string {
   return new Date(iso).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })
 }
 
-export function PengumumanBell({ items, barusanCount }: { items: PublicPost[]; barusanCount: number }) {
+export function PengumumanBell({ items, barusanCount, ujian = [], ujianBaru = 0 }: {
+  items: PublicPost[]
+  barusanCount: number
+  /** Kabar pengajuan ujian guru ini: dijadwalkan & selesai. */
+  ujian?: NotifUjian[]
+  ujianBaru?: number
+}) {
   const [open, setOpen] = useState(false)
+  const totalBaru = barusanCount + ujianBaru
   const wadah = useRef<HTMLDivElement>(null)
 
   // Tutup saat menekan di luar atau menekan Esc — laci tanpa jalan keluar yang
@@ -60,20 +69,41 @@ export function PengumumanBell({ items, barusanCount }: { items: PublicPost[]; b
       <button
         type="button"
         onClick={() => setOpen(o => !o)}
-        aria-label={barusanCount > 0 ? `Pengumuman, ${barusanCount} baru` : 'Pengumuman'}
+        aria-label={totalBaru > 0 ? `Notifikasi, ${totalBaru} baru` : 'Notifikasi'}
         aria-expanded={open}
         className="relative inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition hover:bg-accent hover:text-foreground"
       >
         <Bell className="h-4 w-4" />
-        {barusanCount > 0 && (
+        {totalBaru > 0 && (
           <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold leading-none text-destructive-foreground">
-            {barusanCount > 9 ? '9+' : barusanCount}
+            {totalBaru > 9 ? '9+' : totalBaru}
           </span>
         )}
       </button>
 
       {open && (
         <div className="absolute right-0 z-50 mt-2 w-80 max-w-[calc(100vw-2rem)] overflow-hidden rounded-xl border bg-popover text-popover-foreground shadow-lg">
+          {ujian.length > 0 && (
+            <>
+              <div className="flex items-center gap-2 border-b px-3 py-2.5">
+                <ScrollText className="h-4 w-4 text-muted-foreground" />
+                <p className="text-sm font-semibold">Ujian</p>
+                {ujianBaru > 0 && (
+                  <span className="ml-auto rounded-full bg-destructive/10 px-2 py-0.5 text-[11px] font-medium text-destructive">
+                    {ujianBaru} baru
+                  </span>
+                )}
+              </div>
+              <ul className="max-h-64 divide-y overflow-y-auto border-b">
+                {ujian.map(n => (
+                  <li key={n.id}>
+                    <BarisNotifUjian item={n} href="/guru/ujian" onPilih={() => setOpen(false)} />
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+
           <div className="flex items-center gap-2 border-b px-3 py-2.5">
             <Megaphone className="h-4 w-4 text-muted-foreground" />
             <p className="text-sm font-semibold">Pengumuman</p>

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { BookOpen, ClipboardList, Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -10,8 +10,12 @@ import { Segmen } from './Segmen'
 import { TAHSIN_LEVELS, getTahfidzLabel } from '@/lib/rq/ujian'
 import { juzTersedia, ringkasHafalan } from '@/lib/rq/hafalan'
 import { PilihSiswa } from './PilihSiswa'
-import type { SaranSiswa } from '@/app/actions/ujian'
-import { createTahfidzUjianAction, createTahsinUjianAction } from '@/app/actions/ujian'
+import type { SaranSiswa, SiswaHalaqoh, UstadzHalaqoh } from '@/app/actions/ujian'
+import {
+  createTahfidzUjianAction,
+  createTahsinUjianAction,
+  daftarHalaqohUjianTahsinAction,
+} from '@/app/actions/ujian'
 import type { TahfidzTipe, UjianSiswa, UjianUnit } from '@/types'
 
 interface Props {
@@ -66,7 +70,7 @@ export function FormPengajuan({ units, redirectTo }: Props) {
       <div className="rounded-xl border bg-card p-4">
         {jenis === 'tahfidz'
           ? <FormTahfidz key={unit} unit={unit} redirectTo={redirectTo} />
-          : <FormTahsin unit={unit} redirectTo={redirectTo} />}
+          : <FormTahsin key={unit} unit={unit} redirectTo={redirectTo} />}
       </div>
     </div>
   )
@@ -239,18 +243,16 @@ function FormTahfidz({ unit, redirectTo }: { unit: UjianUnit; redirectTo: string
 
 // ─── Tahsin ──────────────────────────────────────────────────────────────────
 
-/** Satu capaian/level beserta daftar siswanya. */
 /**
  * Satu baris siswa di pengajuan tahsin.
  *
  * `pilihan` menyimpan anak yang benar-benar dipilih dari daftar halaqoh.
  * Selama null, barisnya belum sah — nama yang hanya diketik tidak lagi
  * diterima, sebab nama tanpa tautan tidak bisa dinaikkan jilidnya saat lulus
- * dan tidak bisa dihitung analitik. Persoalan yang sama sudah diselesaikan
- * lebih dulu di pengajuan tahfidz; pengajuan tahsin tertinggal.
+ * dan tidak bisa dihitung analitik.
  */
 interface BarisSiswaTahsin {
-  pilihan: SaranSiswa | null
+  pilihan: SiswaHalaqoh | null
 }
 
 interface KelompokLevel {
@@ -264,17 +266,46 @@ function kelompokKosong(): KelompokLevel {
 
 function FormTahsin({ unit, redirectTo }: { unit: UjianUnit; redirectTo: string }) {
   const router = useRouter()
-  const [namaKelompok, setNamaKelompok] = useState('')
-  const [sesi, setSesi] = useState('')
+  const [daftar, setDaftar] = useState<UstadzHalaqoh[] | null>(null)
+  const [teacherId, setTeacherId] = useState('')
+  const [halaqohId, setHalaqohId] = useState('')
   const [kelompok, setKelompok] = useState<KelompokLevel[]>([kelompokKosong()])
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    let batal = false
+    daftarHalaqohUjianTahsinAction(unit).then(data => {
+      if (batal) return
+      setDaftar(data)
+      // Guru hanya menerima dirinya sendiri — tidak ada yang perlu dipilih.
+      if (data.length === 1) setTeacherId(data[0].teacherId)
+    })
+    return () => { batal = true }
+  }, [unit])
+
+  const ustadz = daftar?.find(u => u.teacherId === teacherId) ?? null
+  const halaqoh = ustadz?.halaqoh.find(h => h.id === halaqohId) ?? null
+
+  // Berganti ustadz atau sesi berarti berganti kumpulan anak; nama yang sudah
+  // dipilih dari halaqoh sebelumnya tidak lagi sah, jadi daftarnya dikosongkan.
+  function pilihUstadz(id: string) {
+    setTeacherId(id)
+    const u = daftar?.find(x => x.teacherId === id)
+    setHalaqohId(u?.halaqoh.length === 1 ? u.halaqoh[0].id : '')
+    setKelompok([kelompokKosong()])
+  }
+
+  function pilihSesi(id: string) {
+    setHalaqohId(id)
+    setKelompok([kelompokKosong()])
+  }
 
   function ubahLevel(gi: number, level: string) {
     setKelompok(prev => prev.map((g, i) => (i === gi ? { ...g, level } : g)))
   }
 
-  function ubahSiswa(gi: number, si: number, pilihan: SaranSiswa | null) {
+  function ubahSiswa(gi: number, si: number, pilihan: SiswaHalaqoh | null) {
     setKelompok(prev => prev.map((g, i) =>
       i === gi ? { ...g, siswa: g.siswa.map((s, j) => (j === si ? { pilihan } : s)) } : g))
   }
@@ -292,9 +323,14 @@ function FormTahsin({ unit, redirectTo }: { unit: UjianUnit; redirectTo: string 
     // kelompok bisa menguji beberapa level dalam satu sesi.
     const siswa: UjianSiswa[] = []
     const levelDipakai: string[] = []
+    if (!ustadz || !halaqoh) {
+      setError('Pilih ustadz dan sesinya lebih dulu.')
+      return
+    }
+
     for (const g of kelompok) {
       const level = g.level.trim()
-      const dipilih = g.siswa.map(s => s.pilihan).filter((s): s is SaranSiswa => Boolean(s))
+      const dipilih = g.siswa.map(s => s.pilihan).filter((s): s is SiswaHalaqoh => Boolean(s))
       if (!level && dipilih.length === 0) continue
       if (!level) {
         setError('Pilih level untuk setiap capaian.')
@@ -324,8 +360,8 @@ function FormTahsin({ unit, redirectTo }: { unit: UjianUnit; redirectTo: string 
     setLoading(true)
     try {
       const hasil = await createTahsinUjianAction({
-        nama_kelompok: namaKelompok,
-        sesi,
+        nama_kelompok: ustadz.nama,
+        sesi: String(halaqoh.sesi),
         level: levelDipakai.join(', '),
         siswa,
         unit,
@@ -343,18 +379,48 @@ function FormTahsin({ unit, redirectTo }: { unit: UjianUnit; redirectTo: string 
 
   return (
     <form onSubmit={submit} className="space-y-4">
-      <div className="space-y-1.5">
-        <Label htmlFor="nama_kelompok">Nama kelompok / ustadz-ustadzah</Label>
-        <Input id="nama_kelompok" className="h-9" value={namaKelompok}
-          onChange={e => setNamaKelompok(e.target.value)} placeholder="Nama ustadz/ustadzah" required />
-      </div>
+      {daftar === null && (
+        <p className="px-1 text-sm text-muted-foreground">Memuat daftar halaqoh…</p>
+      )}
 
-      <div className="space-y-1.5">
-        <Label htmlFor="sesi">Sesi</Label>
-        <Input id="sesi" className="h-9" value={sesi}
-          onChange={e => setSesi(e.target.value)} placeholder="Contoh: Sesi 1, Pagi" required />
-      </div>
+      {daftar !== null && daftar.length === 0 && (
+        <PesanError>
+          Belum ada halaqoh aktif {unit} yang bisa diajukan dari akun ini. Hubungi koordinator
+          bila seharusnya ada.
+        </PesanError>
+      )}
 
+      {daftar !== null && daftar.length > 0 && (
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <Label htmlFor="ustadz">Ustadz / ustadzah</Label>
+            {daftar.length === 1 ? (
+              <p className="flex h-9 items-center rounded-md border bg-muted px-3 text-sm">{daftar[0].nama}</p>
+            ) : (
+              <select id="ustadz" value={teacherId} onChange={e => pilihUstadz(e.target.value)}
+                required className={SELECT_CLASS}>
+                <option value="" disabled>Pilih ustadz…</option>
+                {daftar.map(u => <option key={u.teacherId} value={u.teacherId}>{u.nama}</option>)}
+              </select>
+            )}
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="sesi">Sesi</Label>
+            <select id="sesi" value={halaqohId} onChange={e => pilihSesi(e.target.value)}
+              required disabled={!ustadz} className={SELECT_CLASS}>
+              <option value="" disabled>{ustadz ? 'Pilih sesi…' : 'Pilih ustadz dulu'}</option>
+              {ustadz?.halaqoh.map(h => (
+                <option key={h.id} value={h.id}>
+                  Sesi {h.sesi || '—'} · {h.kelas} · {h.siswa.length} anak
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+      )}
+
+      {halaqoh && (
       <div className="space-y-3">
         <Label>Level &amp; siswa</Label>
 
@@ -389,17 +455,24 @@ function FormTahsin({ unit, redirectTo }: { unit: UjianUnit; redirectTo: string 
               {group.siswa.map((s, si) => (
                 <div key={si} className="flex items-start gap-2">
                   <span className="mt-2 w-5 shrink-0 text-right text-xs text-muted-foreground">{si + 1}.</span>
-                  {/* Ketik nama → muncul anak dari halaqoh yang diampu saja.
-                      Penyaringan halaqohnya dikerjakan server (lihat
-                      cariSiswaUjianAction), bukan komponen ini. */}
-                  <div className="min-w-0 flex-1">
-                    <PilihSiswa
-                      unit={unit}
-                      terpilih={s.pilihan}
-                      onPilih={p => ubahSiswa(gi, si, p)}
-                      kecualikan={sudahDipakai}
-                    />
-                  </div>
+                  {/* Cukup memilih, tidak mengetik: ustadz & sesi di atas sudah
+                      menyempitkan daftarnya ke satu halaqoh (±10 anak). Anak
+                      yang sudah dipakai di baris lain disembunyikan. */}
+                  <select
+                    aria-label={`Siswa ${si + 1} capaian ${gi + 1}`}
+                    value={s.pilihan?.id ?? ''}
+                    onChange={e => ubahSiswa(gi, si, halaqoh.siswa.find(x => x.id === e.target.value) ?? null)}
+                    className={`${SELECT_CLASS} min-w-0 flex-1`}
+                  >
+                    <option value="" disabled>Pilih siswa…</option>
+                    {halaqoh.siswa
+                      .filter(x => !sudahDipakai.has(x.id) || x.id === s.pilihan?.id)
+                      .map(x => (
+                        <option key={x.id} value={x.id}>
+                          {x.full_name} — {x.kelas ?? '?'}{x.jilid ? ` · ${x.jilid}` : ''}
+                        </option>
+                      ))}
+                  </select>
                   {group.siswa.length > 1 && (
                     <Button
                       type="button" variant="ghost" size="icon-sm"
@@ -431,11 +504,12 @@ function FormTahsin({ unit, redirectTo }: { unit: UjianUnit; redirectTo: string 
           <Plus className="mr-1 h-4 w-4" /> Tambah level / capaian
         </Button>
       </div>
+      )}
 
       {error && <PesanError>{error}</PesanError>}
 
-      <Button type="submit" size="lg" className="w-full" disabled={loading}>
-        {loading ? 'Menyimpan…' : 'Ajukan ujian tahsin'}
+      <Button type="submit" size="lg" className="w-full" disabled={loading || !halaqoh}>
+        {loading ? 'Menyimpan…' : halaqoh ? 'Ajukan ujian tahsin' : 'Pilih ustadz & sesi lebih dulu'}
       </Button>
     </form>
   )

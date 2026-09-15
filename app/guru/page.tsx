@@ -5,6 +5,10 @@ import { getTeacherStudents } from '@/lib/data/teacher'
 import { getTeacherWeeklyStats, getTeacherHalaqohSummary } from '@/lib/data/teacher-stats'
 import { getKonteksPengumuman, getPengumumanGuru } from '@/lib/data/pengumuman-guru'
 import { TandaiPengumumanTerbaca } from '@/components/guru/TandaiPengumumanTerbaca'
+import { getUjianGuru, getUnitUjianGuru } from '@/lib/data/ujian'
+import { getNotifUjianGuru } from '@/lib/data/ujian-notifikasi'
+import { ProgresUjianGuru } from '@/components/guru/ProgresUjianGuru'
+import { TandaiUjianGuruDilihat } from '@/components/guru/TandaiUjianGuruDilihat'
 import { Megaphone } from 'lucide-react'
 
 const MONTH_ID = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember']
@@ -25,11 +29,14 @@ export default async function TeacherHomePage() {
   const now = new Date()
   const dateLabel = `${DAY_ID[now.getDay()]}, ${now.getDate()} ${MONTH_ID[now.getMonth()]} ${now.getFullYear()}`
 
-  const [students, weekly, halaqohSummary, konteks] = await Promise.all([
+  const [students, weekly, halaqohSummary, konteks, unitUjian, pengajuan, notifUjian] = await Promise.all([
     getTeacherStudents(session.teacherId),
     getTeacherWeeklyStats(session.teacherId),
     getTeacherHalaqohSummary(session.teacherId),
     getKonteksPengumuman(session.teacherId),
+    getUnitUjianGuru(session.teacherId),
+    getUjianGuru(session.teacherId),
+    getNotifUjianGuru(session.teacherId),
   ])
   const pengumuman = await getPengumumanGuru(konteks.unit, konteks.seenAt)
   const todayStr = now.toISOString().slice(0, 10)
@@ -97,6 +104,19 @@ export default async function TeacherHomePage() {
         {/* Lencana dipadamkan di sini — di layar tempat pengumumannya benar-benar
             terbaca, bukan saat loncengnya dilirik. */}
         <TandaiPengumumanTerbaca aktif={pengumuman.barusanCount > 0} />
+
+        {/* Hanya guru SD/SMP — unit lain tidak punya antrian ujian. */}
+        {unitUjian && (
+          <>
+            <ProgresUjianGuru
+              teacherId={session.teacherId}
+              tahfidz={pengajuan.tahfidz}
+              tahsin={pengajuan.tahsin}
+              idSiswa={pengajuan.idSiswa}
+            />
+            <TandaiUjianGuruDilihat aktif={notifUjian.baruCount > 0} />
+          </>
+        )}
 
         {/* Stat */}
         <div className="grid grid-cols-3 gap-3 mb-6">

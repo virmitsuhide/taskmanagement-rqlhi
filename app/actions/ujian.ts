@@ -7,7 +7,7 @@ import { getTeacherSession } from '@/lib/auth/teacher-session'
 import { canManageUjian, canSubmitUjian, getUjianUnits } from '@/lib/auth/permissions'
 import { getUnitUjianGuru } from '@/lib/data/ujian'
 import { cocokkanLevelUjian, type TahapLevel } from '@/lib/rq/ujian'
-import { getTeacherStudents } from '@/lib/data/teacher'
+import { getTeacherHalaqohIds, getTeacherStudents } from '@/lib/data/teacher'
 import { totalJuzHafalan } from '@/lib/rq/hafalan'
 import type {
   TahfidzTipe,
@@ -105,6 +105,29 @@ async function guardPengelola(
 
 // ─── Tahfidz ─────────────────────────────────────────────────────────────────
 
+/** Kode program QULS: 'quls', 'quls_takhassus', 'fullday_quls', 'boarding_quls'. */
+function programQuls(program: string | null | undefined): boolean {
+  return Boolean(program && program.includes('quls'))
+}
+
+/**
+ * Apakah anak ini QULS — menurut programnya sendiri, atau program halaqohnya.
+ *
+ * Halaqoh ikut dibaca karena di SMP program jarang diisi per anak, sedangkan
+ * kelompoknya sudah jelas: seluruh anak di halaqoh QULS memang QULS. Menandai
+ * satu halaqoh jauh lebih ringan daripada mengisi program puluhan anak.
+ */
+async function siswaQuls(studentId: string): Promise<boolean> {
+  const supabase = createServerClient()
+  const { data } = await supabase
+    .from('students')
+    .select('program, halaqoh:halaqoh!students_halaqoh_id_fkey(program)')
+    .eq('id', studentId)
+    .maybeSingle()
+  const row = data as { program: string | null; halaqoh: { program: string | null } | null } | null
+  return programQuls(row?.program) || programQuls(row?.halaqoh?.program)
+}
+
 export async function createTahfidzUjianAction(input: {
   tipe: TahfidzTipe
   juz: string
@@ -132,6 +155,12 @@ export async function createTahfidzUjianAction(input: {
 
   try {
     const supabase = createServerClient()
+
+    // Anak dari halaqoh/program QULS selalu tercatat QULS, apa pun centangan
+    // di form — supaya format WhatsApp setelah ujian tidak bergantung pada
+    // ingatan pengaju. Centang manual tetap berlaku untuk anak di luar itu.
+    const isQuls = input.is_quls || (input.student_id ? await siswaQuls(input.student_id) : false)
+
     const { error } = await supabase.from('ujian_tahfidz').insert({
       unit: pengaju.unit,
       tipe: input.tipe,
@@ -140,7 +169,7 @@ export async function createTahfidzUjianAction(input: {
       nama_siswa: namaSiswa,
       nama_flyer: namaFlyer,
       kelas,
-      is_quls: input.is_quls,
+      is_quls: isQuls,
       status: 'diajukan',
       created_by_teacher: pengaju.teacherId,
       created_by_user: pengaju.userId,
@@ -226,6 +255,15 @@ export async function createTahsinUjianAction(input: {
   if (!namaKelompok) return { error: 'Nama kelompok wajib diisi.' }
   if (!sesi) return { error: 'Sesi wajib diisi.' }
   if (siswa.length === 0) return { error: 'Tambahkan minimal satu siswa.' }
+
+  // Id siswa datang dari peramban. Formulir guru memang hanya menawarkan anak
+  // halaqohnya, tapi kiriman bisa diubah — jadi diperiksa ulang di sini.
+  if (pengaju.teacherId) {
+    const milik = new Set((await getTeacherStudents(pengaju.teacherId)).map(s => s.id))
+    if (siswa.some(s => s.student_id && !milik.has(s.student_id))) {
+      return { error: 'Ada siswa yang bukan dari halaqoh Anda.' }
+    }
+  }
 
   try {
     const supabase = createServerClient()
@@ -585,6 +623,30 @@ export async function markUjianSeenAction(): Promise<void> {
   }
 }
 
+/**
+ * Guru sudah melihat kabar pengajuannya — lencana ujian di portal guru padam.
+ *
+ * Dipanggil dari halaman Pengajuan Ujian dan beranda (tempat progres anak
+ * tampil), bukan dari lonceng: di dua layar itulah jadwal dan hasilnya
+ * benar-benar terbaca.
+ */
+export async function tandaiNotifUjianGuruDilihatAction(): Promise<void> {
+  const guru = await getTeacherSession()
+  if (!guru) return
+
+  try {
+    const supabase = createServerClient()
+    const { error } = await supabase
+      .from('teachers')
+      .update({ ujian_notif_seen_at: new Date().toISOString() })
+      .eq('id', guru.teacherId)
+    // Kolom belum ada (0063 belum dijalankan): cukup lencananya yang tidak padam.
+    if (!error) revalidatePath('/guru', 'layout')
+  } catch {
+    // Sama seperti markUjianSeenAction — penanda lencana, bukan data inti.
+  }
+}
+
 // ─── Saran siswa untuk form pengajuan ────────────────────────────────────────
 
 export interface SaranSiswa {
@@ -643,7 +705,7 @@ export async function cariSiswaUjianAction(
 
   let kueriSiswa = supabase
     .from('students')
-    .select('id, full_name, kelas, program')
+    .select('id, full_name, kelas, program, halaqoh:halaqoh!students_halaqoh_id_fkey(program)')
     .in('jenjang', jenjang)
     .eq('is_active', true)
     .ilike('full_name', `%${q}%`)
@@ -666,13 +728,154 @@ export async function cariSiswaUjianAction(
     perSiswa.set(u.student_id, daftar)
   }
 
-  return siswa.map(s => ({
+  return (siswa as unknown as Array<{
+    id: string; full_name: string; kelas: string | null; program: string | null
+    halaqoh: { program: string | null } | null
+  }>).map(s => ({
     id: s.id,
     full_name: s.full_name,
     kelas: s.kelas,
-    program: s.program,
+    // Program halaqoh jadi cadangan — lihat siswaQuls. Dengan ini centang
+    // QULS di form sudah benar sebelum pengaju sempat menyentuhnya.
+    program: s.program ?? s.halaqoh?.program ?? null,
     sudahSampai: totalJuzHafalan(perSiswa.get(s.id) ?? []),
   }))
+}
+
+// ─── Pilihan ustadz → sesi → siswa untuk pengajuan tahsin ────────────────────
+
+export interface SiswaHalaqoh {
+  id: string
+  full_name: string
+  kelas: string | null
+  /** Label jilid berjalan, mis. "Jilid 3" — penanda saat memilih level. */
+  jilid: string | null
+}
+
+export interface HalaqohSesi {
+  id: string
+  sesi: number
+  /** Ringkasan kelas anak di halaqoh ini, mis. "Kelas 4" atau "Kelas 5–6". */
+  kelas: string
+  siswa: SiswaHalaqoh[]
+}
+
+export interface UstadzHalaqoh {
+  teacherId: string
+  /** Sapaan yang tercantum di antrian, mis. "Ustadzah Afifah". */
+  nama: string
+  halaqoh: HalaqohSesi[]
+}
+
+/**
+ * "Sesi 1 — Ustadzah Afifah" → "Ustadzah Afifah"; selain pola itu, null.
+ * Keterangan program di akhir ("Usth. Dhea (QULS)") dibuang — itu sifat
+ * halaqohnya, bukan bagian dari nama yang tampil di antrian.
+ */
+function sapaanDariNamaHalaqoh(nama: string): string | null {
+  const bagian = nama.split(/\s+[—–-]\s+/)
+  if (bagian.length < 2) return null
+  return bagian.slice(1).join(' — ').replace(/\s*\([^)]*\)\s*$/, '').trim() || null
+}
+
+function ringkasKelas(daftar: (string | null)[]): string {
+  const tingkat = [...new Set(
+    daftar.map(k => k?.match(/^\d+/)?.[0]).filter((t): t is string => Boolean(t)).map(Number),
+  )].sort((a, b) => a - b)
+  if (tingkat.length === 0) return 'Kelas belum tercatat'
+  if (tingkat.length === 1) return `Kelas ${tingkat[0]}`
+  return `Kelas ${tingkat[0]}–${tingkat[tingkat.length - 1]}`
+}
+
+/**
+ * Semua halaqoh aktif unit ini, dikelompokkan per ustadz lalu per sesi.
+ *
+ * Satu kali muat untuk seluruh formulir: tiap halaqoh hanya berisi sekitar
+ * sepuluh anak, jadi memilih ustadz dan sesi cukup menyaring di peramban —
+ * tidak perlu bolak-balik ke server setiap pilihan berubah.
+ *
+ * Guru hanya menerima halaqohnya sendiri, dengan alasan yang sama seperti
+ * cariSiswaUjianAction: yang boleh diajukan guru hanyalah anak asuhannya.
+ */
+export async function daftarHalaqohUjianTahsinAction(unit: UjianUnit): Promise<UstadzHalaqoh[]> {
+  const pengaju = await guardPengaju(unit)
+  if ('error' in pengaju) return []
+
+  const supabase = createServerClient()
+  const jenjang = pengaju.unit === 'SD' ? ['sd', 'sd_juara'] : ['smp']
+
+  let kueri = supabase
+    .from('halaqoh')
+    .select('id, name, sesi, wali_teacher_id, halaqoh_teachers(teacher_id)')
+    .in('jenjang', jenjang)
+    .eq('is_active', true)
+    .order('sesi')
+  if (pengaju.teacherId) {
+    const milik = await getTeacherHalaqohIds(pengaju.teacherId)
+    if (milik.length === 0) return []
+    kueri = kueri.in('id', milik)
+  }
+  const { data: halaqoh } = await kueri
+  if (!halaqoh || halaqoh.length === 0) return []
+
+  const halaqohIds = halaqoh.map(h => h.id)
+  const { data: siswa } = await supabase
+    .from('students')
+    .select('id, full_name, kelas, halaqoh_id, current_jilid:jilid_levels!students_current_jilid_id_fkey(label)')
+    .in('halaqoh_id', halaqohIds)
+    .eq('is_active', true)
+    .order('full_name')
+
+  const siswaPerHalaqoh = new Map<string, SiswaHalaqoh[]>()
+  for (const s of (siswa ?? []) as unknown as Array<{
+    id: string; full_name: string; kelas: string | null; halaqoh_id: string
+    current_jilid: { label: string } | null
+  }>) {
+    const daftar = siswaPerHalaqoh.get(s.halaqoh_id) ?? []
+    daftar.push({ id: s.id, full_name: s.full_name, kelas: s.kelas, jilid: s.current_jilid?.label ?? null })
+    siswaPerHalaqoh.set(s.halaqoh_id, daftar)
+  }
+
+  // Pengampu = wali halaqoh + anggota halaqoh_teachers, sama seperti
+  // getTeacherHalaqohIds. Guru pendamping ikut tampil karena ia juga bisa
+  // menjadi nama kelompok yang dikenal anak-anaknya.
+  const perGuru = new Map<string, { sapaan: string | null; halaqoh: HalaqohSesi[] }>()
+  for (const h of halaqoh as unknown as Array<{
+    id: string; name: string; sesi: number | null; wali_teacher_id: string | null
+    halaqoh_teachers: { teacher_id: string }[] | null
+  }>) {
+    const pengampu = new Set<string>()
+    if (h.wali_teacher_id) pengampu.add(h.wali_teacher_id)
+    for (const ht of h.halaqoh_teachers ?? []) pengampu.add(ht.teacher_id)
+    if (pengaju.teacherId && !pengampu.has(pengaju.teacherId)) continue
+
+    const anak = siswaPerHalaqoh.get(h.id) ?? []
+    const baris: HalaqohSesi = { id: h.id, sesi: h.sesi ?? 0, kelas: ringkasKelas(anak.map(a => a.kelas)), siswa: anak }
+    for (const tid of pengampu) {
+      if (pengaju.teacherId && tid !== pengaju.teacherId) continue
+      const entri = perGuru.get(tid) ?? { sapaan: null, halaqoh: [] }
+      // Sapaan diambil dari halaqoh yang diwalinya — nama halaqoh memakai
+      // panggilan wali, bukan panggilan guru pendamping.
+      if (!entri.sapaan && h.wali_teacher_id === tid) entri.sapaan = sapaanDariNamaHalaqoh(h.name)
+      entri.halaqoh.push(baris)
+      perGuru.set(tid, entri)
+    }
+  }
+  if (perGuru.size === 0) return []
+
+  const { data: guru } = await supabase
+    .from('teachers')
+    .select('id, full_name')
+    .in('id', [...perGuru.keys()])
+  const namaLengkap = new Map((guru ?? []).map(g => [g.id as string, g.full_name as string]))
+
+  return [...perGuru.entries()]
+    .map(([teacherId, e]) => ({
+      teacherId,
+      nama: e.sapaan ?? namaLengkap.get(teacherId) ?? 'Tanpa nama',
+      halaqoh: e.halaqoh.sort((a, b) => a.sesi - b.sesi),
+    }))
+    .sort((a, b) => a.nama.localeCompare(b.nama, 'id'))
 }
 
 // ─── Pemetaan catatan lama ke siswa ──────────────────────────────────────────

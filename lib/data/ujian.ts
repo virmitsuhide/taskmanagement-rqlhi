@@ -1,5 +1,7 @@
+import { cache } from 'react'
 import { createServerClient } from '@/lib/supabase/server'
 import { tanggalWIB } from '@/lib/rq/ujian'
+import { getTeacherHalaqohIds } from '@/lib/data/teacher'
 import type {
   CalonPenguji,
   Jenjang,
@@ -153,28 +155,68 @@ export async function getPengajuanUjian(units: UjianUnit[]): Promise<AntrianUjia
   }
 }
 
-/** Pengajuan milik seorang guru sendiri — daftar di portal /guru. */
-export async function getPengajuanGuru(teacherId: string): Promise<AntrianUjian> {
+export interface UjianGuru extends AntrianUjian {
+  /** Id siswa halaqoh guru ini — untuk menyorot anaknya di pengajuan kelompok. */
+  idSiswa: string[]
+}
+
+/**
+ * Ujian yang menyangkut seorang guru — daftar & progres di portal /guru.
+ *
+ * Dua jalan masuk: pengajuan yang ia buat sendiri, ATAU ujian yang menguji anak
+ * halaqohnya walau diajukan orang lain. Yang kedua sering terjadi: guru
+ * menyampaikan pengajuan secara lisan, lalu koordinator yang memasukkannya.
+ * Kalau hanya pengaju yang dihitung, guru itu tidak pernah tahu anaknya sudah
+ * terjadwal — padahal dialah yang harus menyiapkan anaknya.
+ *
+ * Ujian tahsin menyimpan siswanya dalam larik JSON, jadi penyaringannya
+ * dikerjakan di sini atas pengajuan satu unit; jumlahnya hanya puluhan.
+ */
+export const getUjianGuru = cache(bacaUjianGuru)
+
+// Dibungkus cache(): kerangka portal (lonceng) dan halaman beranda sama-sama
+// memintanya dalam satu permintaan, dan cukup dibaca sekali.
+async function bacaUjianGuru(teacherId: string): Promise<UjianGuru> {
+  const kosong: UjianGuru = { tahfidz: [], tahsin: [], idSiswa: [] }
   try {
     const supabase = createServerClient()
-    const [tahfidz, tahsin] = await Promise.all([
-      supabase
-        .from('ujian_tahfidz')
-        .select(TAHFIDZ_COLS)
-        .eq('created_by_teacher', teacherId)
-        .order('created_at', { ascending: false }),
-      supabase
-        .from('ujian_tahsin')
-        .select(TAHSIN_COLS)
-        .eq('created_by_teacher', teacherId)
-        .order('created_at', { ascending: false }),
+    const [halaqohIds, unit] = await Promise.all([
+      getTeacherHalaqohIds(teacherId),
+      getUnitUjianGuru(teacherId),
     ])
+
+    const { data: siswa } = halaqohIds.length > 0
+      ? await supabase.from('students').select('id').in('halaqoh_id', halaqohIds).eq('is_active', true)
+      : { data: [] as { id: string }[] }
+    const idSiswa = (siswa ?? []).map(s => s.id as string)
+    const milik = new Set(idSiswa)
+
+    const [tfSendiri, tfAnak, tahsin] = await Promise.all([
+      supabase.from('ujian_tahfidz').select(TAHFIDZ_COLS).eq('created_by_teacher', teacherId),
+      idSiswa.length > 0
+        ? supabase.from('ujian_tahfidz').select(TAHFIDZ_COLS).in('student_id', idSiswa)
+        : Promise.resolve({ data: [] }),
+      unit
+        ? supabase.from('ujian_tahsin').select(TAHSIN_COLS).eq('unit', unit)
+        : supabase.from('ujian_tahsin').select(TAHSIN_COLS).eq('created_by_teacher', teacherId),
+    ])
+
+    const tahfidzPerId = new Map<string, UjianTahfidz>()
+    for (const r of [...(tfSendiri.data ?? []), ...(tfAnak.data ?? [])] as UjianTahfidz[]) {
+      tahfidzPerId.set(r.id, r)
+    }
+
+    const terbaru = <T extends { created_at: string }>(a: T, b: T) => b.created_at.localeCompare(a.created_at)
     return {
-      tahfidz: (tahfidz.data ?? []) as UjianTahfidz[],
-      tahsin: (tahsin.data ?? []) as UjianTahsin[],
+      tahfidz: [...tahfidzPerId.values()].sort(terbaru),
+      tahsin: ((tahsin.data ?? []) as UjianTahsin[])
+        .filter(t => t.created_by_teacher === teacherId
+          || t.siswa.some(s => s.student_id && milik.has(s.student_id)))
+        .sort(terbaru),
+      idSiswa,
     }
   } catch {
-    return { tahfidz: [], tahsin: [] }
+    return kosong
   }
 }
 

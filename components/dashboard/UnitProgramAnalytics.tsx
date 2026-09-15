@@ -329,7 +329,7 @@ function ProgramPanel({ program, showExams, singleProgram }: {
                     {program.juziyah.map((e, i) => (
                       <li key={i} className="text-xs flex items-center justify-between gap-2">
                         <span className="truncate"><span className="font-medium">{e.studentName}</span> · Juz {e.juz}</span>
-                        <span className="text-muted-foreground shrink-0">{e.score !== null && <span className="font-medium text-foreground">{e.score}</span>} · {formatDate(e.date)}</span>
+                        <span className="text-muted-foreground shrink-0">{e.score !== null ? <span className="font-medium text-foreground">{e.score}</span> : e.predikat && <span className="font-medium text-foreground">{e.predikat}</span>} · {formatDate(e.date)}</span>
                       </li>
                     ))}
                   </ul>

@@ -2,22 +2,26 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { Plus } from 'lucide-react'
 import { getTeacherSession } from '@/lib/auth/teacher-session'
-import { getPengajuanGuru, getUnitUjianGuru } from '@/lib/data/ujian'
+import { getUjianGuru, getUnitUjianGuru } from '@/lib/data/ujian'
 import { Button } from '@/components/ui/button'
 import { PengajuanGuru } from '@/components/ujian/PengajuanGuru'
+import { getNotifUjianGuru } from '@/lib/data/ujian-notifikasi'
+import { TandaiUjianGuruDilihat } from '@/components/guru/TandaiUjianGuruDilihat'
 
 export default async function UjianGuruPage() {
   const session = await getTeacherSession()
   if (!session) redirect('/guru/login')
 
-  const [unit, { tahfidz, tahsin }] = await Promise.all([
+  const [unit, { tahfidz, tahsin }, notif] = await Promise.all([
     getUnitUjianGuru(session.teacherId),
-    getPengajuanGuru(session.teacherId),
+    getUjianGuru(session.teacherId),
+    getNotifUjianGuru(session.teacherId),
   ])
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--secondary)' }}>
       <div className="max-w-4xl mx-auto px-4 md:px-6 py-6">
+        <TandaiUjianGuruDilihat aktif={notif.baruCount > 0} />
         <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
           <div>
             <h1
@@ -51,7 +55,7 @@ export default async function UjianGuruPage() {
             </p>
           </div>
         ) : (
-          <PengajuanGuru tahfidz={tahfidz} tahsin={tahsin} />
+          <PengajuanGuru teacherId={session.teacherId} tahfidz={tahfidz} tahsin={tahsin} />
         )}
       </div>
     </div>

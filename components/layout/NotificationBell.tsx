@@ -10,6 +10,8 @@ import {
   markAllNotificationsReadAction,
 } from '@/app/actions/notifications'
 import type { NotificationItem } from '@/lib/data/notifications'
+import type { NotifUjian } from '@/lib/data/ujian-notifikasi'
+import { BarisNotifUjian } from '@/components/ujian/BarisNotifUjian'
 import type { TaskStatus } from '@/types'
 
 const STATUS_LABELS: Record<TaskStatus, string> = {
@@ -56,9 +58,12 @@ function timeAgo(iso: string): string {
 interface Props {
   items: NotificationItem[]
   unseenCount: number
+  /** Pengajuan ujian baru di unit koordinator ini (kosong untuk role lain). */
+  ujian?: NotifUjian[]
+  ujianBaru?: number
 }
 
-export function NotificationBell({ items, unseenCount }: Props) {
+export function NotificationBell({ items, unseenCount, ujian = [], ujianBaru = 0 }: Props) {
   const [open, setOpen] = useState(false)
   // State lokal hanya menyimpan SELISIH terhadap data server, bukan salinannya:
   // sekali dibuka badge padam, dan id yang diklik ditumpuk di atas item.read.
@@ -71,7 +76,7 @@ export function NotificationBell({ items, unseenCount }: Props) {
   const wrapRef = useRef<HTMLDivElement>(null)
   const btnRef = useRef<HTMLButtonElement>(null)
 
-  const badge = seenNow ? 0 : unseenCount
+  const badge = seenNow ? 0 : unseenCount + ujianBaru
   const isRead = (item: NotificationItem) => item.read || locallyRead.has(item.id)
 
   // Tutup saat klik di luar atau tekan Escape.
@@ -159,7 +164,22 @@ export function NotificationBell({ items, unseenCount }: Props) {
             )}
           </div>
 
-          {items.length === 0 ? (
+          {ujian.length > 0 && (
+            <div className="border-b">
+              <p className="px-3 pt-2 pb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Pengajuan ujian
+              </p>
+              <ul className="max-h-[220px] divide-y overflow-y-auto">
+                {ujian.map(n => (
+                  <li key={n.id}>
+                    <BarisNotifUjian item={n} href="/ujian/kelola" onPilih={() => setOpen(false)} />
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {items.length === 0 && ujian.length > 0 ? null : items.length === 0 ? (
             <p className="px-3 py-10 text-center text-sm text-muted-foreground">
               Belum ada notifikasi.
             </p>

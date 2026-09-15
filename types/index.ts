@@ -1393,6 +1393,9 @@ export interface UjianTahfidz {
   created_by_user: string | null
   created_at: string
   updated_at: string
+  /** Diisi trigger (0063). Opsional selama migrasinya belum dijalankan. */
+  dijadwalkan_at?: string | null
+  selesai_at?: string | null
 }
 
 /** Satu anak di dalam pengajuan tahsin. */
@@ -1432,6 +1435,9 @@ export interface UjianTahsin {
   created_by_user: string | null
   created_at: string
   updated_at: string
+  /** Diisi trigger (0063). Opsional selama migrasinya belum dijalankan. */
+  dijadwalkan_at?: string | null
+  selesai_at?: string | null
 }
 
 export interface UjianPenguji {

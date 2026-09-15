@@ -9,6 +9,7 @@ import { TeacherNav, type TeacherNavGroup } from './TeacherNav'
 import { PengumumanBell } from '@/components/guru/PengumumanBell'
 import { getKonteksPengumuman, getPengumumanGuru } from '@/lib/data/pengumuman-guru'
 import { hitungRaporBaruGuru } from '@/lib/data/kpi-pengesahan'
+import { getNotifUjianGuru } from '@/lib/data/ujian-notifikasi'
 
 /**
  * Kerangka Portal Guru: navigasi tetap + wadah isi yang bisa digulung.
@@ -30,7 +31,7 @@ export async function TeacherShell({ children }: { children: React.ReactNode }) 
   // halaman masuk tidak perlu menu yang belum boleh ia pakai.
   if (!session) return <>{children}</>
 
-  const [bolehGukar, unitUjian, konteks, raporBaru] = await Promise.all([
+  const [bolehGukar, unitUjian, konteks, raporBaru, notifUjian] = await Promise.all([
     bolehMengampuGukar(session.teacherId),
     getUnitUjianGuru(session.teacherId),
     getKonteksPengumuman(session.teacherId),
@@ -39,6 +40,9 @@ export async function TeacherShell({ children }: { children: React.ReactNode }) 
     // penanda tunggal padam begitu ia membuka daftarnya — termasuk ketika yang
     // ia buka bukan rapor yang dimaksud.
     hitungRaporBaruGuru(session.teacherId),
+    // Kabar pengajuan ujian (dijadwalkan/selesai) — ikut lonceng dan lencana
+    // menu Pengajuan Ujian.
+    getNotifUjianGuru(session.teacherId),
   ])
 
   // Diambil di kerangka, bukan di tiap halaman: loncengnya ada di bilah atas
@@ -71,7 +75,9 @@ export async function TeacherShell({ children }: { children: React.ReactNode }) 
     {
       title: 'Lainnya',
       items: [
-        ...(unitUjian ? [{ label: 'Pengajuan Ujian', href: '/guru/ujian', icon: <ScrollText /> }] : []),
+        ...(unitUjian
+          ? [{ label: 'Pengajuan Ujian', href: '/guru/ujian', icon: <ScrollText />, badge: notifUjian.baruCount }]
+          : []),
         ...(bolehGukar ? [{ label: 'Pembinaan Gukar', href: '/guru/gukar', icon: <GraduationCap /> }] : []),
         { label: 'Profil Saya', href: '/guru/profil', icon: <IdCard /> },
       ],
@@ -82,7 +88,14 @@ export async function TeacherShell({ children }: { children: React.ReactNode }) 
     <TeacherNav
       fullName={session.fullName}
       groups={groups}
-      bell={<PengumumanBell items={pengumuman.items} barusanCount={pengumuman.barusanCount} />}
+      bell={
+        <PengumumanBell
+          items={pengumuman.items}
+          barusanCount={pengumuman.barusanCount}
+          ujian={notifUjian.items}
+          ujianBaru={notifUjian.baruCount}
+        />
+      }
     >
       {children}
     </TeacherNav>
