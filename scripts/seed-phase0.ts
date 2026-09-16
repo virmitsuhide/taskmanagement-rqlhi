@@ -26,7 +26,10 @@ const supabase = createClient(
 // ─── METODE TAHSIN (sesuai metodologi RQ LHI) ────────────────────
 // Tahap terakhir tiap metode = "Lulus Tahsin" (is_terminal: true).
 // is_quran: true menandai tahap membaca mushaf (tanpa total halaman tetap).
-type LevelSeed = { label: string; order_num: number; total_pages: number | null; is_quran: boolean; is_terminal?: boolean }
+// baca_quran: true menandai tahap yang ikut mencatat bacaan mushaf — semua tahap
+// is_quran, DITAMBAH Gharib & Tajwid UMMI yang bukunya dihafal sambil anak terus
+// membaca Al-Qur'an. Dua progres berjalan bersamaan di sana (migrasi 0066).
+type LevelSeed = { label: string; order_num: number; total_pages: number | null; is_quran: boolean; is_terminal?: boolean; baca_quran?: boolean }
 type MethodSeed = { name: string; description: string; levels: LevelSeed[] }
 
 const METHODS: MethodSeed[] = [
@@ -43,8 +46,8 @@ const METHODS: MethodSeed[] = [
       { label: 'Al-Qur’an T2', order_num: 8,  total_pages: null, is_quran: true },
       { label: 'Al-Qur’an T3', order_num: 9,  total_pages: null, is_quran: true },
       { label: 'Talaqqi Mandiri', order_num: 10, total_pages: null, is_quran: true },
-      { label: 'Gharib', order_num: 11, total_pages: 28, is_quran: false },
-      { label: 'Tajwid', order_num: 12, total_pages: 28, is_quran: false },
+      { label: 'Gharib', order_num: 11, total_pages: 28, is_quran: false, baca_quran: true },
+      { label: 'Tajwid', order_num: 12, total_pages: 28, is_quran: false, baca_quran: true },
       { label: 'Lulus Tahsin', order_num: 13, total_pages: null, is_quran: false, is_terminal: true },
     ],
   },
@@ -232,6 +235,7 @@ async function seedMethods() {
           {
             method_id: methodId, label: lvl.label, order_num: lvl.order_num,
             total_pages: lvl.total_pages, is_quran: lvl.is_quran,
+            baca_quran: lvl.baca_quran ?? lvl.is_quran,
             is_terminal: lvl.is_terminal ?? false,
           },
           { onConflict: 'method_id,order_num' },

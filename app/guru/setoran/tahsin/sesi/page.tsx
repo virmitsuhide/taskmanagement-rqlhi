@@ -1,9 +1,11 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { getTeacherSession } from '@/lib/auth/teacher-session'
+import { createServerClient } from '@/lib/supabase/server'
 import { getHalaqohSesiGuru, getSiswaSesiTahsin, pilihHalaqoh } from '@/lib/data/setoran-sesi'
 import { PilihSesi } from '@/components/setoran/PilihSesi'
 import { SetoranSesiTahsin } from '@/components/setoran/SetoranSesiTahsin'
+import type { SuratPilihan } from '@/components/setoran/SetoranSesiTahfidz'
 
 interface PageProps {
   searchParams: Promise<{ halaqoh?: string }>
@@ -16,7 +18,14 @@ export default async function SetoranSesiTahsinPage({ searchParams }: PageProps)
   const { halaqoh: diminta } = await searchParams
   const daftar = await getHalaqohSesiGuru(session.teacherId)
   const halaqoh = pilihHalaqoh(daftar, diminta)
-  const siswa = halaqoh ? await getSiswaSesiTahsin(halaqoh.id) : []
+  // Daftar surat ikut dimuat di sini, bukan di dalam komponen: anak di tahap
+  // Al-Qur'an (dan di Gharib/Tajwid) mencatat surat & ayat bacaannya, dan 114
+  // baris itu sama untuk semua anak — satu kali ambil untuk seluruh sesi.
+  const supabase = createServerClient()
+  const [siswa, suratRes] = await Promise.all([
+    halaqoh ? getSiswaSesiTahsin(halaqoh.id) : Promise.resolve([]),
+    supabase.from('surat_master').select('id, name_latin, total_ayat, juz_start').order('id'),
+  ])
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--secondary)' }}>
@@ -49,7 +58,7 @@ export default async function SetoranSesiTahsinPage({ searchParams }: PageProps)
               </div>
             ) : (
               // key: berganti sesi = isian baru, bukan sisa centang sesi sebelumnya.
-              <SetoranSesiTahsin key={halaqoh.id} siswa={siswa} />
+              <SetoranSesiTahsin key={halaqoh.id} siswa={siswa} surat={(suratRes.data ?? []) as SuratPilihan[]} />
             )}
           </>
         )}

@@ -458,6 +458,12 @@ export const kategoriGuruEnum = pgEnum('kategori_guru', [
   'guru_rq', 'guru_quls_sd', 'musyrif_smp', 'guru_unit_lain',
 ])
 export const tahsinStatusEnum = pgEnum('tahsin_status', ['lulus', 'ulang'])
+/**
+ * Hasil satu materi hafalan pada satu setoran (Gharib/Tajwid UMMI).
+ * 'lanjut' memisahkan "materinya belum selesai dibahas" dari "sudah utuh
+ * tapi belum lancar" — dua keadaan yang nasib pertemuan berikutnya berbeda.
+ */
+export const materiHasilEnum = pgEnum('materi_hasil', ['ulang', 'lanjut', 'lulus'])
 export const tahfidzKindEnum = pgEnum('tahfidz_kind', [
   'hafalan_baru', 'murojaah', 'ziyadah', 'murojaah_baru', 'murojaah_lama', 'tasmi',
 ])
@@ -618,6 +624,12 @@ export const jilidLevels = pgTable('jilid_levels', {
   is_quran: boolean('is_quran').default(false),
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
   is_terminal: boolean('is_terminal').default(false).notNull(),
+  /**
+   * Tahap ini ikut mencatat bacaan mushaf. Berbeda dari is_quran: Gharib &
+   * Tajwid UMMI punya bukunya sendiri (is_quran false) tapi anaknya tetap
+   * membaca Al-Qur'an di periode yang sama.
+   */
+  baca_quran: boolean('baca_quran').default(false).notNull(),
 })
 
 export const suratMaster = pgTable('surat_master', {
@@ -650,6 +662,13 @@ export const students = pgTable('students', {
   current_method_id: uuid('current_method_id').references(() => tahsinMethods.id, { onDelete: 'set null' }),
   current_jilid_id: uuid('current_jilid_id').references(() => jilidLevels.id, { onDelete: 'set null' }),
   current_jilid_page: integer('current_jilid_page'),
+  /**
+   * Posisi bacaan mushaf — terpisah dari halaman buku di atas, sebab anak
+   * Gharib/Tajwid menjalani keduanya sekaligus (lihat migrasi 0066).
+   */
+  current_quran_halaman: integer('current_quran_halaman'),
+  current_quran_surat_id: integer('current_quran_surat_id').references(() => suratMaster.id, { onDelete: 'set null' }),
+  current_quran_ayat: integer('current_quran_ayat'),
   is_active: boolean('is_active').default(true),
   enrolled_at: date('enrolled_at').defaultNow(),
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
@@ -664,7 +683,13 @@ export const tahsinLogs = pgTable('tahsin_logs', {
   setoran_date: date('setoran_date').defaultNow(),
   method_id: uuid('method_id').references(() => tahsinMethods.id, { onDelete: 'set null' }),
   jilid_id: uuid('jilid_id').references(() => jilidLevels.id, { onDelete: 'set null' }),
+  /** Halaman BUKU (Jilid/Gharib/Tajwid). Tahap mushaf memakai quran_halaman. */
   halaman: integer('halaman'),
+  /** Bacaan mushaf pada setoran ini. */
+  quran_halaman: integer('quran_halaman'),
+  quran_surat_id: integer('quran_surat_id').references(() => suratMaster.id, { onDelete: 'set null' }),
+  quran_ayat_dari: integer('quran_ayat_dari'),
+  quran_ayat_ke: integer('quran_ayat_ke'),
   baris_dari: integer('baris_dari'),
   baris_ke: integer('baris_ke'),
   nilai_fashohah: numeric('nilai_fashohah', { precision: 2, scale: 1 }),
@@ -676,6 +701,38 @@ export const tahsinLogs = pgTable('tahsin_logs', {
   status: tahsinStatusEnum('status').default('lulus'),
   catatan: text('catatan'),
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
+})
+
+/**
+ * Daftar materi hafalan sebuah buku tahsin — Gharib & Tajwid UMMI (migrasi 0067).
+ *
+ * Buku ini disetor per MATERI, bukan per halaman: satu halaman memuat beberapa
+ * materi dan bisa memakan beberapa pertemuan, jadi nomor halaman saja tidak
+ * bisa membedakan pertemuan keempat dari yang pertama.
+ */
+export const tahsinMateri = pgTable('tahsin_materi', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  jilid_id: uuid('jilid_id').notNull().references(() => jilidLevels.id, { onDelete: 'cascade' }),
+  /** Urutan materi di buku, 1-based. */
+  nomor: smallint('nomor').notNull(),
+  /** Halaman buku tempat materi ini berada; beberapa materi bisa sehalaman. */
+  halaman: smallint('halaman').notNull(),
+  /** Teks Arab (Gharib) atau nama kaidah (Tajwid). */
+  nama: text('nama').notNull(),
+  keterangan: text('keterangan'),
+  created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
+/** Materi yang disetor pada satu setoran, dengan status hafal per materi. */
+export const tahsinLogMateri = pgTable('tahsin_log_materi', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  log_id: uuid('log_id').notNull().references(() => tahsinLogs.id, { onDelete: 'cascade' }),
+  /** Didenormalisasi: progres anak dibaca jauh lebih sering daripada isi setoran. */
+  student_id: uuid('student_id').notNull().references(() => students.id, { onDelete: 'cascade' }),
+  materi_id: uuid('materi_id').notNull().references(() => tahsinMateri.id, { onDelete: 'restrict' }),
+  /** Hanya 'lulus' yang menambah progres; dua sisanya menandai materi berjalan. */
+  hasil: materiHasilEnum('hasil').notNull().default('lulus'),
+  created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 })
 
 export const tahfidzLogs = pgTable('tahfidz_logs', {

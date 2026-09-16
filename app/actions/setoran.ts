@@ -6,6 +6,8 @@ import { createServerClient } from '@/lib/supabase/server'
 import { getTeacherSession } from '@/lib/auth/teacher-session'
 import { canTeacherAccessStudent } from '@/lib/data/teacher'
 import { catatDrillSetelahZiyadah } from '@/lib/data/drill-tahfidz'
+import { periksaBacaanQuran, posisiLanjut, type BacaanQuran } from '@/lib/rq/bacaan-quran'
+import { getMateriPerJilid, getHasilMateriPerSiswa, ringkasProgres, type HasilMateri } from '@/lib/data/materi-tahsin'
 import type { TahsinStatus, TahfidzKind } from '@/types'
 
 /**
@@ -67,6 +69,14 @@ function readScore(formData: FormData, field: string): number | null {
   return value
 }
 
+/** Bilangan bulat opsional dari FormData; kosong/bukan angka = tidak diisi. */
+function readInt(formData: FormData, field: string): number | null {
+  const raw = formData.get(field)
+  if (raw === null || String(raw).trim() === '') return null
+  const n = Number(raw)
+  return Number.isInteger(n) ? n : null
+}
+
 /** Nilai 0-100 dari angka mentah; di luar rentang dianggap tidak dinilai. */
 function nilaiSah(v: unknown): number | null {
   if (v === null || v === undefined || String(v).trim() === '') return null
@@ -78,7 +88,15 @@ export interface InputSetoranTahsin {
   student_id: string
   method_id: string | null
   jilid_id: string | null
+  /** Halaman BUKU. Null di tahap tak berbuku (Al-Qur'an, Talaqqi). */
   halaman: number | null
+  /** Bacaan mushaf sesi ini — progres kedua, terpisah dari halaman buku. */
+  quran: BacaanQuran
+  /**
+   * Materi hafalan yang disetor sesi ini (Gharib/Tajwid UMMI). Kosong di
+   * tahap yang tidak berbasis materi.
+   */
+  materi: { materi_id: string; hasil: HasilMateri }[]
   nilai_tahsin: number | null
   nilai_sikap: number | null
   status: TahsinStatus
@@ -132,47 +150,195 @@ async function simpanSetoranTahsin(teacherId: string, input: InputSetoranTahsin)
 
   const { data: jilidRow } = await supabase
     .from('jilid_levels')
-    .select('label, total_pages')
+    .select('label, total_pages, baca_quran')
     .eq('id', jilidId)
     .maybeSingle()
-  const jilid = jilidRow as { label: string; total_pages: number | null } | null
+  const jilid = jilidRow as { label: string; total_pages: number | null; baca_quran: boolean } | null
 
   if (halaman !== null && halaman < 1) return 'Halaman minimal 1.'
   if (halaman !== null && jilid?.total_pages && halaman > jilid.total_pages) {
     return `${jilid.label} hanya ${jilid.total_pages} halaman — halaman ${halaman} tidak ada.`
   }
 
+  /*
+    BACAAN MUSHAF — PROGRES KEDUA YANG BERJALAN BERSAMAAN.
+
+    Di UMMI, anak yang sudah masuk buku Gharib atau Tajwid tidak berhenti
+    membaca Al-Qur'an: bukunya DIHAFAL, mushafnya tetap DIBACA. Karena itu
+    kedua tahap itu ditandai baca_quran walau is_quran-nya false, dan satu
+    setoran di sana memuat dua kemajuan sekaligus.
+
+    Panjang surah diambil dari surat_master, bukan ditebak: tanpa itu
+    "Al-Ikhlas ayat 12" lolos begitu saja dan baru ketahuan saat rapor dicetak.
+  */
+  const bacaQuran = Boolean(jilid?.baca_quran)
+  let totalAyat: number | null = null
+  if (input.quran.surat_id !== null) {
+    const { data: suratRow } = await supabase
+      .from('surat_master')
+      .select('total_ayat')
+      .eq('id', input.quran.surat_id)
+      .maybeSingle()
+    if (!suratRow) return 'Surat tidak dikenal.'
+    totalAyat = (suratRow as { total_ayat: number }).total_ayat
+  }
+
+  const galatQuran = periksaBacaanQuran(input.quran, { totalAyat, wajib: bacaQuran })
+  if (galatQuran) return galatQuran
+
+  /*
+    TAHAP BERBASIS MATERI — GHARIB & TAJWID.
+
+    Bukunya DIHAFAL, bukan dibaca, dan satu halamannya memuat beberapa materi
+    yang bisa memakan beberapa pertemuan. Karena itu satuan setorannya materi;
+    nomor halaman tetap ikut disimpan tapi hanya sebagai turunan, supaya rekap
+    lama yang menghitung halaman tidak perlu tahu apa-apa tentang ini.
+
+    Yang menentukan sebuah tahap "berbasis materi" adalah ADA TIDAKNYA baris
+    materi untuknya, bukan sebuah penanda tersendiri. Penanda bisa menyala
+    sebelum materinya diseed, dan formulir yang meminta materi dari daftar
+    kosong tidak bisa diselesaikan siapa pun.
+  */
+  const daftarMateri = (await getMateriPerJilid([jilidId])).get(jilidId) ?? []
+  const pakaiMateri = daftarMateri.length > 0
+  const materiSah = new Map(daftarMateri.map(m => [m.id, m]))
+  const dipilih = pakaiMateri ? input.materi : []
+
+  if (pakaiMateri) {
+    if (dipilih.length === 0) return `Pilih minimal satu materi ${jilid?.label ?? ''} yang disetor.`
+    for (const m of dipilih) {
+      if (!materiSah.has(m.materi_id)) return 'Ada materi yang bukan milik tahap ini.'
+    }
+  } else if (input.materi.length > 0) {
+    return 'Tahap ini tidak memakai materi hafalan.'
+  }
+
+  // Halaman buku diturunkan dari materi terjauh yang disetor, bukan diketik.
+  const halamanMateri = dipilih.length > 0
+    ? Math.max(...dipilih.map(m => materiSah.get(m.materi_id)!.halaman))
+    : null
+  const halamanTersimpan = pakaiMateri ? halamanMateri : halaman
+
+  /*
+    Di tahap berbasis materi, status setoran DITURUNKAN dari hasil materinya,
+    bukan ditanyakan lagi ke guru. Menanyakan dua kali membuka kemungkinan
+    jawaban yang saling bertentangan — setoran berstatus 'lulus' yang semua
+    materinya mengulang — dan yang lebih rinci selalu yang benar. Kolom
+    status tetap diisi supaya rekap lama yang membacanya tidak perlu tahu
+    apa-apa tentang materi.
+  */
+  const statusTersimpan: TahsinStatus = pakaiMateri
+    ? (dipilih.some(m => m.hasil === 'lulus') ? 'lulus' : 'ulang')
+    : status
+
   const sedangDrill = Boolean(student.tahsin_drill_sejak)
 
-  const { error: logErr } = await supabase.from('tahsin_logs').insert({
+  const { data: logBaru, error: logErr } = await supabase.from('tahsin_logs').insert({
     student_id: studentId,
     teacher_id: teacherId,
     halaqoh_id: student.halaqoh_id,
     setoran_date: input.setoran_date,
     method_id: methodId,
     jilid_id: jilidId,
-    halaman,
+    halaman: halamanTersimpan,
+    quran_halaman: input.quran.halaman,
+    quran_surat_id: input.quran.surat_id,
+    quran_ayat_dari: input.quran.ayat_dari,
+    quran_ayat_ke: input.quran.ayat_ke,
     nilai_tahsin: input.nilai_tahsin,
     nilai_sikap: input.nilai_sikap,
-    status,
+    status: statusTersimpan,
     catatan: input.catatan,
     drill: sedangDrill,
-  })
-  if (logErr) return 'Gagal menyimpan setoran.'
+  }).select('id').single()
+  if (logErr || !logBaru) return 'Gagal menyimpan setoran.'
+  const logId = (logBaru as { id: string }).id
 
-  const { masukDrill, ...posisi } = resolveStudentPosition({
-    status, methodId, jilidId, halaman,
-    totalHalaman: jilid?.total_pages ?? null,
-    sedangDrill,
-    current: {
-      method_id: student.current_method_id,
-      jilid_id: student.current_jilid_id,
-      page: student.current_jilid_page,
-    },
-  })
+  if (dipilih.length > 0) {
+    const { error: materiErr } = await supabase.from('tahsin_log_materi').insert(
+      dipilih.map(m => ({
+        log_id: logId,
+        student_id: studentId,
+        materi_id: m.materi_id,
+        hasil: m.hasil,
+      })),
+    )
+    // Setoran tanpa materinya adalah baris yang tidak mengatakan apa-apa;
+    // lebih baik dibatalkan daripada meninggalkan kemajuan yang tak terbaca.
+    if (materiErr) {
+      await supabase.from('tahsin_logs').delete().eq('id', logId)
+      return 'Gagal menyimpan materi setoran.'
+    }
+  }
+
+  /*
+    Posisi di tahap materi: halaman materi BERIKUTNYA yang belum lulus, dan
+    drill saat tidak ada lagi yang tersisa — padanan persis dari "lulus di
+    halaman terakhir jilid". Himpunan hafal dibaca ulang dari basis data
+    setelah penyimpanan, bukan ditebak dari isian: materi yang sama bisa sudah
+    pernah lulus di setoran lampau, dan menghitungnya dua kali membuat anak
+    tampak tuntas sebelum waktunya.
+  */
+  let posisi: { current_method_id: string | null; current_jilid_id: string | null; current_jilid_page: number | null }
+  let masukDrill: boolean
+
+  if (pakaiMateri) {
+    const hasilMateri = (await getHasilMateriPerSiswa([studentId])).get(studentId)
+      ?? new Map<string, HasilMateri>()
+    const progres = ringkasProgres(daftarMateri, hasilMateri)
+    posisi = {
+      current_method_id: methodId ?? student.current_method_id,
+      current_jilid_id: jilidId,
+      current_jilid_page: progres.berikutnya?.halaman
+        ?? daftarMateri[daftarMateri.length - 1]?.halaman
+        ?? student.current_jilid_page,
+    }
+    masukDrill = progres.tuntas && !sedangDrill
+  } else {
+    const hasil = resolveStudentPosition({
+      status, methodId, jilidId, halaman,
+      totalHalaman: jilid?.total_pages ?? null,
+      sedangDrill,
+      current: {
+        method_id: student.current_method_id,
+        jilid_id: student.current_jilid_id,
+        page: student.current_jilid_page,
+      },
+    })
+    masukDrill = hasil.masukDrill
+    posisi = {
+      current_method_id: hasil.current_method_id,
+      current_jilid_id: hasil.current_jilid_id,
+      current_jilid_page: hasil.current_jilid_page,
+    }
+  }
+  /*
+    Posisi mushaf maju sendiri, tidak menumpang aturan jilid.
+
+    Bedanya mendasar: buku punya halaman terakhir yang memicu DRILL, mushaf
+    tidak — 604 halaman itu dibaca berulang seumur hidup, dan tidak ada
+    "lulus Al-Qur'an" yang menutupnya. Selama drill buku pun bacaan mushafnya
+    tetap berjalan, jadi sedangDrill sengaja tidak menahannya di sini; yang
+    menahan hanya 'ulang', sebab anak yang mengulang belum pindah tempat.
+  */
+  const posisiQuran = bacaQuran && status === 'lulus' && input.quran.surat_id !== null
+    ? (() => {
+        const p = posisiLanjut(input.quran, totalAyat)
+        return {
+          current_quran_halaman: p.halaman,
+          current_quran_surat_id: p.surat_id,
+          current_quran_ayat: p.ayat,
+        }
+      })()
+    : {}
+
   await supabase
     .from('students')
-    .update(masukDrill ? { ...posisi, tahsin_drill_sejak: input.setoran_date } : posisi)
+    .update({
+      ...posisi,
+      ...posisiQuran,
+      ...(masukDrill ? { tahsin_drill_sejak: input.setoran_date } : {}),
+    })
     .eq('id', studentId)
 
   return null
@@ -195,7 +361,21 @@ export async function createTahsinLogAction(_: unknown, formData: FormData) {
     student_id: studentId,
     method_id: (formData.get('method_id') as string) || null,
     jilid_id: (formData.get('jilid_id') as string) || null,
-    halaman: formData.get('halaman') ? Number(formData.get('halaman')) : null,
+    halaman: readInt(formData, 'halaman'),
+    quran: {
+      halaman: readInt(formData, 'quran_halaman'),
+      surat_id: readInt(formData, 'quran_surat_id'),
+      ayat_dari: readInt(formData, 'quran_ayat_dari'),
+      ayat_ke: readInt(formData, 'quran_ayat_ke'),
+    },
+    // Dua nama medan, bukan satu medan berisi JSON: kotak centang biasa
+    // sudah menghasilkan bentuk ini sendiri, dan JSON di dalam FormData
+    // menambah satu lapis yang bisa gagal diurai tanpa pesan yang berguna.
+    materi: [
+      ...formData.getAll('materi_lulus').map(id  => ({ materi_id: String(id), hasil: 'lulus'  as const })),
+      ...formData.getAll('materi_lanjut').map(id => ({ materi_id: String(id), hasil: 'lanjut' as const })),
+      ...formData.getAll('materi_ulang').map(id  => ({ materi_id: String(id), hasil: 'ulang'  as const })),
+    ],
     nilai_tahsin: readScore(formData, 'nilai_tahsin'),
     nilai_sikap: readScore(formData, 'nilai_sikap'),
     status: ((formData.get('status') as string) || 'lulus') as TahsinStatus,

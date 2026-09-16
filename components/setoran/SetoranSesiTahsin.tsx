@@ -9,11 +9,21 @@ import { Input } from '@/components/ui/input'
 import { StarInput, harusMengulang } from '@/components/setoran/StarInput'
 import { cn } from '@/lib/utils'
 import { createTahsinLogSesiAction } from '@/app/actions/setoran'
+import {
+  BacaanQuranInput, BACAAN_KOSONG, keBacaanQuran, type IsianBacaan,
+} from '@/components/setoran/BacaanQuranInput'
+import { PilihMateri, type PilihanMateri } from '@/components/setoran/PilihMateri'
+import type { SuratPilihan } from '@/components/setoran/SetoranSesiTahfidz'
 import type { SiswaSesiTahsin } from '@/lib/data/setoran-sesi'
 
 interface Isian {
   dipilih: boolean
+  /** Halaman BUKU. Tidak dipakai di tahap tak berbuku (Al-Qur'an, Talaqqi). */
   halaman: string
+  /** Bacaan mushaf — hanya terisi di tahap yang baca_quran. */
+  quran: IsianBacaan
+  /** Materi yang disetor sesi ini — hanya di tahap Gharib/Tajwid. */
+  materi: PilihanMateri
   nilai_tahsin: number | null
   nilai_sikap: number | null
   status: 'lulus' | 'ulang'
@@ -24,13 +34,33 @@ interface Isian {
 }
 
 /**
- * Halaman dibiarkan kosong = pakai posisi anak saat ini. Posisinya dibaca dari
- * data server terbaru, jadi setelah tersimpan dan halaman dimuat ulang,
+ * Halaman buku dibiarkan kosong = pakai posisi anak saat ini. Posisinya dibaca
+ * dari data server terbaru, jadi setelah tersimpan dan halaman dimuat ulang,
  * isian berikutnya otomatis menunjuk halaman yang baru.
+ *
+ * Bacaan mushaf justru DIISI DI MUKA dengan posisi terakhir anak. Bedanya
+ * disengaja: halaman buku cuma satu angka yang gampang diketik ulang,
+ * sedangkan bacaan mushaf butuh tiga — halaman, surat, ayat — dan mengetik
+ * ketiganya dari nol untuk belasan anak tiap sesi adalah cara tercepat membuat
+ * guru berhenti mengisinya sama sekali.
  */
-function isianAwal(): Isian {
+/** Nama surat untuk baris keterangan; id yang tak dikenal tampil apa adanya. */
+function namaSurat(surat: SuratPilihan[], id: number): string {
+  return surat.find(x => x.id === id)?.name_latin ?? `Surat ${id}`
+}
+
+function isianAwal(s: SiswaSesiTahsin): Isian {
   return {
     dipilih: false, halaman: '',
+    quran: s.baca_quran
+      ? {
+          halaman: s.quran.halaman ? String(s.quran.halaman) : '',
+          surat_id: s.quran.surat_id ? String(s.quran.surat_id) : '',
+          ayat_dari: s.quran.ayat ? String(s.quran.ayat) : '',
+          ayat_ke: '',
+        }
+      : BACAAN_KOSONG,
+    materi: {},
     nilai_tahsin: null, nilai_sikap: null, status: 'lulus', catatan: '', versi: 0,
   }
 }
@@ -42,12 +72,12 @@ function isianAwal(): Isian {
  * itu tidak perlu tercatat sebagai apa pun. Aturannya sama persis dengan
  * setoran satu-satu (satu inti di server), termasuk drill di halaman terakhir.
  */
-export function SetoranSesiTahsin({ siswa }: { siswa: SiswaSesiTahsin[] }) {
+export function SetoranSesiTahsin({ siswa, surat }: { siswa: SiswaSesiTahsin[]; surat: SuratPilihan[] }) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
   const [tanggal, setTanggal] = useState(() => new Date().toISOString().slice(0, 10))
   const [isian, setIsian] = useState<Record<string, Isian>>(
-    () => Object.fromEntries(siswa.map(s => [s.id, isianAwal()])),
+    () => Object.fromEntries(siswa.map(s => [s.id, isianAwal(s)])),
   )
 
   const bisaDisetor = siswa.filter(s => s.jilid_id)
@@ -73,7 +103,14 @@ export function SetoranSesiTahsin({ siswa }: { siswa: SiswaSesiTahsin[] }) {
           student_id: s.id,
           method_id: s.method_id,
           jilid_id: s.jilid_id,
-          halaman: v.halaman ? Number(v.halaman) : s.halaman,
+          // Tahap tak berbuku tidak punya halaman buku sama sekali; yang
+          // dikirim dari sana hanya bacaan mushafnya.
+          // Tahap berbasis materi menurunkan halamannya sendiri di server.
+          halaman: s.materi.length > 0 || s.total_halaman === null
+            ? null
+            : v.halaman ? Number(v.halaman) : s.halaman,
+          quran: keBacaanQuran(v.quran),
+          materi: Object.entries(v.materi).map(([materi_id, hasil]) => ({ materi_id, hasil })),
           nilai_tahsin: v.nilai_tahsin,
           nilai_sikap: v.nilai_sikap,
           status: v.status,
@@ -98,7 +135,7 @@ export function SetoranSesiTahsin({ siswa }: { siswa: SiswaSesiTahsin[] }) {
         for (const b of baris) {
           next[b.student_id] = gagal.has(b.student_id)
             ? { ...prev[b.student_id], galat: gagal.get(b.student_id) }
-            : { ...isianAwal(), versi: prev[b.student_id].versi + 1 }
+            : { ...isianAwal(bisaDisetor.find(x => x.id === b.student_id)!), versi: prev[b.student_id].versi + 1 }
         }
         return next
       })
@@ -149,7 +186,10 @@ export function SetoranSesiTahsin({ siswa }: { siswa: SiswaSesiTahsin[] }) {
                     )}
                   </span>
                   <span className="block text-xs text-muted-foreground">
-                    {s.jilid_label}{s.halaman ? ` · hal. ${s.halaman}` : ''}{s.total_halaman ? `/${s.total_halaman}` : ''}
+                    {s.jilid_label}{s.total_halaman && s.halaman ? ` · hal. ${s.halaman}/${s.total_halaman}` : ''}
+                    {s.baca_quran && s.quran.surat_id
+                      ? ` · 📖 ${namaSurat(surat, s.quran.surat_id)}${s.quran.ayat ? `:${s.quran.ayat}` : ''}`
+                      : ''}
                     {s.kelas ? ` · Kelas ${s.kelas}` : ''}
                   </span>
                 </span>
@@ -158,19 +198,34 @@ export function SetoranSesiTahsin({ siswa }: { siswa: SiswaSesiTahsin[] }) {
               {v.dipilih && (
                 <div className="mt-3 space-y-3 border-t pt-3 pl-7">
                   <div className="flex flex-wrap items-end gap-3">
-                    <div className="space-y-1">
-                      <label className="text-xs font-medium" htmlFor={`hal-${s.id}`}>
-                        Halaman{s.drill_sejak ? ' (drill)' : ''}
-                      </label>
-                      <Input
-                        id={`hal-${s.id}`} type="number" inputMode="numeric" min={1}
-                        max={s.total_halaman ?? undefined}
-                        value={v.halaman}
-                        placeholder={s.halaman ? String(s.halaman) : '—'}
-                        onChange={e => ubah(s.id, { halaman: e.target.value })}
-                        className="h-9 w-24"
-                      />
-                    </div>
+                    {/*
+                      Hanya tahap berbuku yang punya kolom ini. Di tahap Al-Qur'an
+                      angka halaman yang dimaksud adalah halaman MUSHAF, dan itu
+                      sudah punya kolomnya sendiri di bawah — dua kotak bernama
+                      "Halaman" di satu kartu adalah undangan salah isi.
+                    */}
+                    {s.total_halaman !== null && s.materi.length === 0 && (
+                      <div className="space-y-1">
+                        <label className="text-xs font-medium" htmlFor={`hal-${s.id}`}>
+                          Hal. {s.jilid_label}{s.drill_sejak ? ' (drill)' : ''}
+                        </label>
+                        <Input
+                          id={`hal-${s.id}`} type="number" inputMode="numeric" min={1}
+                          max={s.total_halaman}
+                          value={v.halaman}
+                          placeholder={s.halaman ? String(s.halaman) : '—'}
+                          onChange={e => ubah(s.id, { halaman: e.target.value })}
+                          className="h-9 w-24"
+                        />
+                      </div>
+                    )}
+                    {/*
+                      Tahap berbasis materi tidak punya status tunggal: tiap
+                      materi punya hasilnya sendiri, dan menanyakan sekali lagi
+                      di tingkat setoran hanya melahirkan jawaban yang bisa
+                      bertentangan. Server menurunkannya dari materi.
+                    */}
+                    {s.materi.length === 0 && (
                     <div className="flex gap-1.5" role="group" aria-label="Status halaman">
                       {(['lulus', 'ulang'] as const).map(st => (
                         <button
@@ -189,7 +244,42 @@ export function SetoranSesiTahsin({ siswa }: { siswa: SiswaSesiTahsin[] }) {
                         </button>
                       ))}
                     </div>
+                    )}
                   </div>
+
+                  {s.materi.length > 0 && (
+                    <div className="rounded-lg border p-2.5">
+                      <p className="mb-1.5 text-xs font-semibold">
+                        🧠 Hafalan {s.jilid_label}
+                      </p>
+                      <PilihMateri
+                        materi={s.materi}
+                        hasilTerakhir={s.materi_hasil}
+                        value={v.materi}
+                        onChange={m => ubah(s.id, { materi: m })}
+                        disabled={pending}
+                      />
+                    </div>
+                  )}
+
+                  {s.baca_quran && (
+                    <div className="rounded-lg border border-dashed p-2.5">
+                      <p className="mb-1.5 text-xs font-semibold">
+                        📖 Bacaan Al-Qur&rsquo;an
+                        {s.total_halaman !== null && (
+                          <span className="ml-1.5 font-normal text-muted-foreground">
+                            — berjalan bersama hafalan {s.jilid_label}
+                          </span>
+                        )}
+                      </p>
+                      <BacaanQuranInput
+                        value={v.quran}
+                        onChange={q => ubah(s.id, { quran: q })}
+                        surat={surat}
+                        disabled={pending}
+                      />
+                    </div>
+                  )}
 
                   <div className="grid gap-2 sm:grid-cols-2">
                     <div key={`t-${v.versi}`}>
@@ -215,7 +305,7 @@ export function SetoranSesiTahsin({ siswa }: { siswa: SiswaSesiTahsin[] }) {
                     className="h-9"
                   />
 
-                  {!s.drill_sejak && v.status === 'lulus' && halamanTerakhir && (
+                  {!s.drill_sejak && s.materi.length === 0 && v.status === 'lulus' && halamanTerakhir && (
                     <p className="text-xs text-primary">
                       🎯 Halaman terakhir — setelah disimpan anak masuk DRILL sampai lulus ujian tahsin.
                     </p>

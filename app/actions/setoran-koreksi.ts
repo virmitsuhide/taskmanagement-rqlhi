@@ -4,6 +4,8 @@ import { revalidatePath } from 'next/cache'
 import { createServerClient } from '@/lib/supabase/server'
 import { getSession } from '@/lib/auth/session'
 import { canManageSetoran } from '@/lib/auth/permissions'
+import { posisiLanjut, type BacaanQuran } from '@/lib/rq/bacaan-quran'
+import { getMateriPerJilid, getHasilMateriPerSiswa, ringkasProgres, type HasilMateri } from '@/lib/data/materi-tahsin'
 import type { Jenjang } from '@/types'
 
 type Result = { error?: string; success?: boolean }
@@ -67,13 +69,37 @@ async function guard(
  * karena posisi sekarang bisa saja sudah menyimpang — dan pemutaran ulang
  * memperbaikinya sekalian.
  */
+interface PosisiQuran {
+  current_quran_halaman: number | null
+  current_quran_surat_id: number | null
+  current_quran_ayat: number | null
+}
+
+/** Posisi mushaf sesudah sebuah bacaan; panjang surah diambil dari surat_master. */
+async function posisiQuranBerikutnya(
+  supabase: ReturnType<typeof createServerClient>,
+  bacaan: BacaanQuran,
+): Promise<PosisiQuran> {
+  const { data: suratRow } = await supabase
+    .from('surat_master')
+    .select('total_ayat')
+    .eq('id', bacaan.surat_id)
+    .maybeSingle()
+  const p = posisiLanjut(bacaan, (suratRow as { total_ayat: number } | null)?.total_ayat ?? null)
+  return {
+    current_quran_halaman: p.halaman,
+    current_quran_surat_id: p.surat_id,
+    current_quran_ayat: p.ayat,
+  }
+}
+
 async function recalcPosisi(
   supabase: ReturnType<typeof createServerClient>,
   studentId: string,
 ): Promise<void> {
   const { data: logRows } = await supabase
     .from('tahsin_logs')
-    .select('id, method_id, jilid_id, halaman, status, setoran_date, created_at')
+    .select('id, method_id, jilid_id, halaman, status, setoran_date, created_at, quran_halaman, quran_surat_id, quran_ayat_dari, quran_ayat_ke')
     .eq('student_id', studentId)
     .order('setoran_date', { ascending: true })
     .order('created_at', { ascending: true })
@@ -81,6 +107,8 @@ async function recalcPosisi(
   const logs = (logRows ?? []) as {
     id: string; method_id: string | null; jilid_id: string | null
     halaman: number | null; status: string
+    quran_halaman: number | null; quran_surat_id: number | null
+    quran_ayat_dari: number | null; quran_ayat_ke: number | null
   }[]
 
   // Setoran habis seluruhnya: kosongkan posisi supaya tidak ada sisa angka
@@ -88,7 +116,10 @@ async function recalcPosisi(
   if (logs.length === 0) {
     await supabase
       .from('students')
-      .update({ current_method_id: null, current_jilid_id: null, current_jilid_page: null })
+      .update({
+        current_method_id: null, current_jilid_id: null, current_jilid_page: null,
+        current_quran_halaman: null, current_quran_surat_id: null, current_quran_ayat: null,
+      })
       .eq('id', studentId)
     return
   }
@@ -107,12 +138,28 @@ async function recalcPosisi(
   let method: string | null = null
   let jilid: string | null = null
   let page: number | null = null
+  /*
+    Posisi mushaf tidak ikut diputar setoran demi setoran, cukup setoran
+    LULUS terakhir yang memuat bacaan. Bedanya dari halaman buku: mushaf tidak
+    punya kenaikan jilid yang mengembalikan hitungan ke 1, jadi tidak ada
+    riwayat yang perlu ditumpuk — catatan terakhir sudah menyimpan seluruh
+    jawabannya.
+  */
+  let bacaanTerakhir: BacaanQuran | null = null
 
   for (const log of logs) {
     if (log.status === 'lulus') {
       method = log.method_id
       jilid = log.jilid_id
       page = log.halaman !== null ? log.halaman + 1 : page
+      if (log.quran_surat_id !== null) {
+        bacaanTerakhir = {
+          halaman: log.quran_halaman,
+          surat_id: log.quran_surat_id,
+          ayat_dari: log.quran_ayat_dari,
+          ayat_ke: log.quran_ayat_ke,
+        }
+      }
     }
     const naik = promosiDari.get(log.id)
     if (naik) {
@@ -121,9 +168,29 @@ async function recalcPosisi(
     }
   }
 
+  const posisiQuran: PosisiQuran = bacaanTerakhir
+    ? await posisiQuranBerikutnya(supabase, bacaanTerakhir)
+    : { current_quran_halaman: null, current_quran_surat_id: null, current_quran_ayat: null }
+
+  /*
+    Tahap berbasis materi (Gharib/Tajwid) tidak bisa diputar ulang lewat
+    halaman: di sana halaman hanyalah turunan, dan "halaman + 1" akan
+    melewati materi lain yang masih sehalaman. Posisinya diambil dari materi
+    yang tersisa — daftar yang sudah menyusut sendiri, sebab menghapus
+    setoran ikut menghapus klaim hafalnya lewat CASCADE.
+  */
+  if (jilid) {
+    const materi = (await getMateriPerJilid([jilid])).get(jilid) ?? []
+    if (materi.length > 0) {
+      const hafal = (await getHasilMateriPerSiswa([studentId])).get(studentId) ?? new Map<string, HasilMateri>()
+      const progres = ringkasProgres(materi, hafal)
+      page = progres.berikutnya?.halaman ?? materi[materi.length - 1].halaman
+    }
+  }
+
   await supabase
     .from('students')
-    .update({ current_method_id: method, current_jilid_id: jilid, current_jilid_page: page })
+    .update({ current_method_id: method, current_jilid_id: jilid, current_jilid_page: page, ...posisiQuran })
     .eq('id', studentId)
 }
 

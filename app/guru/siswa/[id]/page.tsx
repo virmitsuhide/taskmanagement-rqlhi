@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { getTeacherSession } from '@/lib/auth/teacher-session'
 import { canTeacherAccessStudent } from '@/lib/data/teacher'
 import { createServerClient } from '@/lib/supabase/server'
+import { getMateriPerJilid, getHasilMateriPerSiswa, ringkasProgres, type HasilMateri } from '@/lib/data/materi-tahsin'
 import { Button } from '@/components/ui/button'
 import { BookOpen, CheckCircle2, Sparkles } from 'lucide-react'
 import { AYAT_PER_JUZ } from '@/types'
@@ -42,9 +43,11 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
     .from('students')
     .select(`
       id, full_name, nis, gender, kelas, jenjang, current_jilid_page, tahsin_drill_sejak,
+      current_quran_halaman, current_quran_ayat,
       halaqoh:halaqoh!students_halaqoh_id_fkey(id, name),
       current_method:tahsin_methods!students_current_method_id_fkey(id, name),
-      current_jilid:jilid_levels!students_current_jilid_id_fkey(id, label, is_terminal, is_quran)
+      current_jilid:jilid_levels!students_current_jilid_id_fkey(id, label, is_terminal, is_quran, baca_quran),
+      quran_surat:surat_master!students_current_quran_surat_id_fkey(name_latin)
     `)
     .eq('id', id)
     .maybeSingle()
@@ -55,10 +58,25 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
     id: string; full_name: string; nis: string | null; gender: 'L' | 'P' | null
     kelas: string | null; jenjang: string; current_jilid_page: number | null
     tahsin_drill_sejak: string | null
+    current_quran_halaman: number | null; current_quran_ayat: number | null
     halaqoh: { id: string; name: string } | null
     current_method: { id: string; name: string } | null
-    current_jilid: { id: string; label: string; is_terminal: boolean; is_quran: boolean } | null
+    current_jilid: { id: string; label: string; is_terminal: boolean; is_quran: boolean; baca_quran: boolean } | null
+    quran_surat: { name_latin: string } | null
   }
+
+  /*
+    Progres hafalan Gharib/Tajwid dihitung, bukan dibaca dari kolom.
+    Lihat lib/data/materi-tahsin.ts: angka simpanan akan bertengkar dengan
+    riwayatnya begitu sebuah setoran dikoreksi.
+  */
+  const jilidMateriId = student.current_jilid?.id ?? null
+  const materiTahap = jilidMateriId
+    ? (await getMateriPerJilid([jilidMateriId])).get(jilidMateriId) ?? []
+    : []
+  const progresMateri = materiTahap.length > 0
+    ? ringkasProgres(materiTahap, (await getHasilMateriPerSiswa([id])).get(id) ?? new Map<string, HasilMateri>())
+    : null
 
   // Riwayat 15 setoran tahsin terakhir
   const { data: logs } = await supabase
@@ -301,6 +319,37 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
                     {student.current_method?.name && student.current_jilid?.label
                       ? `${student.current_method.name} ${student.current_jilid.label}${student.current_jilid.is_quran ? '' : ` · hal. ${student.current_jilid_page ?? '—'}`}`
                       : 'Belum ada data tahsin'}
+                  </span>
+                )}
+                {progresMateri && (
+                  <span
+                    className="inline-flex items-center gap-1.5 text-sm px-2.5 py-1 rounded-lg"
+                    style={{ background: 'var(--secondary)', color: 'var(--foreground)' }}
+                    title={progresMateri.berikutnya
+                      ? `Berikutnya: materi ${progresMateri.berikutnya.nomor} — ${progresMateri.berikutnya.nama}`
+                      : 'Semua materi sudah lulus'}
+                  >
+                    🧠 {progresMateri.lulus}/{progresMateri.total} materi
+                    {progresMateri.tuntas
+                      ? ' · tuntas'
+                      : progresMateri.berjalan > 0 ? ` · ${progresMateri.berjalan} berjalan` : ''}
+                  </span>
+                )}
+                {/*
+                  Lencana kedua untuk progres kedua. Anak di Gharib/Tajwid
+                  punya dua posisi yang bergerak sendiri-sendiri, dan
+                  menggabungkannya ke satu lencana akan membuat salah satunya
+                  terbaca sebagai keterangan bagi yang lain.
+                */}
+                {student.current_jilid?.baca_quran && student.quran_surat && (
+                  <span
+                    className="inline-flex items-center gap-1.5 text-sm px-2.5 py-1 rounded-lg"
+                    style={{ background: 'var(--secondary)', color: 'var(--foreground)' }}
+                    title="Posisi bacaan mushaf — berjalan terpisah dari halaman buku"
+                  >
+                    📖 {student.quran_surat.name_latin}
+                    {student.current_quran_ayat ? `:${student.current_quran_ayat}` : ''}
+                    {student.current_quran_halaman ? ` · hal. ${student.current_quran_halaman}` : ''}
                   </span>
                 )}
                 {student.tahsin_drill_sejak && (

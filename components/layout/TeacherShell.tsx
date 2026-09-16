@@ -1,6 +1,6 @@
 import {
   LayoutDashboard, Users, BookOpen, Sparkles, CalendarCheck,
-  BarChart3, ScrollText, GraduationCap, IdCard, ClipboardCheck,
+  BarChart3, ScrollText, GraduationCap, IdCard, ClipboardCheck, ListChecks,
 } from 'lucide-react'
 import { getTeacherSession } from '@/lib/auth/teacher-session'
 import { bolehMengampuGukar } from '@/lib/data/gukar'
@@ -63,7 +63,12 @@ export async function TeacherShell({ children }: { children: React.ReactNode }) 
         { label: 'Setor Tahsin', href: '/guru/setoran/tahsin/baru', icon: <BookOpen /> },
         { label: 'Setor Tahfidz', href: '/guru/setoran/tahfidz/baru', icon: <Sparkles /> },
         // Satu sesi sekaligus — cara yang lebih cepat saat seluruh halaqoh setor.
-        { label: 'Setor per Sesi', href: '/guru/setoran/tahsin/sesi', icon: <Users /> },
+        // Dipisah per jenis, bukan satu tautan: tahsin dan tahfidz punya halaman
+        // sendiri dengan isian yang berbeda, jadi satu menu pasti menyembunyikan
+        // salah satunya — dan yang tersembunyi selama ini tahfidz, yang halamannya
+        // sudah ada tapi tak punya jalan masuk dari navigasi.
+        { label: 'Sesi Tahsin', href: '/guru/setoran/tahsin/sesi', icon: <ListChecks /> },
+        { label: 'Sesi Tahfidz', href: '/guru/setoran/tahfidz/sesi', icon: <ListChecks /> },
         { label: 'Capaian Bulanan', href: '/guru/capaian', icon: <CalendarCheck /> },
         { label: 'Statistik', href: '/guru/statistik', icon: <BarChart3 /> },
       ],
