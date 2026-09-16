@@ -16,6 +16,12 @@ interface Props {
   photoFocus?: PhotoFocus | null
   dashboardHref: string
   /**
+   * Tulisan pada tautan ke ruang kerja. Pengurus menyebutnya "Dashboard",
+   * guru "Portal Guru" — istilah yang sama dengan lencana di sidebarnya,
+   * supaya yang dituju terbaca sebagai tempat yang ia kenal.
+   */
+  dashboardLabel?: string
+  /**
    * Ke mana "Profil Saya" menuju. Pengurus ke /profil, guru ke /guru/profil.
    * Dulu tertulis mati sebagai /profil, dan itu melempar guru ke halaman yang
    * bahkan tidak boleh ia buka.
@@ -36,6 +42,7 @@ interface Props {
  */
 export function HeaderUserCard({
   name, roleLabel, photoUrl, photoFocus, dashboardHref,
+  dashboardLabel = 'Dashboard',
   profileHref = '/profil',
   logout = logoutAction,
 }: Props) {
@@ -106,7 +113,7 @@ export function HeaderUserCard({
             className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm hover:bg-accent transition-colors"
           >
             <LayoutDashboard className="h-4 w-4 shrink-0" />
-            Dashboard
+            {dashboardLabel}
           </Link>
           <Link
             href={profileHref}

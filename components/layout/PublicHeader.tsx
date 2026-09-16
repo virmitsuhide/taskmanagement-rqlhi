@@ -169,6 +169,7 @@ export async function PublicHeader() {
             photoUrl={teacherProfile?.photo_url ?? null}
             photoFocus={teacherProfile?.photo_focus ?? null}
             dashboardHref="/guru"
+            dashboardLabel="Portal Guru"
             profileHref="/guru/profil"
             logout={logoutTeacherAction}
           />

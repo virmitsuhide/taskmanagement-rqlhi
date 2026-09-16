@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Menu, X, LogOut } from 'lucide-react'
+import { Menu, X, LogOut, Home } from 'lucide-react'
 import { logoutTeacherAction } from '@/app/actions/teacher-auth'
 import { Button } from '@/components/ui/button'
 import { Logo } from '@/components/brand/Logo'
@@ -236,6 +236,24 @@ export function TeacherNav({ fullName, groups, bell, children }: Props) {
             </span>
             {bell}
             <ThemeToggle />
+            {/*
+              Jalan keluar ke halaman publik, sebentuk dengan milik pengurus di
+              DashboardHeader: ruang paling kanan, tombol bergaris, teksnya
+              disembunyikan di layar sempit supaya tersisa ikon saja.
+
+              Guru membutuhkannya bukan sekadar untuk 'keluar sebentar':
+              pengumuman, berita, dan profil guru semuanya tinggal di halaman
+              publik, dan satu-satunya jalan ke sana sebelumnya adalah mengetik
+              alamatnya sendiri.
+            */}
+            <Link
+              href="/"
+              title="Buka halaman beranda"
+              className="inline-flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            >
+              <Home className="h-4 w-4 shrink-0" />
+              <span className="hidden sm:inline">Beranda</span>
+            </Link>
           </div>
         </header>
 
