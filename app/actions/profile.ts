@@ -7,7 +7,7 @@ import { getSession } from '@/lib/auth/session'
 import { AMANAH_LABELS, canHavePengurusProfile } from '@/lib/auth/permissions'
 import { getProfilAmanah } from '@/lib/data/pengurus'
 import { bacaDataDiri, unggahFotoProfil } from '@/lib/profil/data-diri'
-import { highestLevel, isEducationLevel, sortEducation } from '@/lib/profil/pendidikan'
+import { dropUnusedMajor, highestLevel, isEducationLevel, sortEducation } from '@/lib/profil/pendidikan'
 import { focusFromFormData } from '@/lib/profil/foto'
 import { collectRows } from '@/lib/profil/form-rows'
 import type { EducationEntry, TrainingEntry, AmanahEntry, AwardEntry, CompetencyEntry } from '@/types'
@@ -66,7 +66,7 @@ export async function updatePengurusProfileAction(_: unknown, formData: FormData
         { key: 'graduation_year', field: 'edu_year' },
       ],
       'level',
-    ).filter(row => isEducationLevel(row.level)),
+    ).filter(row => isEducationLevel(row.level)).map(dropUnusedMajor),
   )
 
   // Dua daftar kompetensi berbentuk sama; yang membedakan hanya awalan

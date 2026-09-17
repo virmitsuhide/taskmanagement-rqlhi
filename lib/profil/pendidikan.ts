@@ -7,8 +7,11 @@ import type { EducationEntry, EducationLevel } from '@/types'
  */
 export const EDUCATION_LEVELS = ['SD', 'SMP', 'SMA', 'D3', 'S1', 'S2', 'S3'] as const
 
-/** Jenjang yang lazim punya jurusan/program studi. */
-const LEVELS_WITH_MAJOR: readonly string[] = ['SMA', 'D3', 'S1', 'S2', 'S3']
+/**
+ * Jenjang yang punya jurusan/program studi — hanya pendidikan tinggi.
+ * Peminatan SMA (IPA/IPS) sengaja tidak dicatat.
+ */
+const LEVELS_WITH_MAJOR: readonly string[] = ['D3', 'S1', 'S2', 'S3']
 
 export function isEducationLevel(value: string): value is EducationLevel {
   return (EDUCATION_LEVELS as readonly string[]).includes(value)
@@ -16,6 +19,15 @@ export function isEducationLevel(value: string): value is EducationLevel {
 
 export function hasMajorField(level: string): boolean {
   return LEVELS_WITH_MAJOR.includes(level)
+}
+
+/**
+ * Kosongkan jurusan pada jenjang yang tidak memilikinya. Form menyembunyikan
+ * isiannya, tapi baris lama (mis. SMA "IPA") atau baris yang jenjangnya
+ * diturunkan setelah jurusan terisi tetap perlu dibersihkan saat disimpan.
+ */
+export function dropUnusedMajor(row: EducationEntry): EducationEntry {
+  return hasMajorField(row.level) ? row : { ...row, major: '' }
 }
 
 /**

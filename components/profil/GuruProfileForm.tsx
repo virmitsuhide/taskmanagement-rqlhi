@@ -359,14 +359,20 @@ export function GuruProfileForm({ profile, scope }: Props) {
                 onChange={e => patchEducation(i, { institution: e.target.value })}
                 placeholder={institutionPlaceholder(row.level)}
                 aria-label={`Institusi ${i + 1}`}
+                className={hasMajorField(row.level) ? undefined : 'sm:col-span-2'}
               />
-              <Input
-                name="edu_major"
-                value={row.major}
-                onChange={e => patchEducation(i, { major: e.target.value })}
-                placeholder={hasMajorField(row.level) ? 'Jurusan' : 'Jurusan (opsional)'}
-                aria-label={`Jurusan ${i + 1}`}
-              />
+              {/* Field tersembunyi tetap dikirim supaya indeks edu_* antarbaris tidak bergeser. */}
+              {hasMajorField(row.level) ? (
+                <Input
+                  name="edu_major"
+                  value={row.major}
+                  onChange={e => patchEducation(i, { major: e.target.value })}
+                  placeholder="Jurusan"
+                  aria-label={`Jurusan ${i + 1}`}
+                />
+              ) : (
+                <input type="hidden" name="edu_major" value="" />
+              )}
               <Input
                 name="edu_year"
                 value={row.graduation_year}

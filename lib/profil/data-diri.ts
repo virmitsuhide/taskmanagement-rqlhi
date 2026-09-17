@@ -1,5 +1,5 @@
 import { createServerClient } from '@/lib/supabase/server'
-import { highestLevel, isEducationLevel, sortEducation } from '@/lib/profil/pendidikan'
+import { dropUnusedMajor, highestLevel, isEducationLevel, sortEducation } from '@/lib/profil/pendidikan'
 import { collectRows } from '@/lib/profil/form-rows'
 import { focusFromFormData } from '@/lib/profil/foto'
 import type {
@@ -34,7 +34,7 @@ export function bacaDataDiri(formData: FormData): Record<string, unknown> {
         { key: 'graduation_year', field: 'edu_year' },
       ],
       'level',
-    ).filter(row => isEducationLevel(row.level)),
+    ).filter(row => isEducationLevel(row.level)).map(dropUnusedMajor),
   )
 
   const sapaan = formData.get('sapaan')
