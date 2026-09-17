@@ -1,6 +1,7 @@
 import { cache } from 'react'
 import { createServerClient } from '@/lib/supabase/server'
 import { tanggalWIB } from '@/lib/rq/ujian'
+import { totalJuzHafalan } from '@/lib/rq/hafalan'
 import { getTeacherHalaqohIds } from '@/lib/data/teacher'
 import type {
   CalonPenguji,
@@ -515,4 +516,75 @@ export function kunciPengaju(item: {
   if (item.created_by_teacher) return `teacher:${item.created_by_teacher}`
   if (item.created_by_user) return `user:${item.created_by_user}`
   return null
+}
+
+// ─── Ujian alumni SD LHI di SMP ──────────────────────────────────────────────
+
+export interface UjianAlumniSd {
+  id: string
+  nama: string
+  kelas: string | null
+  halaqoh: string | null
+  /** Juz tuntas menurut ujian lulus, dalam urutan hafalan RQ. */
+  juzTeruji: number
+  ujian: {
+    id: string
+    unit: UjianUnit
+    tipe: UjianTahfidz['tipe']
+    juz: string
+    predikat: UjianTahfidz['predikat']
+    status: UjianTahfidz['status']
+    tanggal: string | null
+  }[]
+}
+
+/**
+ * Siswa SMP bertanda lulusan SD LHI, beserta seluruh ujian tahfidz mereka.
+ *
+ * `kolomAda` false = migrasi 0070 belum dijalankan. Daftar kosong karena
+ * kolomnya belum ada tidak boleh tampil sama dengan "belum ada alumni".
+ */
+export async function getUjianAlumniSd(): Promise<{ siswa: UjianAlumniSd[]; kolomAda: boolean }> {
+  const supabase = createServerClient()
+  const { data: siswa, error } = await supabase
+    .from('students')
+    .select('id, full_name, kelas, halaqoh:halaqoh!students_halaqoh_id_fkey(name)')
+    .eq('is_active', true)
+    .eq('jenjang', 'smp')
+    .eq('asal_sd_lhi', true)
+    .order('kelas')
+    .order('full_name')
+  if (error) return { siswa: [], kolomAda: false }
+
+  const rows = (siswa ?? []) as unknown as { id: string; full_name: string; kelas: string | null; halaqoh: { name: string } | null }[]
+  if (rows.length === 0) return { siswa: [], kolomAda: true }
+
+  const { data: ujian } = await supabase
+    .from('ujian_tahfidz')
+    .select('id, student_id, unit, tipe, juz, predikat, status, jadwal')
+    .in('student_id', rows.map(r => r.id))
+    .order('jadwal', { ascending: true, nullsFirst: true })
+
+  const perSiswa = new Map<string, UjianAlumniSd['ujian']>()
+  for (const u of (ujian ?? []) as (Pick<UjianTahfidz, 'id' | 'unit' | 'tipe' | 'juz' | 'predikat' | 'status' | 'jadwal'> & { student_id: string })[]) {
+    const daftar = perSiswa.get(u.student_id) ?? []
+    daftar.push({
+      id: u.id, unit: u.unit, tipe: u.tipe, juz: String(u.juz), predikat: u.predikat, status: u.status,
+      tanggal: u.jadwal ? tanggalWIB(u.jadwal) : null,
+    })
+    perSiswa.set(u.student_id, daftar)
+  }
+
+  return {
+    kolomAda: true,
+    siswa: rows.map(r => {
+      const daftar = perSiswa.get(r.id) ?? []
+      const lulus = daftar.filter(u => u.status === 'selesai' && u.predikat !== 'mengulang').map(u => u.juz)
+      return {
+        id: r.id, nama: r.full_name, kelas: r.kelas, halaqoh: r.halaqoh?.name ?? null,
+        juzTeruji: totalJuzHafalan(lulus),
+        ujian: daftar,
+      }
+    }),
+  }
 }

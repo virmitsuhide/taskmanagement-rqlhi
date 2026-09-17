@@ -766,8 +766,62 @@ export async function cariSiswaUjianAction(
  * trigger sejak 0064), supaya guru tidak menerima notifikasi "ujian selesai"
  * untuk ujian yang terjadi berbulan-bulan lalu.
  */
-export async function catatRiwayatTahfidzAction(input: {
-  unit: UjianUnit
+export async function catatRiwayatTahfidzAction(input: InputRiwayatTahfidz & { unit: UjianUnit }): Promise<Result> {
+  const pengurus = await getSession()
+  if (!pengurus || !canManageUjian(pengurus.role, input.unit)) {
+    return { error: 'Hanya pengurus unit yang bisa mencatat riwayat ujian.' }
+  }
+
+  const hasil = await simpanRiwayatTahfidz(pengurus.userId, input, {
+    unit: input.unit,
+    jenjang: input.unit === 'SD' ? ['sd', 'sd_juara'] : ['smp'],
+    catatanBawaan: 'Riwayat ujian sebelum sistem',
+  })
+  if (hasil.error) return hasil
+
+  segarkan()
+  revalidatePath('/dashboard/analitik')
+  revalidatePath('/dashboard/analitik/unit')
+  return { success: true }
+}
+
+/**
+ * Mencatat ujian yang ditempuh siswa SMP semasa masih di SD LHI.
+ *
+ * Jalur riwayat biasa menolaknya: unit SD hanya menerima siswa berjenjang SD,
+ * sedangkan anaknya kini sudah SMP. Di sini unitnya tetap 'SD' — di sanalah
+ * ujiannya berlangsung, dan rekap SD pada bulan itu memang semestinya
+ * memuatnya — tapi siswanya harus bertanda lulusan SD LHI.
+ *
+ * Yang boleh mencatat adalah pengurus SMP, sebab merekalah yang kini memegang
+ * anaknya dan yang membutuhkan juz terujinya untuk target SMPIT internal.
+ */
+export async function catatUjianAlumniSdAction(
+  input: InputRiwayatTahfidz & { kelas_saat_ujian: string; is_quls: boolean },
+): Promise<Result> {
+  const pengurus = await getSession()
+  if (!pengurus || !canManageUjian(pengurus.role, 'SMP')) {
+    return { error: 'Hanya pengurus SMP yang bisa mencatat ujian alumni SD LHI.' }
+  }
+
+  const hasil = await simpanRiwayatTahfidz(pengurus.userId, input, {
+    unit: 'SD',
+    jenjang: ['smp'],
+    syaratSiswa: s => (s.asal_sd_lhi ? null : 'Siswa ini belum ditandai sebagai lulusan SD LHI.'),
+    kelas: input.kelas_saat_ujian.trim() || '6',
+    isQuls: input.is_quls,
+    catatanBawaan: 'Ujian semasa di SDIT LHI',
+  })
+  if (hasil.error) return hasil
+
+  segarkan()
+  revalidatePath('/ujian/catat-riwayat/alumni-sd')
+  revalidatePath('/dashboard/analitik')
+  revalidatePath('/dashboard/analitik/target-tahfidz')
+  return { success: true }
+}
+
+interface InputRiwayatTahfidz {
   student_id: string
   tipe: TahfidzTipe
   juz_dari: number
@@ -776,12 +830,27 @@ export async function catatRiwayatTahfidzAction(input: {
   penguji: string
   predikat: UjianPredikat
   catatan: string
-}): Promise<Result> {
-  const pengurus = await getSession()
-  if (!pengurus || !canManageUjian(pengurus.role, input.unit)) {
-    return { error: 'Hanya pengurus unit yang bisa mencatat riwayat ujian.' }
-  }
+}
 
+/**
+ * Validasi & simpan satu ujian tahfidz yang sudah terjadi — dipakai bersama
+ * oleh riwayat sebelum sistem dan ujian alumni SD. Wewenang diperiksa
+ * pemanggil; yang berbeda di antara keduanya dioper lewat `aturan`.
+ */
+async function simpanRiwayatTahfidz(
+  userId: string,
+  input: InputRiwayatTahfidz,
+  aturan: {
+    unit: UjianUnit
+    jenjang: string[]
+    syaratSiswa?: (s: { asal_sd_lhi?: boolean }) => string | null
+    /** Kelas yang dicatat. Bawaan: kelas siswa sekarang. */
+    kelas?: string
+    /** Bawaan: dari program siswa atau halaqohnya sekarang. */
+    isQuls?: boolean
+    catatanBawaan: string
+  },
+): Promise<Result> {
   if (!input.student_id) return { error: 'Pilih siswa lebih dulu.' }
   if (!/^\d{4}-\d{2}-\d{2}$/.test(input.tanggal)) return { error: 'Tanggal ujian wajib diisi.' }
   if (input.tanggal > new Date().toISOString().slice(0, 10)) {
@@ -806,21 +875,28 @@ export async function catatRiwayatTahfidzAction(input: {
 
   try {
     const supabase = createServerClient()
+    // asal_sd_lhi hanya diminta bila aturannya memerlukan — jalur riwayat biasa
+    // tetap berjalan di basis data yang belum menjalankan migrasi 0070.
+    const kolom = 'id, full_name, kelas, jenjang, program, halaqoh:halaqoh!students_halaqoh_id_fkey(program)'
     const { data: siswa } = await supabase
       .from('students')
-      .select('id, full_name, kelas, jenjang, program, halaqoh:halaqoh!students_halaqoh_id_fkey(program)')
+      .select(aturan.syaratSiswa ? `${kolom}, asal_sd_lhi` : kolom)
       .eq('id', input.student_id)
       .maybeSingle()
-    const s = siswa as {
+    const s = siswa as unknown as {
       id: string; full_name: string; kelas: string | null; jenjang: string; program: string | null
+      asal_sd_lhi?: boolean
       halaqoh: { program: string | null } | null
     } | null
     if (!s) return { error: 'Siswa tidak ditemukan.' }
-    const jenjangUnit = input.unit === 'SD' ? ['sd', 'sd_juara'] : ['smp']
-    if (!jenjangUnit.includes(s.jenjang)) return { error: `Siswa ini bukan siswa unit ${input.unit}.` }
+    if (!aturan.jenjang.includes(s.jenjang)) return { error: `Siswa ini bukan siswa unit ${aturan.unit}.` }
+    const tolak = aturan.syaratSiswa?.(s)
+    if (tolak) return { error: tolak }
 
     // Satu ujian yang sama tidak dicatat dua kali — lazim terjadi saat
-    // memasukkan riwayat dari beberapa buku catatan sekaligus.
+    // memasukkan riwayat dari beberapa buku catatan sekaligus. Ujian yang
+    // berakhir 'mengulang' tidak menghalangi: lulus di ujian berikutnya
+    // justru catatan yang perlu masuk.
     const { data: kembar } = await supabase
       .from('ujian_tahfidz')
       .select('id')
@@ -828,29 +904,30 @@ export async function catatRiwayatTahfidzAction(input: {
       .eq('tipe', input.tipe)
       .eq('juz', juz)
       .eq('status', 'selesai')
+      .or('predikat.is.null,predikat.neq.mengulang')
       .limit(1)
     if (kembar && kembar.length > 0) {
-      return { error: `${s.full_name} sudah punya catatan ${getTahfidzLabel(input.tipe, juz)} yang selesai.` }
+      return { error: `${s.full_name} sudah punya catatan ${getTahfidzLabel(input.tipe, juz)} yang lulus.` }
     }
 
     const waktu = new Date(`${input.tanggal}T08:00:00+07:00`).toISOString()
     const { data: baru, error } = await supabase.from('ujian_tahfidz').insert({
-      unit: input.unit,
+      unit: aturan.unit,
       tipe: input.tipe,
       juz,
       student_id: s.id,
       nama_siswa: s.full_name,
       nama_flyer: s.full_name.split(' ')[0] ?? s.full_name,
-      kelas: s.kelas ?? '',
-      is_quls: programQuls(s.program) || programQuls(s.halaqoh?.program),
+      kelas: aturan.kelas ?? s.kelas ?? '',
+      is_quls: aturan.isQuls ?? (programQuls(s.program) || programQuls(s.halaqoh?.program)),
       jadwal: waktu,
       penguji: input.penguji.trim() || null,
       predikat: input.predikat,
-      catatan: input.catatan.trim() || 'Riwayat ujian sebelum sistem',
+      catatan: input.catatan.trim() || aturan.catatanBawaan,
       status: 'selesai',
       dijadwalkan_at: waktu,
       selesai_at: waktu,
-      created_by_user: pengurus.userId,
+      created_by_user: userId,
     }).select('id').single()
     if (error) return { error: error.message }
     if (input.tipe === '1_juz' && baru) await tautkanUjianKeDrill(s.id, juz, baru.id as string)
@@ -858,9 +935,6 @@ export async function catatRiwayatTahfidzAction(input: {
     return { error: e instanceof Error ? e.message : 'Gagal mencatat riwayat.' }
   }
 
-  segarkan()
-  revalidatePath('/dashboard/analitik')
-  revalidatePath('/dashboard/analitik/unit')
   return { success: true }
 }
 

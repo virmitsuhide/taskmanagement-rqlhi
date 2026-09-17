@@ -1,4 +1,6 @@
 import { redirect } from 'next/navigation'
+import Link from 'next/link'
+import { GraduationCap } from 'lucide-react'
 import { getSession } from '@/lib/auth/session'
 import { canSubmitUjian, getUjianUnits } from '@/lib/auth/permissions'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
@@ -34,6 +36,21 @@ export default async function CatatRiwayatUjianPage() {
         </div>
 
         <UjianSubNav />
+
+        {units.includes('SMP') && (
+          <Link
+            href="/ujian/catat-riwayat/alumni-sd"
+            className="flex items-center gap-3 rounded-xl border bg-card p-4 hover:bg-muted/40 transition-colors"
+          >
+            <span className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'var(--primary-wash)', color: 'var(--primary)' }}>
+              <GraduationCap className="h-4 w-4" />
+            </span>
+            <div>
+              <p className="text-sm font-semibold">Ujian Alumni SD LHI →</p>
+              <p className="text-xs text-muted-foreground">Siswa SMP lulusan SD LHI dengan ujian semasa SD yang belum tercatat</p>
+            </div>
+          </Link>
+        )}
 
         <FormRiwayatTahfidz units={units} />
       </div>

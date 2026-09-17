@@ -55,6 +55,19 @@ export interface JuzHafalan {
   sumber: 'setoran' | 'ujian' | 'sama' | 'kosong'
 }
 
+/**
+ * Ujian selesai yang LULUS: predikat apa pun selain 'mengulang'.
+ *
+ * Status 'selesai' hanya berarti ujiannya sudah berlangsung. Anak yang
+ * diputuskan mengulang belum menuntaskan juz itu, dan menghitungnya tuntas
+ * akan menaikkan juz teruji, papan hafalan, dan posisinya terhadap target
+ * tahfidz — tepat pada anak yang justru perlu diperhatikan.
+ *
+ * Predikat NULL tetap dihitung: catatan lama yang tidak pernah diberi
+ * predikat adalah ujian yang lulus, bukan yang gagal.
+ */
+const LULUS = 'predikat.is.null,predikat.neq.mengulang'
+
 export interface BarisJuzProgress {
   student_id: string
   juz_number: number
@@ -75,6 +88,7 @@ export async function getJuzUjianPerSiswa(): Promise<Map<string, number>> {
     .select('student_id, juz')
     .not('student_id', 'is', null)
     .eq('status', 'selesai')
+    .or(LULUS)
 
   const peta = new Map<string, number>()
   // Modul ujian bisa saja belum dimigrasikan di lingkungan tertentu. Analitik
@@ -109,6 +123,7 @@ export async function getJuzTerujiPerSiswa(studentIds: string[]): Promise<Map<st
     .select('student_id, juz')
     .in('student_id', studentIds)
     .eq('status', 'selesai')
+    .or(LULUS)
   if (error || !data) return peta
 
   const perSiswa = new Map<string, string[]>()
@@ -140,6 +155,7 @@ export async function getJuzUjianSiswa(
     .select('juz, jadwal, updated_at')
     .eq('student_id', studentId)
     .eq('status', 'selesai')
+    .or(LULUS)
 
   if (error || !data || data.length === 0) {
     return { selesai: new Set(), jumlah: 0, terakhir: null }
