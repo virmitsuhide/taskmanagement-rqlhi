@@ -1,8 +1,8 @@
 import { createServerClient } from '@/lib/supabase/server'
 import { UNIT_ORDER, UNIT_LABELS, PROGRAMS_BY_JENJANG, programLabel } from '@/lib/rq/programs'
-import { juzSelesaiSetoran, juzTerjauh, totalJuzHafalan } from '@/lib/rq/hafalan'
+import { juzTerjauh, totalJuzHafalan } from '@/lib/rq/hafalan'
 import { getJuzUjianPerSiswa, juzGabunganPerSiswa } from '@/lib/data/hafalan'
-import { TAHFIDZ_TARGETS } from '@/lib/rq/targets'
+import { getTargetTahfidz } from '@/lib/data/target-tahfidz'
 import { getPredikatLabel, tanggalWIB } from '@/lib/rq/ujian'
 import type { Jenjang, UjianPredikat } from '@/types'
 
@@ -621,32 +621,30 @@ export interface HafalanBoard {
   label: string
   studentCount: number
   top10: { id: string; name: string; kelas: string | null; juzCount: number; totalAyat: number }[]
-  target: { label: string | null; below: number; on: number; above: number; total: number }
+  target: {
+    /** false = unit ini tidak punya rencana target (PAUD, SMA) atau tanpa siswa bertarget. */
+    berlaku: boolean
+    below: number; on: number; above: number
+    belumTerukur: number
+    tanpaTarget: number
+    total: number
+  }
 }
 
 export async function getUnitHafalanBoards(): Promise<HafalanBoard[]> {
   const supabase = createServerClient()
-  const [studentsRes, juzProgressRes, juzUjian] = await Promise.all([
+  const [studentsRes, juzProgressRes, juzUjian, target] = await Promise.all([
     supabase.from('students').select('id, full_name, jenjang, kelas').eq('is_active', true),
     supabase.from('juz_progress').select('student_id, juz_number, ayat_hafal, mutqin'),
     getJuzUjianPerSiswa(),
+    getTargetTahfidz(UNIT_ORDER),
   ])
   const students = (studentsRes.data ?? []) as { id: string; full_name: string; jenjang: Jenjang; kelas: string | null }[]
   const jpRows = (juzProgressRes.data ?? []) as { student_id: string; juz_number: number; ayat_hafal: number; mutqin: boolean }[]
 
   const totalAyat = new Map<string, number>()
-  const juzList = new Map<string, number[]>()
   for (const r of jpRows) {
     totalAyat.set(r.student_id, (totalAyat.get(r.student_id) ?? 0) + (r.ayat_hafal ?? 0))
-    if ((r.ayat_hafal ?? 0) > 0 || r.mutqin) {
-      if (!juzList.has(r.student_id)) juzList.set(r.student_id, [])
-      juzList.get(r.student_id)!.push(r.juz_number)
-    }
-  }
-  const currentJuz = new Map<string, number>()
-  for (const [sid, list] of juzList) {
-    const terjauh = juzTerjauh(list)
-    if (terjauh !== null) currentJuz.set(sid, terjauh)
   }
 
   // Jumlah juz diambil dari sumber yang paling jauh — setoran atau ujian.
@@ -659,8 +657,6 @@ export async function getUnitHafalanBoards(): Promise<HafalanBoard[]> {
     const enriched = us.map(s => ({
       id: s.id, name: s.full_name, kelas: s.kelas,
       totalAyat: totalAyat.get(s.id) ?? 0,
-      cj: currentJuz.get(s.id) ?? null,
-      juzUjian: juzUjian.get(s.id) ?? 0,
       juzCount: juzGabungan.get(s.id) ?? 0,
     }))
     /*
@@ -678,27 +674,21 @@ export async function getUnitHafalanBoards(): Promise<HafalanBoard[]> {
       .slice(0, 10)
       .map(e => ({ id: e.id, name: e.name, kelas: e.kelas, juzCount: e.juzCount, totalAyat: e.totalAyat }))
 
-    // Posisi vs target tahfidz (kerangka — target diisi menyusul di lib/rq/targets.ts)
-    const target = TAHFIDZ_TARGETS[jenjang]
-    let below = 0, on = 0, above = 0
-    if (target) {
-      // Target dinyatakan sebagai nomor juz; yang dibandingkan jumlah juz
-      // tuntas, supaya capaian ujian ikut terhitung. Anak yang LULUS ujian
-      // juz 26 tuntas 5 juz, sementara yang baru MENYETOR juz 26 tuntas 4 —
-      // dan target "juz 26" berarti yang kedua.
-      const targetJuz = juzSelesaiSetoran(target.juz)
-      for (const e of enriched) {
-        if (e.juzCount === 0 && e.cj === null) { below++; continue } // belum mulai tahfidz
-        if (e.juzCount < targetJuz) below++
-        else if (e.juzCount === targetJuz) on++
-        else above++
-      }
-    }
+    // Posisi vs target bulanan — dihitung di lib/data/target-tahfidz.ts,
+    // di sini hanya diringkas per unit. Unit tanpa satu pun siswa bertarget
+    // (PAUD, SMA) tidak berlaku, bukan "0 di bawah target".
+    const r = target.perUnit.find(u => u.jenjang === jenjang)?.ringkas
+    const bertarget = r ? r.total - r.tanpa_target : 0
 
     return {
       jenjang, label: UNIT_LABELS[jenjang], studentCount: us.length,
       top10,
-      target: { label: target?.label ?? null, below, on, above, total: us.length },
+      target: {
+        berlaku: bertarget > 0,
+        below: r?.di_bawah ?? 0, on: r?.sesuai ?? 0, above: r?.di_atas ?? 0,
+        belumTerukur: r?.belum_terukur ?? 0, tanpaTarget: r?.tanpa_target ?? 0,
+        total: us.length,
+      },
     }
   })
 }

@@ -325,6 +325,22 @@ export function getAnalyticsJenjang(role: UserRole): Jenjang[] {
   return getManageableJenjang(role)
 }
 
+/**
+ * Boleh mengubah kalender pekan efektif target tahfidz.
+ *
+ * Satu kalender berlaku untuk SEMUA program, jadi pemegangnya sama dengan
+ * pemegang tahun ajaran — bukan koordinator unit, yang perubahannya akan
+ * ikut menggeser target unit lain tanpa sepengetahuan mereka.
+ */
+export function canEditKalenderTahfidz(role: UserRole): boolean {
+  return canManageTerms(role)
+}
+
+/** Boleh menandai siswa SMP sebagai lulusan SD LHI (target SMPIT internal). */
+export function canTandaiAsalSdLhi(role: UserRole): boolean {
+  return canManageStudents(role, 'smp')
+}
+
 // Task status change â who can perform which transitions
 //
 // Pelaksana (assignee) menggerakkan tugasnya sendiri sampai kolom Review.

@@ -669,6 +669,8 @@ export const students = pgTable('students', {
   current_quran_halaman: integer('current_quran_halaman'),
   current_quran_surat_id: integer('current_quran_surat_id').references(() => suratMaster.id, { onDelete: 'set null' }),
   current_quran_ayat: integer('current_quran_ayat'),
+  /** Lulusan SD LHI — menentukan rencana target SMPIT internal/eksternal (0070). */
+  asal_sd_lhi: boolean('asal_sd_lhi').notNull().default(false),
   is_active: boolean('is_active').default(true),
   enrolled_at: date('enrolled_at').defaultNow(),
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
@@ -1164,6 +1166,20 @@ export const studentMonthly = pgTable('student_monthly', {
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
 })
+
+/**
+ * Pekan efektif tiap bulan per tahun ajaran (0070). Target tahfidz bulanan
+ * dihitung dari tabel ini + rencana di lib/rq/target-tahfidz.ts, tidak disimpan.
+ */
+export const kalenderPekanEfektif = pgTable('kalender_pekan_efektif', {
+  tahun_ajaran: text('tahun_ajaran').notNull(),
+  /** Selalu tanggal 1. */
+  bulan: date('bulan').notNull(),
+  semester: smallint('semester').notNull(),
+  pekan_efektif: numeric('pekan_efektif', { precision: 3, scale: 1 }).notNull().default('0'),
+  updated_by: uuid('updated_by').references(() => users.id, { onDelete: 'set null' }),
+  updated_at: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, t => [primaryKey({ columns: [t.tahun_ajaran, t.bulan] })])
 
 /**
  * KPI bulanan guru Qur'an — satu baris per guru per bulan.

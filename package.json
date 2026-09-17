@@ -33,6 +33,7 @@
     "uji:gukar": "tsx scripts/uji-gukar-standar.ts",
     "uji:kpi": "tsx scripts/uji-kpi.ts",
     "uji:batas-juz": "tsx scripts/uji-batas-juz.ts",
+    "uji:target-tahfidz": "tsx scripts/uji-target-tahfidz.ts",
     "uji:bacaan": "tsx scripts/uji-bacaan-quran.ts",
     "uji:materi": "tsx scripts/uji-materi-ummi.ts",
     "rapikan:halaqoh": "tsx scripts/rapikan-nama-halaqoh.ts",

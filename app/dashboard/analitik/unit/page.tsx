@@ -9,7 +9,7 @@ import { DrillTahsinBoard } from '@/components/dashboard/DrillTahsinBoard'
 import { DrillTahfidzBoard } from '@/components/dashboard/DrillTahfidzBoard'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { UnitProgramAnalytics } from '@/components/dashboard/UnitProgramAnalytics'
-import { BookOpen, ClipboardList } from 'lucide-react'
+import { BookOpen, ClipboardList, Target } from 'lucide-react'
 
 export default async function AnalitikUnitPage() {
   const session = await getSession()
@@ -91,6 +91,24 @@ export default async function AnalitikUnitPage() {
             <p className="text-sm font-semibold">Kelengkapan Pengisian Capaian →</p>
             <p className="text-xs text-muted-foreground">
               Halaqoh mana yang gurunya belum mengisi capaian bulan ini
+            </p>
+          </div>
+        </Link>
+
+        <Link
+          href="/dashboard/analitik/target-tahfidz"
+          className="flex items-center gap-3 rounded-xl border bg-card p-4 hover:bg-muted/40 transition-colors"
+        >
+          <span
+            className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
+            style={{ background: 'var(--primary-wash)', color: 'var(--primary)' }}
+          >
+            <Target className="h-4 w-4" />
+          </span>
+          <div>
+            <p className="text-sm font-semibold">Target Tahfidz Bulanan →</p>
+            <p className="text-xs text-muted-foreground">
+              Sampai mana hafalan tiap kelas semestinya di akhir bulan, dan siswa yang tertinggal
             </p>
           </div>
         </Link>

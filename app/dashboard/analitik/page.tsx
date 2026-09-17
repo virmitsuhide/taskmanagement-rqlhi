@@ -10,7 +10,7 @@ import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { UnitHafalanBoard } from '@/components/dashboard/UnitHafalanBoard'
 import { HafalanUjianBoard } from '@/components/dashboard/HafalanUjianBoard'
 import { SetoranTrendChart } from '@/components/dashboard/SetoranTrendChart'
-import { Users, GraduationCap, BookMarked, Sparkles, ClipboardList } from 'lucide-react'
+import { Users, GraduationCap, BookMarked, Sparkles, ClipboardList, Target } from 'lucide-react'
 
 export default async function AnalitikPage() {
   const session = await getSession()
@@ -79,6 +79,21 @@ export default async function AnalitikPage() {
             <div>
               <p className="text-sm font-semibold">Kelengkapan Pengisian Capaian →</p>
               <p className="text-xs text-muted-foreground">Halaqoh mana yang gurunya belum mengisi capaian bulan ini</p>
+            </div>
+          </div>
+        </Link>
+
+        <Link
+          href="/dashboard/analitik/target-tahfidz"
+          className="flex items-center justify-between rounded-xl border bg-card p-4 hover:bg-muted/40 transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            <span className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'var(--primary-wash)', color: 'var(--primary)' }}>
+              <Target className="h-4 w-4" />
+            </span>
+            <div>
+              <p className="text-sm font-semibold">Target Tahfidz Bulanan →</p>
+              <p className="text-xs text-muted-foreground">Target akhir bulan per program &amp; kelas, kalender pekan efektif, siswa yang tertinggal</p>
             </div>
           </div>
         </Link>

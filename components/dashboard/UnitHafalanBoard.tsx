@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { Trophy, Target, ArrowDown, Check, ArrowUp, Sparkles } from 'lucide-react'
+import { Trophy, Target, ArrowDown, Check, ArrowUp, Sparkles, HelpCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { HafalanBoard } from '@/lib/data/analytics'
 
@@ -53,22 +53,32 @@ function BoardPanel({ board }: { board: HafalanBoard }) {
     <div className="space-y-5">
       {/* Posisi vs target */}
       <div>
-        <h3 className="text-xs font-semibold mb-2 flex items-center gap-1.5">
-          <Target className="h-3.5 w-3.5" /> Posisi Anak vs Target Tahfidz
-          {board.target.label && <span className="font-normal text-muted-foreground">· target: {board.target.label}</span>}
+        <h3 className="text-xs font-semibold mb-2 flex items-center justify-between gap-2">
+          <span className="flex items-center gap-1.5"><Target className="h-3.5 w-3.5" /> Posisi Siswa vs Target Bulan Ini</span>
+          <Link href="/dashboard/analitik/target-tahfidz" className="font-normal text-primary hover:underline">Rincian →</Link>
         </h3>
-        {board.target.label === null ? (
+        {!board.target.berlaku ? (
           <p className="text-xs text-muted-foreground rounded-lg border border-dashed p-3">
-            Target tahfidz {board.label} belum ditentukan. Isi di <code>lib/rq/targets.ts</code> untuk mengaktifkan perbandingan.
+            {board.studentCount === 0
+              ? `Belum ada siswa aktif di ${board.label}.`
+              : `${board.label} belum punya rencana target tahfidz.`}
           </p>
         ) : (
-          <table className="w-full text-sm border rounded-lg overflow-hidden">
-            <tbody>
-              <TargetRow icon={<ArrowDown className="h-3.5 w-3.5" />} label="Di bawah target" value={board.target.below} color="var(--destructive)" />
-              <TargetRow icon={<Check className="h-3.5 w-3.5" />} label="Sesuai target" value={board.target.on} color="var(--success)" />
-              <TargetRow icon={<ArrowUp className="h-3.5 w-3.5" />} label="Di atas target" value={board.target.above} color="var(--info)" />
-            </tbody>
-          </table>
+          <>
+            <table className="w-full text-sm border rounded-lg overflow-hidden">
+              <tbody>
+                <TargetRow icon={<ArrowDown className="h-3.5 w-3.5" />} label="Di bawah target" value={board.target.below} color="var(--destructive)" />
+                <TargetRow icon={<Check className="h-3.5 w-3.5" />} label="Sesuai target" value={board.target.on} color="var(--success)" />
+                <TargetRow icon={<ArrowUp className="h-3.5 w-3.5" />} label="Di atas target" value={board.target.above} color="var(--info)" />
+                <TargetRow icon={<HelpCircle className="h-3.5 w-3.5" />} label="Belum terukur" value={board.target.belumTerukur} color="var(--muted-foreground)" />
+              </tbody>
+            </table>
+            {/* "Belum terukur" bukan "di bawah": capaian sebagian besar siswa masih
+                berupa teks bebas di rangkuman bulanan, yang tidak dibaca mesin. */}
+            {board.target.tanpaTarget > 0 && (
+              <p className="mt-1.5 text-[11px] text-muted-foreground">{board.target.tanpaTarget} siswa tanpa target (mis. QuLS Takhassus).</p>
+            )}
+          </>
         )}
       </div>
 
@@ -114,7 +124,7 @@ function TargetRow({ icon, label, value, color }: { icon: React.ReactNode; label
       <td className="px-3 py-2.5">
         <span className="flex items-center gap-2" style={{ color }}>{icon}<span className="text-foreground">{label}</span></span>
       </td>
-      <td className="px-3 py-2.5 text-right font-semibold tabular-nums">{value} anak</td>
+      <td className="px-3 py-2.5 text-right font-semibold tabular-nums">{value} siswa</td>
     </tr>
   )
 }
