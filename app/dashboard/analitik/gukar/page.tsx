@@ -116,7 +116,7 @@ export default async function GukarAnalitikPage({ searchParams }: PageProps) {
                 icon={<TrendingUp className="h-4 w-4" />}
                 label="Rata-rata hadir"
                 value={`${rataKehadiran}%`}
-                hint={totalSlot ? `${totalHadir} dari ${totalSlot} pekan` : '—'}
+                hint={totalSlot ? `${totalHadir} dari ${totalSlot} siklus` : '—'}
               />
             </div>
 

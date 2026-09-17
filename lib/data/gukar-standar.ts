@@ -6,7 +6,7 @@ import {
   type PenilaianTahfidz, type PenilaianTahsin, statusTerhadapStandar,
   URUTAN_TAHFIDZ, URUTAN_TAHSIN,
 } from '@/lib/rq/gukar-standar'
-import { hadirCount } from './gukar'
+import { kehadiranBaris } from './gukar'
 import type { GukarGroup, GukarMonthly, GukarParticipant, GukarStatusPegawai } from '@/types'
 
 /**
@@ -206,8 +206,8 @@ export async function getKesiapanGukar(
         terdata,
         inti: tahsin.memenuhi && tahfidz.memenuhi,
         status: statusTerhadapStandar(tahsin, tahfidz, kategoriPeran),
-        hadir: rows.reduce((t, r) => t + hadirCount(r), 0),
-        slot: rows.length * 5,
+        hadir: rows.reduce((t, r) => t + kehadiranBaris(r).hadir, 0),
+        slot: rows.reduce((t, r) => t + kehadiranBaris(r).slot, 0),
       }
     })
 

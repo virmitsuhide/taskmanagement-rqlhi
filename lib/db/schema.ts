@@ -1111,6 +1111,21 @@ export const gukarMonthly = pgTable('gukar_monthly', {
   hadir_3: boolean('hadir_3').notNull().default(false),
   hadir_4: boolean('hadir_4').notNull().default(false),
   hadir_5: boolean('hadir_5').notNull().default(false),
+  // ── Setor per sesi & kehadiran bulanan (0069) ───────────────
+  // Kolom posisi di atas berarti setoran "sedang"; awal_* menyimpan setoran
+  // pertama bulan itu. hadir_1..5 digantikan rekap angka jumlah_hadir.
+  awal_jilid_id: uuid('awal_jilid_id'),
+  awal_halaman: smallint('awal_halaman'),
+  awal_tahsin_surat: smallint('awal_tahsin_surat'),
+  awal_tahsin_ayat: smallint('awal_tahsin_ayat'),
+  awal_tahfidz_surat: smallint('awal_tahfidz_surat'),
+  awal_tahfidz_ayat: smallint('awal_tahfidz_ayat'),
+  awal_tanggal: date('awal_tanggal'),
+  setoran_terakhir: date('setoran_terakhir'),
+  jumlah_setoran: smallint('jumlah_setoran').notNull().default(0),
+  dikunci_at: timestamp('dikunci_at', { withTimezone: true }),
+  jumlah_hadir: smallint('jumlah_hadir'),
+  jumlah_siklus: smallint('jumlah_siklus'),
   jumlah_halaman: integer('jumlah_halaman').notNull().default(0),
   catatan: text('catatan').notNull().default(''),
   recorded_by: uuid('recorded_by').references(() => teachers.id, { onDelete: 'set null' }),

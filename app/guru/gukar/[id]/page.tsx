@@ -8,7 +8,9 @@ import {
   getMetodeGukar, getTahapanGukar, getPosisiSebelumnya, getDaftarSurat,
 } from '@/lib/data/gukar'
 import { GukarMonthBoard } from '@/components/gukar/GukarMonthBoard'
-import { currentPeriod, isValidPeriod } from '@/lib/finance/period'
+import { isValidPeriod } from '@/lib/finance/period'
+import { hariIni } from '@/lib/rutin/periode'
+import { statusSetoranBulan } from '@/lib/rq/gukar-siklus'
 
 interface PageProps {
   params: Promise<{ id: string }>
@@ -21,7 +23,8 @@ export default async function GukarGroupPage({ params, searchParams }: PageProps
 
   const { id } = await params
   const sp = await searchParams
-  const period = isValidPeriod(sp.periode ?? '') ? sp.periode! : currentPeriod()
+  // Bulan bawaan menurut kalender WIB, bukan jam server — lihat hariIni().
+  const period = isValidPeriod(sp.periode ?? '') ? sp.periode! : hariIni().slice(0, 7)
 
   const group = await getGukarGroup(id)
   if (!group) notFound()
@@ -47,6 +50,9 @@ export default async function GukarGroupPage({ params, searchParams }: PageProps
     getPosisiSebelumnya(ids, period),
     getDaftarSurat(),
   ])
+  const hari = hariIni()
+  // Kunci dibaca per kelompok: satu baris yang terkunci berarti bulan itu terkunci.
+  const dikunciAt = [...monthly.values()].find(r => r.dikunci_at)?.dikunci_at ?? null
 
   return (
     <div>
@@ -67,6 +73,8 @@ export default async function GukarGroupPage({ params, searchParams }: PageProps
         <GukarMonthBoard
           groupId={id}
           period={period}
+          hariIni={hari}
+          status={statusSetoranBulan(period, hari, dikunciAt)}
           participants={participants}
           monthly={Object.fromEntries(monthly)}
           metode={metode}

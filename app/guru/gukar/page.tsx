@@ -1,10 +1,10 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { ChevronRight, Users } from 'lucide-react'
+import { ChevronRight, ListChecks, Users } from 'lucide-react'
 import { getTeacherSession } from '@/lib/auth/teacher-session'
 import { getCurrentTerm, formatTerm } from '@/lib/data/terms'
 import { getGukarGroupsFor, getGukarParticipants, bolehMengampuGukar } from '@/lib/data/gukar'
-import { currentPeriod } from '@/lib/finance/period'
+import { hariIni } from '@/lib/rutin/periode'
 
 /**
  * Daftar kelompok pembinaan yang diampu guru ini.
@@ -50,7 +50,7 @@ export default async function GukarGroupsPage() {
 
   const groups = await getGukarGroupsFor(session.teacherId, term.id)
   const counts = await Promise.all(groups.map(g => getGukarParticipants(g.id).then(p => p.length)))
-  const period = currentPeriod()
+  const period = hariIni().slice(0, 7)
 
   return (
     <div>
@@ -65,10 +65,10 @@ export default async function GukarGroupsPage() {
         ) : (
           <ul className="mt-5 space-y-2">
             {groups.map((group, i) => (
-              <li key={group.id}>
+              <li key={group.id} className="flex items-stretch gap-2">
                 <Link
                   href={`/guru/gukar/${group.id}?periode=${period}`}
-                  className="flex items-center gap-3 rounded-lg border bg-card p-4 transition-colors hover:border-primary/50"
+                  className="flex min-w-0 flex-1 items-center gap-3 rounded-lg border bg-card p-4 transition-colors hover:border-primary/50"
                 >
                   <Users className="h-5 w-5 shrink-0 text-muted-foreground" />
                   <div className="min-w-0 flex-1">
@@ -78,6 +78,13 @@ export default async function GukarGroupsPage() {
                     </p>
                   </div>
                   <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                </Link>
+                {/* Jalan pintas ke tindakan yang paling sering: setor sesi. */}
+                <Link
+                  href={`/guru/gukar/${group.id}/sesi`}
+                  className="flex shrink-0 flex-col items-center justify-center gap-1 rounded-lg border bg-card px-4 text-xs font-medium text-primary transition-colors hover:border-primary/50"
+                >
+                  <ListChecks className="h-5 w-5" />Setor sesi
                 </Link>
               </li>
             ))}

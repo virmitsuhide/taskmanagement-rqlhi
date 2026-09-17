@@ -1,10 +1,13 @@
 'use client'
 
 import { useState, useTransition, useActionState } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { ChevronLeft, ChevronRight, Pencil, Trash2, X } from 'lucide-react'
-import { deleteGukarMonthlyAction, saveGukarMonthlyAction, toggleHadirAction } from '@/app/actions/gukar'
+import { ChevronLeft, ChevronRight, ListChecks, Lock, LockOpen, Pencil, Trash2, X } from 'lucide-react'
+import {
+  deleteGukarMonthlyAction, kunciSetoranBulanAction, saveGukarMonthlyAction, simpanKehadiranBulanAction,
+} from '@/app/actions/gukar'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -13,8 +16,11 @@ import { useConfirm } from '@/components/ui/confirm-dialog'
 import { formatPeriod, shiftPeriod } from '@/lib/finance/period'
 import {
   setoranTahsinBulanIni, setoranTahfidzBulanIni, suratTahsinTersedia,
-  formatHafalanGukar, type TahapJilid,
+  formatHafalanGukar, ringkasPosisiTahfidz, ringkasPosisiTahsin, type TahapJilid,
 } from '@/lib/rq/gukar-setoran'
+import {
+  labelHariSetor, labelSiklus, siklusDalamBulan, type StatusSetoranBulan,
+} from '@/lib/rq/gukar-siklus'
 import type { MetodeTahsin, SuratRingkas } from '@/lib/data/gukar'
 import { predikatHafalan } from '@/lib/rq/quran'
 import type { GukarMonthly, GukarParticipant } from '@/types'
@@ -22,6 +28,10 @@ import type { GukarMonthly, GukarParticipant } from '@/types'
 interface Props {
   groupId: string
   period: string
+  /** 'YYYY-MM-DD' WIB dari server. */
+  hariIni: string
+  /** Status setoran bulan ini untuk seluruh kelompok. */
+  status: StatusSetoranBulan
   participants: GukarParticipant[]
   /** Catatan bulan ini, dipetakan berdasarkan id peserta. */
   monthly: Record<string, GukarMonthly>
@@ -38,29 +48,49 @@ interface Props {
   surat: SuratRingkas[]
 }
 
-const PEKAN = [1, 2, 3, 4, 5] as const
-
 /**
  * Papan bulanan satu kelompok pembinaan.
  *
- * Lima kotak kehadiran bisa dicentang langsung dari baris tanpa membuka
- * formulir, karena itulah tindakan yang dilakukan pengampu tiap pekan.
- * Capaian tahsin/tahfidz — yang hanya diisi sekali di akhir bulan — baru
- * memerlukan formulir.
+ * Setoran harian masuk lewat halaman Setor per Sesi; papan ini menampilkan
+ * hasilnya per bulan — setoran awal dan sedang/akhir berdampingan supaya
+ * kemajuan tiap peserta terbaca sekilas — serta tempat pengampu merekap
+ * kehadiran di akhir bulan dan mengunci setoran akhir.
  */
 export function GukarMonthBoard({
-  groupId, period, participants, monthly, metode, tahapan, sebelumnya, surat,
+  groupId, period, hariIni, status, participants, monthly, metode, tahapan, sebelumnya, surat,
 }: Props) {
   const router = useRouter()
+  const confirm = useConfirm()
   const [editing, setEditing] = useState<GukarParticipant | null>(null)
+  const [pendingKunci, startKunci] = useTransition()
+
+  const bulanBerjalan = period === hariIni.slice(0, 7)
+  const semuaTahap = Object.values(tahapan).flat()
+  const namaSurat = (id: number) => surat.find(s => s.id === id)?.nama ?? `Surat ${id}`
 
   function goPeriod(next: string) {
     router.push(`/guru/gukar/${groupId}?periode=${next}`)
   }
 
+  async function ubahKunci(kunci: boolean) {
+    if (kunci) {
+      const ok = await confirm({
+        title: `Kunci setoran akhir ${formatPeriod(period)}?`,
+        description: 'Posisi setoran terakhir tiap peserta menjadi setoran akhir bulan ini dan tidak bisa ditambah lagi. Kehadiran, nilai, dan catatan tetap bisa diisi.',
+        confirmText: 'Kunci setoran',
+      })
+      if (!ok) return
+    }
+    startKunci(async () => {
+      const result = await kunciSetoranBulanAction(groupId, period, kunci)
+      if (result.error) toast.error(result.error)
+      else toast.success(kunci ? 'Setoran akhir dikunci' : 'Kunci setoran dibuka')
+    })
+  }
+
   return (
     <div className="mt-5 space-y-4">
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-1">
           <Button size="sm" variant="outline" className="h-8 w-8 p-0"
             onClick={() => goPeriod(shiftPeriod(period, -1))} aria-label="Bulan sebelumnya">
@@ -72,7 +102,27 @@ export function GukarMonthBoard({
             <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
-        <p className="text-xs text-muted-foreground">Centang pekan saat pembinaan berlangsung</p>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <StatusBadge status={status} />
+          {status === 'berjalan' && bulanBerjalan && (
+            <Button size="sm" asChild>
+              <Link href={`/guru/gukar/${groupId}/sesi`}>
+                <ListChecks className="mr-1 h-4 w-4" />Setor per sesi
+              </Link>
+            </Button>
+          )}
+          {status === 'berjalan' && period <= hariIni.slice(0, 7) && (
+            <Button size="sm" variant="outline" disabled={pendingKunci} onClick={() => ubahKunci(true)}>
+              <Lock className="mr-1 h-4 w-4" />Kunci setoran akhir
+            </Button>
+          )}
+          {status === 'dikunci' && (
+            <Button size="sm" variant="ghost" disabled={pendingKunci} onClick={() => ubahKunci(false)}>
+              <LockOpen className="mr-1 h-4 w-4" />Buka kunci
+            </Button>
+          )}
+        </div>
       </div>
 
       {editing && (
@@ -87,6 +137,7 @@ export function GukarMonthBoard({
           tahapan={tahapan}
           sebelumnya={sebelumnya[editing.id]}
           surat={surat}
+          posisiBeku={status !== 'berjalan'}
         />
       )}
 
@@ -95,11 +146,9 @@ export function GukarMonthBoard({
           <thead>
             <tr className="border-b text-left text-xs text-muted-foreground">
               <th className="py-2 px-3 font-medium">Nama</th>
-              {PEKAN.map(p => (
-                <th key={p} className="py-2 px-1 text-center font-medium w-10">P{p}</th>
-              ))}
-              <th className="py-2 px-3 font-medium">Capaian Tahsin</th>
-              <th className="py-2 px-3 font-medium">Capaian Tahfidz</th>
+              <th className="py-2 px-3 font-medium">Tahsin — awal → {status === 'berjalan' ? 'sedang' : 'akhir'}</th>
+              <th className="py-2 px-3 font-medium">Tahfidz — awal → {status === 'berjalan' ? 'sedang' : 'akhir'}</th>
+              <th className="py-2 px-3 font-medium">Setor</th>
               <th className="py-2 px-2 w-10" />
             </tr>
           </thead>
@@ -111,12 +160,26 @@ export function GukarMonthBoard({
                 period={period}
                 participant={participant}
                 record={monthly[participant.id]}
+                bisaHapus={status === 'berjalan'}
+                ringkasTahsin={(r, awal) => ringkasPosisiTahsin(
+                  semuaTahap.find(t => t.id === (awal ? r.awal_jilid_id : r.jilid_id)),
+                  awal
+                    ? { jilidId: r.awal_jilid_id, halaman: r.awal_halaman, surat: r.awal_tahsin_surat, ayat: r.awal_tahsin_ayat }
+                    : { jilidId: r.jilid_id, halaman: r.halaman, surat: r.tahsin_surat, ayat: r.tahsin_ayat },
+                  namaSurat,
+                )}
+                ringkasTahfidz={(r, awal) => ringkasPosisiTahfidz(
+                  awal
+                    ? { surat: r.awal_tahfidz_surat, ayat: r.awal_tahfidz_ayat }
+                    : { surat: r.tahfidz_surat, ayat: r.tahfidz_ayat },
+                  namaSurat,
+                )}
                 onEdit={() => setEditing(participant)}
               />
             ))}
             {participants.length === 0 && (
               <tr>
-                <td colSpan={9} className="py-6 text-center text-muted-foreground">
+                <td colSpan={5} className="py-6 text-center text-muted-foreground">
                   Belum ada peserta di kelompok ini.
                 </td>
               </tr>
@@ -124,69 +187,190 @@ export function GukarMonthBoard({
           </tbody>
         </table>
       </div>
+
+      {participants.length > 0 && period <= hariIni.slice(0, 7) && (
+        <RekapKehadiran
+          key={period}
+          groupId={groupId}
+          period={period}
+          participants={participants}
+          monthly={monthly}
+        />
+      )}
     </div>
   )
 }
 
+function StatusBadge({ status }: { status: StatusSetoranBulan }) {
+  const [label, cls] = status === 'berjalan'
+    ? ['Setoran berjalan', 'bg-primary-wash text-primary']
+    : status === 'dikunci'
+      ? ['Setoran akhir dikunci', 'bg-warning-wash text-warning']
+      : ['Bulan selesai · terkunci', 'bg-muted text-muted-foreground']
+  return <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${cls}`}>{label}</span>
+}
+
+/**
+ * Rekap kehadiran akhir bulan — dipindahkan pengampu dari catatan manualnya.
+ *
+ * Satu penyebut untuk seluruh kelompok (siklus Senin–Jumat yang terlaksana),
+ * satu angka hadir per peserta, satu kali simpan. Kotak yang dikosongkan
+ * berarti belum direkap, dan tidak ikut dihitung di rekap SDM.
+ */
+function RekapKehadiran({
+  groupId, period, participants, monthly,
+}: {
+  groupId: string
+  period: string
+  participants: GukarParticipant[]
+  monthly: Record<string, GukarMonthly>
+}) {
+  const [pending, startTransition] = useTransition()
+  const siklusKalender = siklusDalamBulan(period)
+  const tersimpan = Object.values(monthly).find(r => r.jumlah_siklus)?.jumlah_siklus ?? null
+
+  const [siklus, setSiklus] = useState(
+    String(tersimpan ?? (siklusKalender.length || '')),
+  )
+  const [hadir, setHadir] = useState<Record<string, string>>(() => Object.fromEntries(
+    participants.map(p => [p.id, monthly[p.id]?.jumlah_hadir === null || monthly[p.id]?.jumlah_hadir === undefined
+      ? '' : String(monthly[p.id].jumlah_hadir)]),
+  ))
+
+  const nSiklus = Number(siklus)
+
+  function simpan() {
+    if (!Number.isInteger(nSiklus) || nSiklus < 1 || nSiklus > 6) {
+      toast.error('Isi jumlah siklus 1–6.')
+      return
+    }
+    startTransition(async () => {
+      const result = await simpanKehadiranBulanAction(
+        groupId, period, nSiklus,
+        participants.map(p => ({
+          participant_id: p.id,
+          hadir: hadir[p.id].trim() === '' ? null : Number(hadir[p.id]),
+        })),
+      )
+      if (result.error) toast.error(result.error)
+      else toast.success('Kehadiran tersimpan')
+    })
+  }
+
+  return (
+    <section className="space-y-3 rounded-lg border bg-card p-4">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h2 className="text-sm font-semibold">Rekap Kehadiran {formatPeriod(period)}</h2>
+          <p className="text-xs text-muted-foreground">
+            Diisi di akhir bulan dari catatan kehadiran pengampu. Kosongkan bila belum direkap.
+          </p>
+        </div>
+        <div className="space-y-1">
+          <Label htmlFor="jumlah_siklus" className="text-xs">Siklus Senin–Jumat terlaksana</Label>
+          <Input
+            id="jumlah_siklus" type="number" inputMode="numeric" min={1} max={6}
+            value={siklus} onChange={e => setSiklus(e.target.value)}
+            className="h-9 w-24"
+          />
+        </div>
+      </div>
+      {siklusKalender.length > 0 && (
+        <p className="text-[11px] text-muted-foreground">
+          Siklus bulan ini menurut kalender: {siklusKalender.map(labelSiklus).join(' · ')}
+        </p>
+      )}
+
+      <ul className="grid gap-2 sm:grid-cols-2">
+        {participants.map(p => {
+          const n = Number(hadir[p.id])
+          const persen = hadir[p.id].trim() !== '' && nSiklus > 0 ? Math.round((n / nSiklus) * 100) : null
+          return (
+            <li key={p.id} className="flex items-center gap-2 rounded-md border px-3 py-1.5">
+              <span className="min-w-0 flex-1 truncate text-sm">{p.full_name}</span>
+              <Input
+                aria-label={`Hadir — ${p.full_name}`}
+                type="number" inputMode="numeric" min={0} max={nSiklus || 6}
+                value={hadir[p.id]}
+                onChange={e => setHadir(prev => ({ ...prev, [p.id]: e.target.value }))}
+                className="h-8 w-16 text-center"
+              />
+              <span className="w-20 text-xs text-muted-foreground tabular-nums">
+                / {nSiklus || '—'}{persen !== null ? ` · ${persen}%` : ''}
+              </span>
+            </li>
+          )
+        })}
+      </ul>
+
+      <Button size="sm" onClick={simpan} disabled={pending}>
+        {pending ? 'Menyimpan…' : 'Simpan kehadiran'}
+      </Button>
+    </section>
+  )
+}
+
 function ParticipantRow({
-  groupId, period, participant, record, onEdit,
+  groupId, period, participant, record, bisaHapus, ringkasTahsin, ringkasTahfidz, onEdit,
 }: {
   groupId: string
   period: string
   participant: GukarParticipant
   record?: GukarMonthly
+  bisaHapus: boolean
+  ringkasTahsin: (r: GukarMonthly, awal: boolean) => string
+  ringkasTahfidz: (r: GukarMonthly, awal: boolean) => string
   onEdit: () => void
 }) {
   const [pending, startTransition] = useTransition()
   const confirm = useConfirm()
-
-  function toggle(pekan: number, next: boolean) {
-    startTransition(async () => {
-      const result = await toggleHadirAction(groupId, participant.id, period, pekan, next)
-      if (result?.error) toast.error(result.error)
-    })
-  }
-
-  const hadir = (pekan: number) =>
-    Boolean(record?.[`hadir_${pekan}` as 'hadir_1' | 'hadir_2' | 'hadir_3' | 'hadir_4' | 'hadir_5'])
+  const sudahSetor = Boolean(record?.awal_tanggal)
 
   return (
-    <tr className="border-b last:border-0">
+    <tr className="border-b last:border-0 align-top">
       <td className="py-2 px-3">
         <p className="font-medium">{participant.full_name}</p>
         <p className="text-xs text-muted-foreground">
           {[participant.kind, participant.unit, participant.level_awal].filter(Boolean).join(' · ') || '—'}
         </p>
       </td>
-      {PEKAN.map(pekan => (
-        <td key={pekan} className="py-2 px-1 text-center">
-          <input
-            type="checkbox"
-            className="h-4 w-4"
-            checked={hadir(pekan)}
-            disabled={pending}
-            onChange={e => toggle(pekan, e.target.checked)}
-            aria-label={`Hadir pekan ${pekan} — ${participant.full_name}`}
-          />
-        </td>
-      ))}
       <td className="py-2 px-3">
-        <p>{record?.tahap_tahsin || record?.capaian_tahsin || '—'}</p>
-        {record?.tahap_tahsin && record.capaian_tahsin && (
-          <p className="text-xs text-muted-foreground">{record.capaian_tahsin}</p>
+        {sudahSetor ? (
+          <AwalSedang awal={ringkasTahsin(record!, true)} sedang={ringkasTahsin(record!, false)} />
+        ) : (
+          // Catatan sebelum 0069 tidak punya setoran awal — tampilkan apa adanya.
+          <p>{record?.tahap_tahsin || record?.capaian_tahsin || '—'}</p>
         )}
+        {record?.setoran_tahsin_halaman ? (
+          <p className="text-xs text-success">+{record.setoran_tahsin_halaman} halaman</p>
+        ) : null}
       </td>
       <td className="py-2 px-3">
-        <p>{ringkasTahfidz(record) || '—'}</p>
-        {record?.capaian_tahfidz && (
-          <p className="text-xs text-muted-foreground">{record.capaian_tahfidz}</p>
+        {sudahSetor ? (
+          <AwalSedang awal={ringkasTahfidz(record!, true)} sedang={ringkasTahfidz(record!, false)} />
+        ) : (
+          <p>{ringkasTahfidzLama(record) || '—'}</p>
+        )}
+        {record?.setoran_tahfidz_halaman ? (
+          <p className="text-xs text-success">+{record.setoran_tahfidz_halaman} halaman</p>
+        ) : null}
+      </td>
+      <td className="py-2 px-3 whitespace-nowrap text-xs text-muted-foreground">
+        {sudahSetor ? (
+          <>
+            <p className="text-sm text-foreground">{record!.jumlah_setoran}×</p>
+            <p>terakhir {labelHariSetor(record!.setoran_terakhir!)}</p>
+          </>
+        ) : '—'}
+        {record?.jumlah_hadir !== null && record?.jumlah_hadir !== undefined && (
+          <p>hadir {record.jumlah_hadir}/{record.jumlah_siklus}</p>
         )}
       </td>
       <td className="py-2 px-2 text-right whitespace-nowrap">
         <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={onEdit} aria-label="Isi capaian">
           <Pencil className="h-3.5 w-3.5" />
         </Button>
-        {record && (
+        {record && bisaHapus && (
           <Button
             size="sm" variant="ghost" disabled={pending}
             className="h-7 w-7 p-0 text-destructive"
@@ -213,8 +397,20 @@ function ParticipantRow({
   )
 }
 
-/** Ringkasan angka hafalan untuk kolom tabel — kosong bila belum diukur. */
-function ringkasTahfidz(record?: GukarMonthly): string {
+/** Dua posisi berdampingan; satu saja bila bulan ini baru sekali setor. */
+function AwalSedang({ awal, sedang }: { awal: string; sedang: string }) {
+  if (!awal && !sedang) return <p>—</p>
+  if (awal === sedang) return <p>{sedang}</p>
+  return (
+    <>
+      <p className="text-xs text-muted-foreground">{awal || '—'} →</p>
+      <p>{sedang || '—'}</p>
+    </>
+  )
+}
+
+/** Ringkasan angka hafalan catatan lama (pra-0069) — kosong bila belum diukur. */
+function ringkasTahfidzLama(record?: GukarMonthly): string {
   if (!record || record.juz_tuntas === null || record.juz_tuntas === undefined) return ''
   const predikat = predikatHafalan(record.nilai_tahfidz)
   return [
@@ -235,7 +431,7 @@ function ringkasTahfidz(record?: GukarMonthly): string {
  * tidak cocok satu sama lain, dan tidak akan ketahuan yang mana yang keliru.
  */
 function CapaianForm({
-  groupId, period, participant, record, onDone, metode, tahapan, sebelumnya, surat,
+  groupId, period, participant, record, onDone, metode, tahapan, sebelumnya, surat, posisiBeku,
 }: {
   groupId: string
   period: string
@@ -246,6 +442,11 @@ function CapaianForm({
   tahapan: Record<string, TahapJilid[]>
   sebelumnya?: GukarMonthly
   surat: SuratRingkas[]
+  /**
+   * Setoran bulan ini sudah terkunci: posisi adalah setoran akhir dan tidak
+   * dikirim lagi. Nilai & catatan tetap bisa disimpan.
+   */
+  posisiBeku: boolean
 }) {
   const [state, action, pending] = useActionState(
     async (prev: unknown, formData: FormData) => {
@@ -331,9 +532,20 @@ function CapaianForm({
         </Button>
       </div>
 
+      <p className="rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground">
+        {posisiBeku
+          ? '🔒 Setoran bulan ini sudah terkunci — posisi di bawah adalah setoran akhir. Nilai & catatan masih bisa disimpan.'
+          : record?.awal_tanggal
+            ? `Setoran awal ${labelHariSetor(record.awal_tanggal)}. Posisi yang disimpan di sini meralat setoran sedang (terakhir ${labelHariSetor(record.setoran_terakhir ?? record.awal_tanggal)}).`
+            : 'Belum ada setoran bulan ini. Posisi yang disimpan di sini sekaligus menjadi setoran awal.'}
+      </p>
+
       <fieldset className="space-y-3 rounded-lg border bg-muted/30 p-3">
         <legend className="px-1 text-sm font-semibold">Tahsin</legend>
 
+        {/* fieldset disabled tidak mengirim isinya — server pun mengabaikan
+            posisi pada bulan yang terkunci, jadi keduanya sejalan. */}
+        <fieldset disabled={posisiBeku} className="contents">
         <div className="grid gap-3 sm:grid-cols-3">
           <div className="space-y-1.5">
             <Label htmlFor="metode_id">Metode</Label>
@@ -442,6 +654,7 @@ function CapaianForm({
             </div>
           </div>
         )}
+        </fieldset>
 
         <div className="space-y-1.5">
           <Label htmlFor="capaian_tahsin">Catatan tahsin</Label>
@@ -458,6 +671,7 @@ function CapaianForm({
       <fieldset className="space-y-3 rounded-lg border bg-muted/30 p-3">
         <legend className="px-1 text-sm font-semibold">Tahfidz</legend>
 
+        <fieldset disabled={posisiBeku} className="contents">
         <div className="grid gap-3 sm:grid-cols-3">
           <div className="space-y-1.5">
             <Label htmlFor="tahfidz_surat">Surat terakhir disetor</Label>
@@ -494,6 +708,7 @@ function CapaianForm({
             </p>
           </div>
         </div>
+        </fieldset>
 
         <div className="grid gap-3 sm:grid-cols-3">
           <div className="space-y-1.5">
@@ -532,22 +747,6 @@ function CapaianForm({
           adaPembanding={Boolean(sebelumnya)}
         />
       </div>
-
-      <fieldset className="space-y-1.5">
-        <legend className="text-sm font-medium">Kehadiran</legend>
-        <div className="flex gap-3">
-          {PEKAN.map(pekan => (
-            <label key={pekan} className="flex items-center gap-1 text-sm">
-              <input
-                type="checkbox" name={`hadir_${pekan}`}
-                defaultChecked={Boolean(record?.[`hadir_${pekan}` as 'hadir_1'])}
-                className="h-4 w-4"
-              />
-              P{pekan}
-            </label>
-          ))}
-        </div>
-      </fieldset>
 
       <div className="space-y-1.5">
         <Label htmlFor="catatan">Catatan</Label>

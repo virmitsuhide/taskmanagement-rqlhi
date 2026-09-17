@@ -185,6 +185,30 @@ export function formatHafalanGukar(posisi: PosisiTahfidz): string {
   return formatCapaian(totalHafalanGukar(posisi))
 }
 
+// ─── Ringkasan posisi untuk layar ────────────────────────────────────────────
+
+/** "Jilid 3 hal. 12" atau "Al-Qur'an · Al-Mulk:15" — kosong bila belum ada tahap. */
+export function ringkasPosisiTahsin(
+  tahap: TahapJilid | null | undefined,
+  posisi: PosisiTahsin,
+  namaSurat: (id: number) => string,
+): string {
+  if (!tahap) return ''
+  if (tahap.is_quran) {
+    return posisi.surat
+      ? `${tahap.label} · ${namaSurat(posisi.surat)}${posisi.ayat ? `:${posisi.ayat}` : ''}`
+      : tahap.label
+  }
+  return tahap.total_pages && posisi.halaman ? `${tahap.label} hal. ${posisi.halaman}` : tahap.label
+}
+
+/** "An-Naba':20 (0 juz 3 halaman)" — kosong bila belum ada setoran hafalan. */
+export function ringkasPosisiTahfidz(posisi: PosisiTahfidz, namaSurat: (id: number) => string): string {
+  if (!posisi.surat) return ''
+  const letak = `${namaSurat(posisi.surat)}${posisi.ayat ? `:${posisi.ayat}` : ''}`
+  return posisi.ayat ? `${letak} (${formatHafalanGukar(posisi)})` : letak
+}
+
 /**
  * Ayat terakhir sebuah juz, untuk memandu isian tahfidz.
  *

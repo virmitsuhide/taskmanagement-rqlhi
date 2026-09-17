@@ -12,9 +12,21 @@ import type { GukarGroup, GukarMonthly, GukarParticipant } from '@/types'
  * rekap menjumlahkan bulan-bulan yang jatuh di dalam rentang semester itu.
  */
 
-/** Berapa kali hadir pada satu baris bulanan. */
-export function hadirCount(row: Pick<GukarMonthly, 'hadir_1' | 'hadir_2' | 'hadir_3' | 'hadir_4' | 'hadir_5'>): number {
-  return [row.hadir_1, row.hadir_2, row.hadir_3, row.hadir_4, row.hadir_5].filter(Boolean).length
+/**
+ * Kehadiran satu baris bulanan: hadir sekian dari sekian siklus.
+ *
+ * Sejak 0069 kehadiran direkap pengampu sebagai angka di akhir bulan. Baris
+ * yang belum direkap (jumlah_hadir NULL) memberi slot 0 — bulan itu tidak
+ * ikut dihitung, bukan dianggap absen. Baris lama sudah disalin migrasi ke
+ * bentuk angka dengan penyebut 5, jadi persentase lama tidak bergeser.
+ */
+export function kehadiranBaris(
+  row: Pick<GukarMonthly, 'jumlah_hadir' | 'jumlah_siklus'>,
+): { hadir: number; slot: number } {
+  if (row.jumlah_hadir === null || row.jumlah_hadir === undefined || !row.jumlah_siklus) {
+    return { hadir: 0, slot: 0 }
+  }
+  return { hadir: row.jumlah_hadir, slot: row.jumlah_siklus }
 }
 
 export async function getGukarGroups(termId: string): Promise<GukarGroup[]> {
@@ -93,7 +105,7 @@ export interface GukarRecapRow {
   pengampuName: string
   /** Total hadir sepanjang semester. */
   hadir: number
-  /** Total slot pekan yang tercatat (bulan terisi × 5). */
+  /** Total siklus pada bulan-bulan yang sudah direkap kehadirannya. */
   slot: number
   percent: number
   halaman: number
@@ -155,8 +167,8 @@ export async function getGukarRecap(termId: string, upTo: PeriodKey): Promise<Gu
 
     return participants.map(participant => {
       const rows = byParticipant.get(participant.id) ?? []
-      const hadir = rows.reduce((total, r) => total + hadirCount(r), 0)
-      const slot = rows.length * 5
+      const hadir = rows.reduce((total, r) => total + kehadiranBaris(r).hadir, 0)
+      const slot = rows.reduce((total, r) => total + kehadiranBaris(r).slot, 0)
       const group = groupById.get(participant.group_id)
 
       // Capaian akhir = catatan terisi paling akhir, bukan baris terakhir
@@ -217,7 +229,7 @@ export async function getGukarTrend(termId: string, upTo: PeriodKey): Promise<Gu
 
     const { data: monthlyRows } = await supabase
       .from('gukar_monthly')
-      .select('period, hadir_1, hadir_2, hadir_3, hadir_4, hadir_5, jumlah_halaman')
+      .select('period, jumlah_hadir, jumlah_siklus, jumlah_halaman')
       .in('participant_id', participantIds)
       .in('period', periods.map(toPeriodDate))
 
@@ -226,9 +238,10 @@ export async function getGukarTrend(termId: string, upTo: PeriodKey): Promise<Gu
       const key = row.period.slice(0, 7)
       const point = byPeriod.get(key)
       if (!point) continue
+      const { hadir, slot } = kehadiranBaris(row)
       point.tercatat += 1
-      point.hadir += hadirCount(row)
-      point.slot += 5
+      point.hadir += hadir
+      point.slot += slot
       point.halaman += row.jumlah_halaman
     }
 

@@ -1140,6 +1140,28 @@ export interface GukarMonthly {
    */
   setoran_tahsin_halaman: number
   setoran_tahfidz_halaman: number
+
+  // ── Setor per sesi: awal / sedang / akhir (0069) ─────────────────
+  // Kolom posisi di atas adalah setoran SEDANG, dan menjadi setoran AKHIR
+  // begitu bulannya terkunci (lihat statusSetoranBulan).
+  awal_jilid_id: string | null
+  awal_halaman: number | null
+  awal_tahsin_surat: number | null
+  awal_tahsin_ayat: number | null
+  awal_tahfidz_surat: number | null
+  awal_tahfidz_ayat: number | null
+  /** Tanggal setoran pertama bulan itu; NULL = belum setor bulan ini. */
+  awal_tanggal: string | null
+  /** Tanggal setoran paling baru — asal posisi "sedang". */
+  setoran_terakhir: string | null
+  /** Banyak hari setor yang berbeda bulan itu. */
+  jumlah_setoran: number
+  /** Terisi bila pengampu mengunci setoran akhir sebelum bulannya habis. */
+  dikunci_at: string | null
+  /** Rekap manual akhir bulan. NULL = belum direkap, bukan nol kehadiran. */
+  jumlah_hadir: number | null
+  /** Siklus Senin–Jumat yang terlaksana bulan itu — penyebut kehadiran. */
+  jumlah_siklus: number | null
 }
 
 /** Ambang kehadiran yang dipakai rekap — mengikuti kolom "Kekurangan (75%)". */
