@@ -18,7 +18,11 @@ import type { TaskStatus, TaskHistoryAction, UserRole } from '@/types'
  * yang sama ia dibuat, sehingga notifikasinya mustahil sampai ke siapa pun.
  */
 
-export type NotificationKind = 'assigned' | 'status' | 'edited' | 'deleted' | 'restored'
+/**
+ * 'ditunggu'    tugas saya dicatat sedang ditunggu tugas lain (0071)
+ * 'bisa_lanjut' tugas yang ditunggu tugas saya baru saja selesai (0071)
+ */
+export type NotificationKind = 'assigned' | 'status' | 'edited' | 'deleted' | 'restored' | 'ditunggu' | 'bisa_lanjut'
 
 export interface NotificationItem {
   /** id baris task_history — dipakai sebagai id notifikasi. */
@@ -33,6 +37,11 @@ export interface NotificationItem {
   createdAt: string
   /** Sudah diklik? Mengendalikan titik biru per baris. */
   read: boolean
+  /**
+   * Keterangan tambahan: untuk 'ditunggu' tugas yang menunggu, untuk
+   * 'bisa_lanjut' judul tugas yang baru selesai.
+   */
+  detail?: string | null
 }
 
 export interface NotificationFeed {
@@ -52,6 +61,7 @@ interface HistoryRow {
   old_status: TaskStatus | null
   new_status: TaskStatus
   action: TaskHistoryAction | null
+  notes: string | null
   created_at: string
   actor: { display_name: string } | null
   task: {
@@ -73,7 +83,7 @@ export async function getNotifications(userId: string, role: UserRole): Promise<
     supabase
       .from('task_history')
       .select(
-        'id, task_id, changed_by, old_status, new_status, action, created_at,' +
+        'id, task_id, changed_by, old_status, new_status, action, notes, created_at,' +
         ' actor:users!changed_by(display_name),' +
         ' task:tasks!task_id(id, title, assigned_to, assigned_by, deleted_at)',
       )
@@ -91,6 +101,7 @@ export async function getNotifications(userId: string, role: UserRole): Promise<
   const rows = (historyRes.data ?? []) as unknown as HistoryRow[]
 
   const viewerIsManagement = isManagement(role)
+  const menungguPerPenghambat = await tugasSayaYangMenunggu(userId, rows)
 
   const items: NotificationItem[] = []
   for (const r of rows) {
@@ -102,6 +113,38 @@ export async function getNotifications(userId: string, role: UserRole): Promise<
     const isAssigner = r.task.assigned_by === userId
     const action = r.action ?? 'status'
     const isAudit = AUDIT_ACTIONS.includes(action)
+
+    // Relasi "menunggu" (0071). Pelepasan relasi cukup tercatat di riwayat —
+    // memberi tahu "tugasmu tidak lagi ditunggu" hanya menambah bising.
+    if (action === 'dependency_removed') continue
+    if (action === 'dependency_added') {
+      if ((!isAssignee && !isAssigner) || r.task.deleted_at) continue
+      items.push({
+        id: r.id, taskId: r.task.id, taskTitle: r.task.title, kind: 'ditunggu',
+        oldStatus: r.old_status, newStatus: r.new_status,
+        actorName: r.actor?.display_name ?? 'Seseorang', createdAt: r.created_at,
+        read: readIds.has(r.id), detail: r.notes,
+      })
+      if (items.length >= SHOW_LIMIT) break
+      continue
+    }
+
+    // Tugas yang saya tunggu baru selesai — diturunkan dari riwayat tugas
+    // ITU, bukan baris baru, jadi tidak ada pemicu yang bisa lupa dipasang.
+    const tunggu = action === 'status' && r.new_status === 'done' && !isAssignee && !isAssigner && !r.task.deleted_at
+      ? menungguPerPenghambat.get(r.task.id)
+      : undefined
+    if (tunggu && tunggu.length > 0) {
+      items.push({
+        id: r.id, taskId: tunggu[0].id,
+        taskTitle: tunggu.length > 1 ? `${tunggu[0].title} & ${tunggu.length - 1} tugas lain` : tunggu[0].title,
+        kind: 'bisa_lanjut', oldStatus: r.old_status, newStatus: r.new_status,
+        actorName: r.actor?.display_name ?? 'Seseorang', createdAt: r.created_at,
+        read: readIds.has(r.id), detail: r.task.title,
+      })
+      if (items.length >= SHOW_LIMIT) break
+      continue
+    }
 
     if (isAudit) {
       /**
@@ -147,4 +190,42 @@ export async function getNotifications(userId: string, role: UserRole): Promise<
     : items.length
 
   return { items, unseenCount }
+}
+
+/**
+ * Tugas milik pemirsa (masih berjalan) yang menunggu salah satu tugas di
+ * `rows` — dikelompokkan per tugas yang ditunggu.
+ *
+ * Hanya tugas yang di riwayat ini baru berpindah ke 'done' yang diperiksa,
+ * jadi query-nya tetap sekecil jumlah penyelesaian dalam jendela pindaian.
+ * Tabel belum ada (0071 belum dijalankan) → peta kosong, lonceng tetap hidup.
+ */
+async function tugasSayaYangMenunggu(
+  userId: string,
+  rows: HistoryRow[],
+): Promise<Map<string, { id: string; title: string }[]>> {
+  const peta = new Map<string, { id: string; title: string }[]>()
+  const selesai = [...new Set(
+    rows.filter(r => (r.action ?? 'status') === 'status' && r.new_status === 'done' && r.changed_by !== userId).map(r => r.task_id),
+  )]
+  if (selesai.length === 0) return peta
+
+  const supabase = createServerClient()
+  const { data, error } = await supabase
+    .from('task_dependencies')
+    .select('depends_on_id, tugas:tasks!task_dependencies_task_id_fkey(id, title, status, assigned_to, deleted_at)')
+    .in('depends_on_id', selesai)
+  if (error || !data) return peta
+
+  for (const d of data as unknown as {
+    depends_on_id: string
+    tugas: { id: string; title: string; status: TaskStatus; assigned_to: string | null; deleted_at: string | null } | null
+  }[]) {
+    const t = d.tugas
+    if (!t || t.assigned_to !== userId || t.deleted_at || t.status === 'done') continue
+    const daftar = peta.get(d.depends_on_id) ?? []
+    daftar.push({ id: t.id, title: t.title })
+    peta.set(d.depends_on_id, daftar)
+  }
+  return peta
 }

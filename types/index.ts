@@ -252,8 +252,19 @@ export interface Task {
   assigner?: User
 }
 
-/** Jenis peristiwa di riwayat tugas — lihat migrasi 0018. */
-export type TaskHistoryAction = 'status' | 'edited' | 'deleted' | 'restored'
+/** Jenis peristiwa di riwayat tugas — lihat migrasi 0018 (dependency_* sejak 0071). */
+export type TaskHistoryAction = 'status' | 'edited' | 'deleted' | 'restored' | 'dependency_added' | 'dependency_removed'
+
+/** Relasi "tugas ini menunggu tugas itu" — migrasi 0071. */
+export interface TaskDependency {
+  id: string
+  /** Tugas yang menunggu. */
+  task_id: string
+  /** Tugas yang ditunggu (penghambat). */
+  depends_on_id: string
+  created_by: string | null
+  created_at: string
+}
 
 export interface TaskHistory {
   id: string

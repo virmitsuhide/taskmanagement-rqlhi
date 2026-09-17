@@ -13,6 +13,7 @@ import { cn } from '@/lib/utils'
 import { useConfirm } from '@/components/ui/confirm-dialog'
 import type { Task, TaskStatus, TaskProblemType, UserRole } from '@/types'
 import type { BoardColumn, BoardColumnKey } from '@/lib/data/board'
+import type { RingkasDependensi } from '@/lib/data/dependensi'
 
 const COLUMN_ACCENT: Record<BoardColumnKey, string> = {
   todo: 'var(--muted-foreground)',
@@ -72,9 +73,11 @@ interface Props {
   columns: BoardColumn[]
   currentUserId: string
   currentRole: UserRole
+  /** Ringkasan relasi "menunggu" per tugas — lihat lib/data/dependensi.ts. */
+  dependensi?: Record<string, RingkasDependensi>
 }
 
-export function KanbanBoard({ columns: initialColumns, currentUserId, currentRole }: Props) {
+export function KanbanBoard({ columns: initialColumns, currentUserId, currentRole, dependensi = {} }: Props) {
   const router = useRouter()
   const [columns, setColumns] = useState(initialColumns)
   const confirm = useConfirm()
@@ -295,6 +298,28 @@ export function KanbanBoard({ columns: initialColumns, currentUserId, currentRol
                   <p className={`text-sm font-medium leading-snug ${task.status === 'done' ? 'line-through text-muted-foreground' : ''}`}>
                     {task.title}
                   </p>
+
+                  {/* Relasi menunggu — ditampilkan hanya selama tugasnya belum
+                      selesai; kartu Done yang "menunggu" hanya menambah bising. */}
+                  {task.status !== 'done' && dependensi[task.id] && (dependensi[task.id].menunggu > 0 || dependensi[task.id].ditunggu > 0) && (
+                    <div className="mt-1.5 flex flex-wrap gap-1">
+                      {dependensi[task.id].menunggu > 0 && (
+                        <span
+                          className="text-[10px] px-1.5 py-0.5 rounded-full font-medium"
+                          style={dependensi[task.id].bentrok
+                            ? { background: 'var(--destructive-wash)', color: 'var(--destructive)' }
+                            : { background: 'var(--muted)', color: 'var(--muted-foreground)' }}
+                        >
+                          ⏳ Menunggu {dependensi[task.id].menunggu} tugas{dependensi[task.id].bentrok ? ' · bentrok' : ''}
+                        </span>
+                      )}
+                      {dependensi[task.id].ditunggu > 0 && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium" style={{ background: 'var(--warning-wash)', color: 'var(--warning)' }}>
+                          Ditunggu {dependensi[task.id].ditunggu} tugas
+                        </span>
+                      )}
+                    </div>
+                  )}
 
                   {/* Jenis hambatan — hanya di kolom Problem, bisa diubah langsung */}
                   {problem && (

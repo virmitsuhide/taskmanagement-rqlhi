@@ -13,6 +13,8 @@ import { TaskComments } from '@/components/tasks/TaskComments'
 import { SubtaskPanel } from '@/components/tasks/SubtaskPanel'
 import { GanttChart, GanttLegend } from '@/components/tasks/GanttChart'
 import { getSubtasks } from '@/lib/data/gantt'
+import { dependensiUntukGantt, getPetaDependensi } from '@/lib/data/dependensi'
+import { DependensiPanel, type RelasiTampil } from '@/components/tasks/DependensiPanel'
 import { taskRange, taskProgress, parseScale, GANTT_SCALES, shortDate } from '@/lib/tasks/gantt'
 import { TaskRowActions } from '@/components/tasks/TaskRowActions'
 import { Badge } from '@/components/ui/badge'
@@ -99,7 +101,14 @@ export default async function TaskDetailPage({
   const comments = (commentData ?? []) as TaskComment[]
 
   // Rincian tugas — sumber batang anak pada mini-Gantt di bawah.
-  const subtasks = await getSubtasks(id)
+  const [subtasks, dependensi] = await Promise.all([getSubtasks(id), getPetaDependensi([id], session)])
+  const keTampil = (relasiId: string, keadaan: RelasiTampil['keadaan'], tugasId: string): RelasiTampil[] => {
+    const tugas = dependensi.tugas[tugasId]
+    return tugas ? [{ relasiId, keadaan, tugas }] : []
+  }
+  const menunggu = dependensi.relasi.filter(r => r.menungguId === id).flatMap(r => keTampil(r.id, r.keadaan, r.ditungguId))
+  const ditunggu = dependensi.relasi.filter(r => r.ditungguId === id).flatMap(r => keTampil(r.id, r.keadaan, r.menungguId))
+  const ganttDependensi = dependensiUntukGantt(dependensi, new Set([id]), r => ROLE_LABELS[r])
   const mayManageSubtasks = !isDeleted && canManageSubtasks(session.role, isAssignee, isAssigner)
   const ganttScale = parseScale(skala)
   const range = taskRange(task, subtasks)
@@ -224,6 +233,17 @@ export default async function TaskDetailPage({
 
         <SubtaskPanel taskId={id} subtasks={subtasks} canManage={mayManageSubtasks} />
 
+        {!isDeleted && (
+          <DependensiPanel
+            taskId={id}
+            menunggu={menunggu}
+            ditunggu={ditunggu}
+            bisaAtur={mayManageSubtasks}
+            bisaGeser={mayEdit}
+            tabelAda={dependensi.tabelAda}
+          />
+        )}
+
         {/* Garis waktu tugas ini saja. Sengaja dipasang tepat di bawah daftar
             rincian: itulah tempat orang baru saja mengetik tanggal, dan akibat
             dari tanggal itu harus terlihat tanpa berpindah halaman. */}
@@ -257,9 +277,14 @@ export default async function TaskDetailPage({
               scale={ganttScale}
               linkTasks={false}
               emptyLabel="Tugas ini belum punya tanggal apa pun."
+              dependensi={ganttDependensi}
             />
             <div className="mt-3">
-              <GanttLegend hasOverdue={!!task.due_date && task.status !== 'done'} />
+              <GanttLegend
+                hasOverdue={!!task.due_date && task.status !== 'done'}
+                hasDependensi={ganttDependensi.sisi.length > 0}
+                hasBentrok={ganttDependensi.sisi.some(s => s.bentrok)}
+              />
             </div>
           </div>
         </div>
@@ -337,6 +362,10 @@ function HistoryVerb({ entry }: { entry: TaskHistory }) {
       return <>menghapus tugas</>
     case 'restored':
       return <>memulihkan tugas</>
+    case 'dependency_added':
+      return <>mencatat tugas lain yang menunggu tugas ini</>
+    case 'dependency_removed':
+      return <>melepas tugas lain yang menunggu tugas ini</>
     default:
       if (!entry.old_status) return <>membuat task</>
       return (

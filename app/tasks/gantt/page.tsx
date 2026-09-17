@@ -3,13 +3,16 @@ import Link from 'next/link'
 import { getSession } from '@/lib/auth/session'
 import { ROLE_LABELS, canAssignAnyTask, canViewTasks } from '@/lib/auth/permissions'
 import { getGanttRows, getGanttPeople, resolveGanttTarget } from '@/lib/data/gantt'
+import { dependensiUntukGantt, getPetaDependensi } from '@/lib/data/dependensi'
+import { getTugasSprint } from '@/lib/data/sprint'
+import { akhirPeriode, labelPeriode, periodeDari } from '@/lib/tasks/sprint'
 import { parseScale, GANTT_SCALES, today, daysBetween } from '@/lib/tasks/gantt'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { GanttChart, GanttLegend } from '@/components/tasks/GanttChart'
 import { GanttNavMenu } from '@/components/tasks/GanttNavMenu'
 import { NewTaskMenu } from '@/components/tasks/NewTaskMenu'
 import { Button } from '@/components/ui/button'
-import { LayoutGrid, List, Eye, CalendarClock, AlertTriangle, ListChecks } from 'lucide-react'
+import { LayoutGrid, List, Eye, CalendarClock, AlertTriangle, ListChecks, Target } from 'lucide-react'
 
 interface PageProps {
   searchParams: Promise<{ user?: string; scale?: string; done?: string }>
@@ -44,6 +47,19 @@ export default async function GanttPage({ searchParams }: PageProps) {
     getGanttRows({ userId: target.id, includeDone }),
     getGanttPeople(session),
   ])
+
+  const idBaris = new Set(rows.map(r => r.task.id))
+  const periodeSprint = periodeDari(today())
+  const [petaDependensi, tugasSprint] = await Promise.all([
+    getPetaDependensi([...idBaris], session),
+    getTugasSprint(periodeSprint),
+  ])
+  const sprint = {
+    mulai: periodeSprint, akhir: akhirPeriode(periodeSprint), label: labelPeriode(periodeSprint),
+    taskIds: rows.map(r => r.task.id).filter(id => tugasSprint.has(id)),
+  }
+  const dependensi = dependensiUntukGantt(petaDependensi, idBaris, r => ROLE_LABELS[r])
+  const bentrok = dependensi.sisi.filter(s => s.bentrok).length
 
   const now = today()
   const overdue = rows.filter(r => r.task.status !== 'done' && r.task.due_date && r.task.due_date < now)
@@ -99,6 +115,9 @@ export default async function GanttPage({ searchParams }: PageProps) {
               </Button>
               <Button asChild size="sm" variant="outline">
                 <Link href="/tasks"><List className="mr-1 h-4 w-4" />List</Link>
+              </Button>
+              <Button asChild size="sm" variant="outline">
+                <Link href="/tasks/sprint"><Target className="mr-1 h-4 w-4" />Sprint</Link>
               </Button>
               <GanttNavMenu
                 people={people}
@@ -166,9 +185,21 @@ export default async function GanttPage({ searchParams }: PageProps) {
             </Link>
           </div>
 
+          {bentrok > 0 && (
+            <div className="mb-3 flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-2.5 text-sm text-destructive">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+              <p>
+                {bentrok} tugas dijadwalkan mulai sebelum tugas yang ditunggunya selesai (panah merah).
+                Buka tugasnya untuk menggeser jadwal atau membicarakannya dengan pemegang tugas itu.
+              </p>
+            </div>
+          )}
+
           <GanttChart
             rows={rows}
             scale={scale}
+            dependensi={dependensi}
+            sprint={sprint}
             emptyLabel={
               isSelf
                 ? 'Buat tugas lalu beri tanggal mulai & tenggat — atau rinci tugas yang ada — supaya batangnya muncul di sini.'
@@ -177,7 +208,7 @@ export default async function GanttPage({ searchParams }: PageProps) {
           />
 
           <div className="mt-3 space-y-2">
-            <GanttLegend hasOverdue={overdue.length > 0} />
+            <GanttLegend hasOverdue={overdue.length > 0} hasDependensi={dependensi.sisi.length > 0} hasBentrok={bentrok > 0} sprintLabel={sprint.label} />
             {tanpaTanggal > 0 && (
               <p className="text-[11px] text-muted-foreground">
                 {tanpaTanggal} rincian belum bertanggal, jadi belum punya batang di sini.

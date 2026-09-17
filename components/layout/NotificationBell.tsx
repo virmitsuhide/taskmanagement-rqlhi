@@ -221,6 +221,14 @@ export function NotificationBell({ items, unseenCount, ujian = [], ujianBaru = 0
                                 {STATUS_LABELS[item.newStatus]}
                               </span>
                             </>
+                          ) : item.kind === 'ditunggu' ? (
+                            <>
+                              <span className="text-warning">Tugas Anda ditunggu</span>: {item.taskTitle}
+                            </>
+                          ) : item.kind === 'bisa_lanjut' ? (
+                            <>
+                              <span className="text-success">Bisa dilanjutkan</span>: {item.taskTitle}
+                            </>
                           ) : (
                             <>
                               <span className={AUDIT_META[item.kind].tone}>
@@ -230,6 +238,11 @@ export function NotificationBell({ items, unseenCount, ujian = [], ujianBaru = 0
                             </>
                           )}
                         </span>
+                        {item.detail && (item.kind === 'ditunggu' || item.kind === 'bisa_lanjut') && (
+                          <span className="block text-[11px] text-muted-foreground mt-0.5 truncate">
+                            {item.kind === 'ditunggu' ? item.detail : `Tugas yang ditunggu selesai: ${item.detail}`}
+                          </span>
+                        )}
                         <span className="block text-[11px] text-muted-foreground mt-0.5">
                           {item.kind === 'assigned' ? 'dari' : 'oleh'} {item.actorName} · {timeAgo(item.createdAt)}
                         </span>

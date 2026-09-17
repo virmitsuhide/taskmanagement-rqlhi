@@ -31,7 +31,7 @@ export const taskStatusEnum = pgEnum('task_status', ['todo', 'in_progress', 'pro
 export const subtaskStatusEnum = pgEnum('subtask_status', ['todo', 'in_progress', 'done'])
 export const taskProblemTypeEnum = pgEnum('task_problem_type', ['bottleneck', 'blocked', 'wip_limit', 'others'])
 /** Jenis peristiwa di task_history — memisahkan sunting/hapus dari ubah status. */
-export const taskHistoryActionEnum = pgEnum('task_history_action', ['status', 'edited', 'deleted', 'restored'])
+export const taskHistoryActionEnum = pgEnum('task_history_action', ['status', 'edited', 'deleted', 'restored', 'dependency_added', 'dependency_removed'])
 /** Irama pengulangan tugas rutin (0043; semesteran & tahunan ditambah 0060). */
 export const routineCadenceEnum = pgEnum('routine_cadence', [
   'pekanan', 'bulanan', 'semesteran', 'tahunan',
@@ -176,6 +176,59 @@ export const tasks = pgTable('tasks', {
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
 })
+
+/**
+ * Relasi "tugas ini menunggu tugas itu" (0071) — finish-to-start saja.
+ * task_id = yang menunggu, depends_on_id = yang ditunggu.
+ */
+export const taskDependencies = pgTable('task_dependencies', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  task_id: uuid('task_id').notNull().references(() => tasks.id, { onDelete: 'cascade' }),
+  depends_on_id: uuid('depends_on_id').notNull().references(() => tasks.id, { onDelete: 'cascade' }),
+  created_by: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+  created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [unique('task_dependencies_unik').on(t.task_id, t.depends_on_id)])
+
+/** Sprint bulanan RQ (0072) — satu baris per bulan kalender; status diturunkan dari tanggal. */
+export const sprints = pgTable('sprints', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  /** Selalu tanggal 1. */
+  periode: date('periode').notNull().unique(),
+  ditutup_at: timestamp('ditutup_at', { withTimezone: true }),
+  ditutup_by: uuid('ditutup_by').references(() => users.id, { onDelete: 'set null' }),
+  created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
+/** Sprint Goal, review, dan retrospektif per jabatan (0072). */
+export const sprintGoals = pgTable('sprint_goals', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  sprint_id: uuid('sprint_id').notNull().references(() => sprints.id, { onDelete: 'cascade' }),
+  jabatan: userRoleEnum('jabatan').notNull(),
+  goal: text('goal').notNull().default(''),
+  disahkan_at: timestamp('disahkan_at', { withTimezone: true }),
+  disahkan_by: uuid('disahkan_by').references(() => users.id, { onDelete: 'set null' }),
+  hasil: text('hasil'),
+  catatan_review: text('catatan_review').notNull().default(''),
+  retro_baik: text('retro_baik').notNull().default(''),
+  retro_hambatan: text('retro_hambatan').notNull().default(''),
+  retro_ubah: text('retro_ubah').notNull().default(''),
+  updated_by: uuid('updated_by').references(() => users.id, { onDelete: 'set null' }),
+  updated_at: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [unique('sprint_goals_satu_per_jabatan').on(t.sprint_id, t.jabatan)])
+
+/** Tugas yang disanggupi sebuah jabatan dalam satu sprint (0072). */
+export const sprintItems = pgTable('sprint_items', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  sprint_id: uuid('sprint_id').notNull().references(() => sprints.id, { onDelete: 'cascade' }),
+  task_id: uuid('task_id').notNull().references(() => tasks.id, { onDelete: 'cascade' }),
+  jabatan: userRoleEnum('jabatan').notNull(),
+  poin: smallint('poin').notNull(),
+  tengah_sprint: boolean('tengah_sprint').notNull().default(false),
+  /** Potret status tugas saat sprint ditutup; NULL = belum ditutup. */
+  status_saat_tutup: taskStatusEnum('status_saat_tutup'),
+  created_by: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+  created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [unique('sprint_items_sekali_per_sprint').on(t.sprint_id, t.task_id)])
 
 /**
  * Rincian sebuah tugas (migrasi 0041) — langkah kecil yang masing-masing boleh
@@ -1136,6 +1189,20 @@ export const gukarMonthly = pgTable('gukar_monthly', {
 })
 
 /**
+ * Pekan efektif tiap bulan per tahun ajaran (0070). Target tahfidz bulanan
+ * dihitung dari tabel ini + rencana di lib/rq/target-tahfidz.ts, tidak disimpan.
+ */
+export const kalenderPekanEfektif = pgTable('kalender_pekan_efektif', {
+  tahun_ajaran: text('tahun_ajaran').notNull(),
+  /** Selalu tanggal 1. */
+  bulan: date('bulan').notNull(),
+  semester: smallint('semester').notNull(),
+  pekan_efektif: numeric('pekan_efektif', { precision: 3, scale: 1 }).notNull().default('0'),
+  updated_by: uuid('updated_by').references(() => users.id, { onDelete: 'set null' }),
+  updated_at: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, t => [primaryKey({ columns: [t.tahun_ajaran, t.bulan] })])
+
+/**
  * Capaian awal & akhir tiap bulan per siswa — cerminan lembar "DB Y1–Y6".
  *
  * Bukan turunan dari setoran harian: patokan bulanan tetap harus ada meski
@@ -1166,20 +1233,6 @@ export const studentMonthly = pgTable('student_monthly', {
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
 })
-
-/**
- * Pekan efektif tiap bulan per tahun ajaran (0070). Target tahfidz bulanan
- * dihitung dari tabel ini + rencana di lib/rq/target-tahfidz.ts, tidak disimpan.
- */
-export const kalenderPekanEfektif = pgTable('kalender_pekan_efektif', {
-  tahun_ajaran: text('tahun_ajaran').notNull(),
-  /** Selalu tanggal 1. */
-  bulan: date('bulan').notNull(),
-  semester: smallint('semester').notNull(),
-  pekan_efektif: numeric('pekan_efektif', { precision: 3, scale: 1 }).notNull().default('0'),
-  updated_by: uuid('updated_by').references(() => users.id, { onDelete: 'set null' }),
-  updated_at: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
-}, t => [primaryKey({ columns: [t.tahun_ajaran, t.bulan] })])
 
 /**
  * KPI bulanan guru Qur'an — satu baris per guru per bulan.

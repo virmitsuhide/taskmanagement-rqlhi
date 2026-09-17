@@ -7,6 +7,7 @@ import {
 } from '@/lib/tasks/gantt'
 import { TASK_PRIORITY_LABELS } from '@/lib/auth/permissions'
 import type { GanttRow } from '@/lib/data/gantt'
+import type { DependensiGantt } from '@/lib/data/dependensi'
 import type { TaskStatus, SubtaskStatus } from '@/types'
 
 /**
@@ -49,9 +50,10 @@ const SUB_TONE: Record<SubtaskStatus, { bar: string; track: string }> = {
 interface Line {
   key: string
   height: number
-  kind: 'task' | 'subtask'
+  /** 'hantu' = tugas jabatan lain yang ditunggu; 'grup' = judul kelompok baris, tanpa batang. */
+  kind: 'task' | 'subtask' | 'hantu' | 'grup'
   label: React.ReactNode
-  range: DayRange
+  range: DayRange | null
   tone: { bar: string; track: string }
   /** Bagian batang yang terisi (0–100). Hanya untuk tugas induk. */
   fillPercent?: number
@@ -68,7 +70,13 @@ interface Props {
   /** Sembunyikan tautan ke halaman tugas (dipakai di halaman tugas itu sendiri). */
   linkTasks?: boolean
   emptyLabel?: string
+  /** Relasi "menunggu" — digambar sebagai panah antarbatang. */
+  dependensi?: DependensiGantt
+  /** Sprint bulan berjalan: pita di kanvas + tanda pada tugas yang disanggupi. */
+  sprint?: { mulai: string; akhir: string; label: string; taskIds: string[] }
 }
+
+const GRUP_H = 24
 
 export function GanttChart({
   rows,
@@ -76,12 +84,48 @@ export function GanttChart({
   showSubtasks = true,
   linkTasks = true,
   emptyLabel = 'Belum ada tugas untuk digambar di Gantt Chart.',
+  dependensi,
+  sprint,
 }: Props) {
   const now = today()
+  const disanggupi = new Set(sprint?.taskIds ?? [])
 
   const lines: Line[] = []
+
+  // Tugas jabatan lain yang ditunggu ditaruh DI ATAS: dibaca dari atas ke
+  // bawah, panahnya lalu mengalir turun dari yang ditunggu ke yang menunggu —
+  // arah yang sama dengan urutan kerjanya.
+  const hantu = dependensi?.hantu ?? []
+  if (hantu.length > 0 && rows.length > 0) {
+    lines.push(grupLine('grup-hantu', 'Ditunggu dari tugas lain'))
+    for (const h of hantu) {
+      lines.push({
+        key: `hantu-${h.id}`,
+        height: SUB_H + 4,
+        kind: 'hantu',
+        label: (
+          <div className="min-w-0">
+            {linkTasks && h.bisaDibuka ? (
+              <Link href={`/tasks/${h.id}`} className="block truncate text-xs font-medium hover:underline" title={h.title}>{h.title}</Link>
+            ) : (
+              <span className="block truncate text-xs font-medium" title={h.title}>{h.title}</span>
+            )}
+            <p className="truncate text-[10px] text-muted-foreground">{h.jabatan}</p>
+          </div>
+        ),
+        range: h.range,
+        tone: TASK_TONE[h.status],
+        dashed: true,
+        overdue: h.status !== 'done' && h.range.end < now,
+        tooltip: `Ditunggu: ${h.title}\n${h.jabatan}\n${rangeLabel(h.range)}`,
+      })
+    }
+    lines.push(grupLine('grup-tugas', 'Tugas'))
+  }
+
   for (const row of rows) {
     const { task, range, progress } = row
+    const penunggu = dependensi?.ditunggu[task.id] ?? []
     lines.push({
       key: task.id,
       height: ROW_H,
@@ -99,6 +143,34 @@ export function GanttChart({
               </Link>
             ) : (
               <span className="truncate text-sm font-medium" title={task.title}>{task.title}</span>
+            )}
+            {sprint && disanggupi.has(task.id) && (
+              task.status !== 'done' && task.due_date && task.due_date > sprint.akhir ? (
+                <span
+                  className="shrink-0 rounded-full px-1.5 text-[10px] font-medium"
+                  style={{ background: 'var(--destructive-wash)', color: 'var(--destructive)' }}
+                  title={`Disanggupi di sprint ${sprint.label}, tapi tenggatnya lewat akhir bulan`}
+                >
+                  sprint · lewat
+                </span>
+              ) : (
+                <span
+                  className="shrink-0 rounded-full px-1.5 text-[10px] font-medium"
+                  style={{ background: 'var(--primary-wash)', color: 'var(--primary)' }}
+                  title={`Disanggupi di sprint ${sprint.label}`}
+                >
+                  sprint
+                </span>
+              )
+            )}
+            {penunggu.length > 0 && (
+              <span
+                className="shrink-0 rounded-full px-1.5 text-[10px] font-medium"
+                style={{ background: 'var(--warning-wash)', color: 'var(--warning)' }}
+                title={`Ditunggu oleh:\n${penunggu.join('\n')}`}
+              >
+                ditunggu {penunggu.length}
+              </span>
             )}
           </div>
           <p className="truncate text-[11px] text-muted-foreground">
@@ -157,7 +229,31 @@ export function GanttChart({
     )
   }
 
-  const timeline = buildTimeline(lines.map(l => l.range), scale)
+  const timeline = buildTimeline(lines.flatMap(l => (l.range ? [l.range] : [])), scale)
+
+  // Posisi tiap batang, untuk pangkal & ujung panah dependensi.
+  const posisi = new Map<string, { y: number; kiri: number; kanan: number }>()
+  let tinggiTotal = 0
+  for (const l of lines) {
+    if (l.range && (l.kind === 'task' || l.kind === 'hantu')) {
+      const m = barMetrics(l.range, timeline)
+      posisi.set(l.key.replace(/^hantu-/, ''), { y: tinggiTotal + l.height / 2, kiri: m.leftPx, kanan: m.leftPx + m.widthPx })
+    }
+    tinggiTotal += l.height
+  }
+  // Pita sprint — hanya bagian bulan yang jatuh di sumbu waktu ini.
+  const pitaSprint = sprint && sprint.mulai <= timeline.end && sprint.akhir >= timeline.start
+    ? barMetrics({
+        start: sprint.mulai > timeline.start ? sprint.mulai : timeline.start,
+        end: sprint.akhir < timeline.end ? sprint.akhir : timeline.end,
+        inferred: false,
+      }, timeline)
+    : null
+  const panah = (dependensi?.sisi ?? []).flatMap(s => {
+    const a = posisi.get(s.dari)
+    const b = posisi.get(s.ke)
+    return a && b ? [{ ...s, a, b }] : []
+  })
 
   return (
     <div className="overflow-x-auto rounded-xl border bg-card shadow-sm">
@@ -196,7 +292,7 @@ export function GanttChart({
               <div
                 key={l.key}
                 className={`flex items-center border-b px-3 last:border-b-0 ${
-                  l.kind === 'subtask' ? 'bg-muted/20' : ''
+                  l.kind === 'subtask' ? 'bg-muted/20' : l.kind === 'grup' ? 'bg-muted/50' : l.kind === 'hantu' ? 'bg-warning-wash/40' : ''
                 }`}
                 style={{ height: l.height }}
               >
@@ -219,6 +315,14 @@ export function GanttChart({
               ))}
             </div>
 
+            {pitaSprint && (
+              <div
+                className="pointer-events-none absolute inset-y-0 border-x border-dashed"
+                style={{ left: pitaSprint.leftPx, width: pitaSprint.widthPx, background: 'color-mix(in srgb, var(--primary) 5%, transparent)', borderColor: 'color-mix(in srgb, var(--primary) 35%, transparent)' }}
+                aria-hidden
+              />
+            )}
+
             {/* Penanda hari ini */}
             {timeline.todayPx !== null && (
               <div
@@ -228,7 +332,42 @@ export function GanttChart({
               />
             )}
 
+            {/* Panah dependensi: dari ujung kanan batang yang ditunggu ke ujung
+                kiri batang yang menunggu. Digambar di bawah batang supaya tidak
+                menutupi isiannya. Merah = jadwal bentrok. */}
+            {panah.length > 0 && (
+              <svg
+                className="pointer-events-none absolute left-0 top-0"
+                width={timeline.widthPx}
+                height={tinggiTotal}
+                aria-hidden
+              >
+                {panah.map(p => {
+                  const g = 8
+                  const x1 = p.a.kanan
+                  const x2 = p.b.kiri - 1
+                  const turun = p.b.y > p.a.y
+                  const d = x2 - x1 >= 2 * g
+                    ? `M${x1},${p.a.y} H${x1 + g} V${p.b.y} H${x2}`
+                    // Yang menunggu mulai sebelum yang ditunggu berakhir: garis
+                    // berbelok mundur di sela dua baris, bentuk yang sama dengan
+                    // panah bentrok di Jira & MS Project.
+                    : `M${x1},${p.a.y} H${x1 + g} V${p.a.y + (turun ? 14 : -14)} H${x2 - g} V${p.b.y} H${x2}`
+                  const warna = p.bentrok ? 'var(--destructive)' : 'var(--muted-foreground)'
+                  return (
+                    <g key={`${p.dari}-${p.ke}`} opacity={p.bentrok ? 0.95 : 0.7}>
+                      <path d={d} fill="none" stroke={warna} strokeWidth={p.bentrok ? 1.75 : 1.25} strokeDasharray={p.bentrok ? undefined : '3 2'} />
+                      <path d={`M${x2},${p.b.y} l-5,-3.5 v7 z`} fill={warna} />
+                    </g>
+                  )
+                })}
+              </svg>
+            )}
+
             {lines.map(l => {
+              if (!l.range) {
+                return <div key={l.key} className="relative border-b bg-muted/30" style={{ height: l.height }} />
+              }
               const m = barMetrics(l.range, timeline)
               return (
                 <div
@@ -241,7 +380,7 @@ export function GanttChart({
                     style={{
                       left: m.leftPx,
                       width: m.widthPx,
-                      height: l.kind === 'task' ? 18 : 12,
+                      height: l.kind === 'task' ? 18 : l.kind === 'hantu' ? 14 : 12,
                       background: l.tone.track,
                       border: `1px ${l.dashed ? 'dashed' : 'solid'} ${l.tone.bar}`,
                       // Batang yang lewat tenggat diberi cincin merah tipis —
@@ -271,8 +410,21 @@ export function GanttChart({
   )
 }
 
+function grupLine(key: string, judul: string): Line {
+  return {
+    key,
+    height: GRUP_H,
+    kind: 'grup',
+    label: <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{judul}</span>,
+    range: null,
+    tone: TASK_TONE.todo,
+    overdue: false,
+    tooltip: '',
+  }
+}
+
 /** Keterangan warna & tanda — dipakai di bawah setiap Gantt. */
-export function GanttLegend({ hasOverdue }: { hasOverdue?: boolean }) {
+export function GanttLegend({ hasOverdue, hasDependensi, hasBentrok, sprintLabel }: { hasOverdue?: boolean; hasDependensi?: boolean; hasBentrok?: boolean; sprintLabel?: string }) {
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11px] text-muted-foreground">
       <Swatch color="var(--muted-foreground)" label="Belum mulai" />
@@ -292,6 +444,24 @@ export function GanttLegend({ hasOverdue }: { hasOverdue?: boolean }) {
         <span className="flex items-center gap-1.5 text-destructive">
           <AlertTriangle className="h-3 w-3" />
           Cincin merah = lewat tenggat
+        </span>
+      )}
+      {sprintLabel && (
+        <span className="flex items-center gap-1.5">
+          <span className="h-2.5 w-4 rounded-sm border border-dashed" style={{ borderColor: 'var(--primary)', background: 'color-mix(in srgb, var(--primary) 8%, transparent)' }} aria-hidden />
+          Pita = sprint {sprintLabel}
+        </span>
+      )}
+      {hasDependensi && (
+        <span className="flex items-center gap-1.5">
+          <svg width="18" height="8" aria-hidden><path d="M0,4 H13" stroke="var(--muted-foreground)" strokeDasharray="3 2" /><path d="M18,4 l-5,-3.5 v7 z" fill="var(--muted-foreground)" /></svg>
+          Panah = menunggu tugas itu selesai
+        </span>
+      )}
+      {hasBentrok && (
+        <span className="flex items-center gap-1.5 text-destructive">
+          <svg width="18" height="8" aria-hidden><path d="M0,4 H13" stroke="var(--destructive)" strokeWidth="1.75" /><path d="M18,4 l-5,-3.5 v7 z" fill="var(--destructive)" /></svg>
+          Panah merah = jadwal bentrok
         </span>
       )}
     </div>

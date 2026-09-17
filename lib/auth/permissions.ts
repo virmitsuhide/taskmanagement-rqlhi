@@ -258,6 +258,31 @@ export function getBoardDivisions(role: UserRole): UserRole[] {
   return []
 }
 
+// ─── Sprint bulanan (0072) ───────────────────────────────────────────────────
+
+/**
+ * Jabatan yang sprint-nya boleh dilihat: milik sendiri, plus jabatan yang
+ * papan kanbannya memang boleh dipantau. Sprint adalah ringkasan papan per
+ * bulan, jadi izinnya dipinjam utuh dari sana.
+ */
+export function getSprintJabatan(role: UserRole): UserRole[] {
+  if (!canViewTasks(role)) return []
+  return [...new Set<UserRole>([role, ...getBoardDivisions(role)])]
+}
+
+/**
+ * Boleh menulis goal, menyanggupi tugas, dan mengisi review sebuah jabatan.
+ * Pemegang jabatan itu sendiri — dan Kepala RQ sebagai Product Owner.
+ */
+export function canEditSprintJabatan(role: UserRole, jabatan: UserRole): boolean {
+  return role === jabatan || role === 'kepala_rq'
+}
+
+/** Mengesahkan Sprint Goal & menutup sprint: Product Owner, yaitu Kepala RQ. */
+export function isProductOwner(role: UserRole): boolean {
+  return role === 'kepala_rq'
+}
+
 export function canViewDivisiBoard(role: UserRole): boolean {
   return getBoardDivisions(role).length > 0
 }
