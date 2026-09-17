@@ -6,6 +6,7 @@ import { canViewTasks, canViewRoutineBoard } from '@/lib/auth/permissions'
 import { getRoutineChecklist } from '@/lib/data/rutin'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { RoutineChecklist } from '@/components/rutin/RoutineChecklist'
+import { KartuRutinBersama } from '@/components/rutin/KartuRutinBersama'
 
 /**
  * Checklist tugas rutin milik pengurus yang sedang masuk.
@@ -23,7 +24,10 @@ export default async function TugasRutinPage() {
   // tetap terbuka walau menunya sudah disembunyikan.
   if (!canViewTasks(session.role)) redirect('/rapat')
 
-  const groups = await getRoutineChecklist(session.userId)
+  const { groups, undangan, pengurus } = await getRoutineChecklist(session.userId)
+  // Laporan rekan yang menunggu keputusan pemirsa — sumbernya baris checklist
+  // yang sama, jadi kartu dan barisnya tidak mungkin bercerita berbeda.
+  const perluKonfirmasi = groups.flatMap(g => g.items).filter(i => i.bersama?.laporan?.saya === 'perlu_konfirmasi' && i.bersama.laporan.konfirmasi === 'menunggu')
   const total = groups.reduce((n, g) => n + g.total, 0)
   const done = groups.reduce((n, g) => n + g.done, 0)
   const missed = groups.reduce((n, g) => n + g.missed, 0)
@@ -54,6 +58,8 @@ export default async function TugasRutinPage() {
               </Link>
             )}
           </div>
+
+          <KartuRutinBersama undangan={undangan} perluKonfirmasi={perluKonfirmasi} />
 
           {/* Kotak pengantar ke form tambah — pintu masuk satu-satunya, jadi
               dibuat cukup besar untuk terlihat saat daftarnya masih kosong. */}
@@ -100,7 +106,7 @@ export default async function TugasRutinPage() {
             </div>
           )}
 
-          <RoutineChecklist groups={groups} />
+          <RoutineChecklist groups={groups} pengurus={pengurus.filter(p => p.userId !== session.userId)} />
 
           {total > 0 && (
             <p className="mt-4 text-[11px] text-muted-foreground">

@@ -4,12 +4,14 @@ import { useActionState, useEffect, useRef, useState, useTransition } from 'reac
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import {
-  Check, ChevronDown, ChevronUp, Pencil, Trash2, X, CircleCheckBig, CircleAlert,
+  Check, ChevronDown, ChevronUp, Pencil, Trash2, X, CircleCheckBig, CircleAlert, Hourglass, LogOut, Users,
 } from 'lucide-react'
 import {
-  deleteRoutineTaskAction, moveRoutineTaskAction,
+  deleteRoutineTaskAction, keluarTugasRutinBersamaAction, moveRoutineTaskAction,
   setRoutineOutcomeAction, updateRoutineTaskAction,
 } from '@/app/actions/rutin'
+import { DeskripsiMention } from '@/components/rutin/DeskripsiMention'
+import type { PengurusMention } from '@/lib/rutin/bersama'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -45,19 +47,21 @@ import type { RoutineOutcome, RoutineTaskState } from '@/types'
 
 interface Props {
   groups: RoutineGroup[]
+  /** Pengurus yang bisa disebut dengan @ saat menyunting — tanpa pemirsa. */
+  pengurus: PengurusMention[]
 }
 
-export function RoutineChecklist({ groups }: Props) {
+export function RoutineChecklist({ groups, pengurus }: Props) {
   return (
     <div className="space-y-5">
       {groups.map(group => (
-        <GroupSection key={group.cadence} group={group} />
+        <GroupSection key={group.cadence} group={group} pengurus={pengurus} />
       ))}
     </div>
   )
 }
 
-function GroupSection({ group }: { group: RoutineGroup }) {
+function GroupSection({ group, pengurus }: { group: RoutineGroup; pengurus: PengurusMention[] }) {
   const router = useRouter()
   const confirm = useConfirm()
   const [pending, startTransition] = useTransition()
@@ -86,7 +90,10 @@ function GroupSection({ group }: { group: RoutineGroup }) {
 
   /** Jalur cepat: terlaksana ⇄ belum. Tidak dipakai untuk 'tidak terlaksana'. */
   function lapor(item: RoutineTaskState, next: RoutineOutcome | null) {
-    setOptimistic(o => ({ ...o, [item.task.id]: next }))
+    // Tugas bersama tidak dianggap tercentang begitu diketuk: laporannya
+    // menunggu konfirmasi rekan, dan tampilan optimistik akan berbohong soal itu.
+    const bersama = item.bersama && (item.bersama.anggota.some(a => a.status === 'diterima') || !item.bersama.sayaPemilik)
+    if (!(bersama && next === 'terlaksana')) setOptimistic(o => ({ ...o, [item.task.id]: next }))
     startTransition(async () => {
       const res = await setRoutineOutcomeAction(item.task.id, next)
       if (res?.error) {
@@ -170,6 +177,7 @@ function GroupSection({ group }: { group: RoutineGroup }) {
             <EditRow
               key={item.task.id}
               item={item}
+              pengurus={pengurus}
               onDone={() => setEditingId(null)}
               onCancel={() => setEditingId(null)}
             />
@@ -210,6 +218,15 @@ function GroupSection({ group }: { group: RoutineGroup }) {
               }
               onBatalAlasan={() => setAlasanId(null)}
               onEdit={() => setEditingId(item.task.id)}
+              onKeluar={async () => {
+                const ok = await confirm({
+                  title: 'Keluar dari tugas bersama?',
+                  description: `"${item.task.description}" hilang dari checklist Anda. Pemiliknya tetap melanjutkan tugas ini.`,
+                  confirmText: 'Keluar',
+                })
+                if (!ok) return
+                run(() => keluarTugasRutinBersamaAction(item.task.id), 'Anda keluar dari tugas bersama.')
+              }}
               onMove={dir => run(() => moveRoutineTaskAction(item.task.id, dir))}
               onDelete={async () => {
                 const ok = await confirm({
@@ -245,7 +262,7 @@ const LANJUTAN_PERIODE: Record<RoutineGroup['cadence'], string> = {
 
 function ChecklistRow({
   item, pending, isFirst, isLast, alasanTerbuka,
-  onLapor, onSimpanAlasan, onBatalAlasan, onEdit, onMove, onDelete,
+  onLapor, onSimpanAlasan, onBatalAlasan, onEdit, onMove, onDelete, onKeluar,
 }: {
   item: RoutineTaskState
   pending: boolean
@@ -258,9 +275,13 @@ function ChecklistRow({
   onEdit: () => void
   onMove: (dir: 'up' | 'down') => void
   onDelete: () => void
+  onKeluar: () => void
 }) {
   const terlaksana = item.outcome === 'terlaksana'
   const gagal = item.outcome === 'tidak_terlaksana'
+  const b = item.bersama
+  const sayaPemilik = !b || b.sayaPemilik
+  const menungguLaporanSaya = b?.laporan?.saya === 'pelapor' && b.laporan.konfirmasi === 'menunggu'
 
   return (
     <div className="group px-5 py-3">
@@ -268,6 +289,7 @@ function ChecklistRow({
         <StatusToggle
           taskId={item.task.id}
           outcome={item.outcome}
+          tertunda={menungguLaporanSaya}
           disabled={pending}
           onLapor={onLapor}
         />
@@ -286,21 +308,32 @@ function ChecklistRow({
               {waktuSingkat(item.checkedAt)}
             </p>
           )}
+          {b && <KeteranganBersama b={b} />}
         </div>
 
+        {/* Menyunting, mengurutkan, dan menghapus milik pembuat tugas; rekan
+            pada tugas bersama hanya bisa keluar. */}
         <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition focus-within:opacity-100 group-hover:opacity-100">
-          <IconBtn label="Naikkan" onClick={() => onMove('up')} disabled={isFirst || pending}>
-            <ChevronUp className="h-3.5 w-3.5" />
-          </IconBtn>
-          <IconBtn label="Turunkan" onClick={() => onMove('down')} disabled={isLast || pending}>
-            <ChevronDown className="h-3.5 w-3.5" />
-          </IconBtn>
-          <IconBtn label="Sunting" onClick={onEdit} disabled={pending}>
-            <Pencil className="h-3.5 w-3.5" />
-          </IconBtn>
-          <IconBtn label="Hapus" onClick={onDelete} disabled={pending} danger>
-            <Trash2 className="h-3.5 w-3.5" />
-          </IconBtn>
+          {sayaPemilik ? (
+            <>
+              <IconBtn label="Naikkan" onClick={() => onMove('up')} disabled={isFirst || pending}>
+                <ChevronUp className="h-3.5 w-3.5" />
+              </IconBtn>
+              <IconBtn label="Turunkan" onClick={() => onMove('down')} disabled={isLast || pending}>
+                <ChevronDown className="h-3.5 w-3.5" />
+              </IconBtn>
+              <IconBtn label="Sunting" onClick={onEdit} disabled={pending}>
+                <Pencil className="h-3.5 w-3.5" />
+              </IconBtn>
+              <IconBtn label="Hapus" onClick={onDelete} disabled={pending} danger>
+                <Trash2 className="h-3.5 w-3.5" />
+              </IconBtn>
+            </>
+          ) : (
+            <IconBtn label="Keluar dari tugas bersama" onClick={onKeluar} disabled={pending} danger>
+              <LogOut className="h-3.5 w-3.5" />
+            </IconBtn>
+          )}
         </div>
       </div>
 
@@ -340,10 +373,12 @@ function ChecklistRow({
  * dan menaruhnya di tombol yang sama membuatnya bisa ditemukan tanpa menu.
  */
 function StatusToggle({
-  taskId, outcome, disabled, onLapor,
+  taskId, outcome, tertunda, disabled, onLapor,
 }: {
   taskId: string
   outcome: RoutineOutcome | null
+  /** Laporan terlaksana pemirsa pada tugas bersama yang masih menunggu konfirmasi rekan. */
+  tertunda?: boolean
   disabled?: boolean
   onLapor: (next: RoutineOutcome | null) => void
 }) {
@@ -359,17 +394,19 @@ function StatusToggle({
       <button
         type="button"
         id={`rutin-ya-${taskId}`}
-        aria-pressed={outcome === 'terlaksana'}
+        aria-pressed={outcome === 'terlaksana' || tertunda}
         disabled={disabled}
-        onClick={() => onLapor(outcome === 'terlaksana' ? null : 'terlaksana')}
-        title={outcome === 'terlaksana' ? 'Batalkan laporan' : 'Tandai terlaksana'}
+        onClick={() => onLapor(outcome === 'terlaksana' || tertunda ? null : 'terlaksana')}
+        title={tertunda ? 'Menunggu konfirmasi rekan — ketuk untuk membatalkan' : outcome === 'terlaksana' ? 'Batalkan laporan' : 'Tandai terlaksana'}
         className={`${dasar} ${
           outcome === 'terlaksana'
             ? 'border-success bg-success text-white'
-            : 'border-input text-muted-foreground hover:border-success/60 hover:text-success'
+            : tertunda
+              ? 'border-warning bg-warning-wash text-warning'
+              : 'border-input text-muted-foreground hover:border-success/60 hover:text-success'
         }`}
       >
-        <Check className="h-4 w-4" />
+        {tertunda ? <Hourglass className="h-3.5 w-3.5" /> : <Check className="h-4 w-4" />}
         <span className="sr-only">Terlaksana</span>
       </button>
       <button
@@ -508,9 +545,10 @@ function IconBtn({
  * untuk mengubah satu kalimat memutus alur membacanya.
  */
 function EditRow({
-  item, onDone, onCancel,
+  item, pengurus, onDone, onCancel,
 }: {
   item: RoutineTaskState
+  pengurus: PengurusMention[]
   onDone: () => void
   onCancel: () => void
 }) {
@@ -537,7 +575,7 @@ function EditRow({
 
       <div className="space-y-1.5">
         <Label htmlFor={`edit-${item.task.id}`} className="text-xs">Deskripsi</Label>
-        <Textarea
+        <DeskripsiMention
           ref={areaRef}
           id={`edit-${item.task.id}`}
           name="description"
@@ -545,6 +583,7 @@ function EditRow({
           required
           maxLength={300}
           defaultValue={item.task.description}
+          pengurus={pengurus}
         />
       </div>
 
@@ -578,6 +617,52 @@ function EditRow({
         </span>
       </div>
     </form>
+  )
+}
+
+/**
+ * Siapa saja yang ikut, dan di mana laporan terlaksananya tertahan.
+ *
+ * Kalimatnya disusun dari sudut pemirsa — pelapor, rekan yang belum
+ * memutuskan, atau yang menolak — karena tindakan yang ia perlukan berbeda.
+ */
+function KeteranganBersama({ b }: { b: NonNullable<RoutineTaskState['bersama']> }) {
+  const diterima = b.anggota.filter(a => a.status === 'diterima').map(a => a.label)
+  const menunggu = b.anggota.filter(a => a.status === 'menunggu').map(a => a.label)
+  const menolak = b.anggota.filter(a => a.status === 'ditolak').map(a => a.label)
+  const l = b.laporan
+
+  let pesan: { teks: string; kelas: string } | null = null
+  if (l?.konfirmasi === 'menunggu') {
+    pesan = l.saya === 'pelapor'
+      ? { teks: `Anda menandai terlaksana — menunggu konfirmasi ${l.rekan.join(', ')}.`, kelas: 'text-warning' }
+      : l.saya === 'perlu_konfirmasi'
+        ? { teks: `${l.pelapor.label} menandai terlaksana — konfirmasi di kartu atas.`, kelas: 'text-warning' }
+        : { teks: `Anda sudah menyetujui laporan ${l.pelapor.label} — menunggu ${l.rekan.join(', ')}.`, kelas: 'text-muted-foreground' }
+  } else if (l?.konfirmasi === 'ditolak') {
+    pesan = l.saya === 'pelapor'
+      ? { teks: `${l.rekan.join(', ')} belum menyetujui laporan terlaksana Anda. Bicarakan, lalu laporkan ulang.`, kelas: 'text-destructive' }
+      : l.saya === 'menolak'
+        ? { teks: `Anda menandai belum selesai — ${l.pelapor.label} bisa melaporkan ulang.`, kelas: 'text-muted-foreground' }
+        : { teks: `${l.rekan.join(', ')} belum menyetujui laporan ${l.pelapor.label}.`, kelas: 'text-destructive' }
+  }
+
+  return (
+    <>
+      <p className="mt-1 flex flex-wrap items-center gap-1 text-[11px] text-muted-foreground">
+        <Users className="h-3 w-3" />
+        {b.sayaPemilik ? (
+          <>
+            {diterima.length > 0 && <span>Bersama {diterima.join(', ')}</span>}
+            {menunggu.length > 0 && <span className="rounded-full bg-muted px-1.5">menunggu jawaban {menunggu.join(', ')}</span>}
+            {menolak.length > 0 && <span className="rounded-full bg-destructive-wash px-1.5 text-destructive">{menolak.join(', ')} menolak</span>}
+          </>
+        ) : (
+          <span>Tugas bersama dari {b.pemilik.label}</span>
+        )}
+      </p>
+      {pesan && <p className={`mt-0.5 text-[11px] font-medium ${pesan.kelas}`}>{pesan.teks}</p>}
+    </>
   )
 }
 

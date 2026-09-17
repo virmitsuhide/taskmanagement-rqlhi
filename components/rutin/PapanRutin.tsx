@@ -289,6 +289,16 @@ function BarisTugas({
               </span>
             )}
             {item.checkedAt && <span>Dilaporkan {tanggalSingkat(item.checkedAt)}</span>}
+            {/* Tugas bersama tampil di tiap peserta; labelnya mencegah terbaca
+                sebagai dua pekerjaan terpisah. */}
+            {item.bersama && (
+              <span className="rounded-full bg-primary/10 px-1.5 py-px text-[10px] text-primary">
+                bersama {[item.bersama.pemilik.label, ...item.bersama.anggota.filter(a => a.status === 'diterima').map(a => a.label)].join(' · ')}
+              </span>
+            )}
+            {item.bersama?.laporan?.konfirmasi === 'menunggu' && (
+              <span className="text-warning">terlaksana menurut {item.bersama.laporan.pelapor.label}, menunggu konfirmasi</span>
+            )}
           </div>
         </div>
         <span

@@ -36,6 +36,7 @@
     "uji:target-tahfidz": "tsx scripts/uji-target-tahfidz.ts",
     "uji:dependensi": "tsx scripts/uji-dependensi-tugas.ts",
     "uji:sprint": "tsx scripts/uji-sprint.ts",
+    "uji:rutin-bersama": "tsx scripts/uji-rutin-bersama.ts",
     "uji:bacaan": "tsx scripts/uji-bacaan-quran.ts",
     "uji:materi": "tsx scripts/uji-materi-ummi.ts",
     "rapikan:halaqoh": "tsx scripts/rapikan-nama-halaqoh.ts",

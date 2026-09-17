@@ -315,7 +315,30 @@ export const routineTaskChecks = pgTable('routine_task_checks', {
   reason: text('reason'),
   checked_by: uuid('checked_by').references(() => users.id, { onDelete: 'set null' }),
   checked_at: timestamp('checked_at', { withTimezone: true }).notNull().defaultNow(),
+  /** 'selesai' | 'menunggu' | 'ditolak' — konfirmasi rekan pada tugas bersama (0073). */
+  konfirmasi: text('konfirmasi').notNull().default('selesai'),
 }, (t) => [primaryKey({ columns: [t.task_id, t.period] })])
+
+/** Pengurus yang diajak mengerjakan sebuah tugas rutin (0073). */
+export const routineTaskMembers = pgTable('routine_task_members', {
+  task_id: uuid('task_id').notNull().references(() => routineTasks.id, { onDelete: 'cascade' }),
+  user_id: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  /** 'menunggu' | 'diterima' | 'ditolak' */
+  status: text('status').notNull().default('menunggu'),
+  invited_by: uuid('invited_by').references(() => users.id, { onDelete: 'set null' }),
+  responded_at: timestamp('responded_at', { withTimezone: true }),
+  created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [primaryKey({ columns: [t.task_id, t.user_id] })])
+
+/** Keputusan tiap rekan atas laporan terlaksana sebuah tugas bersama (0073). */
+export const routineCheckKonfirmasi = pgTable('routine_check_konfirmasi', {
+  task_id: uuid('task_id').notNull(),
+  period: text('period').notNull(),
+  user_id: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  /** 'setuju' | 'tolak' */
+  keputusan: text('keputusan').notNull(),
+  decided_at: timestamp('decided_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [primaryKey({ columns: [t.task_id, t.period, t.user_id] })])
 
 export const routineTasksRelations = relations(routineTasks, ({ one, many }) => ({
   owner: one(users, { fields: [routineTasks.owner_id], references: [users.id] }),

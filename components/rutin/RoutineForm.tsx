@@ -5,7 +5,8 @@ import { CalendarDays, CalendarRange, CalendarClock, CalendarCheck2 } from 'luci
 import { createRoutineTaskAction } from '@/app/actions/rutin'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
+import { DeskripsiMention } from '@/components/rutin/DeskripsiMention'
+import type { PengurusMention } from '@/lib/rutin/bersama'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { CADENCES, CADENCE_LABELS, CADENCE_RESET_LABELS } from '@/lib/rutin/periode'
 import type { RoutineCadence } from '@/types'
@@ -13,8 +14,8 @@ import type { RoutineCadence } from '@/types'
 /**
  * Form tambah tugas rutin. Hanya dua isian — deskripsi dan iramanya — karena
  * memang cuma itu yang menentukan sebuah tugas rutin; tenggat dan penerima
- * tidak berlaku di sini (pekerjaannya berulang, dan pemiliknya sendiri yang
- * mengerjakan).
+ * tidak berlaku di sini (pekerjaannya berulang). Rekan untuk tugas bersama
+ * disebut langsung di deskripsinya dengan @jabatan (0073).
  */
 
 const CADENCE_ICON: Record<RoutineCadence, React.ComponentType<{ className?: string }>> = {
@@ -24,7 +25,7 @@ const CADENCE_ICON: Record<RoutineCadence, React.ComponentType<{ className?: str
   tahunan: CalendarCheck2,
 }
 
-export function RoutineForm({ defaultCadence }: { defaultCadence?: RoutineCadence }) {
+export function RoutineForm({ defaultCadence, pengurus }: { defaultCadence?: RoutineCadence; pengurus: PengurusMention[] }) {
   const [state, action, isPending] = useActionState(createRoutineTaskAction, null)
 
   return (
@@ -39,17 +40,15 @@ export function RoutineForm({ defaultCadence }: { defaultCadence?: RoutineCadenc
         <CardContent className="space-y-5 py-5">
           <div className="space-y-1.5">
             <Label htmlFor="description">Deskripsi Tugas</Label>
-            <Textarea
+            <DeskripsiMention
               id="description"
               name="description"
               rows={3}
               required
               maxLength={300}
-              placeholder="mis. Rekap setoran hafalan seluruh halaqoh"
+              pengurus={pengurus}
+              placeholder="mis. Rekap setoran hafalan seluruh halaqoh — atau: Rekrutmen guru Qur'an bersama @SDM"
             />
-            <p className="text-[11px] text-muted-foreground">
-              Tulis sejelas mungkin — inilah yang akan Anda baca tiap periode di daftar laporan.
-            </p>
           </div>
 
           <fieldset className="space-y-1.5">

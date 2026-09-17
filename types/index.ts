@@ -88,6 +88,31 @@ export interface RoutineTaskState {
   reason: string | null
   /** Kapan dilaporkan — null bila belum. */
   checkedAt: string | null
+  /**
+   * Tugas bersama (0073). Tidak ada = tugas pribadi. `outcome` di atas hanya
+   * 'terlaksana' bila laporan itu sudah dikonfirmasi semua rekan; laporan yang
+   * masih menunggu atau ditolak tercatat di `laporan` di bawah.
+   */
+  bersama?: RoutineBersama
+}
+
+export type StatusAnggotaRutin = 'menunggu' | 'diterima' | 'ditolak'
+export type KonfirmasiRutin = 'selesai' | 'menunggu' | 'ditolak'
+
+export interface RoutineBersama {
+  /** Pemilik (pembuat) tugas — label jabatannya. */
+  pemilik: { userId: string; label: string }
+  sayaPemilik: boolean
+  /** Semua yang diajak, termasuk yang belum menjawab atau menolak. */
+  anggota: { userId: string; label: string; status: StatusAnggotaRutin }[]
+  /** Laporan terlaksana yang belum selesai dikonfirmasi; null bila tidak ada. */
+  laporan: {
+    konfirmasi: Exclude<KonfirmasiRutin, 'selesai'>
+    pelapor: { userId: string; label: string }
+    /** Rekan yang belum memutuskan (menunggu) atau yang menolak (ditolak). */
+    rekan: string[]
+    saya: 'pelapor' | 'perlu_konfirmasi' | 'sudah_setuju' | 'menolak'
+  } | null
 }
 
 export type TaskSource = 'rapat' | 'mandiri' | 'home_publik' | 'humas_request'

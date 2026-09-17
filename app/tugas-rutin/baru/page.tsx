@@ -7,6 +7,7 @@ import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { RoutineForm } from '@/components/rutin/RoutineForm'
 import { Button } from '@/components/ui/button'
 import { isCadence } from '@/lib/rutin/periode'
+import { getPengurusMention } from '@/lib/data/rutin'
 
 interface PageProps {
   searchParams: Promise<{ irama?: string }>
@@ -29,6 +30,7 @@ export default async function TugasRutinBaruPage({ searchParams }: PageProps) {
   // ?irama= dipakai kalau nanti ada pintasan "tambah tugas bulanan" langsung
   // dari kelompoknya; nilai asing diabaikan, bukan ditolak.
   const { irama } = await searchParams
+  const pengurus = (await getPengurusMention()).filter(p => p.userId !== session.userId)
 
   return (
     <div className="flex min-h-full flex-col">
@@ -57,7 +59,7 @@ export default async function TugasRutinBaruPage({ searchParams }: PageProps) {
             </p>
           </div>
 
-          <RoutineForm defaultCadence={isCadence(irama) ? irama : undefined} />
+          <RoutineForm defaultCadence={isCadence(irama) ? irama : undefined} pengurus={pengurus} />
         </div>
       </div>
     </div>
