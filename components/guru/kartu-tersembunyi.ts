@@ -1,14 +1,16 @@
 'use client'
 
-import { useMemo, useSyncExternalStore } from 'react'
+import { useEffect, useMemo, useSyncExternalStore } from 'react'
+import { sembunyikanKartuAction } from '@/app/actions/kartu-beranda'
 
 /**
  * Kartu beranda guru yang sudah ditutup (tombol ✕).
  *
- * Disimpan di peramban (localStorage), bukan database: menutup kartu hanyalah
- * merapikan beranda, tidak mengubah pengumuman atau pengajuan apa pun.
- * Akibatnya kartu yang ditutup di HP tetap tampil di laptop — harga yang wajar
- * untuk sesuatu yang tidak menghapus data.
+ * Sumber utamanya tabel guru_kartu_tersembunyi (0075), supaya kartu yang
+ * ditutup di HP tidak muncul lagi saat guru login di laptop. localStorage
+ * tetap dipakai sebagai catatan seketika: kartunya hilang begitu ✕ ditekan,
+ * tanpa menunggu server — dan tetap tertutup di perangkat itu seandainya
+ * migrasinya belum dijalankan.
  *
  * `ruang` memisahkan jenis kartu ('pengumuman', 'progres-ujian') supaya id
  * dari tabel berbeda tidak saling menutup.
@@ -49,6 +51,7 @@ function tulis(ruang: string, teacherId: string, daftar: string[]) {
 export function sembunyikanKartu(ruang: string, teacherId: string, kunci: string) {
   const daftar = bacaDaftar(ruang, teacherId)
   if (!daftar.includes(kunci)) tulis(ruang, teacherId, [...daftar, kunci])
+  void sembunyikanKartuAction(ruang, [kunci])
 }
 
 function berlangganan(ubah: () => void) {
@@ -64,15 +67,31 @@ function berlangganan(ubah: () => void) {
  * useSyncExternalStore, bukan useState + useEffect: render server tidak punya
  * localStorage, dan membaca lewat efek berarti setState beruntun setelah
  * render pertama. Snapshot berupa string supaya perbandingannya stabil.
+ *
+ * `dariServer` sudah dipakai sejak render server, jadi kartu yang pernah
+ * ditutup di perangkat lain tidak sempat berkedip muncul lalu hilang.
  */
-export function useKartuTersembunyi(ruang: string, teacherId: string): Set<string> {
+export function useKartuTersembunyi(ruang: string, teacherId: string, dariServer: string[]): Set<string> {
   const mentah = useSyncExternalStore(berlangganan, () => bacaMentah(ruang, teacherId), () => '[]')
+  const kunciServer = dariServer.join('|')
+
+  // Kartu yang ditutup sebelum pencatatan pindah ke server hanya ada di
+  // localStorage perangkat ini. Setor sekali supaya ikut tertutup di
+  // perangkat lain.
+  useEffect(() => {
+    const diServer = new Set(kunciServer ? kunciServer.split('|') : [])
+    const kurang = bacaDaftar(ruang, teacherId).filter(k => !diServer.has(k))
+    if (kurang.length > 0) void sembunyikanKartuAction(ruang, kurang)
+  }, [ruang, teacherId, kunciServer])
+
   return useMemo(() => {
+    const hasil = new Set<string>(kunciServer ? kunciServer.split('|') : [])
     try {
-      const hasil = JSON.parse(mentah)
-      return new Set<string>(Array.isArray(hasil) ? hasil : [])
+      const lokal = JSON.parse(mentah)
+      if (Array.isArray(lokal)) for (const k of lokal) hasil.add(k)
     } catch {
-      return new Set<string>()
+      // Catatan lokal rusak: cukup pakai yang dari server.
     }
-  }, [mentah])
+    return hasil
+  }, [mentah, kunciServer])
 }

@@ -10,6 +10,7 @@ import { getNotifUjianGuru } from '@/lib/data/ujian-notifikasi'
 import { ProgresUjianGuru } from '@/components/guru/ProgresUjianGuru'
 import { TandaiUjianGuruDilihat } from '@/components/guru/TandaiUjianGuruDilihat'
 import { PengumumanBeranda } from '@/components/guru/PengumumanBeranda'
+import { getKartuTersembunyi } from '@/lib/data/kartu-tersembunyi'
 
 const MONTH_ID = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember']
 const DAY_ID = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu']
@@ -29,7 +30,7 @@ export default async function TeacherHomePage() {
   const now = new Date()
   const dateLabel = `${DAY_ID[now.getDay()]}, ${now.getDate()} ${MONTH_ID[now.getMonth()]} ${now.getFullYear()}`
 
-  const [students, weekly, halaqohSummary, konteks, unitUjian, pengajuan, notifUjian] = await Promise.all([
+  const [students, weekly, halaqohSummary, konteks, unitUjian, pengajuan, notifUjian, tersembunyi] = await Promise.all([
     getTeacherStudents(session.teacherId),
     getTeacherWeeklyStats(session.teacherId),
     getTeacherHalaqohSummary(session.teacherId),
@@ -37,6 +38,7 @@ export default async function TeacherHomePage() {
     getUnitUjianGuru(session.teacherId),
     getUjianGuru(session.teacherId),
     getNotifUjianGuru(session.teacherId),
+    getKartuTersembunyi(session.teacherId),
   ])
   const pengumuman = await getPengumumanGuru(konteks.unit, konteks.seenAt)
   const todayStr = now.toISOString().slice(0, 10)
@@ -75,6 +77,7 @@ export default async function TeacherHomePage() {
             teacherId={session.teacherId}
             items={pengumuman.items}
             barusanCount={pengumuman.barusanCount}
+            tersembunyiAwal={tersembunyi.pengumuman}
           />
         )}
 
@@ -90,6 +93,7 @@ export default async function TeacherHomePage() {
               tahfidz={pengajuan.tahfidz}
               tahsin={pengajuan.tahsin}
               idSiswa={pengajuan.idSiswa}
+              tersembunyiAwal={tersembunyi['progres-ujian']}
             />
             <TandaiUjianGuruDilihat aktif={notifUjian.baruCount > 0} />
           </>

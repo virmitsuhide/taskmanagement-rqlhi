@@ -23,12 +23,14 @@ const NADA: Record<string, string> = {
  * pulang untuknya. Bagian ini lenyap sepenuhnya saat semua kartu ditutup —
  * tidak ada gunanya kotak kosong bertuliskan "Pengumuman".
  */
-export function PengumumanBeranda({ teacherId, items, barusanCount }: {
+export function PengumumanBeranda({ teacherId, items, barusanCount, tersembunyiAwal }: {
   teacherId: string
   items: PublicPost[]
   barusanCount: number
+  /** Kartu yang sudah ditutup guru ini, dari server — berlaku di semua perangkat. */
+  tersembunyiAwal: string[]
 }) {
-  const tersembunyi = useKartuTersembunyi(RUANG, teacherId)
+  const tersembunyi = useKartuTersembunyi(RUANG, teacherId, tersembunyiAwal)
   const tampil = items.filter(p => !tersembunyi.has(p.id))
   if (tampil.length === 0) return null
 
