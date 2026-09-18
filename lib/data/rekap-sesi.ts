@@ -2,6 +2,8 @@ import { createServerClient } from '@/lib/supabase/server'
 import { shiftPeriod } from '@/lib/finance/period'
 import { adabRendah, bintangDariNilai } from '@/lib/rq/bintang'
 import { labelJenisTahfidz } from '@/lib/data/setoran-ganda'
+import { getInfoSurat } from '@/lib/data/nama-surat'
+import { jumlahAyatRentang, teksRentang } from '@/lib/rq/rentang-surat'
 
 /**
  * Rekap bulanan per sesi untuk guru — dua halaman, satu sumber:
@@ -164,6 +166,8 @@ interface LogTahfidzRekap {
   kind: string
   surat_id: number
   ayat_dari: number | null
+  /** Muroja'ah lintas surat (0076); tidak ada/NULL = satu surat. */
+  surat_ke_id?: number | null
   ayat_ke: number | null
   nilai_tahfidz: unknown
   nilai_sikap: unknown
@@ -215,14 +219,21 @@ const SINGKATAN_JENIS: Record<string, string> = {
   ziyadah: 'Z', hafalan_baru: 'Z', murojaah_baru: 'MB', murojaah_lama: 'ML', murojaah: 'M',
 }
 
-function selTahfidz(l: LogTahfidzRekap): SelProgres {
+function selTahfidz(l: LogTahfidzRekap, info: Map<number, { name_latin: string; total_ayat: number }>): SelProgres {
   const sikap = angka(l.nilai_sikap)
-  const jumlahAyat = l.ayat_dari !== null && l.ayat_ke !== null ? l.ayat_ke - l.ayat_dari + 1 : null
-  const judul = `${labelJenisTahfidz(l.kind)} · ${l.surat?.name_latin ?? `Surat ${l.surat_id}`} ${l.ayat_dari ?? ''}–${l.ayat_ke ?? ''}`
+  const suratKe = l.surat_ke_id ?? null
+  const jumlahAyat = l.ayat_dari !== null && l.ayat_ke !== null
+    ? jumlahAyatRentang({ surat_id: l.surat_id, ayat_dari: l.ayat_dari, surat_ke_id: suratKe, ayat_ke: l.ayat_ke }, id => info.get(id)?.total_ayat ?? 0)
+    : null
+  const namaAwal = l.surat?.name_latin ?? `Surat ${l.surat_id}`
+  const rentang = suratKe
+    ? teksRentang(namaAwal, l.ayat_dari, info.get(suratKe)?.name_latin ?? `Surat ${suratKe}`, l.ayat_ke)
+    : `${namaAwal} ${l.ayat_dari ?? ''}–${l.ayat_ke ?? ''}`
+  const judul = `${labelJenisTahfidz(l.kind)} · ${rentang}`
   return {
     label: `${SINGKATAN_JENIS[l.kind] ?? '•'}${jumlahAyat !== null ? ` ${jumlahAyat}` : ''}`,
     rinci: [
-      `${labelJenisTahfidz(l.kind)} · ${l.surat?.name_latin ?? `Surat ${l.surat_id}`} ${l.ayat_dari ?? ''}–${l.ayat_ke ?? ''}`,
+      judul,
       `Nilai ${bintangTeks(angka(l.nilai_tahfidz))} · Adab ${bintangTeks(sikap)}`,
       l.catatan ?? '',
     ].filter(Boolean).join('\n'),
@@ -282,9 +293,11 @@ export async function getProgresSesi(halaqohId: string, periode: string, jenis: 
       })
     }
   } else {
+    const infoSurat = await getInfoSurat()
     const logs = await ambilSemua<LogTahfidzRekap>((dari, sampai) => supabase
       .from('tahfidz_logs')
-      .select('id, student_id, setoran_date, kind, surat_id, ayat_dari, ayat_ke, nilai_tahfidz, nilai_sikap, catatan, surat:surat_master!tahfidz_logs_surat_id_fkey(name_latin)')
+      // '*' supaya surat_ke_id (0076) ikut bila sudah ada, tanpa menggagalkan kueri bila belum.
+      .select('*, surat:surat_master!tahfidz_logs_surat_id_fkey(name_latin)')
       .in('student_id', ids)
       .gte('setoran_date', awal)
       .lt('setoran_date', akhir)
@@ -294,7 +307,7 @@ export async function getProgresSesi(halaqohId: string, periode: string, jenis: 
     for (const l of logs) {
       catat(l.student_id, {
         tanggal: l.setoran_date,
-        sel: selTahfidz(l),
+        sel: selTahfidz(l, infoSurat),
         // Titik progres tahfidz = ziyadah; muroja'ah mengulang, bukan maju.
         posisi: l.kind === 'ziyadah' || l.kind === 'hafalan_baru'
           ? `${l.surat?.name_latin ?? `Surat ${l.surat_id}`} : ${l.ayat_ke ?? '?'}`

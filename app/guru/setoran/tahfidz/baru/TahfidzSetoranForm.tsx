@@ -12,6 +12,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { StarInput } from '@/components/setoran/StarInput'
 import { TAHFIDZ_KIND_META } from '@/lib/tahsin'
+import { bolehLintasSurat, jumlahAyatRentang, periksaRentang } from '@/lib/rq/rentang-surat'
 import type { TahfidzKind } from '@/types'
 
 interface StudentOption {
@@ -131,19 +132,33 @@ function DailySubForm({
   const kirim = useSetoranTimpa(formAction, state?.ganda)
   const [suratId, setSuratId] = useState('')
   const [ayatDari, setAyatDari] = useState('')
+  // 'sama' = berakhir di surat yang sama. Radix Select tidak menerima nilai kosong.
+  const [suratKe, setSuratKe] = useState('sama')
   const [ayatKe, setAyatKe] = useState('')
   const meta = TAHFIDZ_KIND_META[kind]
+  const lintas = bolehLintasSurat(kind)
 
-  const selectedSurat = useMemo(
-    () => surat.find(s => String(s.id) === suratId) ?? null,
-    [surat, suratId],
-  )
-  const ayatCount =
-    ayatDari && ayatKe && Number(ayatKe) >= Number(ayatDari)
-      ? Number(ayatKe) - Number(ayatDari) + 1
-      : 0
-  const ayatOutOfRange =
-    selectedSurat && ayatKe ? Number(ayatKe) > selectedSurat.total_ayat : false
+  const perId = useMemo(() => new Map(surat.map(s => [s.id, s])), [surat])
+  const selectedSurat = perId.get(Number(suratId)) ?? null
+  // Pindah ke ziyadah membuang pilihan surat akhir tanpa menghapusnya dari
+  // isian — kembali ke muroja'ah, pilihannya masih ada.
+  const suratKeId = lintas && suratKe !== 'sama' && Number(suratKe) !== Number(suratId) ? Number(suratKe) : null
+  const suratAkhir = suratKeId ? perId.get(suratKeId) ?? null : selectedSurat
+
+  const rentang = selectedSurat && ayatDari && ayatKe
+    ? { surat_id: selectedSurat.id, ayat_dari: Number(ayatDari), surat_ke_id: suratKeId, ayat_ke: Number(ayatKe) }
+    : null
+  const galatRentang = rentang ? periksaRentang(rentang, id => perId.get(id)) : null
+  const ayatCount = rentang && !galatRentang
+    ? jumlahAyatRentang(rentang, id => perId.get(id)?.total_ayat ?? 0)
+    : 0
+  const ayatOutOfRange = Boolean(galatRentang)
+
+  const pilihanSurat = surat.map(s => (
+    <SelectItem key={s.id} value={String(s.id)}>
+      {s.id}. {s.name_latin} ({s.total_ayat} ayat)
+    </SelectItem>
+  ))
 
   return (
     <form onSubmit={kirim.onSubmit} className="space-y-5">
@@ -161,57 +176,99 @@ function DailySubForm({
       {/* Surat + ayat */}
       <fieldset className="border-t pt-4 space-y-3">
         <legend className="text-sm font-semibold mb-1">Materi</legend>
-        <div className="grid grid-cols-1 sm:grid-cols-[1fr_120px] gap-3">
-          <div className="space-y-1.5">
-            <Label htmlFor="surat_id">Surat *</Label>
-            <Select name="surat_id" value={suratId} onValueChange={setSuratId} required>
-              <SelectTrigger id="surat_id"><SelectValue placeholder="Pilih surat" /></SelectTrigger>
-              <SelectContent className="max-h-72">
-                {surat.map(s => (
-                  <SelectItem key={s.id} value={String(s.id)}>
-                    {s.id}. {s.name_latin} ({s.total_ayat} ayat)
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1.5">
-            <Label>Juz</Label>
-            <div className="h-9 px-3 flex items-center rounded-md border bg-muted/40 text-sm text-muted-foreground">
-              {selectedSurat ? `Juz ${selectedSurat.juz_start}` : '—'}
+        <input type="hidden" name="surat_ke_id" value={suratKeId ?? ''} />
+
+        {lintas ? (
+          <>
+            {/* Muroja'ah: "dari surat … ayat … sampai surat … ayat …". */}
+            <div className="grid grid-cols-[1fr_96px] gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="surat_id">Dari surat *</Label>
+                <Select name="surat_id" value={suratId} onValueChange={setSuratId} required>
+                  <SelectTrigger id="surat_id"><SelectValue placeholder="Pilih surat" /></SelectTrigger>
+                  <SelectContent className="max-h-72">{pilihanSurat}</SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="ayat_dari">Ayat *</Label>
+                <Input
+                  id="ayat_dari" name="ayat_dari" type="number" min={1}
+                  max={selectedSurat?.total_ayat}
+                  value={ayatDari} onChange={e => setAyatDari(e.target.value)}
+                  required disabled={isPending}
+                />
+              </div>
             </div>
-          </div>
-        </div>
+            <div className="grid grid-cols-[1fr_96px] gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="surat_ke">Sampai surat</Label>
+                <Select value={suratKe} onValueChange={setSuratKe}>
+                  <SelectTrigger id="surat_ke"><SelectValue /></SelectTrigger>
+                  <SelectContent className="max-h-72">
+                    <SelectItem value="sama">
+                      {selectedSurat ? `Surat yang sama (${selectedSurat.name_latin})` : 'Surat yang sama'}
+                    </SelectItem>
+                    {pilihanSurat}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="ayat_ke">Ayat *</Label>
+                <Input
+                  id="ayat_ke" name="ayat_ke" type="number" min={1}
+                  max={suratAkhir?.total_ayat}
+                  value={ayatKe} onChange={e => setAyatKe(e.target.value)}
+                  required disabled={isPending}
+                />
+              </div>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="grid grid-cols-1 sm:grid-cols-[1fr_120px] gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="surat_id">Surat *</Label>
+                <Select name="surat_id" value={suratId} onValueChange={setSuratId} required>
+                  <SelectTrigger id="surat_id"><SelectValue placeholder="Pilih surat" /></SelectTrigger>
+                  <SelectContent className="max-h-72">{pilihanSurat}</SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Juz</Label>
+                <div className="h-9 px-3 flex items-center rounded-md border bg-muted/40 text-sm text-muted-foreground">
+                  {selectedSurat ? `Juz ${selectedSurat.juz_start}` : '—'}
+                </div>
+              </div>
+            </div>
 
-        <div className="grid grid-cols-2 gap-3 max-w-xs">
-          <div className="space-y-1.5">
-            <Label htmlFor="ayat_dari">Ayat dari *</Label>
-            <Input
-              id="ayat_dari" name="ayat_dari" type="number" min={1}
-              max={selectedSurat?.total_ayat}
-              value={ayatDari} onChange={e => setAyatDari(e.target.value)}
-              required disabled={isPending}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="ayat_ke">Ayat ke *</Label>
-            <Input
-              id="ayat_ke" name="ayat_ke" type="number" min={1}
-              max={selectedSurat?.total_ayat}
-              value={ayatKe} onChange={e => setAyatKe(e.target.value)}
-              required disabled={isPending}
-            />
-          </div>
-        </div>
-
-        {ayatOutOfRange && (
-          <p className="text-xs text-destructive">
-            Surat {selectedSurat?.name_latin} hanya punya {selectedSurat?.total_ayat} ayat.
-          </p>
+            <div className="grid grid-cols-2 gap-3 max-w-xs">
+              <div className="space-y-1.5">
+                <Label htmlFor="ayat_dari">Ayat dari *</Label>
+                <Input
+                  id="ayat_dari" name="ayat_dari" type="number" min={1}
+                  max={selectedSurat?.total_ayat}
+                  value={ayatDari} onChange={e => setAyatDari(e.target.value)}
+                  required disabled={isPending}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="ayat_ke">Ayat ke *</Label>
+                <Input
+                  id="ayat_ke" name="ayat_ke" type="number" min={1}
+                  max={selectedSurat?.total_ayat}
+                  value={ayatKe} onChange={e => setAyatKe(e.target.value)}
+                  required disabled={isPending}
+                />
+              </div>
+            </div>
+          </>
         )}
+
+        {galatRentang && <p className="text-xs text-destructive">{galatRentang}</p>}
         {ayatCount > 0 && !ayatOutOfRange && (
           <div className="text-xs rounded-lg px-3 py-2" style={{ background: meta.bg, color: meta.fg }}>
             {ayatCount} ayat disetor
+            {suratKeId && selectedSurat && suratAkhir && ` · ${selectedSurat.name_latin} – ${suratAkhir.name_latin}`}
             {meta.addsProgress && selectedSurat && ` · ditambahkan ke progress Juz ${selectedSurat.juz_start}`}
           </div>
         )}

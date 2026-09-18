@@ -6,6 +6,7 @@ import { createServerClient } from '@/lib/supabase/server'
 import { getTeacherSession } from '@/lib/auth/teacher-session'
 import { canTeacherAccessStudent } from '@/lib/data/teacher'
 import { catatDrillSetelahZiyadah } from '@/lib/data/drill-tahfidz'
+import { bolehLintasSurat, periksaRentang } from '@/lib/rq/rentang-surat'
 import { periksaBacaanQuran, posisiLanjut, type BacaanQuran } from '@/lib/rq/bacaan-quran'
 import { getMateriPerJilid, getHasilMateriPerSiswa, ringkasProgres, type HasilMateri } from '@/lib/data/materi-tahsin'
 import {
@@ -500,6 +501,8 @@ export interface InputSetoranTahfidz {
   kind: TahfidzKind
   surat_id: number | null
   ayat_dari: number | null
+  /** Surat tempat muroja'ah berakhir (0076); null = satu surat. */
+  surat_ke_id?: number | null
   ayat_ke: number | null
   nilai_tahfidz: number | null
   nilai_sikap: number | null
@@ -520,18 +523,25 @@ async function simpanSetoranTahfidz(teacherId: string, input: InputSetoranTahfid
   if (!JENIS_SETORAN_TAHFIDZ.includes(input.kind)) return 'Jenis setoran tidak dikenal.'
   if (!suratId) return 'Surat wajib dipilih.'
   if (!ayatDari || !ayatKe) return 'Rentang ayat wajib diisi.'
-  if (ayatKe < ayatDari) return 'Ayat akhir tidak boleh lebih kecil dari ayat awal.'
+
+  // Lintas surat hanya untuk muroja'ah; surat akhir yang sama dengan surat
+  // awal disimpan NULL supaya baris satu-surat tetap satu bentuk.
+  const suratKeId = input.surat_ke_id && input.surat_ke_id !== suratId ? input.surat_ke_id : null
+  if (suratKeId && !bolehLintasSurat(input.kind)) return 'Ziyadah hanya boleh dalam satu surat.'
 
   const supabase = createServerClient()
 
   // Validasi rentang ayat terhadap data surat
-  const { data: surat } = await supabase
+  const { data: suratRows } = await supabase
     .from('surat_master')
-    .select('total_ayat, name_latin')
-    .eq('id', suratId)
-    .maybeSingle()
-  if (!surat) return 'Surat tidak ditemukan.'
-  if (ayatKe > surat.total_ayat) return `Surat ${surat.name_latin} hanya punya ${surat.total_ayat} ayat.`
+    .select('id, total_ayat, name_latin')
+    .in('id', suratKeId ? [suratId, suratKeId] : [suratId])
+  const infoSurat = new Map(((suratRows ?? []) as { id: number; total_ayat: number; name_latin: string }[]).map(s => [s.id, s]))
+  const galatRentang = periksaRentang(
+    { surat_id: suratId, ayat_dari: ayatDari, surat_ke_id: suratKeId, ayat_ke: ayatKe },
+    id => infoSurat.get(id),
+  )
+  if (galatRentang) return galatRentang
 
   const { data: student } = await supabase
     .from('students')
@@ -544,7 +554,7 @@ async function simpanSetoranTahfidz(teacherId: string, input: InputSetoranTahfid
   let arsipIds: string[] = []
   if (!input.timpa) {
     const ganda = await periksaGandaTahfidz(supabase, studentId, input.setoran_date, {
-      kind: input.kind, surat_id: suratId, ayat_dari: ayatDari, ayat_ke: ayatKe,
+      kind: input.kind, surat_id: suratId, ayat_dari: ayatDari, surat_ke_id: suratKeId, ayat_ke: ayatKe,
       nilai: input.nilai_tahfidz, sikap: input.nilai_sikap, catatan: input.catatan,
     })
     if (ganda) return { ganda }
@@ -565,6 +575,9 @@ async function simpanSetoranTahfidz(teacherId: string, input: InputSetoranTahfid
     surat_id: suratId,
     ayat_dari: ayatDari,
     ayat_ke: ayatKe,
+    // Kolomnya baru ada setelah 0076; setoran satu surat tidak menyebutnya
+    // sama sekali, supaya tetap tersimpan sebelum migrasi dijalankan.
+    ...(suratKeId ? { surat_ke_id: suratKeId } : {}),
     nilai_tahfidz: input.nilai_tahfidz,
     nilai_sikap: input.nilai_sikap,
     catatan: input.catatan,
@@ -598,6 +611,7 @@ export async function createTahfidzLogAction(_: unknown, formData: FormData): Pr
     kind: ((formData.get('kind') as string) || 'ziyadah') as TahfidzKind,
     surat_id: formData.get('surat_id') ? Number(formData.get('surat_id')) : null,
     ayat_dari: formData.get('ayat_dari') ? Number(formData.get('ayat_dari')) : null,
+    surat_ke_id: formData.get('surat_ke_id') ? Number(formData.get('surat_ke_id')) : null,
     ayat_ke: formData.get('ayat_ke') ? Number(formData.get('ayat_ke')) : null,
     nilai_tahfidz: readScore(formData, 'nilai_tahfidz'),
     nilai_sikap: readScore(formData, 'nilai_sikap'),

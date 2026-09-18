@@ -1,5 +1,6 @@
 import type { createServerClient } from '@/lib/supabase/server'
 import { recalcPosisi, recalcMutqin, kurangiJuzProgress } from '@/lib/rq/hitung-ulang-setoran'
+import { teksRentang } from '@/lib/rq/rentang-surat'
 
 /**
  * SATU SETORAN PER ANAK PER HARI.
@@ -248,13 +249,16 @@ export interface IsiTahfidz {
   kind: string
   surat_id: number | null
   ayat_dari: number | null
+  /** Muroja'ah lintas surat (0076); null = satu surat. */
+  surat_ke_id?: number | null
   ayat_ke: number | null
 }
 
 function isiTahfidz(x: IsiTahfidz, surat: Map<number, string>): string {
-  const nama = x.surat_id !== null ? surat.get(x.surat_id) ?? `Surat ${x.surat_id}` : '—'
-  const rentang = x.ayat_dari !== null ? ` ${x.ayat_dari}${x.ayat_ke !== null && x.ayat_ke !== x.ayat_dari ? `–${x.ayat_ke}` : ''}` : ''
-  return `${labelJenisTahfidz(x.kind)} · ${nama}${rentang}`
+  if (x.surat_id === null) return `${labelJenisTahfidz(x.kind)} · —`
+  const nama = (id: number) => surat.get(id) ?? `Surat ${id}`
+  const akhir = x.surat_ke_id ? nama(x.surat_ke_id) : null
+  return `${labelJenisTahfidz(x.kind)} · ${teksRentang(nama(x.surat_id), x.ayat_dari, akhir, x.ayat_ke)}`
 }
 
 interface LogTahfidzLama {
@@ -262,6 +266,7 @@ interface LogTahfidzLama {
   kind: string
   surat_id: number
   ayat_dari: number | null
+  surat_ke_id?: number | null
   ayat_ke: number | null
   nilai_tahfidz: unknown
   nilai_sikap: unknown
@@ -291,7 +296,8 @@ export async function periksaGandaTahfidz(
   if (logs.length === 0) return null
 
   const surat = await namaSurat(supabase, [
-    ...logs.map(l => l.surat_id), baru.surat_id,
+    ...logs.flatMap(l => [l.surat_id, l.surat_ke_id ?? null]),
+    baru.surat_id, baru.surat_ke_id ?? null,
   ].filter((x): x is number => x !== null))
 
   return {

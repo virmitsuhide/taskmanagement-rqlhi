@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input'
 import { StarInput } from '@/components/setoran/StarInput'
 import { cn } from '@/lib/utils'
 import { TAHFIDZ_KIND_META } from '@/lib/tahsin'
+import { bolehLintasSurat, periksaRentang } from '@/lib/rq/rentang-surat'
 import { createTahfidzLogSesiAction, type InputSetoranTahfidz } from '@/app/actions/setoran'
 import { PerbandinganSetoranDialog } from '@/components/setoran/PerbandinganSetoranDialog'
 import type { SetoranGanda } from '@/lib/data/setoran-ganda'
@@ -28,6 +29,8 @@ interface Isian {
   kind: Jenis
   surat_id: string
   ayat_dari: string
+  /** Surat akhir muroja'ah lintas surat; kosong = surat yang sama. */
+  surat_ke_id: string
   ayat_ke: string
   nilai_tahfidz: number | null
   nilai_sikap: number | null
@@ -50,6 +53,7 @@ function isianAwal(s: SiswaSesiTahfidz, surat: SuratPilihan[], versi = 0): Isian
     kind: 'ziyadah',
     surat_id: lanjut ? String(t.surat_id) : '',
     ayat_dari: lanjut ? String(t.ayat_ke + 1) : '',
+    surat_ke_id: '',
     ayat_ke: '',
     nilai_tahfidz: null,
     nilai_sikap: null,
@@ -96,6 +100,7 @@ export function SetoranSesiTahfidz({ siswa, surat }: { siswa: SiswaSesiTahfidz[]
         kind: v.kind,
         surat_id: v.surat_id ? Number(v.surat_id) : null,
         ayat_dari: v.ayat_dari ? Number(v.ayat_dari) : null,
+        surat_ke_id: bolehLintasSurat(v.kind) && v.surat_ke_id ? Number(v.surat_ke_id) : null,
         ayat_ke: v.ayat_ke ? Number(v.ayat_ke) : null,
         nilai_tahfidz: v.nilai_tahfidz,
         nilai_sikap: v.nilai_sikap,
@@ -173,7 +178,15 @@ export function SetoranSesiTahfidz({ siswa, surat }: { siswa: SiswaSesiTahfidz[]
         {siswa.map(s => {
           const v = isian[s.id]
           const info = surat.find(x => String(x.id) === v.surat_id)
-          const lewat = info && v.ayat_ke ? Number(v.ayat_ke) > info.total_ayat : false
+          const lintas = bolehLintasSurat(v.kind)
+          const suratKe = lintas && v.surat_ke_id && v.surat_ke_id !== v.surat_id ? Number(v.surat_ke_id) : null
+          const infoAkhir = suratKe ? surat.find(x => x.id === suratKe) : info
+          const galatRentang = info && v.ayat_dari && v.ayat_ke
+            ? periksaRentang(
+                { surat_id: info.id, ayat_dari: Number(v.ayat_dari), surat_ke_id: suratKe, ayat_ke: Number(v.ayat_ke) },
+                id => surat.find(x => x.id === id),
+              )
+            : null
           return (
             <li
               key={s.id}
@@ -231,42 +244,96 @@ export function SetoranSesiTahfidz({ siswa, surat }: { siswa: SiswaSesiTahfidz[]
                     })}
                   </div>
 
-                  <div className="flex flex-wrap items-end gap-2">
-                    <div className="min-w-0 flex-1 space-y-1">
-                      <label className="text-xs font-medium" htmlFor={`surat-${s.id}`}>Surat</label>
-                      <select
-                        id={`surat-${s.id}`}
-                        value={v.surat_id}
-                        onChange={e => ubah(s.id, { surat_id: e.target.value })}
-                        className={cn(SELECT_CLASS, 'w-full')}
-                      >
-                        <option value="">Pilih surat…</option>
-                        {surat.map(x => (
-                          <option key={x.id} value={x.id}>{x.id}. {x.name_latin} ({x.total_ayat})</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-xs font-medium" htmlFor={`dari-${s.id}`}>Ayat</label>
-                      <div className="flex items-center gap-1">
-                        <Input
-                          id={`dari-${s.id}`} type="number" inputMode="numeric" min={1} placeholder="dari"
-                          value={v.ayat_dari} onChange={e => ubah(s.id, { ayat_dari: e.target.value })}
-                          className="h-9 w-20"
-                        />
-                        <span className="text-muted-foreground">–</span>
-                        <Input
-                          aria-label="Ayat ke" type="number" inputMode="numeric" min={1} placeholder="ke"
-                          max={info?.total_ayat}
-                          value={v.ayat_ke} onChange={e => ubah(s.id, { ayat_ke: e.target.value })}
-                          className="h-9 w-20"
-                        />
+                  {lintas ? (
+                    /* Muroja'ah: "dari surat … ayat … sampai surat … ayat …". */
+                    <div className="space-y-2">
+                      <div className="flex items-end gap-2">
+                        <div className="min-w-0 flex-1 space-y-1">
+                          <label className="text-xs font-medium" htmlFor={`surat-${s.id}`}>Dari surat</label>
+                          <select
+                            id={`surat-${s.id}`}
+                            value={v.surat_id}
+                            onChange={e => ubah(s.id, { surat_id: e.target.value })}
+                            className={cn(SELECT_CLASS, 'w-full')}
+                          >
+                            <option value="">Pilih surat…</option>
+                            {surat.map(x => (
+                              <option key={x.id} value={x.id}>{x.id}. {x.name_latin} ({x.total_ayat})</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-xs font-medium" htmlFor={`dari-${s.id}`}>Ayat</label>
+                          <Input
+                            id={`dari-${s.id}`} type="number" inputMode="numeric" min={1}
+                            max={info?.total_ayat}
+                            value={v.ayat_dari} onChange={e => ubah(s.id, { ayat_dari: e.target.value })}
+                            className="h-9 w-20"
+                          />
+                        </div>
+                      </div>
+                      <div className="flex items-end gap-2">
+                        <div className="min-w-0 flex-1 space-y-1">
+                          <label className="text-xs font-medium" htmlFor={`suratke-${s.id}`}>Sampai surat</label>
+                          <select
+                            id={`suratke-${s.id}`}
+                            value={v.surat_ke_id}
+                            onChange={e => ubah(s.id, { surat_ke_id: e.target.value })}
+                            className={cn(SELECT_CLASS, 'w-full')}
+                          >
+                            <option value="">{info ? `Surat yang sama (${info.name_latin})` : 'Surat yang sama'}</option>
+                            {surat.map(x => (
+                              <option key={x.id} value={x.id}>{x.id}. {x.name_latin} ({x.total_ayat})</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-xs font-medium" htmlFor={`ke-${s.id}`}>Ayat</label>
+                          <Input
+                            id={`ke-${s.id}`} type="number" inputMode="numeric" min={1}
+                            max={infoAkhir?.total_ayat}
+                            value={v.ayat_ke} onChange={e => ubah(s.id, { ayat_ke: e.target.value })}
+                            className="h-9 w-20"
+                          />
+                        </div>
                       </div>
                     </div>
-                  </div>
-                  {lewat && (
-                    <p className="text-xs text-destructive">{info?.name_latin} hanya {info?.total_ayat} ayat.</p>
+                  ) : (
+                    <div className="flex flex-wrap items-end gap-2">
+                      <div className="min-w-0 flex-1 space-y-1">
+                        <label className="text-xs font-medium" htmlFor={`surat-${s.id}`}>Surat</label>
+                        <select
+                          id={`surat-${s.id}`}
+                          value={v.surat_id}
+                          onChange={e => ubah(s.id, { surat_id: e.target.value })}
+                          className={cn(SELECT_CLASS, 'w-full')}
+                        >
+                          <option value="">Pilih surat…</option>
+                          {surat.map(x => (
+                            <option key={x.id} value={x.id}>{x.id}. {x.name_latin} ({x.total_ayat})</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs font-medium" htmlFor={`dari-${s.id}`}>Ayat</label>
+                        <div className="flex items-center gap-1">
+                          <Input
+                            id={`dari-${s.id}`} type="number" inputMode="numeric" min={1} placeholder="dari"
+                            value={v.ayat_dari} onChange={e => ubah(s.id, { ayat_dari: e.target.value })}
+                            className="h-9 w-20"
+                          />
+                          <span className="text-muted-foreground">–</span>
+                          <Input
+                            aria-label="Ayat ke" type="number" inputMode="numeric" min={1} placeholder="ke"
+                            max={info?.total_ayat}
+                            value={v.ayat_ke} onChange={e => ubah(s.id, { ayat_ke: e.target.value })}
+                            className="h-9 w-20"
+                          />
+                        </div>
+                      </div>
+                    </div>
                   )}
+                  {galatRentang && <p className="text-xs text-destructive">{galatRentang}</p>}
 
                   <div className="grid gap-2 sm:grid-cols-2">
                     <div key={`t-${v.versi}`}>

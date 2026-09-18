@@ -13,10 +13,15 @@ import { URUTAN_JUZ_TAHFIDZ, type NodeLevel } from '@/lib/rq/peta-belajar'
 import { PetaLevel } from '@/components/siswa/PetaLevel'
 import { getJuzUjianSiswa } from '@/lib/data/hafalan'
 import { getJuzDrillPerSiswa } from '@/lib/data/drill-tahfidz'
+import { getProgresSiswa } from '@/lib/data/progres-siswa'
+import type { KodePeriode } from '@/lib/data/statistik-guru'
+import { GrafikProgres, URUTAN_PROGRES } from '@/components/siswa/GrafikProgres'
+import { getInfoSurat } from '@/lib/data/nama-surat'
+import { teksRentang } from '@/lib/rq/rentang-surat'
 
 interface PageProps {
   params: Promise<{ id: string }>
-  searchParams: Promise<{ setoran?: string }>
+  searchParams: Promise<{ setoran?: string; periode?: string }>
 }
 
 const JENJANG_LABELS: Record<string, string> = { paud: 'PAUD', sd: 'SD', sd_juara: 'SD Juara', smp: 'SMP', sma: 'SMA' }
@@ -33,7 +38,8 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
   if (!session) redirect('/guru/login')
 
   const { id } = await params
-  const { setoran } = await searchParams
+  const { setoran, periode: periodeDiminta } = await searchParams
+  const kodeProgres: KodePeriode = URUTAN_PROGRES.includes(periodeDiminta as KodePeriode) ? (periodeDiminta as KodePeriode) : 'bulan'
 
   const allowed = await canTeacherAccessStudent(session.teacherId, id)
   if (!allowed) redirect('/guru/siswa')
@@ -106,10 +112,11 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
     .order('promotion_date', { ascending: false })
 
   // ── Tahfidz ──
-  const [tahfidzRes, juzProgressRes, juzPromRes, tasmiRes] = await Promise.all([
+  const [tahfidzRes, juzProgressRes, juzPromRes, tasmiRes, infoSurat] = await Promise.all([
     supabase
       .from('tahfidz_logs')
-      .select('id, setoran_date, kind, ayat_dari, ayat_ke, nilai_tahfidz, nilai_sikap, catatan, surat:surat_master!tahfidz_logs_surat_id_fkey(name_latin, juz_start)')
+      // '*' supaya surat_ke_id (0076) ikut bila sudah ada, tanpa menggagalkan kueri bila belum.
+      .select('*, surat:surat_master!tahfidz_logs_surat_id_fkey(name_latin, juz_start)')
       .eq('student_id', id)
       .order('setoran_date', { ascending: false })
       .order('created_at', { ascending: false })
@@ -130,6 +137,7 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
       .order('setoran_date', { ascending: false })
       .order('created_at', { ascending: false })
       .limit(10),
+    getInfoSurat(),
   ])
 
   // Jumlah tasmi' dihitung terpisah dari riwayatnya: riwayat dibatasi 10 baris
@@ -147,6 +155,7 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
 
   const tahfidzLogs = (tahfidzRes.data ?? []) as unknown as Array<{
     id: string; setoran_date: string; kind: string; ayat_dari: number; ayat_ke: number
+    surat_ke_id?: number | null
     nilai_tahfidz: number | null; nilai_sikap: number | null
     catatan: string | null; surat: { name_latin: string; juz_start: number } | null
   }>
@@ -228,10 +237,11 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
     enam juz tuntas menurut urutan RQ LHI (30, 29, 28, 27, 26, 1); lima juz
     sebelumnya tidak perlu dibuktikan ulang lewat setoran.
   */
-  const [ujianSelesai, drillTahfidz] = await Promise.all([
+  const [ujianSelesai, drillTahfidz, progres] = await Promise.all([
     getJuzUjianSiswa(id),
     // Juz yang ziyadahnya tuntas dan menunggu diajukan ujian 1 juz (0065).
     getJuzDrillPerSiswa([id]).then(p => p.get(id) ?? []),
+    getProgresSiswa(id, kodeProgres),
   ])
 
   const nodeTahfidz: NodeLevel[] = URUTAN_JUZ_TAHFIDZ.map(juz => {
@@ -463,6 +473,13 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
           </p>
         </section>
 
+        <GrafikProgres
+          data={progres}
+          kode={kodeProgres}
+          hrefDasar={`/guru/siswa/${id}`}
+          tanpaTahsin={!student.current_method}
+        />
+
         {/* Riwayat setoran */}
         <section>
           <h2 className="text-sm font-semibold mb-3">Riwayat Setoran Tahsin</h2>
@@ -554,7 +571,9 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
                   <div key={log.id} className="p-3">
                     <div className="flex items-center justify-between gap-2">
                       <p className="text-sm font-medium">
-                        {suratName} ayat {log.ayat_dari}–{log.ayat_ke}
+                        {log.surat_ke_id
+                          ? teksRentang(suratName, log.ayat_dari, infoSurat.get(log.surat_ke_id)?.name_latin ?? `Surat ${log.surat_ke_id}`, log.ayat_ke)
+                          : `${suratName} ayat ${log.ayat_dari}–${log.ayat_ke}`}
                       </p>
                       {(() => {
                         const meta = TAHFIDZ_KIND_META[normalizeKind(log.kind)]

@@ -169,7 +169,9 @@ export async function rangkumBulanAction(
       .in('student_id', ids).gte('setoran_date', awal).lte('setoran_date', akhir)
       .order('setoran_date'),
     supabase.from('tahfidz_logs')
-      .select('student_id, setoran_date, surat_id, ayat_ke')
+      // '*', bukan daftar kolom: surat_ke_id baru ada setelah 0076, dan
+      // menyebutnya langsung membuat kueri ini gagal sebelum migrasi jalan.
+      .select('*')
       .in('student_id', ids).gte('setoran_date', awal).lte('setoran_date', akhir)
       .order('setoran_date'),
     supabase.from('jilid_levels').select('id, label'),
@@ -213,11 +215,14 @@ export async function rangkumBulanAction(
   const akhirTahfidz = new Map<string, { surat: number; ayat: number | null }>()
   const terjauh = new Map<string, number>()
   for (const log of (tahfidzRes.data ?? []) as {
-    student_id: string; surat_id: number; ayat_ke: number | null
+    student_id: string; surat_id: number; surat_ke_id?: number | null; ayat_ke: number | null
   }[]) {
-    akhirTahfidz.set(log.student_id, { surat: log.surat_id, ayat: log.ayat_ke })
+    // Muroja'ah lintas surat berakhir di surat_ke_id — ayat_ke milik surat itu.
+    const suratAkhir = log.surat_ke_id ?? log.surat_id
+    akhirTahfidz.set(log.student_id, { surat: suratAkhir, ayat: log.ayat_ke })
     const kini = terjauh.get(log.student_id)
-    if (kini === undefined || log.surat_id < kini) terjauh.set(log.student_id, log.surat_id)
+    const terkecil = Math.min(log.surat_id, suratAkhir)
+    if (kini === undefined || terkecil < kini) terjauh.set(log.student_id, terkecil)
   }
 
   // Ujian dicocokkan lewat NAMA, sebab ujian_tahfidz/ujian_tahsin menyimpan nama

@@ -822,6 +822,8 @@ export const tahfidzLogs = pgTable('tahfidz_logs', {
   kind: tahfidzKindEnum('kind').default('hafalan_baru').notNull(),
   surat_id: integer('surat_id').notNull().references(() => suratMaster.id, { onDelete: 'restrict' }),
   ayat_dari: integer('ayat_dari'),
+  /** Surat akhir muroja'ah lintas surat (0076); null = satu surat. */
+  surat_ke_id: integer('surat_ke_id').references(() => suratMaster.id, { onDelete: 'restrict' }),
   ayat_ke: integer('ayat_ke'),
   nilai_fashohah: numeric('nilai_fashohah', { precision: 2, scale: 1 }),
   nilai_tajwid: numeric('nilai_tajwid', { precision: 2, scale: 1 }),

@@ -10,6 +10,8 @@ import { Pencil, Phone, Mail, GraduationCap, BookOpen } from 'lucide-react'
 import { totalJuzHafalan, ringkasHafalan } from '@/lib/rq/hafalan'
 import { getTahfidzLabel, getPredikatLabel, getStatusLabel } from '@/lib/rq/ujian'
 import type { Jenjang, Gender, UjianTahfidz } from '@/types'
+import { getInfoSurat } from '@/lib/data/nama-surat'
+import { teksRentang } from '@/lib/rq/rentang-surat'
 
 interface PageProps {
   params: Promise<{ id: string }>
@@ -257,19 +259,21 @@ async function ambilSetoran(
   supabase: ReturnType<typeof createServerClient>,
   studentId: string,
 ): Promise<SetoranItem[]> {
-  const [tahsin, tahfidz, tasmi] = await Promise.all([
+  const [tahsin, tahfidz, tasmi, infoSurat] = await Promise.all([
     supabase
       .from('tahsin_logs')
       .select('id, setoran_date, halaman, baris_dari, baris_ke, status, catatan, nilai_tahsin, nilai_sikap, jilid:jilid_levels!tahsin_logs_jilid_id_fkey(label)')
       .eq('student_id', studentId).order('setoran_date', { ascending: false }).limit(20),
     supabase
       .from('tahfidz_logs')
-      .select('id, setoran_date, kind, ayat_dari, ayat_ke, catatan, nilai_tahfidz, nilai_sikap, surat:surat_master!tahfidz_logs_surat_id_fkey(name_latin)')
+      // '*' supaya surat_ke_id (0076) ikut bila sudah ada, tanpa menggagalkan kueri bila belum.
+      .select('*, surat:surat_master!tahfidz_logs_surat_id_fkey(name_latin)')
       .eq('student_id', studentId).order('setoran_date', { ascending: false }).limit(20),
     supabase
       .from('tasmi_logs')
       .select('id, setoran_date, scope_juz, juz_from, juz_to, status, catatan, nilai_tahfidz, nilai_sikap')
       .eq('student_id', studentId).order('setoran_date', { ascending: false }).limit(20),
+    getInfoSurat(),
   ])
 
   const num = (v: unknown) => (v === null || v === undefined ? null : Number(v))
@@ -289,10 +293,7 @@ async function ambilSetoran(
     ...((tahfidz.data ?? []) as unknown as Array<Record<string, unknown>>).map(r => ({
       id: String(r.id), table: 'tahfidz_logs' as const,
       tanggal: String(r.setoran_date),
-      judul: [
-        (r.surat as { name_latin: string } | null)?.name_latin,
-        r.ayat_dari ? `ayat ${r.ayat_dari}–${r.ayat_ke}` : null,
-      ].filter(Boolean).join(' ') || 'Tahfidz',
+      judul: judulTahfidz(r, infoSurat),
       nilai: num(r.nilai_tahfidz), sikap: num(r.nilai_sikap),
       status: null, catatan: (r.catatan as string) ?? null,
       ayatDari: num(r.ayat_dari), ayatKe: num(r.ayat_ke),
@@ -307,4 +308,15 @@ async function ambilSetoran(
   ]
 
   return items.sort((a, b) => b.tanggal.localeCompare(a.tanggal)).slice(0, 20)
+}
+
+/** "An-Naba ayat 1–40" / "An-Naba 30 – An-Nazi'at 20" (muroja'ah lintas surat, 0076). */
+function judulTahfidz(r: Record<string, unknown>, infoSurat: Map<number, { name_latin: string }>): string {
+  const nama = (r.surat as { name_latin: string } | null)?.name_latin
+  if (!nama) return 'Tahfidz'
+  const dari = r.ayat_dari == null ? null : Number(r.ayat_dari)
+  const ke = r.ayat_ke == null ? null : Number(r.ayat_ke)
+  const akhir = r.surat_ke_id ? infoSurat.get(Number(r.surat_ke_id))?.name_latin ?? `Surat ${r.surat_ke_id}` : null
+  if (!akhir && dari !== null) return `${nama} ayat ${dari}–${ke ?? ''}`
+  return teksRentang(nama, dari, akhir, ke)
 }
