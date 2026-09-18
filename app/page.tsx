@@ -180,12 +180,15 @@ export default async function HomePage() {
           <section
             key="grid"
             id="pengumuman"
-            className={`max-w-5xl mx-auto px-6 pb-6 grid gap-4 items-start ${
-              both ? 'md:grid-cols-[1fr_370px]' : 'grid-cols-1'
+            // minmax(0,1fr), bukan 1fr/auto: kolom grid otomatis melebar mengikuti
+            // isi terpanjangnya, dan di HP itu membuat seluruh beranda lebih lebar
+            // dari layar (360px jadi 444px) sehingga halaman bisa digeser ke samping.
+            className={`max-w-5xl mx-auto px-4 sm:px-6 pb-6 grid grid-cols-[minmax(0,1fr)] gap-4 items-start ${
+              both ? 'md:grid-cols-[minmax(0,1fr)_370px]' : ''
             }`}
           >
             {pengCfg.enabled && (
-              <div className="bg-card border rounded-2xl p-5">
+              <div className="min-w-0 bg-card border rounded-2xl p-4 sm:p-5">
                 <AnnouncementBoard
                   posts={announcements}
                   title={pengCfg.title}
@@ -194,7 +197,7 @@ export default async function HomePage() {
               </div>
             )}
             {agendaCfg.enabled && (
-              <div className="flex flex-col gap-4">
+              <div className="min-w-0 flex flex-col gap-4">
                 <MonthAgenda
                   posts={posts}
                   kaldiEvents={kaldiEvents}

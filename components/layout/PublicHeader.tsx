@@ -9,14 +9,11 @@ import { logoutTeacherAction } from '@/app/actions/teacher-auth'
 import { createServerClient } from '@/lib/supabase/server'
 import { ROLE_LABELS, DEFAULT_DASHBOARD, sapaanName } from '@/lib/auth/permissions'
 import { HeaderUserCard } from './HeaderUserCard'
+import { PublicMobileNav, type PublicNavItem } from './PublicMobileNav'
 import type { PhotoFocus } from '@/types'
 
-interface NavItem {
-  label: string
-  href: string
-  /** Submenu yang muncul saat item di-hover. Item induk tetap bisa diklik. */
-  children?: { label: string; href: string; description: string }[]
-}
+/** Submenu (children) muncul saat item di-hover di desktop; di HP langsung terlihat. */
+type NavItem = PublicNavItem
 
 const NAV: NavItem[] = [
   { label: 'Beranda', href: '/'        },
@@ -126,14 +123,16 @@ export async function PublicHeader() {
 
   return (
     <header className="sticky top-0 z-50 border-b bg-background/85 backdrop-blur supports-[backdrop-filter]:bg-background/70">
-      <div className="max-w-5xl mx-auto flex h-[58px] items-center gap-7 px-6">
+      {/* Jarak & tepi dirapatkan di HP: logo, kartu akun, dan tombol menu harus
+          muat berdampingan di layar 360px. */}
+      <div className="max-w-5xl mx-auto flex h-[58px] items-center gap-2.5 px-4 sm:gap-4 sm:px-6 md:gap-7">
 
         {/* Logo */}
-        <Link href="/" className="flex items-center gap-2.5 mr-auto shrink-0">
-          <Logo size={38} alt="" priority className="shadow-sm" />
-          <div className="leading-tight">
-            <p className="font-bold text-[15px] tracking-[-0.3px]">{settings.header_brand}</p>
-            <p className="text-[9px] uppercase tracking-[0.8px] text-muted-foreground">
+        <Link href="/" className="flex min-w-0 items-center gap-2.5 mr-auto">
+          <Logo size={38} alt="" priority className="shrink-0 shadow-sm" />
+          <div className="min-w-0 leading-tight">
+            <p className="truncate font-bold text-[15px] tracking-[-0.3px]">{settings.header_brand}</p>
+            <p className="truncate text-[9px] uppercase tracking-[0.8px] text-muted-foreground">
               {settings.header_tagline}
             </p>
           </div>
@@ -180,6 +179,9 @@ export async function PublicHeader() {
             </Link>
           </Button>
         )}
+
+        {/* Menu HP — daftar yang sama dengan baris tautan desktop di atas. */}
+        <PublicMobileNav items={NAV} />
       </div>
     </header>
   )
