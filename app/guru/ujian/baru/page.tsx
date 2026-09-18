@@ -2,6 +2,9 @@ import { redirect } from 'next/navigation'
 import { getTeacherSession } from '@/lib/auth/teacher-session'
 import { getUnitUjianGuru } from '@/lib/data/ujian'
 import { FormPengajuan } from '@/components/ujian/FormPengajuan'
+import { HalamanGuru } from '@/components/guru/HalamanGuru'
+import Link from 'next/link'
+import { ArrowLeft } from 'lucide-react'
 
 export default async function AjukanUjianGuruPage() {
   const session = await getTeacherSession()
@@ -14,23 +17,17 @@ export default async function AjukanUjianGuruPage() {
   if (!unit) redirect('/guru/ujian')
 
   return (
-    <div className="min-h-screen" style={{ background: 'var(--secondary)' }}>
-      <div className="max-w-2xl mx-auto px-4 md:px-6 py-6">
-        <div className="mb-6">
-          <h1
-            className="text-2xl font-extrabold tracking-tight"
-            style={{ fontFamily: 'var(--font-playfair), Georgia, serif' }}
-          >
-            Ajukan Ujian
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Pengajuan masuk ke antrian unit {unit}. Koordinator yang menentukan jadwal dan
-            pengujinya.
-          </p>
-        </div>
-
-        <FormPengajuan units={[unit]} redirectTo="/guru/ujian" />
-      </div>
-    </div>
+    <HalamanGuru
+      lebar="sempit"
+      judul="Ajukan Ujian"
+      keterangan={`Pengajuan masuk ke antrian unit ${unit}. Koordinator yang menentukan jadwal dan pengujinya.`}
+      atas={
+        <Link href="/guru/ujian" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+          <ArrowLeft className="h-4 w-4" />Pengajuan Ujian
+        </Link>
+      }
+    >
+      <FormPengajuan units={[unit]} redirectTo="/guru/ujian" />
+    </HalamanGuru>
   )
 }

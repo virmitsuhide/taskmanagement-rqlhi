@@ -5,6 +5,7 @@ import { getTeacherSession } from '@/lib/auth/teacher-session'
 import { getCurrentTerm, formatTerm } from '@/lib/data/terms'
 import { getGukarGroupsFor, getGukarParticipants, bolehMengampuGukar } from '@/lib/data/gukar'
 import { hariIni } from '@/lib/rutin/periode'
+import { HalamanGuru } from '@/components/guru/HalamanGuru'
 
 /**
  * Daftar kelompok pembinaan yang diampu guru ini.
@@ -21,30 +22,24 @@ export default async function GukarGroupsPage() {
   // menunya berhak tahu kenapa halamannya tidak terbuka.
   if (!(await bolehMengampuGukar(session.teacherId))) {
     return (
-      <div>
-        <div className="p-4 md:p-6 max-w-3xl mx-auto">
-          <h1 className="text-2xl font-bold">Pembinaan Guru &amp; Karyawan</h1>
-          <p className="mt-3 text-sm text-muted-foreground">
+      <HalamanGuru judul="Pembinaan Guru &amp; Karyawan">
+        <p className="text-sm text-muted-foreground">
             Pembinaan gukar diampu oleh guru Tetap Yayasan dan Kontrak Yayasan.
             Kalau status kepegawaianmu semestinya termasuk salah satunya, hubungi SDM
             untuk memperbaiki datanya.
-          </p>
-        </div>
-      </div>
+        </p>
+      </HalamanGuru>
     )
   }
 
   const term = await getCurrentTerm()
   if (!term) {
     return (
-      <div>
-        <div className="p-4 md:p-6 max-w-3xl mx-auto">
-          <h1 className="text-2xl font-bold">Pembinaan Guru & Karyawan</h1>
-          <p className="mt-3 text-sm text-muted-foreground">
+      <HalamanGuru judul="Pembinaan Guru &amp; Karyawan">
+        <p className="text-sm text-muted-foreground">
             Belum ada semester berjalan. Hubungi Kepala RQ atau Kumik untuk menetapkannya.
-          </p>
-        </div>
-      </div>
+        </p>
+      </HalamanGuru>
     )
   }
 
@@ -53,17 +48,13 @@ export default async function GukarGroupsPage() {
   const period = hariIni().slice(0, 7)
 
   return (
-    <div>
-      <div className="p-4 md:p-6 max-w-3xl mx-auto">
-        <h1 className="text-2xl font-bold leading-tight">Pembinaan Guru &amp; Karyawan</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">{formatTerm(term)}</p>
-
+    <HalamanGuru judul="Pembinaan Guru &amp; Karyawan" keterangan={formatTerm(term)}>
         {groups.length === 0 ? (
-          <div className="mt-6 rounded-lg border border-dashed py-10 text-center text-sm text-muted-foreground">
+          <div className="rounded-lg border border-dashed py-10 text-center text-sm text-muted-foreground">
             Anda belum ditetapkan sebagai pengampu kelompok pembinaan.
           </div>
         ) : (
-          <ul className="mt-5 space-y-2">
+          <ul className="space-y-2.5">
             {groups.map((group, i) => (
               <li key={group.id} className="flex items-stretch gap-2">
                 <Link
@@ -90,7 +81,6 @@ export default async function GukarGroupsPage() {
             ))}
           </ul>
         )}
-      </div>
-    </div>
+    </HalamanGuru>
   )
 }

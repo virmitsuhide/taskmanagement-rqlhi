@@ -55,8 +55,8 @@ export function PengajuanGuru({ teacherId, tahfidz, tahsin }: Props) {
 
   if (tahfidz.length === 0 && tahsin.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed py-14 text-center">
-        <ClipboardList className="mx-auto mb-3 h-8 w-8 text-muted-foreground/40" />
+      <div className="rounded-lg border border-dashed py-14 text-center">
+        <ClipboardList className="mx-auto mb-2 h-6 w-6 text-muted-foreground" />
         <p className="text-sm font-medium">Belum ada ujian untuk anak halaqoh Anda</p>
         <p className="mt-1 text-xs text-muted-foreground">
           Pengajuan Anda — atau yang diajukan koordinator untuk anak Anda — akan muncul di
@@ -80,7 +80,7 @@ export function PengajuanGuru({ teacherId, tahfidz, tahsin }: Props) {
             <BookOpen className="h-4 w-4 text-info" /> Tahfidz
             <span className="font-normal text-muted-foreground">({tahfidz.length})</span>
           </h2>
-          <ul className="space-y-2">
+          <ul className="space-y-2.5">
             {tahfidz.map(item => (
               <Kartu
                 key={item.id}
@@ -108,7 +108,7 @@ export function PengajuanGuru({ teacherId, tahfidz, tahsin }: Props) {
             <ClipboardList className="h-4 w-4 text-primary" /> Tahsin
             <span className="font-normal text-muted-foreground">({tahsin.length})</span>
           </h2>
-          <ul className="space-y-2">
+          <ul className="space-y-2.5">
             {tahsin.map(item => {
               const lulus = item.siswa.filter(s => s.predikat === 'lulus').length
               return (
@@ -173,7 +173,7 @@ function Kartu({
   onTarik?: () => void
 }) {
   return (
-    <li className="rounded-xl border bg-card p-3.5">
+    <li className="rounded-lg border bg-card px-4 py-3">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="truncate font-medium">{judul}</p>

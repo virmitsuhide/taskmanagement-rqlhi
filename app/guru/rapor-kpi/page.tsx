@@ -8,6 +8,7 @@ import {
   BANDING_STATUS_LABELS, BANDING_TONE, SEBAB_LABELS, STATUS_LABELS, STATUS_TONE, sisaHari,
 } from '@/lib/kpi/alur'
 import { cn } from '@/lib/utils'
+import { HalamanGuru } from '@/components/guru/HalamanGuru'
 
 /**
  * Daftar rapor KPI yang sudah diserahkan kepada guru ini.
@@ -27,11 +28,7 @@ export default async function RaporKpiGuruPage() {
   ])
 
   return (
-    <div className="mx-auto max-w-[860px] p-4 md:p-6">
-      <h1 className="text-2xl font-bold leading-tight">Rapor KPI Saya</h1>
-      <p className="mb-5 mt-0.5 text-sm text-muted-foreground">
-        Rapor bulanan yang sudah disahkan koordinator unit Anda.
-      </p>
+    <HalamanGuru judul="Rapor KPI Saya" keterangan="Rapor bulanan yang sudah disahkan koordinator unit Anda.">
 
       {rows.length === 0 ? (
         <div className="rounded-lg border border-dashed py-14 text-center">
@@ -106,6 +103,6 @@ export default async function RaporKpiGuruPage() {
           })}
         </ul>
       )}
-    </div>
+    </HalamanGuru>
   )
 }

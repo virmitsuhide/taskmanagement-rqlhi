@@ -10,6 +10,7 @@ import { hariIni } from '@/lib/rutin/periode'
 import { formatPeriod } from '@/lib/finance/period'
 import { labelSiklus, siklusDari, statusSetoranBulan } from '@/lib/rq/gukar-siklus'
 import { SetoranSesiGukar } from '@/components/gukar/SetoranSesiGukar'
+import { HalamanGuru } from '@/components/guru/HalamanGuru'
 
 interface PageProps {
   params: Promise<{ id: string }>
@@ -53,32 +54,21 @@ export default async function SetorSesiGukarPage({ params }: PageProps) {
   const status = statusSetoranBulan(period, hari, dikunciAt)
 
   return (
-    <div className="min-h-screen" style={{ background: 'var(--secondary)' }}>
-      <div className="max-w-3xl mx-auto px-4 md:px-6 py-6 space-y-4">
+    <HalamanGuru
+      judul={group.name}
+      keterangan={`Setor per sesi · ${formatPeriod(period)} · siklus berjalan: ${labelSiklus(siklusDari(hari))}`}
+      atas={
         <Link
           href={`/guru/gukar/${id}?periode=${period}`}
           className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
         >
           <ArrowLeft className="h-4 w-4" />Papan bulanan
         </Link>
-
-        <div>
-          <p className="text-[11px] uppercase tracking-[1.8px] text-muted-foreground">
-            Setor per Sesi · {formatPeriod(period)}
-          </p>
-          <h1
-            className="text-2xl font-extrabold tracking-tight"
-            style={{ fontFamily: 'var(--font-playfair), Georgia, serif' }}
-          >
-            {group.name}
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Siklus berjalan: {labelSiklus(siklusDari(hari))}
-          </p>
-        </div>
+      }
+    >
 
         {participants.length === 0 ? (
-          <div className="rounded-xl border border-dashed bg-card py-10 text-center text-sm text-muted-foreground">
+          <div className="rounded-lg border border-dashed py-10 text-center text-sm text-muted-foreground">
             Belum ada peserta di kelompok ini.
           </div>
         ) : (
@@ -94,7 +84,6 @@ export default async function SetorSesiGukarPage({ params }: PageProps) {
             surat={surat}
           />
         )}
-      </div>
-    </div>
+    </HalamanGuru>
   )
 }
