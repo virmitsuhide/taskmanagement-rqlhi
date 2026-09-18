@@ -37,41 +37,23 @@ const TONE: Record<string, string> = {
   none: 'bg-muted text-muted-foreground',
 }
 
-type Kelompok = 'halaqoh' | 'sesi' | 'kelas' | 'tahsin' | 'tahfidz'
+type Kelompok = 'sesi' | 'kelas'
 
 const KELOMPOK: { key: Kelompok; label: string }[] = [
-  { key: 'halaqoh', label: 'Halaqoh' },
   { key: 'sesi', label: 'Sesi' },
   { key: 'kelas', label: 'Kelas' },
-  { key: 'tahsin', label: 'Capaian Tahsin' },
-  { key: 'tahfidz', label: 'Capaian Tahfidz' },
 ]
 
-/**
- * Kunci pengelompokan sekaligus label judulnya.
- *
- * Capaian tahsin memakai "Metode Jilid", bukan halaman — halaman berubah tiap
- * pekan, dan mengelompokkan per halaman menghasilkan puluhan kelompok berisi
- * satu anak. Jilid berpindah beberapa bulan sekali, jadi kelompoknya bertahan
- * cukup lama untuk berguna.
- */
+/** Kunci pengelompokan sekaligus label judulnya. */
 function kunci(s: TeacherStudentRow, by: Kelompok): string {
   switch (by) {
-    case 'halaqoh': return s.halaqoh_name ?? 'Tanpa Halaqoh'
     case 'sesi': return s.sesi ? `Sesi ${s.sesi}` : 'Tanpa Sesi'
     case 'kelas': return s.kelas ? `Kelas ${s.kelas}` : 'Tanpa Kelas'
-    case 'tahsin':
-      if (!s.current_method_name) return 'Murni Tahfidz'
-      return s.current_jilid_label
-        ? `${s.current_method_name} ${s.current_jilid_label}`
-        : `${s.current_method_name} — jilid belum diisi`
-    case 'tahfidz':
-      return s.last_tahfidz_surat ? `Terakhir: ${s.last_tahfidz_surat}` : 'Belum ada setoran tahfidz'
   }
 }
 
 export function StudentBrowser({ students }: Props) {
-  const [by, setBy] = useState<Kelompok>('halaqoh')
+  const [by, setBy] = useState<Kelompok>('sesi')
   const [q, setQ] = useState('')
   const [editing, setEditing] = useState<string | null>(null)
   const [draft, setDraft] = useState('')
