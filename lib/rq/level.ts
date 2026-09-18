@@ -79,3 +79,23 @@ export function statusTarget(level: string | null, target: string | null): 'belu
   if (a === b) return 'sesuai'
   return 'belum'
 }
+
+/**
+ * Level tangga dari NAMA TAHAP metode (jilid_levels.label) — posisi tercatat
+ * siswa, bukan catatan bebas bulanan.
+ *
+ * Tiga nama tahap tidak terbaca parseLevel dan harus dipetakan di sini:
+ *  • "Lulus Tahsin"      → Tahfidz: tahsin tuntas, anak sudah di tahfidz.
+ *  • "Talaqqi …"         → Al-Qur'an: di UMMI letaknya sesudah Al-Qur'an T3,
+ *                          sebelum Gharib — masih membaca mushaf.
+ *  • "Ghoroibul Qur'an"  → Gharib: tanpa ini "Qur'an" di namanya membuatnya
+ *                          terbaca Al-Qur'an, satu tingkat terlalu rendah.
+ */
+export function levelDariTahap(label: string | null | undefined): LevelName | null {
+  const t = (label ?? '').toLowerCase()
+  if (!t) return null
+  if (/lulus\s+tahsin/.test(t)) return 'Tahfidz'
+  if (/gh[ao]r[ao]?i?b/.test(t)) return 'Gharib'
+  if (/talaqq?i/.test(t)) return "Al-Qur'an"
+  return parseLevel(label ?? null, null)
+}

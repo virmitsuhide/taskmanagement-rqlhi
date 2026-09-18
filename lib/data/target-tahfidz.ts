@@ -58,7 +58,7 @@ let petaCache: Promise<PetaHalaman> | null = null
 const kurvaCache = new Map<KodeRencana, KurvaRencana>()
 
 /** surat_master tidak pernah berubah; dibaca sekali lalu disimpan. */
-async function getPetaHalaman(): Promise<PetaHalaman> {
+export async function getPetaHalaman(): Promise<PetaHalaman> {
   if (!petaCache) {
     petaCache = (async () => {
       const { data, error } = await createServerClient().from('surat_master').select('id, total_ayat')
@@ -157,6 +157,11 @@ export interface SiswaTarget {
   alasan: AlasanTanpaTarget | null
   status: StatusSiswa
   capaianTeks: string | null
+  /**
+   * Total hafalan dalam halaman mushaf, sepanjang urutan rencana programnya
+   * (termasuk juz yang tuntas lewat ujian). null = belum terukur.
+   */
+  capaianHalaman: number | null
   /** 'juz' = hanya dari juz tuntas (umumnya ujian) — batas bawah, bukan posisi pasti. */
   sumberCapaian: 'setoran' | 'juz' | null
   targetTeks: string | null
@@ -263,7 +268,7 @@ export async function getTargetTahfidz(jenjangBoleh: Jenjang[], tanggal = tangga
     if ('alasan' in pilihan) {
       return {
         ...dasar, rencana: null, tingkat: null, alasan: pilihan.alasan, status: 'tanpa_target' as const,
-        capaianTeks: null, sumberCapaian: null, targetTeks: null, selisihPekan: null, selisihHalaman: null,
+        capaianTeks: null, capaianHalaman: null, sumberCapaian: null, targetTeks: null, selisihPekan: null, selisihHalaman: null,
         jenisSemester: null, tindakLanjut: null, perluDiujikan: false,
       }
     }
@@ -282,7 +287,7 @@ export async function getTargetTahfidz(jenjangBoleh: Jenjang[], tanggal = tangga
     if (capaian === null) {
       return {
         ...dasar, rencana: pilihan.kode, tingkat: pilihan.tingkat, alasan: null, status: 'belum_terukur' as const,
-        capaianTeks: null, sumberCapaian: null, targetTeks, selisihPekan: null, selisihHalaman: null,
+        capaianTeks: null, capaianHalaman: null, sumberCapaian: null, targetTeks, selisihPekan: null, selisihHalaman: null,
         jenisSemester: jenis, tindakLanjut: null, perluDiujikan: false,
       }
     }
@@ -293,6 +298,7 @@ export async function getTargetTahfidz(jenjangBoleh: Jenjang[], tanggal = tangga
       ...dasar, rencana: pilihan.kode, tingkat: pilihan.tingkat, alasan: null,
       status: statusTerhadapTarget(selisih),
       capaianTeks: formatPosisi(posisiPada(kurva, peta, capaian.halaman), peta),
+      capaianHalaman: capaian.halaman,
       sumberCapaian: capaian.sumber,
       targetTeks, selisihPekan: selisih, selisihHalaman: capaian.halaman - target.halaman, jenisSemester: jenis,
       tindakLanjut: lanjut?.teks ?? null,

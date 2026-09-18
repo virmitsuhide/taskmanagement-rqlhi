@@ -24,7 +24,7 @@ export function PetaLevel({ nodes, perBaris = 5, legend }: Props) {
   const rows = berkelok(nodes, perBaris)
 
   return (
-    <div className="rounded-xl border bg-white p-4">
+    <div className="rounded-xl border bg-card p-4">
       <div className="space-y-1">
         {rows.map((row, ri) => (
           <div key={ri} className="relative">
@@ -51,14 +51,14 @@ export function PetaLevel({ nodes, perBaris = 5, legend }: Props) {
                     title={n.title}
                     className={cn(
                       'relative flex h-12 w-12 items-center justify-center rounded-full border-2 text-sm font-bold transition-transform',
-                      n.status === 'selesai' && 'border-success bg-success text-white',
+                      n.status === 'selesai' && 'border-success bg-success text-success-foreground',
                       n.status === 'proses' && 'border-primary bg-primary-wash text-primary animate-pulse',
                       n.status === 'terkunci' && 'border-border bg-muted text-muted-foreground/70',
                     )}
                   >
                     {n.label}
                     {n.badge && (
-                      <span className="absolute -right-1 -top-1 rounded-full bg-white px-1 text-[10px] leading-4 shadow-sm">
+                      <span className="absolute -right-1 -top-1 rounded-full border bg-card px-1 text-[10px] leading-4 shadow-sm">
                         {n.badge}
                       </span>
                     )}
