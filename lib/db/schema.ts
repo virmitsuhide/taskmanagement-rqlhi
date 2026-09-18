@@ -833,6 +833,22 @@ export const tahfidzLogs = pgTable('tahfidz_logs', {
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
 })
 
+/** Salinan setoran yang ditimpa setoran lain di hari yang sama (0074). */
+export const setoranArsip = pgTable('setoran_arsip', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  /** 'tahsin' | 'tahfidz' */
+  jenis: text('jenis').notNull(),
+  log_id: uuid('log_id').notNull(),
+  student_id: uuid('student_id').notNull().references(() => students.id, { onDelete: 'cascade' }),
+  setoran_date: date('setoran_date').notNull(),
+  kind: text('kind'),
+  data: jsonb('data').notNull(),
+  materi: jsonb('materi'),
+  diganti_oleh: uuid('diganti_oleh'),
+  diarsipkan_oleh: uuid('diarsipkan_oleh').references(() => teachers.id, { onDelete: 'set null' }),
+  created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
 export const tasmiLogs = pgTable('tasmi_logs', {
   id: uuid('id').primaryKey().defaultRandom(),
   student_id: uuid('student_id').notNull().references(() => students.id, { onDelete: 'cascade' }),

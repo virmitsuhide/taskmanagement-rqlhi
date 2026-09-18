@@ -1,6 +1,7 @@
 import {
   LayoutDashboard, Users, BookOpen, Sparkles, CalendarCheck,
   BarChart3, ScrollText, GraduationCap, IdCard, ClipboardCheck, ListChecks,
+  Table2, HeartHandshake,
 } from 'lucide-react'
 import { getTeacherSession } from '@/lib/auth/teacher-session'
 import { bolehMengampuGukar } from '@/lib/data/gukar'
@@ -69,6 +70,8 @@ export async function TeacherShell({ children }: { children: React.ReactNode }) 
         // sudah ada tapi tak punya jalan masuk dari navigasi.
         { label: 'Sesi Tahsin', href: '/guru/setoran/tahsin/sesi', icon: <ListChecks /> },
         { label: 'Sesi Tahfidz', href: '/guru/setoran/tahfidz/sesi', icon: <ListChecks /> },
+        { label: 'Progres per Sesi', href: '/guru/progres', icon: <Table2 /> },
+        { label: 'Catatan Adab', href: '/guru/adab', icon: <HeartHandshake /> },
         { label: 'Capaian Bulanan', href: '/guru/capaian', icon: <CalendarCheck /> },
         { label: 'Statistik', href: '/guru/statistik', icon: <BarChart3 /> },
       ],

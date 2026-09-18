@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { Star, StarHalf } from 'lucide-react'
+import { nilaiDariBintang, bintangDariNilai } from '@/lib/rq/bintang'
 
 /**
  * Penilaian setoran dengan bintang — lima bintang, kelipatan setengah.
@@ -32,20 +33,7 @@ import { Star, StarHalf } from 'lucide-react'
  * supaya tidak terkesan luput.
  */
 
-/** Nilai angka dari jumlah bintang. */
-export function nilaiDariBintang(bintang: number): number {
-  return 50 + bintang * 10
-}
-
-/** Jumlah bintang dari nilai angka — kebalikannya, untuk memuat data lama. */
-export function bintangDariNilai(nilai: number | null | undefined): number {
-  if (nilai === null || nilai === undefined || !Number.isFinite(nilai)) return 0
-  // Dibulatkan ke setengah bintang terdekat: nilai lama seperti 88 tidak jatuh
-  // persis di kisi bintang, dan menampilkannya sebagai 0 akan lebih
-  // menyesatkan daripada menampilkannya sebagai 4★ yang mendekati.
-  const b = (nilai - 50) / 10
-  return Math.max(0, Math.min(5, Math.round(b * 2) / 2))
-}
+export { nilaiDariBintang, bintangDariNilai }
 
 /** Di bawah tiga bintang berarti mengulang. */
 export const BINTANG_MINIMAL_LULUS = 3

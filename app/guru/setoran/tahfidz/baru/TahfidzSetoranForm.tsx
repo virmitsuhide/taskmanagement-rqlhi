@@ -3,6 +3,8 @@
 import { useActionState, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createTahfidzLogAction } from '@/app/actions/setoran'
+import { PerbandinganSetoranDialog } from '@/components/setoran/PerbandinganSetoranDialog'
+import { useSetoranTimpa } from '@/components/setoran/useSetoranTimpa'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -126,6 +128,7 @@ function DailySubForm({
   onCancel: () => void
 }) {
   const [state, formAction, isPending] = useActionState(createTahfidzLogAction, null)
+  const kirim = useSetoranTimpa(formAction, state?.ganda)
   const [suratId, setSuratId] = useState('')
   const [ayatDari, setAyatDari] = useState('')
   const [ayatKe, setAyatKe] = useState('')
@@ -143,7 +146,7 @@ function DailySubForm({
     selectedSurat && ayatKe ? Number(ayatKe) > selectedSurat.total_ayat : false
 
   return (
-    <form action={formAction} className="space-y-5">
+    <form onSubmit={kirim.onSubmit} className="space-y-5">
       <input type="hidden" name="student_id" value={studentId} />
       <input type="hidden" name="kind" value={kind} />
 
@@ -227,6 +230,13 @@ function DailySubForm({
           <Input id="setoran_date" name="setoran_date" type="date" defaultValue={today()} disabled={isPending} />
         </div>
       </div>
+
+      <PerbandinganSetoranDialog
+        daftar={kirim.daftarGanda}
+        pending={isPending}
+        onTimpa={kirim.timpa}
+        onBatal={kirim.batal}
+      />
 
       {state?.error && (
         <p className="text-sm text-destructive bg-destructive/10 px-3 py-2 rounded-md">{state.error}</p>

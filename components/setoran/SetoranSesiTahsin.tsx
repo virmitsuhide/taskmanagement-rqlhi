@@ -8,7 +8,9 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { StarInput, harusMengulang } from '@/components/setoran/StarInput'
 import { cn } from '@/lib/utils'
-import { createTahsinLogSesiAction } from '@/app/actions/setoran'
+import { createTahsinLogSesiAction, type InputSetoranTahsin } from '@/app/actions/setoran'
+import { PerbandinganSetoranDialog } from '@/components/setoran/PerbandinganSetoranDialog'
+import type { SetoranGanda } from '@/lib/data/setoran-ganda'
 import {
   BacaanQuranInput, BACAAN_KOSONG, keBacaanQuran, type IsianBacaan,
 } from '@/components/setoran/BacaanQuranInput'
@@ -75,6 +77,9 @@ function isianAwal(s: SiswaSesiTahsin): Isian {
 export function SetoranSesiTahsin({ siswa, surat }: { siswa: SiswaSesiTahsin[]; surat: SuratPilihan[] }) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
+  // Anak yang hari itu sudah punya setoran: menunggu keputusan guru.
+  const [ganda, setGanda] = useState<SetoranGanda[]>([])
+  const [tertunda, setTertunda] = useState<InputSetoranTahsin[]>([])
   const [tanggal, setTanggal] = useState(() => new Date().toISOString().slice(0, 10))
   const [isian, setIsian] = useState<Record<string, Isian>>(
     () => Object.fromEntries(siswa.map(s => [s.id, isianAwal(s)])),
@@ -123,16 +128,27 @@ export function SetoranSesiTahsin({ siswa, surat }: { siswa: SiswaSesiTahsin[]; 
       return
     }
 
+    kirim(baris)
+  }
+
+  function kirim(baris: InputSetoranTahsin[]) {
     startTransition(async () => {
       const hasil = await createTahsinLogSesiAction(baris)
       if (hasil.error) {
         toast.error(hasil.error)
         return
       }
-      const gagal = new Map(hasil.gagal.map(g => [g.student_id, g.pesan]))
+      // Yang tertahan karena sudah ada setoran hari itu bukan galat: isiannya
+      // dibiarkan utuh sampai guru memilih timpa atau batal di dialog.
+      const tertahan = hasil.gagal.filter(g => g.ganda)
+      setGanda(tertahan.map(g => g.ganda!))
+      setTertunda(baris.filter(b => tertahan.some(g => g.student_id === b.student_id)))
+      const ditahan = new Set(tertahan.map(g => g.student_id))
+      const gagal = new Map(hasil.gagal.filter(g => !g.ganda).map(g => [g.student_id, g.pesan]))
       setIsian(prev => {
         const next = { ...prev }
         for (const b of baris) {
+          if (ditahan.has(b.student_id)) continue
           next[b.student_id] = gagal.has(b.student_id)
             ? { ...prev[b.student_id], galat: gagal.get(b.student_id) }
             : { ...isianAwal(bisaDisetor.find(x => x.id === b.student_id)!), versi: prev[b.student_id].versi + 1 }
@@ -140,13 +156,19 @@ export function SetoranSesiTahsin({ siswa, surat }: { siswa: SiswaSesiTahsin[]; 
         return next
       })
       if (hasil.tersimpan > 0) toast.success(`${hasil.tersimpan} setoran tersimpan.`)
-      if (hasil.gagal.length > 0) toast.error(`${hasil.gagal.length} setoran belum tersimpan — lihat tanda merah.`)
+      if (gagal.size > 0) toast.error(`${gagal.size} setoran belum tersimpan — lihat tanda merah.`)
       router.refresh()
     })
   }
 
   return (
     <div className="space-y-4">
+      <PerbandinganSetoranDialog
+        daftar={ganda}
+        pending={pending}
+        onTimpa={() => kirim(tertunda.map(b => ({ ...b, timpa: true })))}
+        onBatal={() => { setGanda([]); setTertunda([]) }}
+      />
       <div className="flex flex-wrap items-end gap-3 rounded-xl border bg-card p-3">
         <div className="space-y-1">
           <label htmlFor="tanggal_sesi" className="text-xs font-medium">Tanggal setor</label>

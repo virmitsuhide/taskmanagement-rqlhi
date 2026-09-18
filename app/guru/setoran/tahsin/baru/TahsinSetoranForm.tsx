@@ -3,6 +3,8 @@
 import { useActionState, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createTahsinLogAction } from '@/app/actions/setoran'
+import { PerbandinganSetoranDialog } from '@/components/setoran/PerbandinganSetoranDialog'
+import { useSetoranTimpa } from '@/components/setoran/useSetoranTimpa'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -73,6 +75,7 @@ export function TahsinSetoranForm({
 }: Props) {
   const router = useRouter()
   const [state, formAction, isPending] = useActionState(createTahsinLogAction, null)
+  const kirim = useSetoranTimpa(formAction, state?.ganda)
 
   const initialStudent = students.find(s => s.id === defaultStudentId) ?? null
   const [studentId, setStudentId] = useState(defaultStudentId ?? '')
@@ -134,7 +137,7 @@ export function TahsinSetoranForm({
   const today = new Date().toISOString().slice(0, 10)
 
   return (
-    <form action={formAction} className="space-y-5 max-w-2xl">
+    <form onSubmit={kirim.onSubmit} className="space-y-5 max-w-2xl">
       {/* Siswa */}
       <div className="space-y-1.5">
         <Label htmlFor="student_id">Siswa *</Label>
@@ -386,6 +389,13 @@ export function TahsinSetoranForm({
           lulus ujian tahsin — ajukan ujiannya lewat menu Pengajuan Ujian.
         </p>
       )}
+
+      <PerbandinganSetoranDialog
+        daftar={kirim.daftarGanda}
+        pending={isPending}
+        onTimpa={kirim.timpa}
+        onBatal={kirim.batal}
+      />
 
       {state?.error && (
         <p className="text-sm text-destructive bg-destructive/10 px-3 py-2 rounded-md">{state.error}</p>

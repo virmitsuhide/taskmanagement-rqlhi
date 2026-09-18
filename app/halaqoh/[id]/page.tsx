@@ -5,7 +5,7 @@ import { canManageHalaqoh, canViewHalaqoh, JENJANG_LABELS } from '@/lib/auth/per
 import { createServerClient } from '@/lib/supabase/server'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { Button } from '@/components/ui/button'
-import { Pencil, Users, Calendar, MapPin, UserCog } from 'lucide-react'
+import { Pencil, Users, Calendar, MapPin, UserCog, Table2 } from 'lucide-react'
 import { sesiLabel } from '@/lib/rq/sesi'
 import { getHalaqohSessions } from '@/lib/data/terms'
 import { SessionEditor } from '@/components/halaqoh/SessionEditor'
@@ -105,11 +105,16 @@ export default async function HalaqohDetailPage({ params }: PageProps) {
                 )}
               </div>
             </div>
-            {canEdit && (
+            <div className="flex flex-wrap gap-2">
               <Button asChild size="sm" variant="outline">
-                <Link href={`/halaqoh/${id}/edit`}><Pencil className="h-3.5 w-3.5 mr-1" />Edit</Link>
+                <Link href={`/halaqoh/${id}/progres`}><Table2 className="h-3.5 w-3.5 mr-1" />Progres Setoran</Link>
               </Button>
-            )}
+              {canEdit && (
+                <Button asChild size="sm" variant="outline">
+                  <Link href={`/halaqoh/${id}/edit`}><Pencil className="h-3.5 w-3.5 mr-1" />Edit</Link>
+                </Button>
+              )}
+            </div>
           </div>
         </div>
 
