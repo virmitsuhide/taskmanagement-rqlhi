@@ -16,6 +16,7 @@ import {
 import type {
   PengurusProfile, TrainingEntry, AmanahEntry, AwardEntry, CompetencyEntry,
 } from '@/types'
+import { gantiDenganFotoKompres } from '@/lib/profil/kompres-foto'
 
 /** Baris kosong dipakai saat pengguna menekan "Tambah". */
 const EMPTY_TRAINING: TrainingEntry = { name: '', year: '', organizer: '' }
@@ -94,11 +95,18 @@ export function PengurusProfileForm({ profile, amanahLabel }: Props) {
     setEducation(rows => rows.map((r, i) => (i === index ? { ...r, ...patch } : r)))
   }
 
-  function onPhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
+  // Foto diperkecil di HP sebelum dikirim — foto kamera 2–5 MB melebihi batas
+  // server action dan dulu gagal diam-diam. Lihat lib/profil/kompres-foto.ts.
+  const [menyiapkanFoto, setMenyiapkanFoto] = useState(false)
+
+  async function onPhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const input = e.currentTarget
+    const file = input.files?.[0]
     if (!file) return
     setPhotoPreview(URL.createObjectURL(file))
     setAdjusterKey(k => k + 1)
+    setMenyiapkanFoto(true)
+    try { await gantiDenganFotoKompres(input) } finally { setMenyiapkanFoto(false) }
   }
 
   return (
@@ -125,7 +133,7 @@ export function PengurusProfileForm({ profile, amanahLabel }: Props) {
               onChange={onPhotoChange}
               className="text-xs"
             />
-            <p className="text-[11px] text-muted-foreground">JPG/PNG/WebP, maksimal 2 MB.</p>
+            <p className="text-[11px] text-muted-foreground">JPG/PNG/WebP. Foto besar dari kamera otomatis diperkecil.</p>
           </div>
         </div>
 
@@ -356,8 +364,8 @@ export function PengurusProfileForm({ profile, amanahLabel }: Props) {
       {state?.success && <p className="text-sm text-success">{state.message}</p>}
 
       <div className="sticky bottom-0 bg-background/95 backdrop-blur py-3 border-t">
-        <Button type="submit" disabled={pending}>
-          {pending ? 'Menyimpan…' : 'Simpan Profil'}
+        <Button type="submit" disabled={pending || menyiapkanFoto}>
+          {pending ? 'Menyimpan…' : menyiapkanFoto ? 'Menyiapkan foto…' : 'Simpan Profil'}
         </Button>
       </div>
     </form>

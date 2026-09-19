@@ -18,6 +18,7 @@ import {
 import type {
   AmanahEntry, AwardEntry, CompetencyEntry, EmployeeProfile, GuruProfile, Jenjang, TrainingEntry,
 } from '@/types'
+import { gantiDenganFotoKompres } from '@/lib/profil/kompres-foto'
 
 /**
  * Form profil guru Qur'an.
@@ -128,11 +129,18 @@ export function GuruProfileForm({ profile, scope }: Props) {
   // Mengganti key memaksa PhotoAdjuster memulai dari posisi tengah.
   const [adjusterKey, setAdjusterKey] = useState(0)
 
-  function onPhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
+  // Foto diperkecil di HP sebelum dikirim — foto kamera 2–5 MB melebihi batas
+  // server action dan dulu gagal diam-diam. Lihat lib/profil/kompres-foto.ts.
+  const [menyiapkanFoto, setMenyiapkanFoto] = useState(false)
+
+  async function onPhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const input = e.currentTarget
+    const file = input.files?.[0]
     if (!file) return
     setPhotoPreview(URL.createObjectURL(file))
     setAdjusterKey(k => k + 1)
+    setMenyiapkanFoto(true)
+    try { await gantiDenganFotoKompres(input) } finally { setMenyiapkanFoto(false) }
   }
 
   // Dua scope admin memakai blok kepegawaian; hanya yang karyawan menukar
@@ -305,7 +313,7 @@ export function GuruProfileForm({ profile, scope }: Props) {
               className="text-xs"
             />
             <p className="text-[11px] text-muted-foreground">
-              JPG/PNG/WebP, maksimal 2 MB. Ketuk lingkarannya untuk mengatur posisi.
+              JPG/PNG/WebP. Foto besar dari kamera otomatis diperkecil. Ketuk lingkarannya untuk mengatur posisi.
             </p>
           </div>
         </div>
@@ -492,8 +500,8 @@ export function GuruProfileForm({ profile, scope }: Props) {
       {state?.success && <p className="text-sm text-success">{state.message}</p>}
 
       <div className="sticky bottom-0 border-t bg-background/95 py-3 backdrop-blur">
-        <Button type="submit" disabled={pending}>
-          {pending ? 'Menyimpan…' : 'Simpan Profil'}
+        <Button type="submit" disabled={pending || menyiapkanFoto}>
+          {pending ? 'Menyimpan…' : menyiapkanFoto ? 'Menyiapkan foto…' : 'Simpan Profil'}
         </Button>
       </div>
     </form>
