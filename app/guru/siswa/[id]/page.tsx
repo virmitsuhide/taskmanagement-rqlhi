@@ -13,6 +13,7 @@ import { TAHFIDZ_KIND_META } from '@/lib/tahsin'
 import { URUTAN_JUZ_TAHFIDZ, type NodeLevel } from '@/lib/rq/peta-belajar'
 import { PetaLevel } from '@/components/siswa/PetaLevel'
 import { getJuzUjianSiswa } from '@/lib/data/hafalan'
+import { getRiwayatUjianSiswa } from '@/lib/data/riwayat-ujian-siswa'
 import { getJuzDrillPerSiswa } from '@/lib/data/drill-tahfidz'
 import { getProgresSiswa } from '@/lib/data/progres-siswa'
 import type { KodePeriode } from '@/lib/data/statistik-guru'
@@ -238,11 +239,12 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
     enam juz tuntas menurut urutan RQ LHI (30, 29, 28, 27, 26, 1); lima juz
     sebelumnya tidak perlu dibuktikan ulang lewat setoran.
   */
-  const [ujianSelesai, drillTahfidz, progres] = await Promise.all([
+  const [ujianSelesai, drillTahfidz, progres, riwayatUjian] = await Promise.all([
     getJuzUjianSiswa(id),
     // Juz yang ziyadahnya tuntas dan menunggu diajukan ujian 1 juz (0065).
     getJuzDrillPerSiswa([id]).then(p => p.get(id) ?? []),
     getProgresSiswa(id, kodeProgres),
+    getRiwayatUjianSiswa(id),
   ])
 
   const nodeTahfidz: NodeLevel[] = URUTAN_JUZ_TAHFIDZ.map(juz => {
@@ -600,7 +602,62 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
           )}
         </section>
 
-        {/* Riwayat tasmi' */}
+        {/* Riwayat ujian — tahfidz (juz'iyyah & tasmi') dan tahsin, dari modul Pengajuan Ujian */}
+        <section>
+          <h2 className="text-sm font-semibold mb-3 flex items-center justify-between gap-2">
+            <span>📝 Riwayat Ujian</span>
+            {riwayatUjian.length > 0 && (
+              <span className="text-xs font-normal text-muted-foreground">
+                {riwayatUjian.filter(u => u.status === 'selesai').length} selesai
+                {riwayatUjian.some(u => u.status !== 'selesai') && ` · ${riwayatUjian.filter(u => u.status !== 'selesai').length} berjalan`}
+              </span>
+            )}
+          </h2>
+          {riwayatUjian.length === 0 ? (
+            <div className="rounded-xl border border-dashed bg-card p-4 text-sm text-muted-foreground">
+              Belum ada ujian tercatat.{' '}
+              <Link href="/guru/ujian" className="text-primary hover:underline">Ajukan ujian →</Link>
+            </div>
+          ) : (
+            <div className="rounded-xl border bg-card divide-y">
+              {riwayatUjian.map(u => (
+                <div key={`${u.jenis}-${u.id}`} className="p-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-sm font-medium">
+                      <span className="mr-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                        {u.jenis === 'tahfidz' ? 'Tahfidz' : 'Tahsin'}
+                      </span>
+                      {u.judul}
+                    </p>
+                    {u.hasil ? (
+                      <span className={`text-xs shrink-0 ${u.hasilClass}`}>{u.hasil}</span>
+                    ) : (
+                      <span
+                        className="text-[11px] px-2 py-0.5 rounded-full shrink-0"
+                        style={u.status === 'dijadwalkan'
+                          ? { background: 'var(--info-wash)', color: 'var(--info)' }
+                          : { background: 'var(--warning-wash)', color: 'var(--warning)' }}
+                      >
+                        {u.statusLabel}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {u.jadwal
+                      ? tanggalPendek(u.jadwal)
+                      : u.status === 'selesai' ? 'Ujian sebelum sistem · diverifikasi koordinator' : 'Belum dijadwalkan'}
+                    {u.penguji ? ` · Penguji ${u.penguji}` : ''}
+                  </p>
+                  {u.catatan && u.jadwal && (
+                    <p className="text-xs italic text-muted-foreground mt-1">“{u.catatan}”</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+
+        {/* Riwayat tasmi' (tabel lama tasmi_logs — kini tasmi' tercatat di Riwayat Ujian) */}
         {tasmiLogs.length > 0 && (
           <section>
             <h2 className="text-sm font-semibold mb-3">🎤 Riwayat Tasmi&apos;</h2>
