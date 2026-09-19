@@ -46,6 +46,16 @@ interface BarisTahfidz {
   dijadwalkan_at: string | null; selesai_at: string | null
 }
 
+/**
+ * Ujian selesai TANPA jadwal hanya lahir dari verifikasi riwayat (0078):
+ * koordinator menyatakan ujian lama sudah dilaksanakan tanpa tahu tanggalnya.
+ * Itu bukan peristiwa baru — tanpa pengecualian ini, memverifikasi tujuh ujian
+ * lama seorang anak mengirim tujuh kabar "ujian selesai" ke gurunya hari itu.
+ */
+function riwayatTanpaTanggal(r: BarisTahfidz): boolean {
+  return r.status === 'selesai' && !r.jadwal
+}
+
 interface BarisTahsin {
   id: string; unit: UjianUnit; nama_kelompok: string; sesi: string; level: string; siswa: UjianSiswa[]
   status: string; jadwal: string | null; created_at: string
@@ -114,6 +124,7 @@ export async function getNotifUjianGuru(teacherId: string): Promise<NotifUjianGu
 
     const milik = new Set(ujian.idSiswa)
     for (const r of ujian.tahfidz as unknown as BarisTahfidz[]) {
+      if (riwayatTanpaTanggal(r)) continue
       tambah('tahfidz', r.id, r.nama_siswa, rincianTahfidz(r), r.dijadwalkan_at ?? null, r.selesai_at ?? null)
     }
     for (const r of ujian.tahsin as unknown as BarisTahsin[]) {
@@ -184,7 +195,7 @@ export async function getNotifUjianKoor(userId: string, role: UserRole): Promise
 
     const items: NotifUjian[] = []
     for (const r of (tahfidz.data ?? []) as unknown as BarisTahfidz[]) {
-      if (r.created_by_user === userId) continue
+      if (r.created_by_user === userId || riwayatTanpaTanggal(r)) continue
       items.push({
         id: `tahfidz:${r.id}:diajukan`, jenis: 'diajukan', ujian: 'tahfidz',
         judul: r.nama_siswa, rincian: rincianTahfidz(r), waktu: r.created_at,

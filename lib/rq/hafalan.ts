@@ -141,3 +141,57 @@ export function ringkasHafalan(total: number): string {
   const daftar = URUTAN_JUZ.slice(0, total)
   return `${total} juz (${daftar.join(', ')})`
 }
+
+// ─── Kewajiban ujian: juz'iyyah per juz & tasmi' per blok ────────────────────
+
+/**
+ * Satu ujian yang semestinya sudah ditempuh anak, menurut posisinya dalam
+ * urutan hafalan. `juz` memakai bentuk yang sama dengan kolom
+ * ujian_tahfidz.juz: '7' untuk juz'iyyah, '28-30' untuk tasmi'.
+ */
+export interface KewajibanUjian {
+  tipe: '1_juz' | '3_juz' | '5_juz'
+  juz: string
+  /** Posisi terakhir dalam urutan hafalan yang dicakup ujian ini. */
+  posisi: number
+}
+
+/** Rentang 'a-b' dari sekumpulan nomor juz, angka kecil dahulu. */
+function rentangJuz(daftar: number[]): string {
+  return `${Math.min(...daftar)}-${Math.max(...daftar)}`
+}
+
+/**
+ * Seluruh ujian yang semestinya sudah ditempuh anak yang hafalannya sudah
+ * melewati `sampaiPosisi` juz.
+ *
+ * Juz'iyyah: satu per juz. Tasmi': per blok lima juz dalam urutan hafalan
+ * (30–26, 1–5, 6–10, …) — tasmi' 3 juz setelah tiga juz pertama blok itu,
+ * tasmi' 5 juz setelah bloknya genap. Bentuk rentangnya sama dengan catatan
+ * yang sudah ada di sistem: '28-30', '26-30', '1-5'.
+ *
+ * Contoh: anak yang sedang menyetor juz 2 sudah melewati 6 juz
+ * (30, 29, 28, 27, 26, 1) → juz'iyyah keenam juz itu, tasmi' 3 juz 28-30, dan
+ * tasmi' 5 juz 26-30. Tasmi' blok 1–5 belum, karena bloknya belum genap.
+ */
+export function kewajibanUjian(sampaiPosisi: number): KewajibanUjian[] {
+  const n = Math.max(0, Math.min(sampaiPosisi, URUTAN_JUZ.length))
+  const hasil: KewajibanUjian[] = []
+  for (let p = 1; p <= n; p++) {
+    hasil.push({ tipe: '1_juz', juz: String(URUTAN_JUZ[p - 1]), posisi: p })
+    const dalamBlok = ((p - 1) % 5) + 1
+    const awalBlok = p - dalamBlok
+    if (dalamBlok === 3) hasil.push({ tipe: '3_juz', juz: rentangJuz(URUTAN_JUZ.slice(awalBlok, awalBlok + 3)), posisi: p })
+    if (dalamBlok === 5) hasil.push({ tipe: '5_juz', juz: rentangJuz(URUTAN_JUZ.slice(awalBlok, awalBlok + 5)), posisi: p })
+  }
+  return hasil
+}
+
+/**
+ * Label internal koordinator untuk satu kewajiban ujian. "Juz'iyyah" hanya
+ * dipakai di layar pengurus — teks ke wali murid tetap memakai getTahfidzLabel().
+ */
+export function labelKewajiban(k: Pick<KewajibanUjian, 'tipe' | 'juz'>): string {
+  if (k.tipe === '1_juz') return `Juz'iyyah Juz ${k.juz}`
+  return `Tasmi' ${k.tipe === '3_juz' ? 3 : 5} Juz (${k.juz})`
+}
