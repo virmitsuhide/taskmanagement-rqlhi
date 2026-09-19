@@ -10,12 +10,14 @@ import { TandaTanganCard } from '@/components/kpi/TandaTanganCard'
 import { simpanTtdGuruAction } from '@/app/actions/tanda-tangan'
 import type { GuruProfile, Jenjang } from '@/types'
 
+// photo_url & photo_focus wajib ikut: tanpa keduanya form menampilkan lingkaran
+// kosong walau fotonya sudah tersimpan, dan guru mengira unggahannya gagal.
 const KOLOM_PROFIL =
-  'id, full_name, nip, unit, employment_type, joined_at,' +
+  'id, full_name, nip, unit, employment_type, joined_at, photo_url, photo_focus,' +
   ' sapaan, nickname, birth_place, birth_date, education_level, education_history,' +
   ' quran_competencies, other_competencies, ijazah_sanad, trainings, amanah_history, awards'
 
-const KOLOM_DASAR = 'id, full_name, nip, unit, employment_type, joined_at'
+const KOLOM_DASAR = 'id, full_name, nip, unit, employment_type, joined_at, photo_url, photo_focus'
 
 /**
  * Profil Saya — guru melengkapi data dirinya sendiri.
