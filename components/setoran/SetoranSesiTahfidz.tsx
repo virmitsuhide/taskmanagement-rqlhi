@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { StarInput } from '@/components/setoran/StarInput'
+import { Stepper } from '@/components/setoran/Stepper'
 import { cn } from '@/lib/utils'
 import { TAHFIDZ_KIND_META } from '@/lib/tahsin'
 import { bolehLintasSurat, periksaRentang } from '@/lib/rq/rentang-surat'
@@ -62,6 +63,16 @@ function isianAwal(s: SiswaSesiTahfidz, surat: SuratPilihan[], versi = 0): Isian
   }
 }
 
+/**
+ * Ayat akhir yang berlaku. Ziyadah yang kolom akhirnya tidak disentuh berarti
+ * satu ayat — Stepper menampilkannya sama dengan ayat awal, jadi itu pula yang
+ * dikirim. Muroja'ah tidak punya bawaan: rentangnya selalu diisi guru.
+ */
+function ayatAkhir(v: Pick<Isian, 'kind' | 'ayat_dari' | 'ayat_ke'>): number {
+  if (v.ayat_ke) return Number(v.ayat_ke)
+  return v.kind === 'ziyadah' && v.ayat_dari ? Number(v.ayat_dari) : NaN
+}
+
 const SELECT_CLASS =
   'h-9 rounded-md border bg-transparent px-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50'
 
@@ -101,7 +112,7 @@ export function SetoranSesiTahfidz({ siswa, surat }: { siswa: SiswaSesiTahfidz[]
         surat_id: v.surat_id ? Number(v.surat_id) : null,
         ayat_dari: v.ayat_dari ? Number(v.ayat_dari) : null,
         surat_ke_id: bolehLintasSurat(v.kind) && v.surat_ke_id ? Number(v.surat_ke_id) : null,
-        ayat_ke: v.ayat_ke ? Number(v.ayat_ke) : null,
+        ayat_ke: Number.isFinite(ayatAkhir(v)) ? ayatAkhir(v) : null,
         nilai_tahfidz: v.nilai_tahfidz,
         nilai_sikap: v.nilai_sikap,
         catatan: v.catatan || null,
@@ -137,7 +148,7 @@ export function SetoranSesiTahfidz({ siswa, surat }: { siswa: SiswaSesiTahfidz[]
           } else {
             // Ziyadah yang baru tersimpan jadi titik lanjut isian berikutnya.
             const info = surat.find(x => String(x.id) === v.surat_id)
-            const ke = Number(v.ayat_ke)
+            const ke = ayatAkhir(v)
             const sisa = v.kind === 'ziyadah' && info && ke < info.total_ayat
             next[s.id] = {
               ...isianAwal(s, surat, v.versi + 1),
@@ -181,9 +192,9 @@ export function SetoranSesiTahfidz({ siswa, surat }: { siswa: SiswaSesiTahfidz[]
           const lintas = bolehLintasSurat(v.kind)
           const suratKe = lintas && v.surat_ke_id && v.surat_ke_id !== v.surat_id ? Number(v.surat_ke_id) : null
           const infoAkhir = suratKe ? surat.find(x => x.id === suratKe) : info
-          const galatRentang = info && v.ayat_dari && v.ayat_ke
+          const galatRentang = info && v.ayat_dari && Number.isFinite(ayatAkhir(v))
             ? periksaRentang(
-                { surat_id: info.id, ayat_dari: Number(v.ayat_dari), surat_ke_id: suratKe, ayat_ke: Number(v.ayat_ke) },
+                { surat_id: info.id, ayat_dari: Number(v.ayat_dari), surat_ke_id: suratKe, ayat_ke: ayatAkhir(v) },
                 id => surat.find(x => x.id === id),
               )
             : null
@@ -262,15 +273,13 @@ export function SetoranSesiTahfidz({ siswa, surat }: { siswa: SiswaSesiTahfidz[]
                             ))}
                           </select>
                         </div>
-                        <div className="space-y-1">
-                          <label className="text-xs font-medium" htmlFor={`dari-${s.id}`}>Ayat</label>
-                          <Input
-                            id={`dari-${s.id}`} type="number" inputMode="numeric" min={1}
-                            max={info?.total_ayat}
-                            value={v.ayat_dari} onChange={e => ubah(s.id, { ayat_dari: e.target.value })}
-                            className="h-9 w-20"
-                          />
-                        </div>
+                        <Stepper
+                          label="Ayat"
+                          value={v.ayat_dari}
+                          onChange={a => ubah(s.id, { ayat_dari: a })}
+                          min={1} max={info?.total_ayat}
+                          disabled={pending}
+                        />
                       </div>
                       <div className="flex items-end gap-2">
                         <div className="min-w-0 flex-1 space-y-1">
@@ -287,15 +296,13 @@ export function SetoranSesiTahfidz({ siswa, surat }: { siswa: SiswaSesiTahfidz[]
                             ))}
                           </select>
                         </div>
-                        <div className="space-y-1">
-                          <label className="text-xs font-medium" htmlFor={`ke-${s.id}`}>Ayat</label>
-                          <Input
-                            id={`ke-${s.id}`} type="number" inputMode="numeric" min={1}
-                            max={infoAkhir?.total_ayat}
-                            value={v.ayat_ke} onChange={e => ubah(s.id, { ayat_ke: e.target.value })}
-                            className="h-9 w-20"
-                          />
-                        </div>
+                        <Stepper
+                          label="Ayat"
+                          value={v.ayat_ke}
+                          onChange={a => ubah(s.id, { ayat_ke: a })}
+                          min={1} max={infoAkhir?.total_ayat}
+                          disabled={pending}
+                        />
                       </div>
                     </div>
                   ) : (
@@ -314,22 +321,26 @@ export function SetoranSesiTahfidz({ siswa, surat }: { siswa: SiswaSesiTahfidz[]
                           ))}
                         </select>
                       </div>
-                      <div className="space-y-1">
-                        <label className="text-xs font-medium" htmlFor={`dari-${s.id}`}>Ayat</label>
-                        <div className="flex items-center gap-1">
-                          <Input
-                            id={`dari-${s.id}`} type="number" inputMode="numeric" min={1} placeholder="dari"
-                            value={v.ayat_dari} onChange={e => ubah(s.id, { ayat_dari: e.target.value })}
-                            className="h-9 w-20"
-                          />
-                          <span className="text-muted-foreground">–</span>
-                          <Input
-                            aria-label="Ayat ke" type="number" inputMode="numeric" min={1} placeholder="ke"
-                            max={info?.total_ayat}
-                            value={v.ayat_ke} onChange={e => ubah(s.id, { ayat_ke: e.target.value })}
-                            className="h-9 w-20"
-                          />
-                        </div>
+                      {/* Ziyadah: ayat awal melanjutkan setoran terakhir; ayat akhir
+                          mulai dari situ — ketuk ▶ sebanyak ayat hafalan baru. */}
+                      <div className="flex flex-wrap items-end gap-2">
+                        <Stepper
+                          label="Dari ayat"
+                          value={v.ayat_dari}
+                          onChange={a => ubah(s.id, { ayat_dari: a })}
+                          min={1} max={info?.total_ayat}
+                          disabled={pending}
+                        />
+                        <Stepper
+                          label="Sampai ayat"
+                          value={v.ayat_ke}
+                          onChange={a => ubah(s.id, { ayat_ke: a })}
+                          bawaan={v.ayat_dari ? Number(v.ayat_dari) : null}
+                          min={v.ayat_dari ? Number(v.ayat_dari) : 1}
+                          max={info?.total_ayat}
+                          disabled={pending}
+                          petunjuk={v.ayat_dari ? `${ayatAkhir(v) - Number(v.ayat_dari) + 1} ayat` : undefined}
+                        />
                       </div>
                     </div>
                   )}

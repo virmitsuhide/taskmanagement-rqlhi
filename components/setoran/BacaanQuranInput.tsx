@@ -2,6 +2,7 @@
 
 import { useId } from 'react'
 import { Input } from '@/components/ui/input'
+import { Stepper } from '@/components/setoran/Stepper'
 import { HALAMAN_MAKS, HALAMAN_MIN, halamanDariBacaan, usulanDariHalaman } from '@/lib/rq/bacaan-quran'
 import type { SuratPilihan } from '@/components/setoran/SetoranSesiTahfidz'
 import { cn } from '@/lib/utils'
@@ -86,16 +87,14 @@ export function BacaanQuranInput({ value, onChange, surat, petunjuk, disabled, c
   return (
     <div className={cn('space-y-1.5', className)}>
       <div className="flex flex-wrap items-end gap-2">
-        <div className="space-y-1">
-          <label className="text-xs font-medium" htmlFor={`${uid}-hal`}>Hal. mushaf</label>
-          <Input
-            id={`${uid}-hal`} type="number" inputMode="numeric"
-            min={HALAMAN_MIN} max={HALAMAN_MAKS}
-            value={value.halaman} disabled={disabled}
-            onChange={e => ubahHalaman(e.target.value)}
-            className="h-9 w-24"
-          />
-        </div>
+        {/* ◀ ▶ menggeser halaman mushaf; surat & ayat awalnya ikut terisi. */}
+        <Stepper
+          label="Hal. mushaf"
+          value={value.halaman}
+          onChange={ubahHalaman}
+          min={HALAMAN_MIN} max={HALAMAN_MAKS}
+          disabled={disabled}
+        />
 
         <div className="min-w-0 flex-1 space-y-1">
           <label className="text-xs font-medium" htmlFor={`${uid}-surat`}>Surat</label>
@@ -118,24 +117,24 @@ export function BacaanQuranInput({ value, onChange, surat, petunjuk, disabled, c
         </div>
 
         <div className="space-y-1">
-          <label className="text-xs font-medium" htmlFor={`${uid}-dari`}>Ayat</label>
-          <div className="flex items-center gap-1">
-            <Input
-              id={`${uid}-dari`} type="number" inputMode="numeric" min={1} max={info?.total_ayat}
-              value={value.ayat_dari} disabled={disabled}
-              onChange={e => ubahPosisi({ ...value, ayat_dari: e.target.value })}
-              className="h-9 w-20" placeholder="dari"
-            />
-            <span aria-hidden className="text-muted-foreground">–</span>
-            <Input
-              aria-label="Ayat terakhir"
-              type="number" inputMode="numeric" min={1} max={info?.total_ayat}
-              value={value.ayat_ke} disabled={disabled}
-              onChange={e => onChange({ ...value, ayat_ke: e.target.value })}
-              className="h-9 w-20" placeholder="ke"
-            />
-          </div>
+          <label className="text-xs font-medium" htmlFor={`${uid}-dari`}>Dari ayat</label>
+          <Input
+            id={`${uid}-dari`} type="number" inputMode="numeric" min={1} max={info?.total_ayat}
+            value={value.ayat_dari} disabled={disabled}
+            onChange={e => ubahPosisi({ ...value, ayat_dari: e.target.value })}
+            className="h-11 w-20 text-center" placeholder="—"
+          />
         </div>
+        {/* Ayat akhir mulai dari ayat awal — cukup diketuk ▶ sebanyak ayat yang dibaca. */}
+        <Stepper
+          label="Sampai ayat"
+          value={value.ayat_ke}
+          onChange={v => onChange({ ...value, ayat_ke: v })}
+          bawaan={value.ayat_dari ? Number(value.ayat_dari) : null}
+          min={value.ayat_dari ? Number(value.ayat_dari) : 1}
+          max={info?.total_ayat}
+          disabled={disabled}
+        />
       </div>
 
       <p className="text-[11px] text-muted-foreground">
