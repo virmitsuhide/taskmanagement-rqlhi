@@ -5,6 +5,7 @@ import { createServerClient } from '@/lib/supabase/server'
 import { getHalaqohSesiGuru, getSiswaSesiTahsin, pilihHalaqoh } from '@/lib/data/setoran-sesi'
 import { PilihSesi } from '@/components/setoran/PilihSesi'
 import { SetoranSesiTahsin } from '@/components/setoran/SetoranSesiTahsin'
+import { getKelompokKlasikal } from '@/lib/data/kelompok-klasikal'
 import type { SuratPilihan } from '@/components/setoran/SetoranSesiTahfidz'
 
 interface PageProps {
@@ -22,10 +23,14 @@ export default async function SetoranSesiTahsinPage({ searchParams }: PageProps)
   // Al-Qur'an (dan di Gharib/Tajwid) mencatat surat & ayat bacaannya, dan 114
   // baris itu sama untuk semua anak — satu kali ambil untuk seluruh sesi.
   const supabase = createServerClient()
-  const [siswa, suratRes] = await Promise.all([
+  const [siswa, suratRes, kelompok] = await Promise.all([
     halaqoh ? getSiswaSesiTahsin(halaqoh.id) : Promise.resolve([]),
     supabase.from('surat_master').select('id, name_latin, total_ayat, juz_start').order('id'),
+    // Kelompok klasikal yang diatur pengampu (0080).
+    halaqoh ? getKelompokKlasikal(halaqoh.id) : Promise.resolve({ tabelAda: false, kelompok: [] }),
   ])
+  // Kunci ikut pengaturan: setelah kelompok diubah, layar setoran dibangun ulang dari pengaturan baru.
+  const kunciPengaturan = kelompok.kelompok.map(k => `${k.id}:${k.anggota.join(',')}`).join('|')
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--secondary)' }}>
@@ -58,7 +63,13 @@ export default async function SetoranSesiTahsinPage({ searchParams }: PageProps)
               </div>
             ) : (
               // key: berganti sesi = isian baru, bukan sisa centang sesi sebelumnya.
-              <SetoranSesiTahsin key={halaqoh.id} siswa={siswa} surat={(suratRes.data ?? []) as SuratPilihan[]} />
+              <SetoranSesiTahsin
+                key={`${halaqoh.id}|${kunciPengaturan}`}
+                siswa={siswa}
+                surat={(suratRes.data ?? []) as SuratPilihan[]}
+                halaqohId={halaqoh.id}
+                pengaturan={kelompok.tabelAda ? kelompok.kelompok : null}
+              />
             )}
           </>
         )}
