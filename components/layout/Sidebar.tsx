@@ -7,7 +7,7 @@ import {
   LayoutDashboard, BookOpen, CheckSquare, ImageIcon,
   FileText, User, Megaphone, LogOut, ChevronRight, GraduationCap, Newspaper, LayoutGrid,
   Users, UserCog, BookMarked, BarChart3, LayoutTemplate, Info, Wallet, CalendarRange,
-  ClipboardCheck, KeyRound, ScrollText, Repeat, IdCard, UsersRound, Briefcase, Stamp, Scale, ListChecks,
+  ClipboardCheck, KeyRound, ScrollText, Repeat, IdCard, UsersRound, Briefcase, Stamp, Scale, ListChecks, Kanban,
 } from 'lucide-react'
 import { DASHBOARD_LABELS, getAccessibleDashboards, ROLE_LABELS , canManageTeacherProfiles } from '@/lib/auth/permissions'
 import {
@@ -154,7 +154,8 @@ export function Sidebar({ role, displayName, username, lencanaKpi }: Props) {
             {canEditAbout(role) && (
               <NavItem href="/humas/tentang" icon={<Info className="h-4 w-4" />} label="Tentang RQ" active={isActive('/humas/tentang')} />
             )}
-            <NavItem href="/rapat" icon={<BookOpen className="h-4 w-4" />} label="Rapat & Notulen" active={isActive('/rapat')} />
+            <NavItem href="/rapat" icon={<BookOpen className="h-4 w-4" />} label="Rapat & Notulen" active={isActive('/rapat') && !pathname.startsWith('/rapat/papan')} />
+            <NavItem href="/rapat/papan" icon={<Kanban className="h-4 w-4" />} label="Papan Rapat" active={pathname.startsWith('/rapat/papan')} />
             {/* Menempel di bawah Rapat & Notulen: keduanya irama kerja yang
                 berulang menurut kalender, bukan pekerjaan yang ditugaskan. */}
             {canViewTasks(role) && (

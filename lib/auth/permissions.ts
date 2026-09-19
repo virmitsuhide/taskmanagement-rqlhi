@@ -147,6 +147,24 @@ export function getViewableMeetingTypes(role: UserRole): MeetingType[] {
     .map(([type]) => type)
 }
 
+// ─── Papan Rapat (0077) ──────────────────────────────────────────────────────
+// Yang melihat papan = yang boleh membaca notulennya (canViewMeeting per jenis).
+
+/** Menyetujui / menolak poin Approval. Keputusan anggaran & SDM ada di Kepala RQ. */
+export function canDecideRapatApproval(role: UserRole): boolean {
+  return role === 'kepala_rq'
+}
+
+/** Mengisi biaya approval yang disetujui — tugas bendahara. */
+export function canIsiBiayaRapat(role: UserRole): boolean {
+  return role === 'bendahara'
+}
+
+/** Menandai diskusi selesai & mengeluarkan poin dari papan aktif — sama dengan penyunting notulennya. */
+export function canKelolaPapanRapat(role: UserRole, type: MeetingType): boolean {
+  return canEditMeeting(role, type)
+}
+
 /**
  * Jenis rapat yang boleh DIBUAT peran ini.
  *

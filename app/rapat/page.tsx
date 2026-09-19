@@ -7,7 +7,7 @@ import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { MeetingRowActions } from '@/components/rapat/MeetingRowActions'
 import { MeetingMonthYearFilter } from '@/components/rapat/MeetingMonthYearFilter'
 import { Button } from '@/components/ui/button'
-import { Plus, BookOpen, AlertTriangle, RefreshCw, Trash2 } from 'lucide-react'
+import { Plus, BookOpen, AlertTriangle, RefreshCw, Trash2, Kanban } from 'lucide-react'
 import { SearchInput } from '@/components/ui/search-input'
 import { Pagination } from '@/components/ui/pagination'
 import type { Meeting, MeetingType } from '@/types'
@@ -182,6 +182,9 @@ export default async function RapatPage({ searchParams }: PageProps) {
             </p>
           </div>
           <div className="flex items-center gap-2">
+            <Button asChild size="sm" variant="outline">
+              <Link href="/rapat/papan"><Kanban className="h-4 w-4 mr-1" />Papan Rapat</Link>
+            </Button>
             {bolehLihatSampah && (trashCount ?? 0) > 0 && (
               <Button asChild size="sm" variant="outline">
                 <Link href="/rapat/sampah">

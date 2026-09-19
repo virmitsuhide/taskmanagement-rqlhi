@@ -11,6 +11,7 @@ import { Markdown } from '@/components/ui/markdown'
 import { PrintButton } from '@/components/rapat/PrintButton'
 import { ArrowLeft, Calendar, Clock, Edit, MapPin, Trash2, Users, ExternalLink, FileText } from 'lucide-react'
 import { agendaTagStyle } from '@/lib/rapat/agenda-tags'
+import { formatRupiah } from '@/lib/finance/period'
 import type { Meeting, AgendaItem } from '@/types'
 
 // Warna tag dipakai bersama form notulen — lihat lib/rapat/agenda-tags.ts
@@ -148,6 +149,16 @@ export default async function RapatDetailPage({ params }: { params: Promise<{ id
                       </Badge>
                     </div>
                     <Markdown content={item.discussion} className="text-sm text-foreground/90" />
+                    {item.tag === 'approval' && (
+                      <p className="mt-2 text-xs text-muted-foreground print:hidden">
+                        Status:{' '}
+                        <span className={item.approval_status === 'disetujui' ? 'font-medium text-success' : item.approval_status === 'ditolak' ? 'font-medium text-destructive' : 'font-medium text-warning'}>
+                          {item.approval_status === 'disetujui' ? 'Disetujui' : item.approval_status === 'ditolak' ? 'Ditolak' : 'Menunggu keputusan'}
+                        </span>
+                        {item.butuh_biaya && (item.biaya != null ? ` · biaya ${formatRupiah(item.biaya)}` : ' · butuh biaya')}
+                        {' · '}<Link href="/rapat/papan" className="text-primary hover:underline">Papan Rapat →</Link>
+                      </p>
+                    )}
                     {item.follow_up && (
                       <div className="mt-3 pt-3 border-t flex items-start gap-2 flex-wrap">
                         <div className="flex-1 min-w-[200px]">

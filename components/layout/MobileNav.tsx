@@ -7,7 +7,7 @@ import {
   Menu, X, LayoutDashboard, CheckSquare, BookOpen,
   ImageIcon, Megaphone, FileText, User, LogOut, GraduationCap, Newspaper, LayoutGrid,
   Users, UserCog, BookMarked, BarChart3, LayoutTemplate, Info, Wallet, CalendarRange,
-  ClipboardCheck, KeyRound, ScrollText, Repeat, IdCard, UsersRound, Briefcase, Stamp, Scale, ListChecks,
+  ClipboardCheck, KeyRound, ScrollText, Repeat, IdCard, UsersRound, Briefcase, Stamp, Scale, ListChecks, Kanban,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
@@ -232,7 +232,8 @@ export function MobileNav({ role, displayName, username, lencanaKpi }: Props) {
               {canEditAbout(role) && (
                 <DrawerLink href="/humas/tentang" icon={<Info className="h-4 w-4" />} label="Tentang RQ" active={isActive('/humas/tentang')} onNavigate={close} />
               )}
-              <DrawerLink href="/rapat" icon={<BookOpen className="h-4 w-4" />} label="Rapat & Notulen" active={isActive('/rapat')} onNavigate={close} />
+              <DrawerLink href="/rapat" icon={<BookOpen className="h-4 w-4" />} label="Rapat & Notulen" active={isActive('/rapat') && !pathname.startsWith('/rapat/papan')} onNavigate={close} />
+              <DrawerLink href="/rapat/papan" icon={<Kanban className="h-4 w-4" />} label="Papan Rapat" active={pathname.startsWith('/rapat/papan')} onNavigate={close} />
               {canViewTasks(role) && (
                 <>
                   <DrawerLink href="/tugas-rutin" icon={<Repeat className="h-4 w-4" />} label="Tugas Rutin" active={isActive('/tugas-rutin') && !pathname.startsWith('/tugas-rutin/papan')} onNavigate={close} />

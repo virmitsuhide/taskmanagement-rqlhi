@@ -244,8 +244,16 @@ export interface AgendaItem {
   tag: AgendaTag
   discussion: string
   follow_up: string | null
+  /** Papan Rapat (0077). Opsional supaya baris dari query lama tetap lolos tipe. */
+  butuh_biaya?: boolean
+  approval_status?: ApprovalStatus | null
+  biaya?: number | null
+  selesai_at?: string | null
+  diarsipkan_at?: string | null
   created_at: string
 }
+
+export type ApprovalStatus = 'menunggu' | 'disetujui' | 'ditolak'
 
 export interface Task {
   id: string

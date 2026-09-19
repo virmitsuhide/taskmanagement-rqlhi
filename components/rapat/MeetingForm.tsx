@@ -51,9 +51,11 @@ export function MeetingForm({ allowedTypes, action, defaultValues, submitLabel =
   const [state, formAction, isPending] = useActionState(action, null)
   const { items, add, remove, update } = useAgendaItems(
     defaultValues?.agenda_items?.map(a => ({
+      id: a.id,
       tag: a.tag,
       discussion: a.discussion,
       follow_up: a.follow_up ?? '',
+      butuh_biaya: a.butuh_biaya ?? false,
     }))
   )
 
@@ -65,6 +67,11 @@ export function MeetingForm({ allowedTypes, action, defaultValues, submitLabel =
       <input type="hidden" name="agenda_count" value={items.length} />
       {items.map((item, i) => (
         <input key={`tag-${i}`} type="hidden" name={`agenda_${i}_tag`} value={item.tag} />
+      ))}
+      {/* Id poin lama dikirim balik: server memperbarui baris itu alih-alih
+          membuat baru, supaya status di Papan Rapat tidak hilang saat disunting. */}
+      {items.map((item, i) => item.id && (
+        <input key={`id-${i}`} type="hidden" name={`agenda_${i}_id`} value={item.id} />
       ))}
 
       {/* ── Detail rapat ─────────────────────────────────────────────────── */}
@@ -242,6 +249,24 @@ export function MeetingForm({ allowedTypes, action, defaultValues, submitLabel =
                         placeholder="Apa yang perlu dilakukan?"
                       />
                     </div>
+                  )}
+
+                  {item.tag === 'approval' && (
+                    <label className="flex items-start gap-2.5 rounded-md border bg-muted/30 p-3 text-sm">
+                      <input
+                        type="checkbox"
+                        name={`agenda_${i}_butuh_biaya`}
+                        checked={item.butuh_biaya ?? false}
+                        onChange={e => update(i, 'butuh_biaya', e.target.checked)}
+                        className="mt-0.5 h-4 w-4 accent-[var(--primary)]"
+                      />
+                      <span>
+                        <span className="font-medium">Butuh biaya</span>
+                        <span className="block text-xs text-muted-foreground">
+                          Bila disetujui, bendahara wajib mengisi nominalnya di Papan Rapat.
+                        </span>
+                      </span>
+                    </label>
                   )}
                 </div>
               </div>

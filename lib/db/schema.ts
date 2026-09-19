@@ -140,6 +140,24 @@ export const agendaItems = pgTable('agenda_items', {
   tag: agendaTagEnum('tag').notNull(),
   discussion: text('discussion').notNull(),
   follow_up: text('follow_up'),
+  // ── Papan Rapat (0077) — kolom yang tidak relevan untuk tag-nya tetap NULL ──
+  /** Approval: dicentang notulis bila yang disetujui memerlukan biaya. */
+  butuh_biaya: boolean('butuh_biaya').notNull().default(false),
+  /** Approval: 'menunggu' | 'disetujui' | 'ditolak'. */
+  approval_status: text('approval_status'),
+  approval_by: uuid('approval_by').references(() => users.id, { onDelete: 'set null' }),
+  approval_at: timestamp('approval_at', { withTimezone: true }),
+  /** Rupiah bulat, diisi bendahara untuk approval disetujui yang butuh biaya. */
+  biaya: integer('biaya'),
+  biaya_catatan: text('biaya_catatan'),
+  biaya_by: uuid('biaya_by').references(() => users.id, { onDelete: 'set null' }),
+  biaya_at: timestamp('biaya_at', { withTimezone: true }),
+  /** Perlu Diskusi Lanjut: ditandai selesai. */
+  selesai_by: uuid('selesai_by').references(() => users.id, { onDelete: 'set null' }),
+  selesai_at: timestamp('selesai_at', { withTimezone: true }),
+  /** Dikeluarkan dari papan aktif; poin notulennya tetap utuh. */
+  diarsipkan_by: uuid('diarsipkan_by').references(() => users.id, { onDelete: 'set null' }),
+  diarsipkan_at: timestamp('diarsipkan_at', { withTimezone: true }),
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
 })
 

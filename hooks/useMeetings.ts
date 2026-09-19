@@ -3,9 +3,13 @@
 import { useState } from 'react'
 
 interface AgendaItemDraft {
+  /** Id baris yang sudah tersimpan — dikirim balik supaya status Papan Rapat tidak hilang saat disunting. */
+  id?: string
   tag: string
   discussion: string
   follow_up: string
+  /** Approval: yang disetujui memerlukan biaya (diisi bendahara di Papan Rapat). */
+  butuh_biaya?: boolean
 }
 
 export function useAgendaItems(initial: AgendaItemDraft[] = []) {
@@ -19,7 +23,7 @@ export function useAgendaItems(initial: AgendaItemDraft[] = []) {
   const remove = (index: number) =>
     setItems(prev => prev.filter((_, i) => i !== index))
 
-  const update = (index: number, field: keyof AgendaItemDraft, value: string) =>
+  const update = <K extends keyof AgendaItemDraft>(index: number, field: K, value: AgendaItemDraft[K]) =>
     setItems(prev => prev.map((item, i) => i === index ? { ...item, [field]: value } : item))
 
   return { items, add, remove, update }

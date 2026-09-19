@@ -12,6 +12,32 @@ import {
 } from '@/lib/auth/permissions'
 import type { MeetingType, AgendaTag } from '@/types'
 
+/** Poin notulen dari form, dengan urutan mengikuti tampilan. Poin tanpa isi dilewati. */
+function bacaAgenda(formData: FormData) {
+  const jumlah = parseInt(formData.get('agenda_count') as string) || 0
+  const hasil: {
+    id: string | null; order_num: number; tag: AgendaTag; discussion: string
+    follow_up: string | null; butuh_biaya: boolean
+  }[] = []
+  for (let i = 0; i < jumlah; i++) {
+    const discussion = formData.get(`agenda_${i}_discussion`) as string
+    const tag = formData.get(`agenda_${i}_tag`) as AgendaTag
+    if (!discussion || !tag) continue
+    const followUp = formData.get(`agenda_${i}_follow_up`) as string
+    hasil.push({
+      id: (formData.get(`agenda_${i}_id`) as string) || null,
+      order_num: hasil.length + 1,
+      tag,
+      discussion,
+      // Kolom tindak lanjut hanya tampil untuk tag tindak_lanjut; sisa ketikan
+      // dari tag sebelumnya tidak ikut tersimpan.
+      follow_up: tag === 'tindak_lanjut' ? followUp || null : null,
+      butuh_biaya: tag === 'approval' && formData.get(`agenda_${i}_butuh_biaya`) === 'on',
+    })
+  }
+  return hasil
+}
+
 export async function createMeetingAction(_: unknown, formData: FormData) {
   const session = await getSession()
   if (!session) return { error: 'Sesi tidak valid.' }
@@ -47,24 +73,13 @@ export async function createMeetingAction(_: unknown, formData: FormData) {
 
   if (error || !meeting) return { error: 'Gagal membuat rapat.' }
 
-  // Insert agenda items
-  const agendaCount = parseInt(formData.get('agenda_count') as string) || 0
-  const agendaItems = []
-  for (let i = 0; i < agendaCount; i++) {
-    const discussion = formData.get(`agenda_${i}_discussion`) as string
-    const tag = formData.get(`agenda_${i}_tag`) as AgendaTag
-    const followUp = formData.get(`agenda_${i}_follow_up`) as string
-    if (discussion && tag) {
-      agendaItems.push({
-        meeting_id: meeting.id,
-        order_num: i + 1,
-        tag,
-        discussion,
-        follow_up: followUp || null,
-      })
-    }
-  }
-
+  // Rapat baru: id dari form (kalau ada) diabaikan, semua poin disisipkan.
+  const agendaItems = bacaAgenda(formData).map(a => ({
+    order_num: a.order_num, tag: a.tag, discussion: a.discussion,
+    follow_up: a.follow_up, butuh_biaya: a.butuh_biaya,
+    meeting_id: meeting.id,
+    approval_status: a.tag === 'approval' ? 'menunggu' : null,
+  }))
   if (agendaItems.length > 0) {
     await supabase.from('agenda_items').insert(agendaItems)
   }
@@ -134,29 +149,49 @@ export async function updateMeetingAction(_: unknown, formData: FormData) {
 
   if (error) return { error: 'Gagal memperbarui rapat.' }
 
-  // Rebuild agenda items
-  await supabase.from('agenda_items').delete().eq('meeting_id', meetingId)
+  /*
+    Agenda diperbarui menurut id, bukan dihapus lalu disisipkan ulang.
 
-  const agendaCount = parseInt(formData.get('agenda_count') as string) || 0
-  const agendaItems = []
-  for (let i = 0; i < agendaCount; i++) {
-    const discussion = formData.get(`agenda_${i}_discussion`) as string
-    const tag = formData.get(`agenda_${i}_tag`) as AgendaTag
-    const followUp = formData.get(`agenda_${i}_follow_up`) as string
-    if (discussion && tag) {
-      agendaItems.push({
-        meeting_id: meetingId,
-        order_num: i + 1,
-        tag,
-        discussion,
-        follow_up: followUp || null,
-      })
+    Dulu seluruh agenda dibuang dan ditulis ulang setiap kali rapat disimpan.
+    Sejak Papan Rapat (0077) menyimpan status di baris agenda — keputusan
+    approval, biaya dari bendahara, tanda selesai — cara itu diam-diam menghapus
+    semua status tersebut, dan tugas yang dibuat dari poin itu kehilangan
+    tautan asalnya. Kini hanya poin yang benar-benar dibuang dari notulen yang
+    dihapus.
+  */
+  const { data: lama, error: galatLama } = await supabase
+    .from('agenda_items')
+    .select('id, approval_status')
+    .eq('meeting_id', meetingId)
+  // Tanpa daftar poin lama, semua poin akan dianggap baru dan notulen jadi
+  // ganda (mis. migrasi 0077 belum dijalankan). Lebih baik menolak simpan.
+  if (galatLama) return { error: 'Gagal membaca poin notulen lama. Detail rapat tersimpan, tetapi poinnya belum.' }
+  const statusLama = new Map(
+    ((lama ?? []) as { id: string; approval_status: string | null }[]).map(r => [r.id, r.approval_status]),
+  )
+
+  const dikirim = bacaAgenda(formData)
+  const dipakai = new Set<string>()
+  const baru = []
+  for (const { id, ...a } of dikirim) {
+    // Poin yang baru berganti tag menjadi approval mulai dari "menunggu";
+    // approval yang sudah diputuskan tidak ditimpa oleh suntingan teks.
+    const approval_status = a.tag === 'approval' ? (id && statusLama.get(id)) || 'menunggu' : null
+    if (id && statusLama.has(id) && !dipakai.has(id)) {
+      dipakai.add(id)
+      await supabase.from('agenda_items').update({ ...a, approval_status }).eq('id', id)
+    } else {
+      baru.push({ ...a, meeting_id: meetingId, approval_status })
     }
   }
-
-  if (agendaItems.length > 0) {
-    await supabase.from('agenda_items').insert(agendaItems)
+  const dibuang = [...statusLama.keys()].filter(id => !dipakai.has(id))
+  if (dibuang.length > 0) {
+    await supabase.from('agenda_items').delete().in('id', dibuang)
   }
+  if (baru.length > 0) {
+    await supabase.from('agenda_items').insert(baru)
+  }
+  revalidatePath('/rapat/papan')
 
   revalidatePath('/rapat')
   revalidatePath(`/rapat/${meetingId}`)
