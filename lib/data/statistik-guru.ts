@@ -2,7 +2,9 @@ import { createServerClient } from '@/lib/supabase/server'
 import { getHalaqohSesiGuru, type HalaqohSesi } from '@/lib/data/setoran-sesi'
 import { getPetaHalaman, getTargetTahfidz } from '@/lib/data/target-tahfidz'
 import { levelDariTahap, levelOrder } from '@/lib/rq/level'
-import { tahunAjaranDari } from '@/lib/rq/target-tahfidz'
+import { halamanHafalan, tahunAjaranDari } from '@/lib/rq/target-tahfidz'
+import { getJuzTerujiPerSiswa, gabungJuz, juzSetoranPerSiswa, type BarisJuzProgress } from '@/lib/data/hafalan'
+import { juzTerjauh, posisiJuz } from '@/lib/rq/hafalan'
 import { tanggalWIB } from '@/lib/rq/ujian'
 import type { Jenjang } from '@/types'
 
@@ -332,7 +334,7 @@ export async function getStatistikGuru(
   const { data: term } = await supabase.from('academic_terms').select('id').eq('is_current', true).maybeSingle()
 
   const lalu = rentangSebelumnya(periode)
-  const [tahsin, tahfidz, naikJilid, naikJuz, targetRows, targetTahfidz, peta, ringkasLalu] = await Promise.all([
+  const [tahsin, tahfidz, naikJilid, naikJuz, targetRows, targetTahfidz, peta, ringkasLalu, ziyadahSemua, progresJuz, juzTeruji] = await Promise.all([
     ambilSemua<{ student_id: string; setoran_date: string; status: string; drill: boolean | null }>((dari, ke) =>
       supabase.from('tahsin_logs').select('student_id, setoran_date, status, drill')
         .in('student_id', ids).gte('setoran_date', periode.awal).lte('setoran_date', periode.akhir).range(dari, ke)),
@@ -349,6 +351,13 @@ export async function getStatistikGuru(
     getTargetTahfidz(jenjangGuru),
     getPetaHalaman(),
     lalu ? ringkasRentang(ids, lalu.awal, lalu.akhir) : Promise.resolve(null),
+    // Bahan 'Tahfidz Tertinggi': seluruh ziyadah (bukan hanya periode ini) & juz tuntas.
+    ambilSemua<{ student_id: string; surat_id: number; ayat_dari: number | null; ayat_ke: number | null }>((dari, ke) =>
+      supabase.from('tahfidz_logs').select('student_id, surat_id, ayat_dari, ayat_ke')
+        .in('student_id', ids).in('kind', ['ziyadah', 'hafalan_baru']).range(dari, ke)),
+    ambilSemua<BarisJuzProgress>((dari, ke) =>
+      supabase.from('juz_progress').select('student_id, juz_number, ayat_hafal, mutqin').in('student_id', ids).range(dari, ke)),
+    getJuzTerujiPerSiswa(ids),
   ])
 
   // ── Ringkasan & aktivitas ──
@@ -387,19 +396,27 @@ export async function getStatistikGuru(
       keterangan: s.current_quran_halaman ? `mushaf halaman ${s.current_quran_halaman}` : null,
     }]
   }))
-  // Tahfidz: total hafalan dalam halaman mushaf sepanjang urutan rencana
-  // programnya — angka yang sama dengan modul Target Tahfidz.
+  // Tahfidz: total hafalan dalam halaman mushaf menurut URUTAN HAFALAN RQ —
+  // bukan posisi di kurva rencana program. Kurva CLIL hanya 3 juz (±63
+  // halaman), sehingga anak CLIL yang sudah 6 juz dulu mentok di 63 dan
+  // setorannya di Al-Baqarah tidak terhitung. Lihat halamanHafalan().
+  const setoranTuntas = juzSetoranPerSiswa(progresJuz)
+  const ziyadahPer = new Map<string, typeof ziyadahSemua>()
+  for (const z of ziyadahSemua) ziyadahPer.set(z.student_id, [...(ziyadahPer.get(z.student_id) ?? []), z])
   const tahfidzTertinggi = teratas(siswa.flatMap(s => {
-    const t = targetPerId.get(s.id)
-    if (!t?.capaianHalaman) return []
+    const juz = gabungJuz(setoranTuntas.get(s.id) ?? 0, (juzTeruji.get(s.id) ?? []).length)
+    const halaman = halamanHafalan(peta, juz.total, ziyadahPer.get(s.id) ?? [])
+    if (halaman <= 0) return []
+    const juzBerjalan = juzTerjauh(progresJuz.filter(p => p.student_id === s.id && p.ayat_hafal > 0).map(p => p.juz_number))
     return [{
       ...dasar(s),
-      nilai: t.capaianHalaman,
-      nilaiTeks: angka1(t.capaianHalaman),
+      nilai: halaman,
+      nilaiTeks: angka1(halaman),
       satuan: 'halaman',
-      keterangan: t.capaianTeks
-        ? `sampai ${t.capaianTeks}${t.sumberCapaian === 'juz' ? ' (dari juz yang diujikan)' : ''}`
-        : null,
+      keterangan: [
+        juz.total > 0 ? `${juz.total} juz tuntas${juz.sumber === 'ujian' ? ' (ujian)' : ''}` : null,
+        juzBerjalan !== null && (posisiJuz(juzBerjalan) ?? 0) > juz.total ? `sedang juz ${juzBerjalan}` : null,
+      ].filter(Boolean).join(' · ') || null,
     }]
   }))
 

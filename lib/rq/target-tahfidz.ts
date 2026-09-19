@@ -1,6 +1,7 @@
 import { TOTAL_HALAMAN, halamanDariAyat } from '@/lib/rq/batas-halaman'
 import { juzMushafDariAyat } from '@/lib/rq/halaman'
 import { URUTAN_JUZ, posisiJuz } from '@/lib/rq/hafalan'
+import { batasJuz, juzDariAyat } from '@/lib/rq/batas-juz'
 import { SURAH } from '@/lib/rq/quran'
 import type { Jenjang } from '@/types'
 
@@ -545,4 +546,47 @@ export function tindakLanjutMurojaah(
     .map(j => j.juz)
   if (perluDiujikan.length > 0) bagian.push(`Ujikan juz ${perluDiujikan.join(', ')}`)
   return { teks: bagian.length > 0 ? bagian.join(' · ') : 'Tuntas & sudah diujikan', perluDiujikan }
+}
+
+/**
+ * Total hafalan dalam halaman mushaf menurut URUTAN HAFALAN RQ — tanpa
+ * dibatasi rencana program siswa.
+ *
+ * capaianSiswa() mengukur posisi di sepanjang kurva rencana, sehingga anak
+ * CLIL (rencana 3 juz, ±63 halaman) yang hafalannya sudah 6 juz tetap terbaca
+ * 63 halaman, dan setorannya di Al-Baqarah tidak dihitung sama sekali karena
+ * tidak ada di kurvanya. Untuk peringkat "hafalan terbanyak" yang ditanyakan
+ * adalah hafalannya, bukan posisinya terhadap rencana.
+ *
+ *   • juz yang tuntas (ujian/setoran, mana yang terjauh) → halaman juz itu penuh
+ *   • juz lain → hanya ayat ziyadah yang pernah disetor, tiap ayat sekali
+ */
+export function halamanHafalan(
+  peta: PetaHalaman,
+  juzTuntas: number,
+  ziyadah: { surat_id: number; ayat_dari: number | null; ayat_ke: number | null }[],
+): number {
+  const tuntas = new Set(URUTAN_JUZ.slice(0, Math.max(0, juzTuntas)))
+  let total = 0
+  for (const juz of tuntas) {
+    const b = batasJuz(juz)
+    if (!b) continue
+    for (let s = b.mulai.surat; s <= b.selesai.surat; s++) {
+      const dari = s === b.mulai.surat ? b.mulai.ayat : 1
+      const ke = s === b.selesai.surat ? b.selesai.ayat : peta.panjang(s)
+      total += peta.bobot(s, dari, ke)
+    }
+  }
+  const sudah = new Set<string>()
+  for (const z of ziyadah) {
+    if (z.ayat_dari === null || z.ayat_ke === null) continue
+    for (let a = z.ayat_dari; a <= z.ayat_ke; a++) {
+      const kunci = `${z.surat_id}:${a}`
+      if (sudah.has(kunci)) continue
+      sudah.add(kunci)
+      const juz = juzDariAyat(z.surat_id, a)
+      if (juz !== null && !tuntas.has(juz)) total += peta.bobot(z.surat_id, a, a)
+    }
+  }
+  return total
 }
