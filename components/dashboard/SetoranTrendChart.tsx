@@ -27,9 +27,13 @@ function niceCeil(v: number): number {
 
 interface Props {
   trend: SetoranTrend
+  /** 'YYYY-MM' bulan yang sedang dipilih di filter — diberi pita sorot. */
+  highlightKey?: string
+  /** Slicer program: hanya seri ini yang digambar. */
+  fokus?: 'semua' | 'tahsin' | 'tahfidz'
 }
 
-export function SetoranTrendChart({ trend }: Props) {
+export function SetoranTrendChart({ trend, highlightKey, fokus = 'semua' }: Props) {
   const { points, delta, isEmpty } = trend
 
   if (isEmpty) {
@@ -73,11 +77,13 @@ export function SetoranTrendChart({ trend }: Props) {
   const series = [
     { key: 'tahsin' as const, label: 'Tahsin', color: 'var(--seri-1)', pick: (p: SetoranTrendPoint) => p.tahsin },
     { key: 'tahfidz' as const, label: 'Tahfidz', color: 'var(--seri-2)', pick: (p: SetoranTrendPoint) => p.tahfidz },
-  ]
+  ].filter(s => fokus === 'semua' || s.key === fokus)
+  const sorot = points.findIndex(p => p.key === highlightKey)
+  const lebarPita = points.length > 1 ? PLOT_W / (points.length - 1) : PLOT_W
 
   const first = visible[0]
   const last = visible.at(-1)
-  const ariaLabel = `Santri tercatat per bulan, ${first?.full ?? ''} sampai ${last?.full ?? ''}. ` +
+  const ariaLabel = `Siswa tercatat per bulan, ${first?.full ?? ''} sampai ${last?.full ?? ''}. ` +
     visible.map(p => `${p.full}: tahsin ${p.tahsin}, tahfidz ${p.tahfidz}.`).join(' ')
 
   return (
@@ -108,6 +114,14 @@ export function SetoranTrendChart({ trend }: Props) {
           role="img"
           aria-label={ariaLabel}
         >
+          {/* Pita bulan terpilih — menautkan grafik ke filter bulan di atas. */}
+          {sorot >= 0 && (
+            <rect
+              x={x(sorot) - lebarPita / 2} y={PAD.top - 6} width={lebarPita} height={PLOT_H + 12}
+              rx={6} fill="var(--primary-wash)"
+            />
+          )}
+
           {/* Kisi + label sumbu Y */}
           {[0, 0.5, 1].map(f => {
             const v = maxY * f
@@ -133,8 +147,8 @@ export function SetoranTrendChart({ trend }: Props) {
               key={p.key}
               x={x(i)} y={H - 10} textAnchor="middle"
               fontSize={11}
-              fill={p.isRunning ? 'var(--foreground)' : 'var(--muted-foreground)'}
-              fontWeight={p.isRunning ? 600 : 400}
+              fill={p.isRunning || i === sorot ? 'var(--foreground)' : 'var(--muted-foreground)'}
+              fontWeight={p.isRunning || i === sorot ? 600 : 400}
             >
               {p.short}
             </text>
@@ -205,7 +219,7 @@ function Heading({ catatan }: { catatan?: string }) {
   return (
     <div className="mb-4">
       <h2 className="text-sm font-semibold flex items-center gap-2">
-        <TrendingUp className="h-4 w-4" /> Santri Tercatat per Bulan
+        <TrendingUp className="h-4 w-4" /> Siswa Tercatat per Bulan
       </h2>
       {catatan && <p className="mt-1 text-xs text-muted-foreground">{catatan}</p>}
     </div>

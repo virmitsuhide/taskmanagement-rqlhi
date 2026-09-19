@@ -1,5 +1,5 @@
 import { createServerClient } from '@/lib/supabase/server'
-import { getHalaqohSesiGuru } from '@/lib/data/setoran-sesi'
+import { getHalaqohSesiGuru, type HalaqohSesi } from '@/lib/data/setoran-sesi'
 import { getPetaHalaman, getTargetTahfidz } from '@/lib/data/target-tahfidz'
 import { levelDariTahap, levelOrder } from '@/lib/rq/level'
 import { tahunAjaranDari } from '@/lib/rq/target-tahfidz'
@@ -77,8 +77,28 @@ export interface PerhatianTahfidz {
   selisihPekan: number | null
 }
 
+export interface RingkasPembanding {
+  setoranTahsin: number
+  setoranTahfidz: number
+  siswaSetor: number
+  naikJilid: number
+  naikJuz: number
+}
+
 export interface StatistikGuru {
   periode: RentangPeriode
+  /** Seluruh halaqoh aktif guru — bahan slicer. */
+  halaqoh: HalaqohSesi[]
+  /** Halaqoh yang disaring; null = semua halaqoh guru. */
+  halaqohTerpilih: HalaqohSesi | null
+  /**
+   * Rentang sebanding sebelumnya: pekan/bulan/3 bulan lalu sampai hari yang
+   * SAMA jauhnya dari awal — bukan periode penuh. Bulan berjalan yang baru
+   * tanggal 10 dibandingkan dengan 1–10 bulan lalu, bukan sebulan penuh.
+   * Null untuk semester & tahun ajaran: periode sebelumnya bukan pembanding
+   * yang setara (libur panjang, anak berganti kelas).
+   */
+  pembanding: { keterangan: string; ringkas: RingkasPembanding } | null
   jumlahSiswa: number
   ringkas: {
     setoranTahsin: number
@@ -164,6 +184,27 @@ export async function rentangPeriode(kode: KodePeriode, hariIni = tanggalWIB(new
   return { kode, awal, akhir: hariIni, keterangan: `Tahun ajaran ${ta} · sejak ${tglPendek(awal)}` }
 }
 
+function geserBulan(iso: string, n: number): string {
+  const [y, m, d] = iso.split('-').map(Number)
+  const akhirBulan = new Date(Date.UTC(y, m - 1 + n + 1, 0)).getUTCDate()
+  return new Date(Date.UTC(y, m - 1 + n, Math.min(d, akhirBulan))).toISOString().slice(0, 10)
+}
+
+/** Rentang sebanding sebelumnya — lihat StatistikGuru.pembanding. */
+export function rentangSebelumnya(p: RentangPeriode): { awal: string; akhir: string; keterangan: string } | null {
+  const geser = p.kode === 'minggu' ? (iso: string) => tambahHari(iso, -7)
+    : p.kode === 'bulan' ? (iso: string) => geserBulan(iso, -1)
+    : p.kode === 'tigabulan' ? (iso: string) => geserBulan(iso, -3)
+    : null
+  if (!geser) return null
+  const awal = geser(p.awal)
+  const akhir = geser(p.akhir)
+  const keterangan = awal.slice(0, 7) === akhir.slice(0, 7)
+    ? `${Number(awal.slice(8, 10))}–${tglPendek(akhir)}`
+    : `${tglPendek(awal)} – ${tglPendek(akhir)}`
+  return { awal, akhir, keterangan }
+}
+
 /**
  * Wadah grafik aktivitas. Pekan & bulan per hari sekolah; 3 bulan & semester
  * per pekan; tahun ajaran per bulan — supaya batangnya tetap belasan, bukan ratusan.
@@ -232,17 +273,47 @@ function tingkatDari(kelas: string | null): number | null {
 
 const TOP = 5
 
-export async function getStatistikGuru(teacherId: string, kode: KodePeriode): Promise<StatistikGuru> {
-  const periode = await rentangPeriode(kode)
+/** Angka ringkasan satu rentang — untuk periode pembanding, tanpa rincian per anak. */
+async function ringkasRentang(ids: string[], awal: string, akhir: string): Promise<RingkasPembanding> {
+  const supabase = createServerClient()
+  const [tahsin, tahfidz, naikJilid, naikJuz] = await Promise.all([
+    ambilSemua<{ student_id: string }>((dari, ke) =>
+      supabase.from('tahsin_logs').select('student_id')
+        .in('student_id', ids).gte('setoran_date', awal).lte('setoran_date', akhir).range(dari, ke)),
+    ambilSemua<{ student_id: string }>((dari, ke) =>
+      supabase.from('tahfidz_logs').select('student_id')
+        .in('student_id', ids).gte('setoran_date', awal).lte('setoran_date', akhir).range(dari, ke)),
+    supabase.from('jilid_promotions').select('*', { count: 'exact', head: true })
+      .in('student_id', ids).gte('promotion_date', awal).lte('promotion_date', akhir),
+    supabase.from('juz_promotions').select('*', { count: 'exact', head: true })
+      .in('student_id', ids).gte('promotion_date', awal).lte('promotion_date', akhir),
+  ])
+  return {
+    setoranTahsin: tahsin.length,
+    setoranTahfidz: tahfidz.length,
+    siswaSetor: new Set([...tahsin, ...tahfidz].map(l => l.student_id)).size,
+    naikJilid: naikJilid.count ?? 0,
+    naikJuz: naikJuz.count ?? 0,
+  }
+}
+
+export async function getStatistikGuru(
+  teacherId: string,
+  kode: KodePeriode,
+  saring: { halaqohId?: string | null } = {},
+): Promise<StatistikGuru> {
+  const [periode, semuaHalaqoh] = await Promise.all([rentangPeriode(kode), getHalaqohSesiGuru(teacherId)])
+  // Halaqoh yang diminta hanya dipakai bila memang milik guru ini.
+  const halaqohTerpilih = semuaHalaqoh.find(h => h.id === saring.halaqohId) ?? null
+  const halaqoh = halaqohTerpilih ? [halaqohTerpilih] : semuaHalaqoh
   const kosong: StatistikGuru = {
-    periode, jumlahSiswa: 0,
+    periode, halaqoh: semuaHalaqoh, halaqohTerpilih, pembanding: null, jumlahSiswa: 0,
     ringkas: { setoranTahsin: 0, setoranTahfidz: 0, siswaSetor: 0, naikJilid: 0, naikJuz: 0 },
     aktivitas: wadahAktivitas(periode).map(w => ({ label: w.label, judul: w.judul, tahsin: 0, tahfidz: 0 })),
     tahsinTertinggi: [], tahfidzTertinggi: [], tahsinTercepat: [], tahfidzTercepat: [], perhatianTahsin: [], tahsinTakTerukur: 0,
     perhatianTahfidz: [], tahfidzTakTerukur: 0,
   }
 
-  const halaqoh = await getHalaqohSesiGuru(teacherId)
   if (halaqoh.length === 0) return kosong
 
   const supabase = createServerClient()
@@ -260,7 +331,8 @@ export async function getStatistikGuru(teacherId: string, kode: KodePeriode): Pr
 
   const { data: term } = await supabase.from('academic_terms').select('id').eq('is_current', true).maybeSingle()
 
-  const [tahsin, tahfidz, naikJilid, naikJuz, targetRows, targetTahfidz, peta] = await Promise.all([
+  const lalu = rentangSebelumnya(periode)
+  const [tahsin, tahfidz, naikJilid, naikJuz, targetRows, targetTahfidz, peta, ringkasLalu] = await Promise.all([
     ambilSemua<{ student_id: string; setoran_date: string; status: string; drill: boolean | null }>((dari, ke) =>
       supabase.from('tahsin_logs').select('student_id, setoran_date, status, drill')
         .in('student_id', ids).gte('setoran_date', periode.awal).lte('setoran_date', periode.akhir).range(dari, ke)),
@@ -276,6 +348,7 @@ export async function getStatistikGuru(teacherId: string, kode: KodePeriode): Pr
       : Promise.resolve({ data: [] }),
     getTargetTahfidz(jenjangGuru),
     getPetaHalaman(),
+    lalu ? ringkasRentang(ids, lalu.awal, lalu.akhir) : Promise.resolve(null),
   ])
 
   // ── Ringkasan & aktivitas ──
@@ -409,6 +482,9 @@ export async function getStatistikGuru(teacherId: string, kode: KodePeriode): Pr
 
   return {
     periode,
+    halaqoh: semuaHalaqoh,
+    halaqohTerpilih,
+    pembanding: lalu && ringkasLalu ? { keterangan: lalu.keterangan, ringkas: ringkasLalu } : null,
     jumlahSiswa: siswa.length,
     ringkas: {
       setoranTahsin: tahsin.length,

@@ -22,66 +22,134 @@ export interface RqAnalytics {
     activeHalaqoh: number
     studentsByJenjang: { jenjang: Jenjang; count: number }[]
   }
+  /** 'YYYY-MM' bulan yang dibaca. */
+  monthKey: string
   monthLabel: string
+  prevMonthLabel: string
+  /** Bulan yang dibaca adalah bulan berjalan — angkanya belum final. */
+  isRunningMonth: boolean
   monthly: {
     tahsinSetoran: number
     tahfidzSetoran: number
     jilidPromotions: number
     juzPromotions: number
   }
+  /** Bulan sebelumnya, untuk delta kenaikan jilid/juz. */
+  prevMonthly: { jilidPromotions: number; juzPromotions: number }
   juzTerujiTotal: number
+}
+
+export interface SaringanAnalitik {
+  /** 'YYYY-MM'; kosong = bulan berjalan. */
+  bulan?: string | null
+  /** Satu unit; kosong = seluruh RQ. */
+  jenjang?: Jenjang | null
 }
 
 const JENJANG_ORDER: Jenjang[] = ['paud', 'sd', 'sd_juara', 'smp', 'sma']
 
-export async function getRqAnalytics(): Promise<RqAnalytics> {
-  const supabase = createServerClient()
-
+/** Rentang satu bulan kalender dari 'YYYY-MM' (atau bulan berjalan), digeser `geser` bulan. */
+export function rentangBulan(bulan?: string | null, geser = 0) {
   const now = new Date()
-  const monthStartIso = isoDate(new Date(now.getFullYear(), now.getMonth(), 1))
-  const monthEndIso = isoDate(new Date(now.getFullYear(), now.getMonth() + 1, 0))
+  const cocok = /^(\d{4})-(\d{2})$/.exec(bulan ?? '')
+  const y = cocok ? Number(cocok[1]) : now.getFullYear()
+  const m = (cocok ? Number(cocok[2]) - 1 : now.getMonth()) + geser
+  const start = new Date(y, m, 1)
+  const end = new Date(y, m + 1, 0)
+  return {
+    key: `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}`,
+    label: `${MONTH_ID[start.getMonth()]} ${start.getFullYear()}`,
+    startIso: isoDate(start),
+    endIso: isoDate(end),
+    isRunning: start.getFullYear() === now.getFullYear() && start.getMonth() === now.getMonth(),
+  }
+}
+
+/**
+ * Menyaring tabel ber-student_id ke satu unit lewat embed `students!inner`.
+ * Tiap tabel log/kenaikan hanya punya satu FK ke students, jadi embed-nya
+ * tidak ambigu. Tanpa unit, query dibiarkan apa adanya.
+ */
+function kolomUnit(kolom: string, jenjang?: Jenjang | null): string {
+  return jenjang ? `${kolom}, students!inner(jenjang)` : kolom
+}
+function saringUnit<Q>(q: Q, jenjang?: Jenjang | null): Q {
+  return jenjang ? (q as unknown as { eq(c: string, v: string): Q }).eq('students.jenjang', jenjang) : q
+}
+
+export async function getRqAnalytics(saring: SaringanAnalitik = {}): Promise<RqAnalytics> {
+  const supabase = createServerClient()
+  const { jenjang } = saring
+  const bulan = rentangBulan(saring.bulan)
+  const lalu = rentangBulan(bulan.key, -1)
+
+  const hitung = (tabel: string, kolomTanggal: string, r: { startIso: string; endIso: string }) =>
+    saringUnit(
+      supabase.from(tabel).select(kolomUnit('student_id', jenjang), { count: 'exact', head: true })
+        .gte(kolomTanggal, r.startIso).lte(kolomTanggal, r.endIso),
+      jenjang,
+    )
 
   const [
     studentsRes, teachersRes, halaqohRes,
-    tahsinMonthRes, tahfidzMonthRes, jilidPromRes, juzPromRes,
+    tahsinMonthRes, tahfidzMonthRes, jilidPromRes, juzPromRes, jilidLaluRes, juzLaluRes,
     juzUjianPerSiswa,
   ] = await Promise.all([
-    supabase.from('students').select('jenjang').eq('is_active', true),
+    supabase.from('students').select('id, jenjang').eq('is_active', true),
     supabase.from('teachers').select('*', { count: 'exact', head: true }).eq('is_active', true).is('deleted_at', null),
-    supabase.from('halaqoh').select('*', { count: 'exact', head: true }).eq('is_active', true),
-    supabase.from('tahsin_logs').select('*', { count: 'exact', head: true }).gte('setoran_date', monthStartIso).lte('setoran_date', monthEndIso),
-    supabase.from('tahfidz_logs').select('*', { count: 'exact', head: true }).gte('setoran_date', monthStartIso).lte('setoran_date', monthEndIso),
-    supabase.from('jilid_promotions').select('*', { count: 'exact', head: true }).gte('promotion_date', monthStartIso).lte('promotion_date', monthEndIso),
-    supabase.from('juz_promotions').select('*', { count: 'exact', head: true }).gte('promotion_date', monthStartIso).lte('promotion_date', monthEndIso),
+    supabase.from('halaqoh').select('jenjang, wali_teacher_id').eq('is_active', true),
+    hitung('tahsin_logs', 'setoran_date', bulan),
+    hitung('tahfidz_logs', 'setoran_date', bulan),
+    hitung('jilid_promotions', 'promotion_date', bulan),
+    hitung('juz_promotions', 'promotion_date', bulan),
+    hitung('jilid_promotions', 'promotion_date', lalu),
+    hitung('juz_promotions', 'promotion_date', lalu),
     getJuzUjianPerSiswa(),
   ])
 
+  const semuaSiswa = (studentsRes.data ?? []) as { id: string; jenjang: Jenjang }[]
   const studentsByJenjangMap = new Map<Jenjang, number>()
-  for (const s of studentsRes.data ?? []) {
-    studentsByJenjangMap.set(s.jenjang as Jenjang, (studentsByJenjangMap.get(s.jenjang as Jenjang) ?? 0) + 1)
+  for (const s of semuaSiswa) {
+    studentsByJenjangMap.set(s.jenjang, (studentsByJenjangMap.get(s.jenjang) ?? 0) + 1)
   }
   // Semua unit selalu ditulis, termasuk yang belum punya siswa — angka 0 itu
   // sendiri informasi (unit belum terdata), bukan alasan menyembunyikan baris.
   const studentsByJenjang = JENJANG_ORDER
     .map(j => ({ jenjang: j, count: studentsByJenjangMap.get(j) ?? 0 }))
 
+  const siswa = jenjang ? semuaSiswa.filter(s => s.jenjang === jenjang) : semuaSiswa
+  const halaqoh = ((halaqohRes.data ?? []) as { jenjang: Jenjang; wali_teacher_id: string | null }[])
+    .filter(h => !jenjang || h.jenjang === jenjang)
+
   // Juz teruji = juz yang diakui tuntas lewat ujian selesai. Menggantikan
   // hitungan centang "mutqin" di setoran harian, yang sudah dicabut.
-  const juzTerujiTotal = [...juzUjianPerSiswa.values()].reduce((n, j) => n + j, 0)
+  const idUnit = jenjang ? new Set(siswa.map(s => s.id)) : null
+  const juzTerujiTotal = [...juzUjianPerSiswa.entries()]
+    .reduce((n, [id, j]) => (idUnit && !idUnit.has(id) ? n : n + j), 0)
 
   return {
     overview: {
-      activeStudents: (studentsRes.data ?? []).length,
-      activeTeachers: teachersRes.count ?? 0,
-      activeHalaqoh: halaqohRes.count ?? 0,
+      activeStudents: siswa.length,
+      // Guru satu unit = pengampu halaqoh unit itu; tabel guru tidak berunit.
+      activeTeachers: jenjang
+        ? new Set(halaqoh.map(h => h.wali_teacher_id).filter(Boolean)).size
+        : teachersRes.count ?? 0,
+      activeHalaqoh: halaqoh.length,
       studentsByJenjang,
     },
-    monthLabel: `${MONTH_ID[now.getMonth()]} ${now.getFullYear()}`,
+    monthKey: bulan.key,
+    monthLabel: bulan.label,
+    prevMonthLabel: lalu.label,
+    isRunningMonth: bulan.isRunning,
     monthly: {
       tahsinSetoran: tahsinMonthRes.count ?? 0,
       tahfidzSetoran: tahfidzMonthRes.count ?? 0,
       jilidPromotions: jilidPromRes.count ?? 0,
       juzPromotions: juzPromRes.count ?? 0,
+    },
+    prevMonthly: {
+      jilidPromotions: jilidLaluRes.count ?? 0,
+      juzPromotions: juzLaluRes.count ?? 0,
     },
     juzTerujiTotal,
   }
@@ -753,7 +821,7 @@ export interface SetoranTrend {
  * kedua sumber dijumlahkan, anak yang sudah dirangkum akan terhitung dua kali
  * selama bulan itu masih berjalan.
  */
-export async function getSetoranTrend(months = 12): Promise<SetoranTrend> {
+export async function getSetoranTrend(months = 12, jenjang?: Jenjang | null): Promise<SetoranTrend> {
   const supabase = createServerClient()
   const now = new Date()
 
@@ -781,10 +849,10 @@ export async function getSetoranTrend(months = 12): Promise<SetoranTrend> {
   const berjalan = ranges.find(r => r.isRunning)
   const hariIni = berjalan
     ? await Promise.all([
-        supabase.from('tahsin_logs').select('student_id')
-          .gte('setoran_date', berjalan.startIso).lte('setoran_date', berjalan.endIso),
-        supabase.from('tahfidz_logs').select('student_id')
-          .gte('setoran_date', berjalan.startIso).lte('setoran_date', berjalan.endIso),
+        saringUnit(supabase.from('tahsin_logs').select(kolomUnit('student_id', jenjang))
+          .gte('setoran_date', berjalan.startIso).lte('setoran_date', berjalan.endIso), jenjang),
+        saringUnit(supabase.from('tahfidz_logs').select(kolomUnit('student_id', jenjang))
+          .gte('setoran_date', berjalan.startIso).lte('setoran_date', berjalan.endIso), jenjang),
       ])
     : null
 
@@ -797,16 +865,16 @@ export async function getSetoranTrend(months = 12): Promise<SetoranTrend> {
   const lampau = ranges.filter(r => !r.isRunning)
   const bulanan = await Promise.all(
     lampau.map(r =>
-      supabase.from('student_monthly')
-        .select('student_id, halaman_akhir_tahsin, tahfidz_akhir')
-        .eq('period', `${r.key}-01`)
+      saringUnit(supabase.from('student_monthly')
+        .select(kolomUnit('student_id, halaman_akhir_tahsin, tahfidz_akhir', jenjang))
+        .eq('period', `${r.key}-01`), jenjang)
         .then(res => res.data ?? []),
     ),
   )
 
   const perKey = new Map<string, { tahsin: number; tahfidz: number; sumber: 'bulanan' | 'harian' }>()
   lampau.forEach((r, i) => {
-    const rows = bulanan[i] as { halaman_akhir_tahsin: string; tahfidz_akhir: string }[]
+    const rows = bulanan[i] as unknown as { halaman_akhir_tahsin: string; tahfidz_akhir: string }[]
     perKey.set(r.key, {
       tahsin: rows.filter(x => (x.halaman_akhir_tahsin ?? '').trim()).length,
       tahfidz: rows.filter(x => (x.tahfidz_akhir ?? '').trim()).length,
@@ -815,8 +883,8 @@ export async function getSetoranTrend(months = 12): Promise<SetoranTrend> {
   })
   if (berjalan && hariIni) {
     perKey.set(berjalan.key, {
-      tahsin: unik(hariIni[0].data as { student_id: string }[]),
-      tahfidz: unik(hariIni[1].data as { student_id: string }[]),
+      tahsin: unik(hariIni[0].data as unknown as { student_id: string }[]),
+      tahfidz: unik(hariIni[1].data as unknown as { student_id: string }[]),
       sumber: 'harian',
     })
   }
