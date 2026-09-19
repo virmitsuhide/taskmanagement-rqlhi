@@ -139,3 +139,28 @@ export function juzSurah(surat: number): number[] {
     .filter(b => b.mulai.surat <= surat && surat <= b.selesai.surat)
     .map(b => b.juz)
 }
+
+/**
+ * Banyak ayat per juz dari satu rentang di dalam satu surah. Al-Baqarah
+ * 140–145 → { 1: 2, 2: 4 }. Cermin fungsi trigger upsert_juz_progress_from_tahfidz
+ * (0079) — keduanya harus membagi setoran dengan cara yang sama.
+ */
+export function ayatPerJuz(surat: number, dari: number, ke: number): Map<number, number> {
+  const hasil = new Map<number, number>()
+  if (!Number.isInteger(dari) || !Number.isInteger(ke) || ke < dari) return hasil
+  for (const b of BATAS_JUZ) {
+    if (bandingPosisi(b.mulai, { surat, ayat: ke }) > 0) continue
+    if (bandingPosisi(b.selesai, { surat, ayat: dari }) < 0) continue
+    const awal = Math.max(dari, b.mulai.surat === surat ? b.mulai.ayat : 1)
+    const akhir = Math.min(ke, b.selesai.surat === surat ? b.selesai.ayat : ke)
+    if (akhir >= awal) hasil.set(b.juz, akhir - awal + 1)
+  }
+  return hasil
+}
+
+/** "Juz 2" atau "Juz 1–2" untuk sebuah rentang ayat — label setoran. */
+export function labelJuzRentang(surat: number, dari: number, ke?: number | null): string | null {
+  const juz = [...ayatPerJuz(surat, dari, ke ?? dari).keys()]
+  if (juz.length === 0) return null
+  return juz.length === 1 ? `Juz ${juz[0]}` : `Juz ${juz[0]}–${juz[juz.length - 1]}`
+}

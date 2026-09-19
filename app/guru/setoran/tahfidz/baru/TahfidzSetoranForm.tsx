@@ -1,6 +1,7 @@
 'use client'
 
 import { useActionState, useMemo, useState } from 'react'
+import { labelJuzRentang } from '@/lib/rq/batas-juz'
 import { useRouter } from 'next/navigation'
 import { createTahfidzLogAction } from '@/app/actions/setoran'
 import { PerbandinganSetoranDialog } from '@/components/setoran/PerbandinganSetoranDialog'
@@ -236,7 +237,10 @@ function DailySubForm({
               <div className="space-y-1.5">
                 <Label>Juz</Label>
                 <div className="h-9 px-3 flex items-center rounded-md border bg-muted/40 text-sm text-muted-foreground">
-                  {selectedSurat ? `Juz ${selectedSurat.juz_start}` : '—'}
+                  {/* Juz menurut AYAT, bukan awal surat: Al-Baqarah 187 = juz 2. */}
+                  {selectedSurat
+                    ? (ayatDari && labelJuzRentang(selectedSurat.id, Number(ayatDari), ayatKe ? Number(ayatKe) : null)) || `Juz ${selectedSurat.juz_start}`
+                    : '—'}
                 </div>
               </div>
             </div>
@@ -269,7 +273,7 @@ function DailySubForm({
           <div className="text-xs rounded-lg px-3 py-2" style={{ background: meta.bg, color: meta.fg }}>
             {ayatCount} ayat disetor
             {suratKeId && selectedSurat && suratAkhir && ` · ${selectedSurat.name_latin} – ${suratAkhir.name_latin}`}
-            {meta.addsProgress && selectedSurat && ` · ditambahkan ke progress Juz ${selectedSurat.juz_start}`}
+            {meta.addsProgress && selectedSurat && ` · ditambahkan ke progress ${labelJuzRentang(selectedSurat.id, Number(ayatDari), Number(ayatKe)) ?? `Juz ${selectedSurat.juz_start}`}`}
           </div>
         )}
       </fieldset>

@@ -1,3 +1,4 @@
+import { labelJuzRentang } from '@/lib/rq/batas-juz'
 import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
 import { getTeacherSession } from '@/lib/auth/teacher-session'
@@ -154,7 +155,7 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
     k === 'hafalan_baru' ? 'ziyadah' : k === 'murojaah' ? 'murojaah_baru' : (k as TahfidzKind)
 
   const tahfidzLogs = (tahfidzRes.data ?? []) as unknown as Array<{
-    id: string; setoran_date: string; kind: string; ayat_dari: number; ayat_ke: number
+    id: string; setoran_date: string; kind: string; surat_id: number; ayat_dari: number; ayat_ke: number
     surat_ke_id?: number | null
     nilai_tahfidz: number | null; nilai_sikap: number | null
     catatan: string | null; surat: { name_latin: string; juz_start: number } | null
@@ -586,7 +587,7 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
                     </div>
                     <p className="text-xs text-muted-foreground mt-1">
                       {new Date(log.setoran_date).toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
-                      {log.surat ? ` · Juz ${log.surat.juz_start}` : ''}
+                      {log.surat ? ` · ${(log.ayat_dari ? labelJuzRentang(log.surat_id, log.ayat_dari, log.surat_ke_id ? null : log.ayat_ke) : null) ?? `Juz ${log.surat.juz_start}`}` : ''}
                       {' · '}<ScoreBadge nilai={log.nilai_tahfidz} sikap={log.nilai_sikap} />
                     </p>
                     {log.catatan && (

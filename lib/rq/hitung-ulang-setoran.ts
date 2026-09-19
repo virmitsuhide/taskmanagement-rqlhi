@@ -1,5 +1,6 @@
 import type { createServerClient } from '@/lib/supabase/server'
 import { posisiLanjut, type BacaanQuran } from '@/lib/rq/bacaan-quran'
+import { ayatPerJuz } from '@/lib/rq/batas-juz'
 import { getMateriPerJilid, getHasilMateriPerSiswa, ringkasProgres, type HasilMateri } from '@/lib/data/materi-tahsin'
 
 /**
@@ -194,34 +195,29 @@ export async function recalcMutqin(supabase: Supabase, studentId: string): Promi
  * Trigger upsert_juz_progress hanya MENAMBAH saat setoran masuk; tidak ada
  * padanannya saat setoran keluar. Ziyadah yang ditimpa tanpa pengurangan ini
  * terhitung dua kali di bilah progres juz — sekali dari setoran lama, sekali
- * dari penggantinya. Rumusnya cermin persis trigger itu (juz = juz_start
- * surat, jumlah = ayat_ke - ayat_dari + 1), dan tidak pernah turun di bawah 0.
+ * dari penggantinya. Rumusnya cermin persis trigger itu sejak 0079: setoran
+ * dibagi menurut batas juz mushaf (ayatPerJuz), bukan dimasukkan seluruhnya
+ * ke juz awal surat — dan tidak pernah turun di bawah 0.
  */
 export async function kurangiJuzProgress(
   supabase: Supabase,
   log: { student_id: string; surat_id: number; ayat_dari: number | null; ayat_ke: number | null },
 ): Promise<void> {
   if (log.ayat_dari === null || log.ayat_ke === null) return
-  const { data: surat } = await supabase
-    .from('surat_master')
-    .select('juz_start')
-    .eq('id', log.surat_id)
-    .maybeSingle()
-  const juz = (surat as { juz_start: number } | null)?.juz_start
-  if (!juz) return
+  for (const [juz, jumlah] of ayatPerJuz(log.surat_id, log.ayat_dari, log.ayat_ke)) {
+    const { data: prog } = await supabase
+      .from('juz_progress')
+      .select('ayat_hafal')
+      .eq('student_id', log.student_id)
+      .eq('juz_number', juz)
+      .maybeSingle()
+    if (!prog) continue
 
-  const { data: prog } = await supabase
-    .from('juz_progress')
-    .select('ayat_hafal')
-    .eq('student_id', log.student_id)
-    .eq('juz_number', juz)
-    .maybeSingle()
-  if (!prog) return
-
-  const sisa = Math.max(0, (prog as { ayat_hafal: number }).ayat_hafal - (log.ayat_ke - log.ayat_dari + 1))
-  await supabase
-    .from('juz_progress')
-    .update({ ayat_hafal: sisa, updated_at: new Date().toISOString() })
-    .eq('student_id', log.student_id)
-    .eq('juz_number', juz)
+    const sisa = Math.max(0, (prog as { ayat_hafal: number }).ayat_hafal - jumlah)
+    await supabase
+      .from('juz_progress')
+      .update({ ayat_hafal: sisa, updated_at: new Date().toISOString() })
+      .eq('student_id', log.student_id)
+      .eq('juz_number', juz)
+  }
 }
