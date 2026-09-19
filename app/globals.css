@@ -690,3 +690,38 @@
     font-size: 8.5px !important;
   }
 }
+
+/* ── Laporan Orang Tua per sesi (/guru/laporan-ortu) ────────────────────────
+ *
+ * Lembar A4 potret yang dicetak guru menjadi PDF lalu dikirim ke grup wali.
+ * Di layar tampil sebagai kartu; saat dicetak, chrome portal hilang lewat
+ * print:hidden dan lembar ini mengisi bidang halaman.
+ */
+@media print {
+  .dark .ortu-sheet,
+  .dark .ortu-sheet * {
+    color: revert !important;
+    background-color: revert !important;
+    border-color: revert !important;
+  }
+
+  /* Kepala tabel & lencana berwarna harus ikut tercetak. */
+  .ortu-sheet,
+  .ortu-sheet * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .ortu-sheet {
+    width: 100%;
+    font-size: 9.5pt;
+  }
+
+  .ortu-table {
+    font-size: 8.5pt !important;
+  }
+
+  .ortu-sheet footer {
+    break-inside: avoid;
+  }
+}

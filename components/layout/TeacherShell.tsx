@@ -2,6 +2,7 @@ import {
   LayoutDashboard, Users, BookOpen, Sparkles, CalendarCheck,
   BarChart3, ScrollText, GraduationCap, IdCard, ClipboardCheck, ListChecks,
   Table2, HeartHandshake,
+  FileText,
 } from 'lucide-react'
 import { getTeacherSession } from '@/lib/auth/teacher-session'
 import { bolehMengampuGukar } from '@/lib/data/gukar'
@@ -73,6 +74,8 @@ export async function TeacherShell({ children }: { children: React.ReactNode }) 
         { label: 'Progres per Sesi', href: '/guru/progres', icon: <Table2 /> },
         { label: 'Catatan Adab', href: '/guru/adab', icon: <HeartHandshake /> },
         { label: 'Capaian Bulanan', href: '/guru/capaian', icon: <CalendarCheck /> },
+        // Laporan per SESI untuk grup wali; rapor per anak ada di halaman siswa.
+        { label: 'Laporan Orang Tua', href: '/guru/laporan-ortu', icon: <FileText /> },
         { label: 'Statistik', href: '/guru/statistik', icon: <BarChart3 /> },
       ],
     },
