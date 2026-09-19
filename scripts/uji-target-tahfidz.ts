@@ -16,7 +16,7 @@ import { createClient } from '@supabase/supabase-js'
 import { AWAL_JUZ_MUSHAF, halamanPerJuz } from '../lib/rq/halaman'
 import {
   RENCANA, URUTAN_RENCANA, buatKurva, buatPetaHalaman, capaianSiswa, formatPosisi, kalenderBawaan,
-  pilihRencana, posisiPada, progresKalender, semesterKurva, statusTerhadapTarget, targetHalaman,
+  pilihRencana, posisiPada, progresKalender, semesterKurva, statusTerhadapTarget, targetHalaman, tingkatMelampaui,
   tindakLanjutMurojaah, type PetaHalaman,
 } from '../lib/rq/target-tahfidz'
 
@@ -160,7 +160,11 @@ async function main() {
   periksa(pilih('smp', 'boarding_quls', '7A', true) === '{"kode":"smp_internal","tingkat":7}', 'SMP bertanda internal → internal')
   periksa(pilih('smp', 'reguler_bd', '4A') === '{"alasan":"kelas_tak_terbaca"}', 'SMP kelas 4 → tidak terbaca')
   periksa(pilih('sma', 'boarding', '10A') === '{"alasan":"belum_ada_rencana"}', 'SMA → belum ada rencana')
-  periksa(statusTerhadapTarget(-2.5) === 'di_bawah' && statusTerhadapTarget(-2) === 'sesuai' && statusTerhadapTarget(2.1) === 'di_atas', 'ambang status ±2 pekan')
+  periksa(statusTerhadapTarget(-2.5, -3) === 'di_bawah' && statusTerhadapTarget(-2, -2) === 'sesuai', 'ambang bawah: tertinggal > 2 pekan')
+  periksa(statusTerhadapTarget(0.5, 1) === 'sesuai' && statusTerhadapTarget(0.9, 1.1) === 'di_atas', 'ambang atas: > 1 halaman = melampaui')
+  periksa(tingkatMelampaui(1) === null && tingkatMelampaui(1.1) === 'melampaui' && tingkatMelampaui(20) === 'melampaui', 'melampaui: > 1 halaman s/d 1 juz')
+  periksa(tingkatMelampaui(20.5) === 'sangat_melampaui' && tingkatMelampaui(40) === 'sangat_melampaui', 'sangat melampaui: > 1 s/d 2 juz')
+  periksa(tingkatMelampaui(40.5) === 'sangat_jauh_melampaui', 'sangat jauh melampaui: > 2 juz')
 
   console.log(`\n${gagal === 0 ? '✓ SEMUA LOLOS' : `✗ ${gagal} pemeriksaan GAGAL`}`)
   process.exitCode = gagal === 0 ? 0 : 1

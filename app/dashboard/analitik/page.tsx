@@ -178,7 +178,7 @@ export default async function AnalitikPage({ searchParams }: PageProps) {
           {fokus === 'tahfidz' && (
             <KpiCard
               icon={<Target className="h-3.5 w-3.5" />}
-              label="Sesuai / di atas target"
+              label="Sesuai / melampaui target"
               value={target.terukur > 0 ? `${Math.round(((target.on + target.above) / target.terukur) * 100)}%` : '—'}
               ratio={target.terukur > 0 ? (target.on + target.above) / target.terukur : undefined}
               sub={target.terukur > 0 ? `dari ${target.terukur.toLocaleString('id-ID')} siswa terukur · hari ini` : 'Belum ada siswa terukur'}
@@ -218,7 +218,7 @@ export default async function AnalitikPage({ searchParams }: PageProps) {
                     <StackedBar segments={[
                       { label: 'Di bawah target', value: target.below, color: 'var(--destructive)', icon: <ArrowDown className="h-3.5 w-3.5" /> },
                       { label: 'Sesuai target', value: target.on, color: 'var(--success)', icon: <Check className="h-3.5 w-3.5" /> },
-                      { label: 'Di atas target', value: target.above, color: 'var(--info)', icon: <ArrowUp className="h-3.5 w-3.5" /> },
+                      { label: 'Melampaui target', value: target.above, color: 'var(--info)', icon: <ArrowUp className="h-3.5 w-3.5" /> },
                       { label: 'Belum terukur', value: target.belumTerukur, color: 'var(--muted-foreground)', icon: <HelpCircle className="h-3.5 w-3.5" /> },
                     ]} />
                   ) : (

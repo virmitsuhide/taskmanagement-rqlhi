@@ -518,10 +518,44 @@ export function selisihPekan(capaian: number, target: number, laju: number): num
  */
 export const TOLERANSI_PEKAN = 2
 
-export function statusTerhadapTarget(selisih: number): StatusTarget {
-  if (selisih < -TOLERANSI_PEKAN) return 'di_bawah'
-  if (selisih > TOLERANSI_PEKAN) return 'di_atas'
+/**
+ * Status terhadap target. Dua sisinya sengaja memakai ukuran berbeda:
+ *
+ *   • di bawah: tertinggal lebih dari TOLERANSI_PEKAN pekan materi — adil
+ *     untuk semua kelas, karena laju hafalan tiap kelas berbeda;
+ *   • di atas (melampaui): lebih dari AMBANG_MELAMPAUI halaman di depan
+ *     target — keputusan RQ (Sep 2026), dan tingkatnya dibaca dalam juz
+ *     (lihat tingkatMelampaui).
+ */
+export function statusTerhadapTarget(selisihPekanMateri: number, selisihHalaman: number): StatusTarget {
+  if (selisihPekanMateri < -TOLERANSI_PEKAN) return 'di_bawah'
+  if (selisihHalaman > AMBANG_MELAMPAUI) return 'di_atas'
   return 'sesuai'
+}
+
+/** Lebih dari 1 halaman di depan target = melampaui. */
+export const AMBANG_MELAMPAUI = 1
+/** Satu juz mushaf Madinah = 20 halaman — satuan tingkat melampaui. */
+export const HALAMAN_PER_JUZ = 20
+
+export type TingkatMelampaui = 'melampaui' | 'sangat_melampaui' | 'sangat_jauh_melampaui'
+
+export const LABEL_MELAMPAUI: Record<TingkatMelampaui, string> = {
+  melampaui: 'Melampaui',
+  sangat_melampaui: 'Sangat melampaui',
+  sangat_jauh_melampaui: 'Sangat jauh melampaui',
+}
+
+/**
+ *   > 1 halaman  s/d ≤ 1 juz → melampaui
+ *   > 1 juz      s/d ≤ 2 juz → sangat melampaui
+ *   > 2 juz                  → sangat jauh melampaui
+ */
+export function tingkatMelampaui(selisihHalaman: number): TingkatMelampaui | null {
+  if (selisihHalaman <= AMBANG_MELAMPAUI) return null
+  if (selisihHalaman <= HALAMAN_PER_JUZ) return 'melampaui'
+  if (selisihHalaman <= 2 * HALAMAN_PER_JUZ) return 'sangat_melampaui'
+  return 'sangat_jauh_melampaui'
 }
 
 /**

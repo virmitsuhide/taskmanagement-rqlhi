@@ -185,7 +185,7 @@ export default async function GuruStatistikPage({ searchParams }: PageProps) {
                     <div>
                       <p className="mb-2 text-xs font-semibold">Tahfidz · target bulanan program</p>
                       <StackedBar segments={[
-                        { label: 'Sesuai / di atas target', value: Math.max(0, tahfidzSesuai), color: 'var(--success)', icon: <Check className="h-3.5 w-3.5" /> },
+                        { label: 'Sesuai / melampaui target', value: Math.max(0, tahfidzSesuai), color: 'var(--success)', icon: <Check className="h-3.5 w-3.5" /> },
                         { label: 'Tertinggal > 2 pekan', value: s.perhatianTahfidz.length, color: 'var(--warning)', icon: <ArrowDown className="h-3.5 w-3.5" /> },
                         { label: 'Belum terukur', value: s.tahfidzTakTerukur, color: 'var(--muted-foreground)', icon: <HelpCircle className="h-3.5 w-3.5" /> },
                       ]} />

@@ -4,10 +4,10 @@ import { UNIT_LABELS } from '@/lib/rq/programs'
 import { tanggalWIB } from '@/lib/rq/ujian'
 import {
   RENCANA, URUTAN_RENCANA, buatKurva, buatPetaHalaman, capaianSiswa, formatPosisi, kalenderBawaan,
-  pilihRencana, posisiPada, progresKalender, selisihPekan, semesterKurva, statusTerhadapTarget,
-  tahunAjaranDari, targetHalaman, tindakLanjutMurojaah,
+  halamanHafalan, pilihRencana, posisiPada, progresKalender, selisihPekan, semesterKurva, statusTerhadapTarget,
+  tahunAjaranDari, targetHalaman, tindakLanjutMurojaah, tingkatMelampaui,
   type AlasanTanpaTarget, type BulanKalender, type JenisSemester, type KodeRencana, type KurvaRencana,
-  type PetaHalaman, type ProgresKalender, type StatusTarget,
+  type PetaHalaman, type ProgresKalender, type StatusTarget, type TingkatMelampaui,
 } from '@/lib/rq/target-tahfidz'
 import type { Jenjang } from '@/types'
 
@@ -169,6 +169,14 @@ export interface SiswaTarget {
   selisihPekan: number | null
   /** Selisih yang sama dalam halaman — lebih terbaca bila jaraknya berbulan-bulan. */
   selisihHalaman: number | null
+  /** Hanya bila status di_atas: seberapa jauh melampaui (1 halaman / 1 juz / 2 juz). */
+  melampaui: TingkatMelampaui | null
+  /**
+   * Halaman hafalan DI LUAR rencana program, sudah termasuk dalam selisihHalaman.
+   * Anak CLIL (rencana 3 juz) yang sudah 6 juz: rencananya tuntas, dan tiga juz
+   * sisanya dihitung di sini — tanpanya ia selalu terbaca "sesuai".
+   */
+  diLuarRencana: number
   jenisSemester: JenisSemester | null
   /** Hanya di semester murojaah. */
   tindakLanjut: string | null
@@ -232,8 +240,8 @@ export async function getTargetTahfidz(jenjangBoleh: Jenjang[], tanggal = tangga
   const [peta, siswaAwal, logs, juzProgress, juzUjian] = await Promise.all([
     getPetaHalaman(),
     ambilSiswa(true),
-    ambilSemua<{ student_id: string; surat_id: number; ayat_ke: number }>((dari, ke) =>
-      supabase.from('tahfidz_logs').select('student_id, surat_id, ayat_ke').eq('kind', 'ziyadah').range(dari, ke)),
+    ambilSemua<{ student_id: string; surat_id: number; ayat_dari: number | null; ayat_ke: number }>((dari, ke) =>
+      supabase.from('tahfidz_logs').select('student_id, surat_id, ayat_dari, ayat_ke').eq('kind', 'ziyadah').range(dari, ke)),
     ambilSemua<BarisJuzProgress>((dari, ke) =>
       supabase.from('juz_progress').select('student_id, juz_number, ayat_hafal, mutqin').range(dari, ke)),
     getJuzUjianPerSiswa(),
@@ -250,7 +258,7 @@ export async function getTargetTahfidz(jenjangBoleh: Jenjang[], tanggal = tangga
   }
 
   const juzTuntas = juzGabunganPerSiswa(juzProgress.rows, juzUjian)
-  const ziyadahPerSiswa = new Map<string, { surat_id: number; ayat_ke: number }[]>()
+  const ziyadahPerSiswa = new Map<string, { surat_id: number; ayat_dari: number | null; ayat_ke: number }[]>()
   for (const l of logs.rows) {
     const daftar = ziyadahPerSiswa.get(l.student_id) ?? []
     daftar.push(l)
@@ -268,7 +276,7 @@ export async function getTargetTahfidz(jenjangBoleh: Jenjang[], tanggal = tangga
     if ('alasan' in pilihan) {
       return {
         ...dasar, rencana: null, tingkat: null, alasan: pilihan.alasan, status: 'tanpa_target' as const,
-        capaianTeks: null, capaianHalaman: null, sumberCapaian: null, targetTeks: null, selisihPekan: null, selisihHalaman: null,
+        capaianTeks: null, capaianHalaman: null, sumberCapaian: null, targetTeks: null, selisihPekan: null, selisihHalaman: null, melampaui: null, diLuarRencana: 0,
         jenisSemester: null, tindakLanjut: null, perluDiujikan: false,
       }
     }
@@ -287,20 +295,29 @@ export async function getTargetTahfidz(jenjangBoleh: Jenjang[], tanggal = tangga
     if (capaian === null) {
       return {
         ...dasar, rencana: pilihan.kode, tingkat: pilihan.tingkat, alasan: null, status: 'belum_terukur' as const,
-        capaianTeks: null, capaianHalaman: null, sumberCapaian: null, targetTeks, selisihPekan: null, selisihHalaman: null,
+        capaianTeks: null, capaianHalaman: null, sumberCapaian: null, targetTeks, selisihPekan: null, selisihHalaman: null, melampaui: null, diLuarRencana: 0,
         jenisSemester: jenis, tindakLanjut: null, perluDiujikan: false,
       }
     }
 
-    const selisih = selisihPekan(capaian.halaman, target.halaman, target.semester.laju)
+    // Rencana sudah tuntas → hafalan sesudahnya (di luar rencana) ikut dihitung.
+    const tuntasRencana = capaian.halaman >= kurva.total - 1e-6
+    const diLuarRencana = tuntasRencana
+      ? Math.max(0, halamanHafalan(peta, juzTuntas.get(r.id) ?? 0, ziyadahPerSiswa.get(r.id) ?? []) - kurva.total)
+      : 0
+    const selisihHal = capaian.halaman + diLuarRencana - target.halaman
+    const selisih = selisihPekan(capaian.halaman + diLuarRencana, target.halaman, target.semester.laju)
+    const status = statusTerhadapTarget(selisih, selisihHal)
     const lanjut = jenis === 'murojaah' ? tindakLanjutMurojaah(kurva, peta, capaian.halaman, juzUjian.get(r.id) ?? 0) : null
     return {
       ...dasar, rencana: pilihan.kode, tingkat: pilihan.tingkat, alasan: null,
-      status: statusTerhadapTarget(selisih),
+      status,
       capaianTeks: formatPosisi(posisiPada(kurva, peta, capaian.halaman), peta),
       capaianHalaman: capaian.halaman,
       sumberCapaian: capaian.sumber,
-      targetTeks, selisihPekan: selisih, selisihHalaman: capaian.halaman - target.halaman, jenisSemester: jenis,
+      targetTeks, selisihPekan: selisih, selisihHalaman: selisihHal, jenisSemester: jenis,
+      melampaui: status === 'di_atas' ? tingkatMelampaui(selisihHal) : null,
+      diLuarRencana,
       tindakLanjut: lanjut?.teks ?? null,
       perluDiujikan: (lanjut?.perluDiujikan.length ?? 0) > 0,
     }

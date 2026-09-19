@@ -6,7 +6,7 @@ import {
   canEditKalenderTahfidz, canTandaiAsalSdLhi, canViewUnitAnalytics, getAnalyticsJenjang,
 } from '@/lib/auth/permissions'
 import { getTabelTargetBulanan, getTargetTahfidz, type RingkasStatus, type SiswaTarget, type StatusSiswa } from '@/lib/data/target-tahfidz'
-import { LABEL_ALASAN, RENCANA, TOLERANSI_PEKAN, URUTAN_RENCANA, type AlasanTanpaTarget, type KodeRencana } from '@/lib/rq/target-tahfidz'
+import { LABEL_ALASAN, LABEL_MELAMPAUI, RENCANA, TOLERANSI_PEKAN, URUTAN_RENCANA, type AlasanTanpaTarget, type KodeRencana } from '@/lib/rq/target-tahfidz'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { KalenderPekanForm } from '@/components/dashboard/target-tahfidz/KalenderPekanForm'
 import { cn } from '@/lib/utils'
@@ -31,7 +31,7 @@ const UNIT_RENCANA: Record<KodeRencana, Jenjang[]> = {
 const STATUS: { kunci: StatusSiswa; label: string; warna: string; wash: string }[] = [
   { kunci: 'di_bawah', label: 'Di bawah', warna: 'var(--destructive)', wash: 'var(--destructive-wash)' },
   { kunci: 'sesuai', label: 'Sesuai', warna: 'var(--success)', wash: 'var(--success-wash)' },
-  { kunci: 'di_atas', label: 'Di atas', warna: 'var(--info)', wash: 'var(--info-wash)' },
+  { kunci: 'di_atas', label: 'Melampaui', warna: 'var(--info)', wash: 'var(--info-wash)' },
   { kunci: 'belum_terukur', label: 'Belum terukur', warna: 'var(--muted-foreground)', wash: 'var(--muted)' },
 ]
 
@@ -97,7 +97,7 @@ export default async function TargetTahfidzPage({ searchParams }: PageProps) {
         <section className="rounded-xl border bg-card p-5">
           <h2 className="text-sm font-semibold flex items-center gap-2"><Users className="h-4 w-4" /> Posisi Siswa vs Target Hari Ini</h2>
           <p className="text-xs text-muted-foreground mt-0.5 mb-4">
-            &quot;Sesuai&quot; = selisih paling jauh {TOLERANSI_PEKAN} pekan materi dari target. Terukur dari setoran ziyadah &amp; ujian yang tercatat di sistem.
+            &quot;Di bawah&quot; = tertinggal lebih dari {TOLERANSI_PEKAN} pekan materi. &quot;Melampaui&quot; = lebih dari 1 halaman di depan target (sampai 1 juz); lebih dari 1 juz = sangat melampaui, lebih dari 2 juz = sangat jauh melampaui. Hafalan di luar rencana program ikut dihitung. Terukur dari setoran ziyadah &amp; ujian yang tercatat di sistem.
           </p>
 
           {data.perRencana.length === 0 ? (
@@ -300,12 +300,17 @@ function BarisSiswa({ s }: { s: SiswaTarget }) {
           )}
           <span className="text-muted-foreground"> · Target:</span> {s.targetTeks}
         </p>
+        {s.diLuarRencana > 0.5 && (
+          <p className="text-xs mt-0.5" style={{ color: 'var(--info)' }}>
+            Rencana program sudah tuntas · +{Math.round(s.diLuarRencana).toLocaleString('id-ID')} halaman hafalan di luar rencana
+          </p>
+        )}
         {s.tindakLanjut && <p className="text-xs mt-0.5" style={{ color: 'var(--warning)' }}>{s.tindakLanjut}</p>}
       </div>
       <div className="text-right shrink-0">
         {st && (
           <span className="inline-block rounded-full px-2 py-0.5 text-[11px] font-medium" style={{ background: st.wash, color: st.warna }}>
-            {st.label}
+            {s.melampaui ? LABEL_MELAMPAUI[s.melampaui] : st.label}
           </span>
         )}
         {s.selisihPekan !== null && s.selisihHalaman !== null && (
