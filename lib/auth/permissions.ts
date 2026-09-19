@@ -484,8 +484,11 @@ export function isAwaitingMyReview(
 }
 
 // Home publik post permissions
+//
+// Kepala RQ sengaja tidak termasuk (2026-09): Home Publik dilepas dari
+// Kepala RQ bersama Program RQ, Kelola Beranda, dan modul keuangan.
 const HOME_POST_ROLES: Record<string, UserRole[]> = {
-  pengumuman: ['kepala_rq', 'sdm', 'bendahara'],
+  pengumuman: ['sdm', 'bendahara'],
   tugas_guru_sd: ['koor_sd'],
   tugas_guru_smp: ['koor_smp'],
 }
@@ -499,7 +502,6 @@ export function canPostPengumuman(role: UserRole): boolean {
 }
 
 export function canPostTugasGuru(role: UserRole): PublicTarget | null {
-  if (role === 'kepala_rq') return 'all'
   if (HOME_POST_ROLES.tugas_guru_sd.includes(role)) return 'sd'
   if (HOME_POST_ROLES.tugas_guru_smp.includes(role)) return 'smp'
   return null
@@ -532,7 +534,8 @@ export function canViewHumasRequests(role: UserRole): boolean {
 // Catatan Keuangan Bendahara
 //
 // Buku catatan ini milik fungsi keuangan, bukan catatan pribadi per-user:
-// bendahara yang menulis, kepala RQ boleh ikut membacanya (read-only).
+// sepenuhnya wewenang bendahara. Kepala RQ dulu ikut membaca; sejak 2026-09
+// akses itu dilepas dan modul ini milik bendahara seorang.
 /** Boleh menulis/mengubah/menghapus catatan keuangan. */
 export function canManageFinanceNotes(role: UserRole): boolean {
   return role === 'bendahara'
@@ -540,13 +543,13 @@ export function canManageFinanceNotes(role: UserRole): boolean {
 
 /** Boleh membuka & membaca catatan keuangan. */
 export function canViewFinanceNotes(role: UserRole): boolean {
-  return canManageFinanceNotes(role) || role === 'kepala_rq'
+  return canManageFinanceNotes(role)
 }
 
 // Modul Keuangan (pencatatan â rekap â laporan BPH)
 //
-// Aturan aksesnya sama dengan catatan keuangan: bendahara yang mencatat,
-// kepala RQ ikut membaca karena dialah yang menyampaikan laporannya ke BPH.
+// Aturan aksesnya sama dengan catatan keuangan: hanya bendahara. Kepala RQ
+// tidak lagi membuka modul ini (2026-09).
 // Dipisah jadi fungsi sendiri supaya kelak bisa berbeda â misal saat BPH
 // diberi akses baca laporan tanpa melihat transaksi satu per satu.
 /** Boleh mencatat transaksi, anggaran, dana titipan, dan narasi laporan. */
@@ -556,7 +559,7 @@ export function canManageFinance(role: UserRole): boolean {
 
 /** Boleh membuka modul keuangan & laporannya. */
 export function canViewFinance(role: UserRole): boolean {
-  return canManageFinance(role) || role === 'kepala_rq'
+  return canManageFinance(role)
 }
 
 /**
@@ -570,8 +573,9 @@ export function canCreateNews(role: UserRole): boolean {
   return role === 'humas'
 }
 
+/** Kelola Program RQ — wewenang Humas (Kepala RQ dilepas 2026-09). */
 export function canEditProgram(role: UserRole): boolean {
-  return role === 'kepala_rq' || role === 'humas'
+  return role === 'humas'
 }
 
 /**
@@ -579,7 +583,7 @@ export function canEditProgram(role: UserRole): boolean {
  * Halaman /program sendiri tetap publik (dilink dari header beranda).
  */
 export function canAccessProgramMenu(role: UserRole): boolean {
-  return role === 'kepala_rq' || role === 'humas'
+  return role === 'humas'
 }
 
 /**
@@ -596,10 +600,11 @@ export function canEditAbout(role: UserRole): boolean {
 
 /**
  * Kelola tampilan beranda publik: teks header/footer, seksi mana yang tampil
- * beserta urutannya, dan kurasi Profil Guru.
+ * beserta urutannya, dan kurasi Profil Guru. Wewenang Humas; Kepala RQ
+ * dilepas 2026-09.
  */
 export function canManageHomepage(role: UserRole): boolean {
-  return role === 'kepala_rq' || role === 'humas'
+  return role === 'humas'
 }
 
 // âââ PHASE 1B â Manajemen siswa, halaqoh, ustadz ââââââââââââââââââââ

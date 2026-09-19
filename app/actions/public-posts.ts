@@ -83,7 +83,7 @@ export async function togglePublicPostAction(postId: string, isActive: boolean) 
     .single()
 
   if (!post) return { error: 'Post tidak ditemukan.' }
-  if (post.created_by !== session.userId && session.role !== 'kepala_rq') {
+  if (post.created_by !== session.userId) {
     return { error: 'Tidak memiliki izin.' }
   }
 
@@ -111,7 +111,7 @@ export async function deletePublicPostAction(postId: string) {
     .single()
 
   if (!post) return { error: 'Post tidak ditemukan.' }
-  if (post.created_by !== session.userId && session.role !== 'kepala_rq') {
+  if (post.created_by !== session.userId) {
     return { error: 'Tidak memiliki izin.' }
   }
 

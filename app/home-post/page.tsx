@@ -30,13 +30,12 @@ export default async function HomePostPage() {
   const { data } = await supabase
     .from('public_posts')
     .select('*, creator:users!created_by(id, display_name)')
+    .eq('created_by', session.userId)
     .order('created_at', { ascending: false })
 
-  // Filter: kepala_rq sees all, others see only their own
-  const allPosts = (data ?? []) as PublicPost[]
-  const posts = session.role === 'kepala_rq'
-    ? allPosts
-    : allPosts.filter(p => p.created_by === session.userId)
+  // Tiap penulis mengelola postingannya sendiri. Kepala RQ dulu melihat
+  // semuanya; Home Publik sudah dilepas darinya (2026-09).
+  const posts = (data ?? []) as PublicPost[]
 
   return (
     <div>
