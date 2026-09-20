@@ -448,7 +448,7 @@ export interface ActionResult {
 }
 
 /**
- * Satu agenda dari kaldikrqlhi.vercel.app (`/api/calendar?year=`).
+ * Satu agenda kalender pendidikan (tabel kaldik_events, 0085).
  *
  * `date` adalah bentuk yang benar-benar dikirim API (YYYY-MM-DD, sehari penuh);
  * `start`/`end`/`location` dipertahankan opsional untuk agenda berjam yang

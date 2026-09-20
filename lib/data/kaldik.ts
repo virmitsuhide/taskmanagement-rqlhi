@@ -5,9 +5,10 @@ import type { KaldiEvent } from '@/types'
  * Agenda kalender pendidikan (kaldik).
  *
  * Dulu tinggal di aplikasi terpisah (kaldikrqlhi) dan dibaca lewat HTTP;
- * sejak 0085 ia tabel biasa di basis data yang sama. Yang berubah bukan cuma
- * tempatnya: agenda kini disunting dengan akun yang sama, tunduk pada RBAC
- * yang sama, dan terbaca seketika — bukan setelah singgahan lima menit.
+ * sejak 0085 ia tabel biasa di basis data yang sama, dan aplikasi lama itu
+ * sudah dipensiunkan. Yang berubah bukan cuma tempatnya: agenda kini
+ * disunting dengan akun yang sama, tunduk pada RBAC yang sama, dan terbaca
+ * seketika — bukan setelah singgahan lima menit.
  *
  * Dipakai dua tempat: kalender beranda publik dan Kalender Qur'an milik
  * koordinator. Satu modul supaya keduanya membaca agenda yang sama.
@@ -16,8 +17,6 @@ import type { KaldiEvent } from '@/types'
  * Agenda boleh berubah kapan saja, sedangkan TM yang sudah jadi penyebut
  * kehadiran di rapor tidak boleh ikut berubah diam-diam.
  */
-
-const KALDI_BASE = 'https://kaldikrqlhi.vercel.app'
 
 export const KALDIK_UNIT = ['NASIONAL', 'SD', 'SMP', 'RQ'] as const
 export type KaldikUnit = (typeof KALDIK_UNIT)[number]
@@ -48,25 +47,6 @@ export function kaldikKey(e: KaldiEvent): string {
 }
 
 /**
- * Cadangan selama migrasi 0085 belum dijalankan: baca dari aplikasi lama.
- *
- * Ada supaya urutan menjalankan migrasi tidak kritis — kalender beranda
- * tidak boleh kosong hanya karena tabelnya baru dibuat besok.
- */
-async function dariApiLama(years: number[]): Promise<KaldiEvent[]> {
-  const hasil = await Promise.all(years.map(async y => {
-    try {
-      const res = await fetch(`${KALDI_BASE}/api/calendar?year=${y}`, { next: { revalidate: 300 } })
-      if (!res.ok) return [] as KaldiEvent[]
-      return ((await res.json()).events ?? []) as KaldiEvent[]
-    } catch {
-      return [] as KaldiEvent[]
-    }
-  }))
-  return hasil.flat()
-}
-
-/**
  * Agenda beberapa tahun sekaligus, tanpa duplikat.
  *
  * Tahun ajaran membentang dua tahun kalender, jadi pemanggil lazimnya meminta
@@ -81,7 +61,9 @@ export async function getKaldikEvents(years: number[]): Promise<KaldiEvent[]> {
     .in('year', years)
     .order('date')
 
-  const baris = error ? await dariApiLama(years) : ((data ?? []) as KaldiEvent[])
+  // Galat dibiarkan menjadi daftar kosong, bukan jatuh ke sumber lain:
+  // aplikasi kaldik lama sudah tidak ada, dan tabel ini satu-satunya sumber.
+  const baris = error ? [] : ((data ?? []) as KaldiEvent[])
 
   const sudah = new Set<string>()
   const unik: KaldiEvent[] = []
@@ -102,7 +84,7 @@ export async function getKaldikTahun(year: number): Promise<{ tabelAda: boolean;
     .select('id, date, title, description, unit, type, color, year')
     .eq('year', year)
     .order('date')
-  if (error) return { tabelAda: false, events: await dariApiLama([year]) }
+  if (error) return { tabelAda: false, events: [] }
   return { tabelAda: true, events: (data ?? []) as KaldiEvent[] }
 }
 
