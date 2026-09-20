@@ -15,7 +15,7 @@ import {
   canAccessProgramMenu, canEditAbout,
   canViewStudents, canViewHalaqoh, canViewTeachers, canViewAnalytics, canViewUnitAnalytics,
   canManageHomepage, canViewKpi, canManageAllAccounts, canManagePengurus, canManageEmployees, canViewUjian,
-  canAccessKpiPublikasi, canViewKpiBanding, canViewTasks, canViewRoutineBoard,
+  canAccessKpiPublikasi, canManageRaporTemplate, canViewKpiBanding, canViewTasks, canViewRoutineBoard,
 } from '@/lib/auth/permissions'
 import type { UserRole } from '@/types'
 import { logoutAction } from '@/app/actions/auth'
@@ -220,6 +220,11 @@ export function Sidebar({ role, displayName, username, lencanaKpi }: Props) {
               )}
               {canViewUjian(role) && (
                 <NavItem href="/ujian/kelola" icon={<ScrollText className="h-4 w-4" />} label="Pengajuan Ujian" active={isActive('/ujian')} />
+              )}
+              {/* Bentuk rapor adalah keputusan unit, bukan seorang guru —
+                  karena itu template-nya di sini, bukan di portal guru. */}
+              {canManageRaporTemplate(role) && (
+                <NavItem href="/rapor-quran/template" icon={<LayoutTemplate className="h-4 w-4" />} label="Template Rapor" active={isActive('/rapor-quran')} />
               )}
               {canViewGukarRecap(role) && (
                 <NavItem

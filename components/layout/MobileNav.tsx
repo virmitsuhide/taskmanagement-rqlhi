@@ -17,7 +17,7 @@ import {
   canViewStudents, canViewHalaqoh, canViewTeachers, canViewAnalytics, canViewUnitAnalytics,
   canManageHomepage,
   canViewKpi, canManageAllAccounts, canManagePengurus, canManageEmployees, canViewUjian, canManageTeacherProfiles,
-  canAccessKpiPublikasi, canViewKpiBanding, canViewTasks, canViewRoutineBoard } from '@/lib/auth/permissions'
+  canAccessKpiPublikasi, canManageRaporTemplate, canViewKpiBanding, canViewTasks, canViewRoutineBoard } from '@/lib/auth/permissions'
 import type { UserRole } from '@/types'
 import { logoutAction } from '@/app/actions/auth'
 import { Logo } from '@/components/brand/Logo'
@@ -289,6 +289,11 @@ export function MobileNav({ role, displayName, username, lencanaKpi }: Props) {
                 )}
                 {canViewUjian(role) && (
                   <DrawerLink href="/ujian/kelola" icon={<ScrollText className="h-4 w-4" />} label="Pengajuan Ujian" active={isActive('/ujian')} onNavigate={close} />
+                )}
+                {/* Bentuk rapor adalah keputusan unit, bukan seorang guru —
+                    karena itu template-nya di sini, bukan di portal guru. */}
+                {canManageRaporTemplate(role) && (
+                  <DrawerLink href="/rapor-quran/template" icon={<LayoutTemplate className="h-4 w-4" />} label="Template Rapor" active={isActive('/rapor-quran')} onNavigate={close} />
                 )}
                 {canViewGukarRecap(role) && (
                   <DrawerLink href="/dashboard/analitik/gukar" icon={<BarChart3 className="h-4 w-4" />} label="Analitik Gukar" active={isActive('/dashboard/analitik/gukar')} onNavigate={close} />

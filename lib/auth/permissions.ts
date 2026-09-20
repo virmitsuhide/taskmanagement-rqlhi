@@ -1383,3 +1383,14 @@ export function canManageUjian(role: UserRole, unit: UjianUnit): boolean {
 export function canSubmitUjian(role: UserRole): boolean {
   return canViewUjian(role)
 }
+
+/**
+ * Template rapor Qur'an (0082) — diunggah & dipetakan koordinator unit.
+ *
+ * Cakupannya sama dengan wewenang mengelola siswa: koor SD mengurus format
+ * SD, koor SMP format SMP. Formatnya milik unit, bukan milik seorang guru —
+ * guru memakainya, tapi tidak boleh mengubah bentuk rapor seluruh angkatan.
+ */
+export function canManageRaporTemplate(role: UserRole, jenjang?: Jenjang | null): boolean {
+  return canManageStudents(role, jenjang)
+}
