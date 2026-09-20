@@ -27,7 +27,7 @@ export const KODE_MEDAN = [
   // Ruang tanda tangan — gambar, bukan teks
   'ttd_pengampu', 'ttd_koordinator', 'ttd_keduanya',
   // Periode
-  'semester', 'tahun_ajaran', 'tanggal_terbit', 'tempat_terbit',
+  'semester', 'tahun_ajaran', 'tanggal_terbit', 'tempat_terbit', 'tempat_tanggal',
   // Diisi guru di layar edit
   'deskripsi',
   // Perlakuan khusus
@@ -86,6 +86,7 @@ export const MEDAN: InfoMedan[] = [
   { kode: 'tahun_ajaran', label: 'Tahun pelajaran', grup: 'Periode', contoh: '2025/2026' },
   { kode: 'tanggal_terbit', label: 'Tanggal terbit rapor', grup: 'Periode', contoh: '26 Juni 2026' },
   { kode: 'tempat_terbit', label: 'Tempat terbit', grup: 'Periode', contoh: 'Banguntapan' },
+  { kode: 'tempat_tanggal', label: 'Tempat, tanggal terbit', grup: 'Periode', contoh: 'Banguntapan, 26 Juni 2026' },
 
   { kode: 'deskripsi', label: 'Deskripsi perkembangan (diisi guru)', grup: 'Diisi guru', contoh: 'Alhamdulillah, Ananda…' },
 
@@ -192,6 +193,16 @@ function dariPlaceholder(teks: string): KodeMedan | null {
   const kode = teks.match(POLA_PLACEHOLDER)?.[1]?.toLowerCase()
   return kode && (KODE_MEDAN as readonly string[]).includes(kode) ? (kode as KodeMedan) : null
 }
+
+/**
+ * "Banguntapan, 26 Juni 2026" — tempat dan tanggal dalam satu tarikan.
+ *
+ * Bentuk ini tidak punya label di depannya, jadi ia tidak bisa ditebak dari
+ * label seperti medan lain; yang dikenali adalah BENTUK teksnya. Karena itu ia
+ * hanya disarankan, tak pernah dipakai langsung — sebuah kalimat yang kebetulan
+ * berbentuk sama tidak boleh diam-diam berubah jadi tanggal hari ini.
+ */
+const POLA_TEMPAT_TANGGAL = /^[\p{L} .'-]{3,30},\s*\d{1,2}\s+\p{L}+\s+\d{4}$/u
 
 /**
  * Segmen yang jelas-jelas tempat isian kosong, bukan teks yang harus tetap
@@ -372,7 +383,9 @@ export function cariSlot(blok: Blok[]): Slot[] {
         petunjuk: seg.slice(0, 40),
         contoh: seg,
         prefiks: '',
-        tebakan: berisi > 1 ? labelBerdiriSendiri(seg, kolom) : null,
+        tebakan: berisi > 1
+          ? labelBerdiriSendiri(seg, kolom)
+          : (POLA_TEMPAT_TANGGAL.test(seg) ? 'tempat_tanggal' : null),
         pasti: berisi > 1 && placeholderKosong(seg) && labelBerdiriSendiri(seg, kolom) !== null,
       })
     })

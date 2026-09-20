@@ -221,6 +221,9 @@ export async function getBahanRaporSesi(
       tahun_ajaran: term.year_label,
       tanggal_terbit: hariIni,
       tempat_terbit: template?.tempat_terbit ?? '',
+      // Bentuk gabungan yang lazim di kaki dokumen sekolah. Tanpa tempat
+      // terbit ia menyusut jadi tanggal saja — bukan ", 26 Juni 2026".
+      tempat_tanggal: template?.tempat_terbit ? `${template.tempat_terbit}, ${hariIni}` : hariIni,
 
       deskripsi: isian?.deskripsi ?? '',
       tetap: '',
