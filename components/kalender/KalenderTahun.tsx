@@ -45,6 +45,26 @@ const KOSONG = (tanggal: string, unit: KaldikUnit): IsianAgenda => ({
   tanggal, judul: '', keterangan: '', unit, tipe: 'agenda',
 })
 
+const HARI = ['Sn', 'Sl', 'Rb', 'Km', 'Jm', 'Sb', 'Mg']
+
+/**
+ * Kisi 6×7 satu bulan, kolom pertama Senin.
+ *
+ * Selalu 42 sel supaya tinggi tiap kartu bulan sama — dua belas kartu yang
+ * tingginya berbeda-beda membuat halaman terbaca berantakan. Sel di luar
+ * bulannya dikembalikan null, bukan tanggal bulan tetangga: di kalender
+ * setahun penuh, tanggal tetangga itu sudah punya kartunya sendiri.
+ */
+function kisiBulan(tahun: number, bulan: number): (number | null)[] {
+  const pertama = new Date(Date.UTC(tahun, bulan, 1))
+  const geser = (pertama.getUTCDay() + 6) % 7
+  const jumlah = new Date(Date.UTC(tahun, bulan + 1, 0)).getUTCDate()
+  return Array.from({ length: 42 }, (_, i) => {
+    const t = i - geser + 1
+    return t >= 1 && t <= jumlah ? t : null
+  })
+}
+
 /**
  * Kalender pendidikan setahun penuh — dua belas bulan dalam satu layar.
  *
@@ -62,6 +82,7 @@ export function KalenderTahun({ tahun, events, unitBoleh }: Props) {
   const [pending, mulai] = useTransition()
   const [saringan, setSaringan] = useState<Saringan>('SEMUA')
   const [form, setForm] = useState<{ id: string | null; isi: IsianAgenda } | null>(null)
+  const [pilih, setPilih] = useState<string | null>(null)
 
   const perBulan = useMemo(() => {
     const cocok = (u: string) => saringan === 'SEMUA' || u === saringan || u === 'NASIONAL' || u === 'RQ'
@@ -77,6 +98,7 @@ export function KalenderTahun({ tahun, events, unitBoleh }: Props) {
   }, [events, saringan])
 
   const jumlah = perBulan.reduce((n, k) => n + k.length, 0)
+  const agendaHari = pilih ? (perBulan[Number(pilih.slice(5, 7)) - 1] ?? []).filter(e => e.date === pilih) : []
   const bolehUnit = (u: string | undefined) => unitBoleh.includes(String(u ?? '').toUpperCase() as KaldikUnit)
 
   function simpan() {
@@ -188,58 +210,131 @@ export function KalenderTahun({ tahun, events, unitBoleh }: Props) {
         </div>
       )}
 
-      {/* ── Dua belas bulan ── */}
+      {/* ── Dua belas bulan, masing-masing kisi tanggal ── */}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {perBulan.map((agenda, i) => (
-          <section key={i} className="rounded-xl border bg-card p-3">
-            <h2 className="mb-2 flex items-baseline justify-between text-sm font-semibold">
-              {BULAN_ID[i]}
-              <span className="text-[11px] font-normal text-muted-foreground">{agenda.length}</span>
-            </h2>
+        {perBulan.map((agenda, i) => {
+          // Agenda dikelompokkan per tanggal supaya tiap sel tahu warnanya.
+          const per = new Map<number, KaldiEvent[]>()
+          for (const e of agenda) {
+            const t = Number(String(e.date).slice(8))
+            per.set(t, [...(per.get(t) ?? []), e])
+          }
+          return (
+            <section key={i} className="rounded-xl border bg-card p-3">
+              <h2 className="mb-2 flex items-baseline justify-between text-sm font-semibold">
+                {BULAN_ID[i]}
+                <span className="text-[11px] font-normal text-muted-foreground">{agenda.length}</span>
+              </h2>
 
-            {agenda.length === 0 ? (
-              <p className="py-3 text-center text-[11px] text-muted-foreground">—</p>
-            ) : (
-              <ul className="space-y-1.5">
-                {agenda.map(e => (
-                  <li key={String(e.id)} className="group flex items-start gap-2">
-                    <span aria-hidden className="mt-1.5 h-2 w-2 shrink-0 rounded-full"
-                      style={{ background: e.color ?? TIPE_WARNA[(e.type as KaldikTipe) ?? 'agenda'] ?? '#3B82F6' }} />
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-xs leading-snug">
-                        <b className="tabular-nums">{Number(String(e.date).slice(8))}</b> {e.title}
-                      </span>
-                      <span className="block text-[10px] text-muted-foreground">{e.unit}</span>
-                    </span>
-                    {bolehUnit(e.unit) && (
-                      <span className="flex shrink-0 gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
-                        <button type="button" disabled={pending} aria-label={`Ubah ${e.title}`}
-                          className="rounded p-1 hover:bg-accent"
-                          onClick={() => setForm({
-                            id: String(e.id),
-                            isi: {
-                              tanggal: String(e.date),
-                              judul: e.title,
-                              keterangan: e.description ?? '',
-                              unit: String(e.unit ?? 'SD').toUpperCase() as KaldikUnit,
-                              tipe: (e.type as KaldikTipe) ?? 'agenda',
-                            },
-                          })}>
-                          <Pencil className="h-3.5 w-3.5" />
-                        </button>
-                        <button type="button" disabled={pending} aria-label={`Hapus ${e.title}`}
-                          className="rounded p-1 hover:bg-accent" onClick={() => hapus(e)}>
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      </span>
-                    )}
-                  </li>
+              <div className="grid grid-cols-7 gap-0.5 text-center">
+                {HARI.map((h, k) => (
+                  <div key={h} className={cn('pb-1 text-[10px] font-medium', k === 6 ? 'text-[color:var(--destructive)]' : 'text-muted-foreground')}>
+                    {h}
+                  </div>
                 ))}
-              </ul>
-            )}
-          </section>
-        ))}
+                {kisiBulan(tahun, i).map((t, k) => {
+                  if (t === null) return <div key={k} />
+                  const isi = per.get(t) ?? []
+                  const iso = `${tahun}-${String(i + 1).padStart(2, '0')}-${String(t).padStart(2, '0')}`
+                  const terpilih = pilih === iso
+                  // Warna sel mengikuti agenda pertama hari itu; hari yang
+                  // punya beberapa agenda ditandai titik di bawah angkanya.
+                  const warna = isi[0] ? (isi[0].color ?? TIPE_WARNA[(isi[0].type as KaldikTipe) ?? 'agenda']) : null
+                  const minggu = k % 7 === 6
+                  return (
+                    <button
+                      key={k}
+                      type="button"
+                      aria-pressed={terpilih}
+                      aria-label={isi.length > 0 ? `${t} ${BULAN_ID[i]}: ${isi.map(e => e.title).join(', ')}` : `${t} ${BULAN_ID[i]}`}
+                      onClick={() => setPilih(terpilih ? null : iso)}
+                      className={cn(
+                        'relative aspect-square rounded text-[11px] leading-none transition-colors',
+                        terpilih && 'ring-2 ring-ring',
+                        isi.length === 0 && !minggu && 'hover:bg-accent',
+                        isi.length === 0 && minggu && 'text-[color:var(--destructive)] hover:bg-accent',
+                      )}
+                      style={warna ? { background: `${warna}22`, color: warna, fontWeight: 600 } : undefined}
+                    >
+                      {t}
+                      {isi.length > 1 && (
+                        <span aria-hidden className="absolute inset-x-0 bottom-0.5 text-[7px] leading-none">••</span>
+                      )}
+                    </button>
+                  )
+                })}
+              </div>
+            </section>
+          )
+        })}
       </div>
+
+      {/* ── Agenda hari terpilih ──
+          Kisi menjawab "kapan"; daftar ini menjawab "apa". Dipisah supaya
+          kartu bulan tetap ringkas dan dua belasnya muat dalam satu layar. */}
+      {pilih && (
+        <section className="space-y-2 rounded-xl border bg-card p-4">
+          <div className="flex items-start justify-between gap-2">
+            <h2 className="font-semibold">
+              {new Date(`${pilih}T00:00:00+07:00`).toLocaleDateString('id-ID', {
+                weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Jakarta',
+              })}
+            </h2>
+            <Button type="button" variant="ghost" size="sm" onClick={() => setPilih(null)} aria-label="Tutup">
+              <X />
+            </Button>
+          </div>
+
+          {agendaHari.length === 0 ? (
+            <p className="py-2 text-sm text-muted-foreground">Tidak ada agenda pada tanggal ini.</p>
+          ) : (
+            <ul className="space-y-2">
+              {agendaHari.map(e => (
+                <li key={String(e.id)} className="flex items-start gap-2.5">
+                  <span aria-hidden className="mt-1.5 h-2 w-2 shrink-0 rounded-full"
+                    style={{ background: e.color ?? TIPE_WARNA[(e.type as KaldikTipe) ?? 'agenda'] ?? '#3B82F6' }} />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm leading-snug">{e.title}</p>
+                    <p className="text-[11px] text-muted-foreground">
+                      {e.unit} · {TIPE_LABEL[(e.type as KaldikTipe)] ?? e.type}
+                      {e.description && ` · ${e.description}`}
+                    </p>
+                  </div>
+                  {bolehUnit(e.unit) && (
+                    <span className="flex shrink-0 gap-0.5">
+                      <button type="button" disabled={pending} aria-label={`Ubah ${e.title}`}
+                        className="rounded p-1 hover:bg-accent"
+                        onClick={() => setForm({
+                          id: String(e.id),
+                          isi: {
+                            tanggal: String(e.date),
+                            judul: e.title,
+                            keterangan: e.description ?? '',
+                            unit: String(e.unit ?? 'SD').toUpperCase() as KaldikUnit,
+                            tipe: (e.type as KaldikTipe) ?? 'agenda',
+                          },
+                        })}>
+                        <Pencil className="h-3.5 w-3.5" />
+                      </button>
+                      <button type="button" disabled={pending} aria-label={`Hapus ${e.title}`}
+                        className="rounded p-1 hover:bg-accent" onClick={() => hapus(e)}>
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {unitBoleh.length > 0 && (
+            <Button type="button" variant="outline" size="sm" disabled={pending}
+              onClick={() => setForm({ id: null, isi: KOSONG(pilih, unitBoleh[0]) })}>
+              <Plus /> Tambah agenda di tanggal ini
+            </Button>
+          )}
+        </section>
+      )}
 
       {/* ── Legenda ── */}
       <div className="flex flex-wrap gap-x-4 gap-y-1.5 rounded-xl border bg-card p-3 text-[11px]">
