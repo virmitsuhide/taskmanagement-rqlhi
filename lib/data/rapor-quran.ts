@@ -10,7 +10,7 @@ import { JENJANG_LABELS } from '@/lib/auth/permissions'
 import { formatTanggal } from '@/lib/rq/ujian'
 import type { HalaqohSesi } from '@/lib/data/setoran-sesi'
 import type { KodeMedan } from '@/lib/rapor/medan'
-import type { RaporTemplate } from '@/lib/data/rapor-template'
+import { templateUntuk, type RaporTemplate } from '@/lib/data/rapor-template'
 import type { Jenjang } from '@/types'
 
 /**
@@ -71,6 +71,8 @@ export interface BahanRapor {
   absensi: RekapAbsensi
   /** true = anak ini belum punya satu pun setoran di semester ini. */
   sepi: boolean
+  /** Template yang berlaku untuk anak ini; null = belum ada yang cocok. */
+  template: RaporTemplate | null
 }
 
 function kosongkan(): Record<KodeMedan, string> {
@@ -80,13 +82,14 @@ function kosongkan(): Record<KodeMedan, string> {
 /**
  * Susun bahan rapor seluruh anak satu sesi.
  *
- * `template` hanya dipakai untuk teks pengesahan (tempat terbit, nama & NIY
- * koordinator) — bentuk lembarnya diurus komponen cetak.
+ * Template dipilih PER ANAK dari daftar yang diberikan, bukan per halaqoh:
+ * satu sesi bisa berisi kelas 5 dan 6 sekaligus, dan keduanya berhak atas
+ * format unitnya masing-masing.
  */
 export async function getBahanRaporSesi(
   halaqoh: HalaqohSesi,
   term: Semester,
-  template: RaporTemplate | null,
+  templates: RaporTemplate[],
 ): Promise<BahanRapor[]> {
   const supabase = createServerClient()
 
@@ -158,6 +161,7 @@ export async function getBahanRaporSesi(
     const sedang = juzTerjauh(progres.filter(p => p.student_id === s.id && p.ayat_hafal > 0).map(p => p.juz_number))
     const totalHalaman = halamanHafalan(peta, juz.total, ziyadahSemua.filter(z => z.student_id === s.id))
     const isian = isianPer.get(s.id)
+    const template = templateUntuk(templates, s.jenjang, s.kelas)
 
     // Adab digabung dari kedua jenis setoran: itu satu sifat anak, bukan dua.
     const karakter = rerata([...ts.map(l => l.nilai_sikap), ...tf.map(l => l.nilai_sikap)])
@@ -224,6 +228,7 @@ export async function getBahanRaporSesi(
       timpaan,
       absensi: rekap,
       sepi: ts.length === 0 && tf.length === 0,
+      template,
     }
   })
 }

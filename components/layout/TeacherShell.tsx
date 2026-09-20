@@ -79,6 +79,8 @@ export async function TeacherShell({ children }: { children: React.ReactNode }) 
         { label: 'Capaian Bulanan', href: '/guru/capaian', icon: <CalendarCheck /> },
         // Laporan per SESI untuk grup wali; rapor per anak ada di halaman siswa.
         { label: 'Laporan Orang Tua', href: '/guru/laporan-ortu', icon: <FileText /> },
+        // Rapor semester memakai format yang ditetapkan koordinator (0082).
+        { label: 'Rapor Qur’an', href: '/guru/rapor-quran', icon: <ScrollText /> },
         { label: 'Statistik', href: '/guru/statistik', icon: <BarChart3 /> },
       ],
     },

@@ -38,6 +38,8 @@ export function PemetaanTemplate({ id, blok, pemetaan, pengesahan }: Props) {
   const [lihatSemua, setLihatSemua] = useState(false)
 
   const slot = useMemo(() => cariSlot(blok), [blok])
+  // Yang tampil sendiri: slot yang punya tebakan — dipakai langsung (pasti)
+  // maupun sekadar disarankan (blok tanda tangan). Sisanya teks biasa.
   const terdeteksi = slot.filter(s => s.tebakan !== null)
   const lainnya = slot.filter(s => s.tebakan === null)
   const tampil = lihatSemua ? slot : terdeteksi
@@ -111,6 +113,19 @@ export function PemetaanTemplate({ id, blok, pemetaan, pengesahan }: Props) {
                   </div>
                   {s.contoh && (
                     <p className="truncate text-[11px] text-muted-foreground">di template: &ldquo;{s.contoh.slice(0, 70)}&rdquo;</p>
+                  )}
+                  {/* Tebakan yang tidak pasti hanya ditawarkan — teks seperti
+                      "Koordinator Al-Qur'an SDIT LHI" bisa jadi judul kolom
+                      yang memang harus tetap tercetak. */}
+                  {!s.pasti && s.tebakan && kode === 'tetap' && (
+                    <button
+                      type="button"
+                      disabled={pending}
+                      onClick={() => setPeta({ ...peta, [s.id]: s.tebakan! })}
+                      className="mt-1 rounded-full border border-dashed px-2 py-0.5 text-[11px] text-muted-foreground hover:bg-accent"
+                    >
+                      saran: isi dengan {MEDAN_PER_KODE.get(s.tebakan)?.label}
+                    </button>
                   )}
                   <select
                     value={kode}

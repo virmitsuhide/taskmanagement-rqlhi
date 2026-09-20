@@ -1,4 +1,5 @@
 import { createServerClient } from '@/lib/supabase/server'
+import type { Jenjang } from '@/types'
 import { getTeacherHalaqohIds } from '@/lib/data/teacher'
 import { getJuzDrillPerSiswa, type JuzDrillSiswa } from '@/lib/data/drill-tahfidz'
 import {
@@ -18,6 +19,8 @@ export interface HalaqohSesi {
   id: string
   name: string
   sesi: number | null
+  /** Unit pemilik halaqoh — menentukan template rapor mana yang berlaku (0082). */
+  jenjang: Jenjang
 }
 
 export async function getHalaqohSesiGuru(teacherId: string): Promise<HalaqohSesi[]> {
@@ -26,7 +29,7 @@ export async function getHalaqohSesiGuru(teacherId: string): Promise<HalaqohSesi
   const supabase = createServerClient()
   const { data } = await supabase
     .from('halaqoh')
-    .select('id, name, sesi')
+    .select('id, name, sesi, jenjang')
     .in('id', ids)
     .eq('is_active', true)
     .order('sesi')

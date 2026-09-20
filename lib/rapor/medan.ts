@@ -169,6 +169,15 @@ export interface Slot {
   prefiks: string
   /** true = ditemukan lewat placeholder {{kode}} yang ditulis manual. */
   eksplisit?: boolean
+  /**
+   * true = tebakannya dipakai langsung; false = hanya disarankan.
+   *
+   * Yang boleh dipakai langsung hanyalah NILAI yang mengikuti label yang
+   * dikenali ("Nilai Tahsin" ⇥ ": 91,52"). Teks yang sekadar BERBUNYI seperti
+   * label tidak: "Koordinator Al-Qur'an SDIT LHI" di blok tanda tangan adalah
+   * judul kolom, dan menggantinya dengan nama koordinator menghapus judulnya.
+   */
+  pasti: boolean
 }
 
 const POLA_PLACEHOLDER = /\{\{\s*([a-z_]+)\s*\}\}/i
@@ -219,6 +228,7 @@ export function cariSlot(blok: Blok[]): Slot[] {
         prefiks: '',
         tebakan: dariPlaceholder(b.paragraf.join(' ')) ?? (adaJudul ? tebakDariLabel(judul) : null) ?? 'deskripsi',
         eksplisit: POLA_PLACEHOLDER.test(b.paragraf.join(' ')),
+        pasti: true,
       })
       return
     }
@@ -236,6 +246,7 @@ export function cariSlot(blok: Blok[]): Slot[] {
             prefiks: '',
             tebakan: eksplisit ?? (kepala ? tebakDariLabel(kepala) : null),
             eksplisit: Boolean(eksplisit),
+            pasti: true,
           })
         })
       })
@@ -261,7 +272,7 @@ export function cariSlot(blok: Blok[]): Slot[] {
 
       const eksplisit = dariPlaceholder(seg)
       if (eksplisit) {
-        slot.push({ id: `p${i}.${s}`, petunjuk: seg, contoh: seg, prefiks: '', tebakan: eksplisit, eksplisit: true })
+        slot.push({ id: `p${i}.${s}`, petunjuk: seg, contoh: seg, prefiks: '', tebakan: eksplisit, eksplisit: true, pasti: true })
         return
       }
 
@@ -274,6 +285,7 @@ export function cariSlot(blok: Blok[]): Slot[] {
           contoh: seg.replace(/^:\s*/, ''),
           prefiks: ': ',
           tebakan: tebakDariLabel(label),
+          pasti: true,
         })
         return
       }
@@ -287,6 +299,7 @@ export function cariSlot(blok: Blok[]): Slot[] {
           contoh: sebaris[2],
           prefiks: `${sebaris[1]} : `,
           tebakan: tebakDariLabel(sebaris[1]),
+          pasti: true,
         })
         return
       }
@@ -300,6 +313,7 @@ export function cariSlot(blok: Blok[]): Slot[] {
         contoh: seg,
         prefiks: '',
         tebakan: berisi > 1 ? labelBerdiriSendiri(seg, kolom) : null,
+        pasti: false,
       })
     })
   })
@@ -307,7 +321,14 @@ export function cariSlot(blok: Blok[]): Slot[] {
   return slot
 }
 
-/** Pemetaan bawaan dari tebakan — titik berangkat layar pemetaan. */
+/**
+ * Pemetaan bawaan — titik berangkat layar pemetaan.
+ *
+ * Hanya tebakan yang `pasti` yang langsung dipakai. Sisanya dibiarkan apa
+ * adanya dan tebakannya cukup ditawarkan: lebih baik koordinator menambahkan
+ * satu pemetaan yang kurang daripada menemukan judul kolom tanda tangannya
+ * tergantikan nama orang di rapor yang sudah dibagikan.
+ */
 export function pemetaanAwal(slot: Slot[]): Record<string, KodeMedan> {
-  return Object.fromEntries(slot.map(s => [s.id, s.tebakan ?? 'tetap']))
+  return Object.fromEntries(slot.map(s => [s.id, (s.pasti && s.tebakan) || 'tetap']))
 }
