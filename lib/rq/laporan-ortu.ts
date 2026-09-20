@@ -150,6 +150,12 @@ export interface OpsiPesan {
   rincian: boolean
   /** Pesan tambahan dari guru, disisipkan sebelum penutup. */
   pesan: string
+  /**
+   * Tautan laporan yang bisa dibuka wali tanpa login. Kosong = tidak
+   * disertakan, dan penutupnya kembali menyebut lampiran PDF — wali yang
+   * tidak diberi tautan tidak boleh disuruh membuka sesuatu yang tak ada.
+   */
+  tautan?: string
 }
 
 /**
@@ -202,7 +208,9 @@ export function teksWaLaporanOrtu(l: LaporanOrtu, opsi: OpsiPesan): string {
   if (opsi.pesan.trim()) baris.push('', opsi.pesan.trim())
   baris.push(
     '',
-    'Laporan lengkap terlampir dalam PDF.',
+    opsi.tautan
+      ? `Laporan lengkap: ${opsi.tautan}`
+      : 'Laporan lengkap terlampir dalam PDF.',
     "Mohon dukungan Ayah/Bunda untuk menyimak muroja'ah Ananda di rumah. 🤲",
     '',
     'Jazakumullahu khairan.',

@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { Check, Copy, FileDown, MessageCircle } from 'lucide-react'
+import { Check, Copy, FileDown, Link2, MessageCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { teksWaLaporanOrtu, type LaporanOrtu } from '@/lib/rq/laporan-ortu'
@@ -28,21 +28,33 @@ export function TombolUnduhPdf({ namaBerkas }: { namaBerkas: string }) {
   )
 }
 
-export function PesanWaLaporanOrtu({ laporan }: { laporan: LaporanOrtu }) {
+/**
+ * Kotak pesan WhatsApp untuk grup wali.
+ *
+ * `tautan` adalah alamat publik laporan ini (/laporan/[token]) — sama polanya
+ * dengan rapor per anak. Ia ditandatangani di server, jadi tak bisa ditebak,
+ * dan tanggalnya dibekukan supaya tautan yang sama tetap menampilkan laporan
+ * yang sama bulan depan.
+ */
+export function PesanWaLaporanOrtu({ laporan, tautan }: { laporan: LaporanOrtu; tautan: string }) {
   const [rincian, setRincian] = useState(true)
+  const [sertakanTautan, setSertakanTautan] = useState(true)
   const [pesan, setPesan] = useState('')
-  const dasar = useMemo(() => teksWaLaporanOrtu(laporan, { rincian, pesan }), [laporan, rincian, pesan])
+  const dasar = useMemo(
+    () => teksWaLaporanOrtu(laporan, { rincian, pesan, tautan: sertakanTautan ? tautan : undefined }),
+    [laporan, rincian, pesan, sertakanTautan, tautan],
+  )
   // Teks boleh disunting guru. Suntingan disimpan terpisah dan dibuang saat
   // opsi diubah — teksnya lalu disusun ulang dari awal.
   const [suntingan, setSuntingan] = useState<string | null>(null)
   const teks = suntingan ?? dasar
-  const [tersalin, setTersalin] = useState(false)
+  const [tersalin, setTersalin] = useState<'teks' | 'tautan' | null>(null)
 
-  async function salin() {
+  async function salin(apa: 'teks' | 'tautan') {
     try {
-      await navigator.clipboard.writeText(teks)
-      setTersalin(true)
-      setTimeout(() => setTersalin(false), 2500)
+      await navigator.clipboard.writeText(apa === 'teks' ? teks : tautan)
+      setTersalin(apa)
+      setTimeout(() => setTersalin(null), 2500)
     } catch {
       // Clipboard ditolak (non-HTTPS / izin): teks tetap bisa disalin manual.
     }
@@ -53,7 +65,7 @@ export function PesanWaLaporanOrtu({ laporan }: { laporan: LaporanOrtu }) {
       <div>
         <p className="flex items-center gap-2 text-sm font-semibold"><MessageCircle className="h-4 w-4" /> Pesan WhatsApp untuk Ayah/Bunda</p>
         <p className="mt-0.5 text-xs text-muted-foreground">
-          Kirim ke grup wali sesi ini, lalu lampirkan PDF-nya. Teks di bawah boleh disunting sebelum disalin.
+          Kirim ke grup wali sesi ini. Teks di bawah boleh disunting sebelum disalin.
         </p>
       </div>
 
@@ -62,6 +74,22 @@ export function PesanWaLaporanOrtu({ laporan }: { laporan: LaporanOrtu }) {
           <input type="checkbox" checked={rincian} onChange={e => { setRincian(e.target.checked); setSuntingan(null) }} className="h-4 w-4 accent-[var(--primary)]" />
           Sertakan rincian per anak
         </label>
+        <label className="inline-flex items-center gap-2">
+          <input type="checkbox" checked={sertakanTautan} onChange={e => { setSertakanTautan(e.target.checked); setSuntingan(null) }} className="h-4 w-4 accent-[var(--primary)]" />
+          Sertakan tautan laporan
+        </label>
+      </div>
+
+      {/* Tautan yang sama dengan yang masuk ke pesan — untuk ditempel ke
+          tempat lain, mis. japri ke satu wali. */}
+      <div className="flex flex-wrap items-center gap-2 rounded-md border bg-muted/40 px-3 py-2">
+        <Link2 className="h-4 w-4 shrink-0 text-muted-foreground" />
+        <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-muted-foreground">{tautan}</span>
+        <Button type="button" size="sm" variant="outline" onClick={() => salin('tautan')}>
+          {tersalin === 'tautan'
+            ? <><Check className="mr-1.5 h-3.5 w-3.5 text-success" /> Tersalin</>
+            : <><Copy className="mr-1.5 h-3.5 w-3.5" /> Salin link</>}
+        </Button>
       </div>
       <textarea
         value={pesan}
@@ -79,8 +107,8 @@ export function PesanWaLaporanOrtu({ laporan }: { laporan: LaporanOrtu }) {
         className={cn('w-full resize-y rounded-md border bg-muted/40 px-3 py-2 font-mono text-xs outline-none')}
       />
       <div className="grid gap-2 sm:grid-cols-2">
-        <Button type="button" variant="outline" onClick={salin}>
-          {tersalin
+        <Button type="button" variant="outline" onClick={() => salin('teks')}>
+          {tersalin === 'teks'
             ? <><Check className="mr-1.5 h-4 w-4 text-success" /> Tersalin</>
             : <><Copy className="mr-1.5 h-4 w-4" /> Salin teks</>}
         </Button>
