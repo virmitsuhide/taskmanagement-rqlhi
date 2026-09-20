@@ -1,7 +1,7 @@
 import {
   LayoutDashboard, Users, BookOpen, Sparkles, CalendarCheck,
   BarChart3, ScrollText, GraduationCap, IdCard, ClipboardCheck, ListChecks,
-  Table2, HeartHandshake,
+  Table2, HeartHandshake, UserCheck,
   FileText,
 } from 'lucide-react'
 import { getTeacherSession } from '@/lib/auth/teacher-session'
@@ -62,6 +62,9 @@ export async function TeacherShell({ children }: { children: React.ReactNode }) 
     {
       title: 'Setoran & Capaian',
       items: [
+        // Daftar hadir mendahului setoran: yang pertama dilakukan saat pertemuan
+        // dimulai adalah melihat siapa yang datang (0081).
+        { label: 'Daftar Hadir', href: '/guru/absensi', icon: <UserCheck /> },
         { label: 'Setor Tahsin', href: '/guru/setoran/tahsin/baru', icon: <BookOpen /> },
         { label: 'Setor Tahfidz', href: '/guru/setoran/tahfidz/baru', icon: <Sparkles /> },
         // Satu sesi sekaligus — cara yang lebih cepat saat seluruh halaqoh setor.
