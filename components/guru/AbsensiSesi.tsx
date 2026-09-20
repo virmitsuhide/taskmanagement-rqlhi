@@ -104,6 +104,9 @@ export function AbsensiSesi({ halaqohId, tanggal, siswa, awal }: Props) {
                         key={st}
                         type="button"
                         aria-pressed={aktif}
+                        // Tombolnya hanya sehuruf; pembaca layar dan tooltip
+                        // yang menyebutkan statusnya utuh.
+                        aria-label={ABSENSI_META[st].label}
                         title={ABSENSI_META[st].label}
                         disabled={pending}
                         onClick={() => ubah(s.id, { status: st, catatan: st === 'hadir' ? '' : v.catatan })}
@@ -113,12 +116,11 @@ export function AbsensiSesi({ halaqohId, tanggal, siswa, awal }: Props) {
                         )}
                         style={aktif ? { background: ABSENSI_META[st].warna, borderColor: ABSENSI_META[st].warna } : undefined}
                       >
-                        {/* Di HP tombolnya selebar seperempat kartu — muat
-                            menyebut statusnya, jadi tak perlu menghafal
-                            H/I/S/A. Di layar lebar ia kembali sehuruf supaya
-                            muat sebaris dengan nama. */}
-                        <span className="sm:hidden">{ABSENSI_META[st].label}</span>
-                        <span className="hidden sm:inline">{ABSENSI_META[st].singkat}</span>
+                        {/* Sehuruf di semua lebar layar. Sempat menyebut status
+                            penuh di HP, tapi guru yang berpindah HP ↔ laptop
+                            jadi membaca dua bentuk untuk tombol yang sama —
+                            dan H/I/S/A sudah singkatan baku di sekolah. */}
+                        {ABSENSI_META[st].singkat}
                       </button>
                     )
                   })}
