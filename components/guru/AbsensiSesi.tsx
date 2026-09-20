@@ -84,13 +84,19 @@ export function AbsensiSesi({ halaqohId, tanggal, siswa, awal }: Props) {
           const v = isian[s.id]
           return (
             <li key={s.id} className="rounded-xl border bg-card p-3">
-              <div className="flex flex-wrap items-center justify-between gap-2">
+              {/* Di HP selalu bertumpuk: nama di atas, empat tombol selebar
+                  kartu di bawahnya. Sebelumnya memakai flex-wrap, dan itu
+                  membuat letaknya bergantung pada panjang nama — tombol anak
+                  bernama pendek duduk di samping, yang panjang terdorong ke
+                  bawah, sehingga satu daftar terbaca seperti dua bentuk.
+                  Mulai lebar sm baru sebaris, saat ruangnya memang cukup. */}
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0">
                   <p className="truncate font-medium">{s.full_name}</p>
                   {s.kelas && <p className="text-xs text-muted-foreground">{s.kelas}</p>}
                 </div>
 
-                <div className="flex gap-1" role="group" aria-label={`Kehadiran ${s.full_name}`}>
+                <div className="grid grid-cols-4 gap-1.5 sm:flex sm:shrink-0 sm:gap-1" role="group" aria-label={`Kehadiran ${s.full_name}`}>
                   {STATUS_ABSENSI.map(st => {
                     const aktif = v.status === st
                     return (
@@ -102,12 +108,17 @@ export function AbsensiSesi({ halaqohId, tanggal, siswa, awal }: Props) {
                         disabled={pending}
                         onClick={() => ubah(s.id, { status: st, catatan: st === 'hadir' ? '' : v.catatan })}
                         className={cn(
-                          'h-11 w-11 rounded-lg border text-sm font-bold transition-colors',
+                          'h-11 w-full rounded-lg border text-sm font-bold transition-colors sm:w-11',
                           aktif ? 'text-white' : 'bg-card hover:bg-accent',
                         )}
                         style={aktif ? { background: ABSENSI_META[st].warna, borderColor: ABSENSI_META[st].warna } : undefined}
                       >
-                        {ABSENSI_META[st].singkat}
+                        {/* Di HP tombolnya selebar seperempat kartu — muat
+                            menyebut statusnya, jadi tak perlu menghafal
+                            H/I/S/A. Di layar lebar ia kembali sehuruf supaya
+                            muat sebaris dengan nama. */}
+                        <span className="sm:hidden">{ABSENSI_META[st].label}</span>
+                        <span className="hidden sm:inline">{ABSENSI_META[st].singkat}</span>
                       </button>
                     )
                   })}
