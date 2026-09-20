@@ -226,6 +226,12 @@ export function Sidebar({ role, displayName, username, lencanaKpi }: Props) {
               {canManageRaporTemplate(role) && (
                 <NavItem href="/rapor-quran/template" icon={<LayoutTemplate className="h-4 w-4" />} label="Template Rapor" active={isActive('/rapor-quran')} />
               )}
+              {/* Menempel di bawah template rapor: keduanya menetapkan isi
+                  rapor seluruh angkatan — yang satu bentuknya, yang satu
+                  penyebut kehadirannya. */}
+              {canManageRaporTemplate(role) && (
+                <NavItem href="/kalender-quran" icon={<CalendarRange className="h-4 w-4" />} label="Kalender Qur'an" active={isActive('/kalender-quran')} />
+              )}
               {canViewGukarRecap(role) && (
                 <NavItem
                   href="/dashboard/analitik/gukar"

@@ -13,6 +13,7 @@ import { ProgramCarousel } from '@/components/home/ProgramCarousel'
 import { TeacherStrip } from '@/components/home/TeacherStrip'
 import { PublicFooter } from '@/components/home/PublicFooter'
 import type { PublicPost, NewsArticle, KaldiEvent } from '@/types'
+import { getKaldikEvents } from '@/lib/data/kaldik'
 
 const lora = Lora({ subsets: ['latin'], variable: '--font-lora', display: 'swap' })
 const playfair = Playfair_Display({ subsets: ['latin'], variable: '--font-playfair', display: 'swap' })
@@ -55,57 +56,15 @@ async function getNews(limit: number): Promise<NewsArticle[]> {
   }
 }
 
-const KALDI_BASE = 'https://kaldikrqlhi.vercel.app'
-
-/** Identitas logis satu agenda — dipakai untuk membuang duplikat. */
-function kaldiKey(e: KaldiEvent) {
-  return `${e.date ?? e.start ?? ''}|${e.title}|${e.unit ?? ''}`
-}
-
-async function getKaldiYear(year: number): Promise<KaldiEvent[]> {
-  try {
-    const res = await fetch(`${KALDI_BASE}/api/calendar?year=${year}`, {
-      next: { revalidate: 300 }, // 5 menit
-    })
-    if (!res.ok) return []
-    const data = await res.json()
-    return (data.events ?? []) as KaldiEvent[]
-  } catch {
-    return []
-  }
-}
-
 /**
- * Agenda kaldik untuk kalender beranda.
- *
- * Memakai `/api/calendar?year=`, bukan `/api/upcoming`. `upcoming` adalah feed
- * "N agenda terdekat": `days` cuma menyaring batas atas, sedangkan jumlah baris
- * dipatok `limit` (default 50, server menolak di atas 100). Akibatnya
- * `?days=90` nyatanya hanya sampai ~3 pekan ke depan, dan bulan yang sudah
- * lewat tidak pernah terisi karena feed itu selalu mulai dari hari ini.
- * `calendar` mengembalikan setahun penuh tanpa batas.
- *
- * Tahun berikutnya ikut diambil karena tahun ajaran membentang dua tahun
- * kalender — tanpa itu, Januari kosong setiap kali Desember terlewati. Tahun
- * yang belum diisi membalas `events: []`, jadi aman.
- *
- * Data sumber mengandung duplikat (agenda yang sama ter-seed dua kali, ~36%
- * dari payload). Dibuang di sini supaya tidak tampil ganda di daftar harian
- * dan tidak ikut terkirim ke klien.
+ * Agenda kaldik untuk kalender beranda — tahun ini dan tahun depan, sebab
+ * tahun ajaran membentang dua tahun kalender. Pengambilannya dipindah ke
+ * lib/data/kaldik.ts supaya Kalender Qur'an milik koordinator membaca agenda
+ * yang sama; dua kalender di satu aplikasi tidak boleh berbeda hari libur.
  */
 async function getKaldiEvents(): Promise<KaldiEvent[]> {
   const year = new Date().getFullYear()
-  const years = await Promise.all([getKaldiYear(year), getKaldiYear(year + 1)])
-
-  const seen = new Set<string>()
-  const unique: KaldiEvent[] = []
-  for (const e of years.flat()) {
-    const key = kaldiKey(e)
-    if (seen.has(key)) continue
-    seen.add(key)
-    unique.push(e)
-  }
-  return unique
+  return getKaldikEvents([year, year + 1])
 }
 
 async function getPosts() {

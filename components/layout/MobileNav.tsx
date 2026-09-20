@@ -295,6 +295,12 @@ export function MobileNav({ role, displayName, username, lencanaKpi }: Props) {
                 {canManageRaporTemplate(role) && (
                   <DrawerLink href="/rapor-quran/template" icon={<LayoutTemplate className="h-4 w-4" />} label="Template Rapor" active={isActive('/rapor-quran')} onNavigate={close} />
                 )}
+                {/* Menempel di bawah template rapor: keduanya menetapkan isi
+                    rapor seluruh angkatan — yang satu bentuknya, yang satu
+                    penyebut kehadirannya. */}
+                {canManageRaporTemplate(role) && (
+                  <DrawerLink href="/kalender-quran" icon={<CalendarRange className="h-4 w-4" />} label="Kalender Qur'an" active={isActive('/kalender-quran')} onNavigate={close} />
+                )}
                 {canViewGukarRecap(role) && (
                   <DrawerLink href="/dashboard/analitik/gukar" icon={<BarChart3 className="h-4 w-4" />} label="Analitik Gukar" active={isActive('/dashboard/analitik/gukar')} onNavigate={close} />
                 )}

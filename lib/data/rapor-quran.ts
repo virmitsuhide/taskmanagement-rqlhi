@@ -4,8 +4,10 @@ import { halamanHafalan } from '@/lib/rq/target-tahfidz'
 import { getInfoSurat } from '@/lib/data/nama-surat'
 import { getJuzTerujiPerSiswa, gabungJuz, juzSetoranPerSiswa, type BarisJuzProgress } from '@/lib/data/hafalan'
 import { juzTerjauh, posisiJuz } from '@/lib/rq/hafalan'
-import { getJumlahPertemuan, getRekapAbsensi } from '@/lib/data/absensi'
-import { persenHadir, REKAP_KOSONG, type RekapAbsensi } from '@/lib/rq/absensi'
+import { getRekapAbsensi } from '@/lib/data/absensi'
+import { getKalender, tmPerSiswa } from '@/lib/data/kalender-quran'
+import { REKAP_KOSONG, type RekapAbsensi } from '@/lib/rq/absensi'
+import { persenTM } from '@/lib/rq/kalender-quran'
 import { JENJANG_LABELS } from '@/lib/auth/permissions'
 import { formatTanggal } from '@/lib/rq/ujian'
 import { ttdSrc } from '@/lib/kpi/ttd-berkas'
@@ -98,7 +100,7 @@ export async function getBahanRaporSesi(
 
   const { data: siswaRows } = await supabase
     .from('students')
-    .select('id, full_name, nis, kelas, jenjang, current_jilid_page, current_quran_halaman,' +
+    .select('id, full_name, nis, kelas, jenjang, program, current_jilid_page, current_quran_halaman,' +
       ' jilid:jilid_levels!students_current_jilid_id_fkey(label, total_pages, is_terminal),' +
       ' metode:tahsin_methods!students_current_method_id_fkey(name)')
     .eq('halaqoh_id', halaqoh.id)
@@ -106,7 +108,7 @@ export async function getBahanRaporSesi(
     .order('full_name')
 
   const siswa = (siswaRows ?? []) as unknown as {
-    id: string; full_name: string; nis: string | null; kelas: string | null; jenjang: Jenjang
+    id: string; full_name: string; nis: string | null; kelas: string | null; jenjang: Jenjang; program: string | null
     current_jilid_page: number | null; current_quran_halaman: number | null
     jilid: { label: string; total_pages: number | null; is_terminal: boolean } | null
     metode: { name: string } | null
@@ -118,7 +120,7 @@ export async function getBahanRaporSesi(
   type LogTahfidz = { student_id: string; nilai_tahfidz: number | null; nilai_sikap: number | null }
   type Ziyadah = { student_id: string; surat_id: number; ayat_dari: number | null; ayat_ke: number | null; setoran_date: string; created_at: string }
 
-  const [tahsin, tahfidz, ziyadahSemua, progres, juzTeruji, absensi, pertemuan, peta, surat, isianRes, pengampuRes] =
+  const [tahsin, tahfidz, ziyadahSemua, progres, juzTeruji, absensi, kalender, peta, surat, isianRes, pengampuRes] =
     await Promise.all([
       ambilSemua<LogTahsin>((a, b) =>
         supabase.from('tahsin_logs').select('student_id, nilai_tahsin, nilai_sikap')
@@ -136,7 +138,9 @@ export async function getBahanRaporSesi(
         supabase.from('juz_progress').select('student_id, juz_number, ayat_hafal, mutqin').in('student_id', ids).range(a, b)),
       getJuzTerujiPerSiswa(ids),
       getRekapAbsensi(ids, term.start_date, term.end_date),
-      getJumlahPertemuan(halaqoh.id, term.start_date, term.end_date),
+      // TM menurut kalender unit (0084) — bukan banyaknya tanggal yang sempat
+      // diabsen, yang membuat pertemuan lupa-absen menghilang dari penyebut.
+      getKalender(term.id, [...new Set(siswa.map(x => x.jenjang))], term.start_date, term.end_date),
       getPetaHalaman(),
       getInfoSurat(),
       supabase.from('rapor_isian').select('student_id, deskripsi, timpaan').in('student_id', ids).eq('term_id', term.id),
@@ -159,6 +163,9 @@ export async function getBahanRaporSesi(
     ((isianRes.data ?? []) as { student_id: string; deskripsi: string; timpaan: Record<string, string> }[])
       .map(r => [r.student_id, r]),
   )
+  // TM dihitung per anak: satu halaqoh bisa berisi anak reguler dan anak
+  // QULS sekaligus, dan yang QULS punya satu hari sesi lebih banyak.
+  const tm = tmPerSiswa(siswa, kalender, term.start_date, term.end_date)
   const setoranTuntas = juzSetoranPerSiswa(progres)
   const namaSurat = (id: number) => surat.get(id)?.name_latin ?? `Surat ${id}`
   const semesterRomawi = term.semester === 'ganjil' ? 'I' : 'II'
@@ -209,8 +216,12 @@ export async function getBahanRaporSesi(
       sakit: String(rekap.sakit),
       izin_sakit: String(rekap.izin + rekap.sakit),
       alfa: String(rekap.alfa),
-      total_pertemuan: String(pertemuan || rekap.total),
-      persen_hadir: persenHadir(rekap) === null ? '' : `${persenHadir(rekap)}%`,
+      // Penyebut yang benar adalah TM. Bila kalender belum diatur sama sekali
+      // dan TM-nya nol, barulah jatuh ke jumlah baris absensi anak ini.
+      total_pertemuan: String(tm[s.id] || rekap.total),
+      persen_hadir: persenTM(rekap.hadir, tm[s.id] || rekap.total) === null
+        ? ''
+        : `${persenTM(rekap.hadir, tm[s.id] || rekap.total)}%`,
 
       nama_pengampu: pengampu?.full_name ?? '',
       nip_pengampu: pengampu?.nip ?? '',

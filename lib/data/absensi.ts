@@ -83,24 +83,6 @@ export async function getRekapAbsensi(
 }
 
 /**
- * Jumlah pertemuan sesi ini dalam rentang — tanggal berbeda yang pernah
- * diabsen. Dipakai sebagai "Total Pertemuan" di rapor SMP untuk anak yang
- * baru masuk di tengah semester: pembilangnya miliknya sendiri, penyebutnya
- * milik sesi.
- */
-export async function getJumlahPertemuan(halaqohId: string, dari: string, sampai: string): Promise<number> {
-  const supabase = createServerClient()
-  const { data, error } = await supabase
-    .from('absensi_harian')
-    .select('tanggal')
-    .eq('halaqoh_id', halaqohId)
-    .gte('tanggal', dari)
-    .lte('tanggal', sampai)
-  if (error) return 0
-  return new Set((data ?? []).map(r => r.tanggal as string)).size
-}
-
-/**
  * Anggota aktif sebuah sesi — daftar nama saja, tanpa posisi tahsin/tahfidz.
  * Layar absensi tidak butuh capaian; memuatnya hanya memperlambat.
  */
