@@ -12,9 +12,13 @@ const HARI = ['Mg', 'Sn', 'Sl', 'Rb', 'Km', 'Jm', 'Sb']
  * sama, kolom nama yang menempel saat digeser, dan garis tebal tiap Senin
  * supaya "pekan ketiga" bisa ditemukan tanpa menghitung kolom.
  *
- * Sel kosong berarti BELUM DIABSEN, bukan tidak hadir — dan itu perbedaan
- * yang mahal. Karena itu kosongnya ditandai titik redup, bukan dibiarkan
- * benar-benar kosong yang terbaca seperti nihil.
+ * Tiga keadaan "tidak ada huruf" dibedakan, sebab ketiganya menuntut
+ * tindakan yang berbeda:
+ *   ·   belum diabsen — ada pertemuan, absensinya belum diisi
+ *   ✕   tidak ada sesi — di luar jadwal program, atau ditiadakan (0084)
+ *   ●   pertemuan terlewat — hari lampau yang tak seorang pun diabsen
+ * Sel yang dibiarkan benar-benar kosong akan terbaca sebagai "tidak hadir",
+ * dan itu kesalahan yang mahal.
  */
 export function TabelAbsensi({ data, hariIni, tautanSiswa }: {
   data: AbsensiBulan
@@ -44,25 +48,33 @@ export function TabelAbsensi({ data, hariIni, tautanSiswa }: {
               <th className="sticky left-0 z-10 min-w-40 bg-card px-3 py-2 text-left font-medium">Siswa</th>
               {data.tanggal.map(t => {
                 const d = new Date(`${t}T00:00:00`)
-                const terlewat = t < hariIni && !sudahDiabsen.has(t)
+                const liburSesi = data.liburSesi[t]
+                // Hari yang memang tidak ada sesinya tidak pernah "terlewat" —
+                // tidak ada yang perlu diabsen di sana.
+                const terlewat = !liburSesi && t < hariIni && !sudahDiabsen.has(t)
                 return (
                   <th
                     key={t}
-                    title={terlewat ? 'Belum ada absensi pada hari ini' : undefined}
+                    title={liburSesi
+                      ? `Tidak ada sesi — ${liburSesi}`
+                      : terlewat ? 'Belum ada absensi pada hari ini' : undefined}
                     className={cn(
                       'px-1.5 py-2 text-center font-medium',
                       d.getDay() === 1 && 'border-l-2',
                       t === hariIni && 'bg-primary-wash text-primary',
                       t > hariIni && 'opacity-50',
+                      liburSesi && 'bg-muted/60',
                     )}
                   >
                     <span className="block text-[10px]">{HARI[d.getDay()]}</span>
                     <span className={cn('block text-sm tabular-nums', t === hariIni ? 'font-bold' : 'text-foreground')}>
                       {d.getDate()}
                     </span>
-                    {terlewat && (
+                    {liburSesi ? (
+                      <span aria-hidden className="mx-auto mt-0.5 block text-[9px] leading-none text-muted-foreground">✕</span>
+                    ) : terlewat ? (
                       <span aria-hidden className="mx-auto mt-0.5 block h-1 w-1 rounded-full" style={{ background: 'var(--warning)' }} />
-                    )}
+                    ) : null}
                   </th>
                 )
               })}
@@ -82,9 +94,13 @@ export function TabelAbsensi({ data, hariIni, tautanSiswa }: {
 
                   {data.tanggal.map(t => {
                     const isi = b.sel[t]
+                    const libur = b.libur[t]
                     const d = new Date(`${t}T00:00:00`)
                     return (
-                      <td key={t} className={cn('px-1.5 py-1.5 text-center', d.getDay() === 1 && 'border-l-2')}>
+                      <td
+                        key={t}
+                        className={cn('px-1.5 py-1.5 text-center', d.getDay() === 1 && 'border-l-2', libur && 'bg-muted/60')}
+                      >
                         {isi ? (
                           <span
                             title={`${ABSENSI_META[isi.status].label}${isi.catatan ? ` — ${isi.catatan}` : ''}`}
@@ -93,6 +109,10 @@ export function TabelAbsensi({ data, hariIni, tautanSiswa }: {
                           >
                             {ABSENSI_META[isi.status].singkat}
                           </span>
+                        ) : libur ? (
+                          // Tidak ada sesi: bukan ketidakhadiran, dan bukan
+                          // pekerjaan yang tertinggal.
+                          <span title={`Tidak ada sesi — ${libur}`} className="text-muted-foreground/70">✕</span>
                         ) : (
                           <span className="text-muted-foreground/40">·</span>
                         )}
@@ -133,6 +153,9 @@ export function TabelAbsensi({ data, hariIni, tautanSiswa }: {
         ))}
         <span className="flex items-center gap-1.5">
           <span className="text-muted-foreground/40">·</span> belum diabsen
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="text-muted-foreground/70">✕</span> tidak ada sesi
         </span>
         <span className="flex items-center gap-1.5">
           <span aria-hidden className="h-1.5 w-1.5 rounded-full" style={{ background: 'var(--warning)' }} />

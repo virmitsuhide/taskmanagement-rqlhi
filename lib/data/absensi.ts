@@ -1,5 +1,10 @@
 import { createServerClient } from '@/lib/supabase/server'
 import { hitungRekap, REKAP_KOSONG, type RekapAbsensi, type StatusAbsensi } from '@/lib/rq/absensi'
+import { ditiadakan, hariKe, hariProgram } from '@/lib/rq/kalender-quran'
+import { getKalender } from '@/lib/data/kalender-quran'
+import { getCurrentTerm } from '@/lib/data/terms'
+import { tingkatOf } from '@/lib/rq/sesi'
+import type { Jenjang } from '@/types'
 
 /**
  * Pembacaan absensi harian (0081).
@@ -105,15 +110,31 @@ export interface BarisAbsensiBulan {
   kelas: string | null
   /** 'YYYY-MM-DD' → status hari itu. Tanggal tanpa entri = belum diabsen. */
   sel: Record<string, { status: StatusAbsensi; catatan: string }>
+  /**
+   * Tanggal yang bagi anak ini MEMANG TIDAK ADA SESI, beserta sebabnya —
+   * "Bukan hari sesi" bila di luar jadwal programnya, atau alasan yang
+   * ditulis koordinator bila sesinya ditiadakan (0084).
+   *
+   * Dibedakan dari sel kosong karena keduanya sangat berbeda: yang satu
+   * berarti tidak ada yang perlu dikerjakan, yang satu berarti ada
+   * pertemuan yang lupa diabsen.
+   */
+  libur: Record<string, string>
   rekap: RekapAbsensi
 }
 
 export interface AbsensiBulan {
   /** false = migrasi 0081 belum dijalankan. */
   tabelAda: boolean
-  /** Senin–Jumat bulan itu, plus akhir pekan yang ternyata ada absensinya. */
+  /** Hari sesi bulan itu, plus hari lain yang ternyata ada absensinya. */
   tanggal: string[]
   baris: BarisAbsensiBulan[]
+  /**
+   * Tanggal yang TIDAK ADA SESI bagi seluruh anak sesi ini, beserta
+   * sebabnya — dipakai kepala kolom untuk menandainya sekali, alih-alih
+   * mengulang tanda yang sama di tiap baris.
+   */
+  liburSesi: Record<string, string>
 }
 
 /**
@@ -137,26 +158,72 @@ export async function getAbsensiBulan(halaqohId: string, periode: string): Promi
   const sampai = `${periode}-${String(akhirBulan).padStart(2, '0')}`
 
   const supabase = createServerClient()
-  const [siswa, absensiRes] = await Promise.all([
-    getSiswaSesi(halaqohId),
-    supabase
-      .from('absensi_harian')
-      .select('student_id, tanggal, status, catatan')
-      .eq('halaqoh_id', halaqohId)
-      .gte('tanggal', dari)
-      .lte('tanggal', sampai),
+  const [siswaRes, absensiRes, term] = await Promise.all([
+    supabase.from('students').select('id, full_name, kelas, jenjang, program')
+      .eq('halaqoh_id', halaqohId).eq('is_active', true).order('full_name'),
+    supabase.from('absensi_harian').select('student_id, tanggal, status, catatan')
+      .eq('halaqoh_id', halaqohId).gte('tanggal', dari).lte('tanggal', sampai),
+    getCurrentTerm(),
   ])
 
-  if (absensiRes.error) return { tabelAda: false, tanggal: [], baris: [] }
+  if (absensiRes.error) return { tabelAda: false, tanggal: [], baris: [], liburSesi: {} }
+
+  const siswa = (siswaRes.data ?? []) as {
+    id: string; full_name: string; kelas: string | null; jenjang: Jenjang; program: string | null
+  }[]
   const baris = (absensiRes.data ?? []) as { student_id: string; tanggal: string; status: StatusAbsensi; catatan: string }[]
 
-  // Hari kerja bulan itu, ditambah akhir pekan yang ada absensinya.
+  // Kalender menentukan hari mana yang memang ada sesinya. Tanpa ini, Jum'at
+  // bagi anak reguler dan hari yang sesinya ditiadakan sama-sama terbaca
+  // sebagai "pertemuan yang lupa diabsen".
+  const kalender = term
+    ? await getKalender(term.id, [...new Set(siswa.map(x => x.jenjang))], dari, sampai)
+    : { tabelAda: false, jadwal: [], kosong: [] }
+
+  const sasaran = (x: typeof siswa[number]) => ({
+    jenjang: x.jenjang,
+    tingkat: tingkatOf(x.kelas) ?? 0,
+    kelas: x.kelas,
+    program: x.program,
+  })
+
+  /** '' = ada sesi; selain itu sebab tidak adanya. */
+  function sebabLibur(x: typeof siswa[number], iso: string): string {
+    if (!kalender.tabelAda) {
+      // Tanpa kalender, jatuh ke aturan lama: Senin–Jumat hari sesi.
+      const h = hariKe(iso)
+      return h >= 1 && h <= 5 ? '' : 'Akhir pekan'
+    }
+    if (!hariProgram(kalender.jadwal, { jenjang: x.jenjang, program: x.program }).includes(hariKe(iso))) {
+      return 'Bukan hari sesi'
+    }
+    const kos = ditiadakan(kalender.kosong, iso, sasaran(x))
+    return kos ? (kos.alasan || 'Sesi ditiadakan') : ''
+  }
+
   const adaAbsensi = new Set(baris.map(r => r.tanggal))
+
+  // Kolom: hari yang ada sesinya bagi SETIDAKNYA satu anak, ditambah hari
+  // yang ternyata ada absensinya — sesi pengganti di luar jadwal tidak boleh
+  // hilang hanya karena kalender tidak menyangkanya.
   const tanggal: string[] = []
+  const liburSesi: Record<string, string> = {}
   for (let h = 1; h <= akhirBulan; h++) {
     const iso = `${periode}-${String(h).padStart(2, '0')}`
-    const hari = new Date(`${iso}T00:00:00+07:00`).getUTCDay()
-    if ((hari >= 1 && hari <= 5) || adaAbsensi.has(iso)) tanggal.push(iso)
+    const sebab = siswa.map(x => sebabLibur(x, iso))
+    const semuaLibur = siswa.length > 0 && sebab.every(Boolean)
+    if (!semuaLibur || adaAbsensi.has(iso)) {
+      tanggal.push(iso)
+      if (semuaLibur) liburSesi[iso] = sebab[0]
+      continue
+    }
+    // Hari yang seluruh anaknya libur DAN tidak ada absensinya tetap
+    // ditampilkan bila ia hari kerja, supaya liburnya kelihatan sebagai
+    // keputusan — bukan sebagai tanggal yang hilang begitu saja.
+    if (hariKe(iso) <= 5 && sebab[0] !== 'Bukan hari sesi') {
+      tanggal.push(iso)
+      liburSesi[iso] = sebab[0]
+    }
   }
 
   const perSiswa = new Map<string, BarisAbsensiBulan['sel']>()
@@ -169,13 +236,22 @@ export async function getAbsensiBulan(halaqohId: string, periode: string): Promi
   return {
     tabelAda: true,
     tanggal,
-    baris: siswa.map(s => {
-      const sel = perSiswa.get(s.id) ?? {}
+    liburSesi,
+    baris: siswa.map(x => {
+      const sel = perSiswa.get(x.id) ?? {}
+      const libur: Record<string, string> = {}
+      for (const iso of tanggal) {
+        const sebab = sebabLibur(x, iso)
+        // Absensi yang terlanjur tercatat menang atas kalender: kalau gurunya
+        // mengabsen, pertemuannya memang terjadi.
+        if (sebab && !sel[iso]) libur[iso] = sebab
+      }
       return {
-        id: s.id,
-        nama: s.full_name,
-        kelas: s.kelas,
+        id: x.id,
+        nama: x.full_name,
+        kelas: x.kelas,
         sel,
+        libur,
         rekap: hitungRekap(Object.values(sel).map(v => v.status)),
       }
     }),
