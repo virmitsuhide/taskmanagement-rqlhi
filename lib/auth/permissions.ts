@@ -1394,3 +1394,26 @@ export function canSubmitUjian(role: UserRole): boolean {
 export function canManageRaporTemplate(role: UserRole, jenjang?: Jenjang | null): boolean {
   return canManageStudents(role, jenjang)
 }
+
+/**
+ * Kalender pendidikan (kaldik, 0085) — agenda sekolah yang tampil di beranda
+ * dan menjadi usulan hari kosong di Kalender Qur'an.
+ *
+ * Dipegang koordinator unit: merekalah yang paling awal tahu ada class
+ * meeting atau outing, dan mereka pula yang memakai kalender itu untuk
+ * menandai sesi Qur'an yang ditiadakan.
+ *
+ * Agenda ber-unit NASIONAL dan RQ tidak dimiliki unit mana pun — libur
+ * nasional dan agenda lembaga mengenai semua. Keduanya boleh disunting
+ * koordinator unit mana saja; kalau tidak, 57 agenda lintas unit tidak akan
+ * punya siapa pun yang boleh membetulkannya.
+ */
+export function canManageKaldik(role: UserRole, unit?: string | null): boolean {
+  const u = (unit ?? '').toUpperCase()
+  if (!u || u === 'NASIONAL' || u === 'RQ') {
+    return role === 'koor_sd' || role === 'koor_smp' || role === 'koor_qulssd'
+  }
+  if (u === 'SD') return role === 'koor_sd' || role === 'koor_qulssd'
+  if (u === 'SMP') return role === 'koor_smp'
+  return false
+}

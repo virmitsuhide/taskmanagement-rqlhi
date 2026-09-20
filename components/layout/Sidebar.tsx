@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils'
 import {
   LayoutDashboard, BookOpen, CheckSquare, ImageIcon,
   FileText, User, Megaphone, LogOut, ChevronRight, GraduationCap, Newspaper, LayoutGrid,
-  Users, UserCog, BookMarked, BarChart3, LayoutTemplate, Info, Wallet, CalendarRange,
+  Users, UserCog, BookMarked, BarChart3, LayoutTemplate, Info, Wallet, CalendarRange, CalendarDays,
   ClipboardCheck, KeyRound, ScrollText, Repeat, IdCard, UsersRound, Briefcase, Stamp, Scale, ListChecks, Kanban,
 } from 'lucide-react'
 import { DASHBOARD_LABELS, getAccessibleDashboards, ROLE_LABELS , canManageTeacherProfiles } from '@/lib/auth/permissions'
@@ -15,7 +15,7 @@ import {
   canAccessProgramMenu, canEditAbout,
   canViewStudents, canViewHalaqoh, canViewTeachers, canViewAnalytics, canViewUnitAnalytics,
   canManageHomepage, canViewKpi, canManageAllAccounts, canManagePengurus, canManageEmployees, canViewUjian,
-  canAccessKpiPublikasi, canManageRaporTemplate, canViewKpiBanding, canViewTasks, canViewRoutineBoard,
+  canAccessKpiPublikasi, canManageRaporTemplate, canManageKaldik, canViewKpiBanding, canViewTasks, canViewRoutineBoard,
 } from '@/lib/auth/permissions'
 import type { UserRole } from '@/types'
 import { logoutAction } from '@/app/actions/auth'
@@ -231,6 +231,11 @@ export function Sidebar({ role, displayName, username, lencanaKpi }: Props) {
                   penyebut kehadirannya. */}
               {canManageRaporTemplate(role) && (
                 <NavItem href="/kalender-quran" icon={<CalendarRange className="h-4 w-4" />} label="Kalender Qur'an" active={isActive('/kalender-quran')} />
+              )}
+              {/* Kalender pendidikan — pindahan dari aplikasi kaldikrqlhi (0085).
+                  Satu alamat: beranda publik dan Kalender Qur'an membaca agenda ini. */}
+              {canManageKaldik(role) && (
+                <NavItem href="/kalender" icon={<CalendarDays className="h-4 w-4" />} label="Kalender Pendidikan" active={isActive('/kalender') && !pathname.startsWith('/kalender-quran')} />
               )}
               {canViewGukarRecap(role) && (
                 <NavItem

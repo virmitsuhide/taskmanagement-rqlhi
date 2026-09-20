@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation'
 import {
   Menu, X, LayoutDashboard, CheckSquare, BookOpen,
   ImageIcon, Megaphone, FileText, User, LogOut, GraduationCap, Newspaper, LayoutGrid,
-  Users, UserCog, BookMarked, BarChart3, LayoutTemplate, Info, Wallet, CalendarRange,
+  Users, UserCog, BookMarked, BarChart3, LayoutTemplate, Info, Wallet, CalendarRange, CalendarDays,
   ClipboardCheck, KeyRound, ScrollText, Repeat, IdCard, UsersRound, Briefcase, Stamp, Scale, ListChecks, Kanban,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -17,7 +17,7 @@ import {
   canViewStudents, canViewHalaqoh, canViewTeachers, canViewAnalytics, canViewUnitAnalytics,
   canManageHomepage,
   canViewKpi, canManageAllAccounts, canManagePengurus, canManageEmployees, canViewUjian, canManageTeacherProfiles,
-  canAccessKpiPublikasi, canManageRaporTemplate, canViewKpiBanding, canViewTasks, canViewRoutineBoard } from '@/lib/auth/permissions'
+  canAccessKpiPublikasi, canManageRaporTemplate, canManageKaldik, canViewKpiBanding, canViewTasks, canViewRoutineBoard } from '@/lib/auth/permissions'
 import type { UserRole } from '@/types'
 import { logoutAction } from '@/app/actions/auth'
 import { Logo } from '@/components/brand/Logo'
@@ -300,6 +300,11 @@ export function MobileNav({ role, displayName, username, lencanaKpi }: Props) {
                     penyebut kehadirannya. */}
                 {canManageRaporTemplate(role) && (
                   <DrawerLink href="/kalender-quran" icon={<CalendarRange className="h-4 w-4" />} label="Kalender Qur'an" active={isActive('/kalender-quran')} onNavigate={close} />
+                )}
+                {/* Kalender pendidikan — pindahan dari aplikasi kaldikrqlhi (0085).
+                    Satu alamat: beranda publik dan Kalender Qur'an membaca agenda ini. */}
+                {canManageKaldik(role) && (
+                  <DrawerLink href="/kalender" icon={<CalendarDays className="h-4 w-4" />} label="Kalender Pendidikan" active={isActive('/kalender') && !pathname.startsWith('/kalender-quran')} onNavigate={close} />
                 )}
                 {canViewGukarRecap(role) && (
                   <DrawerLink href="/dashboard/analitik/gukar" icon={<BarChart3 className="h-4 w-4" />} label="Analitik Gukar" active={isActive('/dashboard/analitik/gukar')} onNavigate={close} />

@@ -1,59 +1,109 @@
+import { createServerClient } from '@/lib/supabase/server'
 import type { KaldiEvent } from '@/types'
 
 /**
- * Agenda kalender pendidikan (kaldik) — sumbernya aplikasi lain.
+ * Agenda kalender pendidikan (kaldik).
+ *
+ * Dulu tinggal di aplikasi terpisah (kaldikrqlhi) dan dibaca lewat HTTP;
+ * sejak 0085 ia tabel biasa di basis data yang sama. Yang berubah bukan cuma
+ * tempatnya: agenda kini disunting dengan akun yang sama, tunduk pada RBAC
+ * yang sama, dan terbaca seketika — bukan setelah singgahan lima menit.
  *
  * Dipakai dua tempat: kalender beranda publik dan Kalender Qur'an milik
- * koordinator. Satu modul supaya keduanya membaca agenda yang sama; kalau
- * disalin, dua kalender di aplikasi yang sama bisa menampilkan hari libur
- * yang berbeda.
+ * koordinator. Satu modul supaya keduanya membaca agenda yang sama.
  *
- * Datanya TIDAK pernah dipakai langsung sebagai keputusan. Di Kalender
- * Qur'an ia hanya usulan yang disahkan koordinator: feed ini milik sistem
- * lain dan bisa berubah kapan saja, sedangkan TM yang sudah jadi penyebut
+ * Di Kalender Qur'an, agenda tetap hanya USULAN yang disahkan koordinator.
+ * Agenda boleh berubah kapan saja, sedangkan TM yang sudah jadi penyebut
  * kehadiran di rapor tidak boleh ikut berubah diam-diam.
  */
 
 const KALDI_BASE = 'https://kaldikrqlhi.vercel.app'
 
-/** Identitas logis satu agenda — dipakai membuang duplikat dari sumbernya. */
+export const KALDIK_UNIT = ['NASIONAL', 'SD', 'SMP', 'RQ'] as const
+export type KaldikUnit = (typeof KALDIK_UNIT)[number]
+
+export const KALDIK_TIPE = ['agenda', 'libur_nasional', 'libur_semester', 'ramadhan', 'kegiatan_bersama'] as const
+export type KaldikTipe = (typeof KALDIK_TIPE)[number]
+
+export const TIPE_LABEL: Record<KaldikTipe, string> = {
+  agenda: 'Agenda',
+  libur_nasional: 'Libur nasional',
+  libur_semester: 'Libur semester',
+  ramadhan: 'Ramadhan',
+  kegiatan_bersama: 'Kegiatan bersama',
+}
+
+/** Warna bawaan tiap tipe — mengikuti kalender lama supaya tidak asing. */
+export const TIPE_WARNA: Record<KaldikTipe, string> = {
+  agenda: '#3B82F6',
+  libur_nasional: '#EF4444',
+  libur_semester: '#DC2626',
+  ramadhan: '#F97316',
+  kegiatan_bersama: '#8B5CF6',
+}
+
+/** Identitas logis satu agenda — dipakai membuang duplikat. */
 export function kaldikKey(e: KaldiEvent): string {
   return `${e.date ?? e.start ?? ''}|${e.title}|${e.unit ?? ''}`
 }
 
-async function getTahun(year: number): Promise<KaldiEvent[]> {
-  try {
-    const res = await fetch(`${KALDI_BASE}/api/calendar?year=${year}`, {
-      next: { revalidate: 300 }, // 5 menit
-    })
-    if (!res.ok) return []
-    const data = await res.json()
-    return (data.events ?? []) as KaldiEvent[]
-  } catch {
-    // Sumber luar yang sedang mati tidak boleh menjatuhkan halaman yang
-    // memakainya — kalendernya tetap tampil, hanya tanpa catatan agenda.
-    return []
-  }
+/**
+ * Cadangan selama migrasi 0085 belum dijalankan: baca dari aplikasi lama.
+ *
+ * Ada supaya urutan menjalankan migrasi tidak kritis — kalender beranda
+ * tidak boleh kosong hanya karena tabelnya baru dibuat besok.
+ */
+async function dariApiLama(years: number[]): Promise<KaldiEvent[]> {
+  const hasil = await Promise.all(years.map(async y => {
+    try {
+      const res = await fetch(`${KALDI_BASE}/api/calendar?year=${y}`, { next: { revalidate: 300 } })
+      if (!res.ok) return [] as KaldiEvent[]
+      return ((await res.json()).events ?? []) as KaldiEvent[]
+    } catch {
+      return [] as KaldiEvent[]
+    }
+  }))
+  return hasil.flat()
 }
 
 /**
  * Agenda beberapa tahun sekaligus, tanpa duplikat.
  *
- * Tahun ajaran membentang dua tahun kalender, jadi pemanggil lazimnya
- * meminta tahun ini dan tahun depan — tanpa itu Januari selalu kosong
- * setiap kali Desember terlewati. Tahun yang belum diisi membalas `[]`.
+ * Tahun ajaran membentang dua tahun kalender, jadi pemanggil lazimnya meminta
+ * tahun ini dan tahun depan — tanpa itu Januari selalu kosong setiap kali
+ * Desember terlewati.
  */
 export async function getKaldikEvents(years: number[]): Promise<KaldiEvent[]> {
-  const semua = (await Promise.all(years.map(getTahun))).flat()
+  const supabase = createServerClient()
+  const { data, error } = await supabase
+    .from('kaldik_events')
+    .select('id, date, title, description, unit, type, color, year')
+    .in('year', years)
+    .order('date')
+
+  const baris = error ? await dariApiLama(years) : ((data ?? []) as KaldiEvent[])
+
   const sudah = new Set<string>()
   const unik: KaldiEvent[] = []
-  for (const e of semua) {
+  for (const e of baris) {
     const k = kaldikKey(e)
     if (sudah.has(k)) continue
     sudah.add(k)
     unik.push(e)
   }
   return unik
+}
+
+/** Satu tahun penuh, untuk layar kalender. */
+export async function getKaldikTahun(year: number): Promise<{ tabelAda: boolean; events: KaldiEvent[] }> {
+  const supabase = createServerClient()
+  const { data, error } = await supabase
+    .from('kaldik_events')
+    .select('id, date, title, description, unit, type, color, year')
+    .eq('year', year)
+    .order('date')
+  if (error) return { tabelAda: false, events: await dariApiLama([year]) }
+  return { tabelAda: true, events: (data ?? []) as KaldiEvent[] }
 }
 
 /** Tanggal agenda dalam bentuk 'YYYY-MM-DD', atau null bila tak terbaca. */
@@ -68,7 +118,8 @@ export function tanggalKaldik(e: KaldiEvent): string | null {
  * Agenda satu bulan, dikelompokkan per tanggal, disaring untuk satu unit.
  *
  * Agenda ber-unit NASIONAL (dan yang tanpa unit) berlaku untuk semua — libur
- * nasional mengenai seluruh sekolah.
+ * nasional mengenai seluruh sekolah. Begitu pula RQ, yang agendanya menyentuh
+ * seluruh unit yang diampunya.
  */
 export function agendaPerTanggal(events: KaldiEvent[], unitKode: string): Map<string, KaldiEvent[]> {
   const per = new Map<string, KaldiEvent[]>()
@@ -76,7 +127,7 @@ export function agendaPerTanggal(events: KaldiEvent[], unitKode: string): Map<st
     const t = tanggalKaldik(e)
     if (!t) continue
     const unit = String(e.unit ?? '').toUpperCase()
-    if (unit && unit !== 'NASIONAL' && unit !== unitKode.toUpperCase()) continue
+    if (unit && unit !== 'NASIONAL' && unit !== 'RQ' && unit !== unitKode.toUpperCase()) continue
     per.set(t, [...(per.get(t) ?? []), e])
   }
   return per
