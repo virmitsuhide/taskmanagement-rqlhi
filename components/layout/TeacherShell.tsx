@@ -74,6 +74,7 @@ export async function TeacherShell({ children }: { children: React.ReactNode }) 
         // sudah ada tapi tak punya jalan masuk dari navigasi.
         { label: 'Sesi Tahsin', href: '/guru/setoran/tahsin/sesi', icon: <ListChecks /> },
         { label: 'Sesi Tahfidz', href: '/guru/setoran/tahfidz/sesi', icon: <ListChecks /> },
+        { label: 'Rekap Kehadiran', href: '/guru/absensi/rekap', icon: <Table2 /> },
         { label: 'Progres per Sesi', href: '/guru/progres', icon: <Table2 /> },
         { label: 'Catatan Adab', href: '/guru/adab', icon: <HeartHandshake /> },
         { label: 'Capaian Bulanan', href: '/guru/capaian', icon: <CalendarCheck /> },
