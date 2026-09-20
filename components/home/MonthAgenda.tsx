@@ -1,7 +1,8 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react'
+import Link from 'next/link'
+import { ArrowRight, Calendar, ChevronLeft, ChevronRight } from 'lucide-react'
 import type { PublicPost, KaldiEvent } from '@/types'
 
 interface Props {
@@ -279,6 +280,17 @@ export function MonthAgenda({ posts, kaldiEvents = [], todayIso, title = "Agenda
           </div>
         )}
       </div>
+
+      {/* Kisi di atas menjawab "ada apa bulan ini". Merencanakan semester
+          menuntut melihat lebih dari satu bulan sekaligus — itu ada di
+          /kalender, yang juga terbuka untuk umum. */}
+      <Link
+        href="/kalender"
+        className="mt-4 flex items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-sm transition-colors hover:bg-accent"
+      >
+        Lihat kalender setahun penuh
+        <ArrowRight className="h-4 w-4" />
+      </Link>
     </div>
   )
 }
