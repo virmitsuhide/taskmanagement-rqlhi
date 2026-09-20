@@ -70,7 +70,7 @@ export default async function CetakRaporPage({ searchParams }: PageProps) {
           <div className="space-y-4 print:space-y-0">
             {bahan.map(b => (
               <div key={b.student.id} className="overflow-x-auto rounded-xl border print:overflow-visible print:rounded-none print:border-0">
-                <LembarRapor blok={b.template!.blok} pemetaan={b.template!.pemetaan} nilai={b.nilai} />
+                <LembarRapor blok={b.template!.blok} pemetaan={b.template!.pemetaan} nilai={b.nilai} ttd={b.ttd} />
               </div>
             ))}
           </div>

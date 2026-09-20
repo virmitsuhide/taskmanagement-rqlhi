@@ -24,6 +24,8 @@ export const KODE_MEDAN = [
   'hadir', 'izin', 'sakit', 'izin_sakit', 'alfa', 'total_pertemuan', 'persen_hadir',
   // Guru & pengesahan
   'nama_pengampu', 'nip_pengampu', 'nama_koordinator', 'nip_koordinator',
+  // Ruang tanda tangan — gambar, bukan teks
+  'ttd_pengampu', 'ttd_koordinator', 'ttd_keduanya',
   // Periode
   'semester', 'tahun_ajaran', 'tanggal_terbit', 'tempat_terbit',
   // Diisi guru di layar edit
@@ -75,6 +77,10 @@ export const MEDAN: InfoMedan[] = [
   { kode: 'nip_pengampu', label: 'NIY/NIP pengampu', grup: 'Guru & pengesahan', contoh: 'NIY.20001011.308' },
   { kode: 'nama_koordinator', label: 'Nama koordinator', grup: 'Guru & pengesahan', contoh: 'Erna, S.Pd' },
   { kode: 'nip_koordinator', label: 'NIY/NIP koordinator', grup: 'Guru & pengesahan', contoh: 'NIY.20001011.308' },
+
+  { kode: 'ttd_pengampu', label: 'Tanda tangan pengampu', grup: 'Tanda tangan', contoh: '(gambar ttd guru)' },
+  { kode: 'ttd_koordinator', label: 'Tanda tangan koordinator', grup: 'Tanda tangan', contoh: '(gambar ttd koordinator)' },
+  { kode: 'ttd_keduanya', label: 'Tanda tangan koordinator & pengampu', grup: 'Tanda tangan', contoh: '(dua ttd berdampingan)' },
 
   { kode: 'semester', label: 'Semester', grup: 'Periode', contoh: 'II' },
   { kode: 'tahun_ajaran', label: 'Tahun pelajaran', grup: 'Periode', contoh: '2025/2026' },
@@ -187,6 +193,20 @@ function dariPlaceholder(teks: string): KodeMedan | null {
   return kode && (KODE_MEDAN as readonly string[]).includes(kode) ? (kode as KodeMedan) : null
 }
 
+/**
+ * Segmen yang jelas-jelas tempat isian kosong, bukan teks yang harus tetap
+ * tercetak.
+ *
+ * "Nama Pengampu" dan "NIY." tanpa angka adalah tempat menunggu isi — boleh
+ * diisi sistem tanpa bertanya. "Koordinator Al-Qur'an SDIT LHI" adalah judul
+ * kolom dan "NIY.20001011.308" adalah nomor yang sudah tertulis; keduanya
+ * hanya disarankan, sebab menggantinya menghapus sesuatu yang memang ada.
+ */
+function placeholderKosong(seg: string): boolean {
+  return /^nama\s+(guru\s+)?(pengampu|koordinator|ustadz|ustadzah)$/i.test(seg)
+    || /^n\.?i\.?[yp]\.?$/i.test(seg)
+}
+
 /** Segmen yang berdiri sendiri sebagai label — "NIY.", "Nama Pengampu". */
 function labelBerdiriSendiri(seg: string, urutanKolom: number): KodeMedan | null {
   if (seg.length > 40) return null
@@ -213,10 +233,50 @@ function labelBerdiriSendiri(seg: string, urutanKolom: number): KodeMedan | null
  * bisa memetakannya sendiri lewat "tampilkan semua baris" — di situlah nama
  * dan NIY di blok tanda tangan dibereskan.
  */
+/** Jabatan yang disebut sebuah paragraf — penentu ruang tanda tangan siapa. */
+function jabatanDi(b: Blok | undefined): { koor: boolean; pengampu: boolean } {
+  if (!b || b.jenis !== 'paragraf') return { koor: false, pengampu: false }
+  const teks = b.segmen.join(' ')
+  return {
+    koor: /koordinator/i.test(teks),
+    pengampu: /pengampu|ustadz|ustadzah|wali\s*halaqoh/i.test(teks),
+  }
+}
+
+/** Baris yang berbunyi seperti nama atau NIY — penutup blok tanda tangan. */
+function barisPenutupTtd(b: Blok | undefined): boolean {
+  if (!b || b.jenis !== 'paragraf') return false
+  const teks = b.segmen.join(' ')
+  return /n\.?i\.?[yp]\.?/i.test(teks) || /nama\s*(guru\s*)?(pengampu|koordinator)/i.test(teks) || /,\s*S\.|,\s*M\./.test(teks)
+}
+
 export function cariSlot(blok: Blok[]): Slot[] {
   const slot: Slot[] = []
 
   blok.forEach((b, i) => {
+    if (b.jenis === 'jeda') {
+      // Ruang kosong antara baris jabatan dan baris nama adalah tempat tanda
+      // tangan — itulah sebabnya diketik empat kali Enter, bukan sekali.
+      const jabatan = jabatanDi(blok[i - 1])
+      const ditutupNama = barisPenutupTtd(blok[i + 1])
+      const tebakan: KodeMedan | null =
+        jabatan.koor && jabatan.pengampu ? 'ttd_keduanya'
+          : jabatan.koor ? 'ttd_koordinator'
+            : jabatan.pengampu ? 'ttd_pengampu'
+              : null
+      slot.push({
+        id: `j${i}`,
+        petunjuk: `Ruang kosong ${b.baris} baris`,
+        contoh: tebakan ? 'ruang tanda tangan' : '',
+        prefiks: '',
+        tebakan,
+        // Dipakai langsung hanya bila ruang itu benar-benar terapit jabatan di
+        // atas dan nama/NIY di bawah. Baris kosong biasa tetap jadi jeda.
+        pasti: Boolean(tebakan) && ditutupNama && b.baris >= 2,
+      })
+      return
+    }
+
     if (b.jenis === 'kotak') {
       const judul = b.paragraf[0] ?? ''
       const adaJudul = tebakDariLabel(judul) !== null && judul.length <= 60
@@ -313,7 +373,7 @@ export function cariSlot(blok: Blok[]): Slot[] {
         contoh: seg,
         prefiks: '',
         tebakan: berisi > 1 ? labelBerdiriSendiri(seg, kolom) : null,
-        pasti: false,
+        pasti: berisi > 1 && placeholderKosong(seg) && labelBerdiriSendiri(seg, kolom) !== null,
       })
     })
   })

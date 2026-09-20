@@ -106,7 +106,7 @@ export default async function IsiRaporPage({ params, searchParams }: PageProps) 
             <p className="text-sm text-muted-foreground print:hidden">Pratinjau lembar — inilah yang tercetak.</p>
             {anak.template ? (
               <div className="overflow-x-auto rounded-xl border print:overflow-visible print:rounded-none print:border-0">
-                <LembarRapor blok={anak.template.blok} pemetaan={anak.template.pemetaan} nilai={anak.nilai} />
+                <LembarRapor blok={anak.template.blok} pemetaan={anak.template.pemetaan} nilai={anak.nilai} ttd={anak.ttd} />
               </div>
             ) : (
               <div className="rounded-xl border border-dashed bg-card p-5 text-sm text-muted-foreground print:hidden">

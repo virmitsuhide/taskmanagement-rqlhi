@@ -6,7 +6,7 @@ import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { LembarRapor } from '@/components/rapor/LembarRapor'
-import { simpanPemetaanAction } from '@/app/actions/rapor-template'
+import { hapusTtdKoordinatorAction, simpanPemetaanAction, unggahTtdKoordinatorAction } from '@/app/actions/rapor-template'
 import { cariSlot, MEDAN, MEDAN_PER_KODE, type KodeMedan } from '@/lib/rapor/medan'
 import type { Blok } from '@/lib/rapor/docx'
 import { cn } from '@/lib/utils'
@@ -16,6 +16,8 @@ interface Props {
   blok: Blok[]
   pemetaan: Record<string, KodeMedan>
   pengesahan: { tempat_terbit: string; nama_koordinator: string; nip_koordinator: string }
+  /** Url bertanda tangan gambar ttd koordinator; null = belum diunggah. */
+  ttdKoordinator: string | null
 }
 
 const GRUP = [...new Set(MEDAN.map(m => m.grup))]
@@ -30,7 +32,7 @@ const GRUP = [...new Set(MEDAN.map(m => m.grup))]
  * Pratinjau di sebelahnya menandai kuning setiap bagian yang akan diganti
  * data, jadi salah petakan kelihatan sebelum satu rapor pun dicetak.
  */
-export function PemetaanTemplate({ id, blok, pemetaan, pengesahan }: Props) {
+export function PemetaanTemplate({ id, blok, pemetaan, pengesahan, ttdKoordinator }: Props) {
   const router = useRouter()
   const [pending, mulai] = useTransition()
   const [peta, setPeta] = useState<Record<string, KodeMedan>>(pemetaan)
@@ -46,6 +48,27 @@ export function PemetaanTemplate({ id, blok, pemetaan, pengesahan }: Props) {
 
   const dipakai = new Set<KodeMedan>(Object.values(peta).filter(k => k !== 'tetap' && k !== 'kosongkan'))
   const belumDipetakan = MEDAN.filter(m => m.grup === 'Diisi guru' && !dipakai.has(m.kode))
+
+  function kirimTtd(file: File) {
+    mulai(async () => {
+      const data = new FormData()
+      data.set('ttd', file)
+      const hasil = await unggahTtdKoordinatorAction(id, data)
+      if (hasil.error) toast.error(hasil.error)
+      else {
+        toast.success('Tanda tangan koordinator tersimpan.')
+        router.refresh()
+      }
+    })
+  }
+
+  function lepasTtd() {
+    mulai(async () => {
+      const hasil = await hapusTtdKoordinatorAction(id)
+      if (hasil.error) toast.error(hasil.error)
+      else router.refresh()
+    })
+  }
 
   function simpan() {
     mulai(async () => {
@@ -76,6 +99,29 @@ export function PemetaanTemplate({ id, blok, pemetaan, pengesahan }: Props) {
               onChange={e => setSah({ ...sah, nama_koordinator: e.target.value })} />
             <Input value={sah.nip_koordinator} disabled={pending} placeholder="NIY koordinator — NIY.20001011.308"
               onChange={e => setSah({ ...sah, nip_koordinator: e.target.value })} />
+          </div>
+
+          {/* Gambar ttd koordinator dipakai semua rapor unit ini. Ttd pengampu
+              tidak diunggah di sini — ia diambil dari profil tiap guru. */}
+          <div className="space-y-1.5 border-t pt-3">
+            <p className="text-xs font-medium">Tanda tangan koordinator</p>
+            {ttdKoordinator ? (
+              <div className="flex items-center gap-3">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={ttdKoordinator} alt="Tanda tangan koordinator" className="max-h-14 max-w-[160px] object-contain" />
+                <Button type="button" variant="outline" size="sm" disabled={pending} onClick={lepasTtd}>Lepas</Button>
+              </div>
+            ) : (
+              <p className="text-[11px] text-muted-foreground">
+                Belum ada. Tanpa gambar, ruang tanda tangan tetap tersedia di lembar rapor untuk ditandatangani basah.
+              </p>
+            )}
+            <input
+              type="file" accept="image/png,image/webp,image/jpeg" disabled={pending}
+              onChange={e => { const f = e.target.files?.[0]; if (f) kirimTtd(f); e.target.value = '' }}
+              className="block w-full text-xs file:mr-3 file:rounded-md file:border file:bg-card file:px-3 file:py-1.5 file:text-xs"
+            />
+            <p className="text-[11px] text-muted-foreground">PNG berlatar transparan paling rapi.</p>
           </div>
         </div>
 
@@ -160,7 +206,7 @@ export function PemetaanTemplate({ id, blok, pemetaan, pengesahan }: Props) {
           {' '}{[...dipakai].map(k => MEDAN_PER_KODE.get(k)?.label).filter(Boolean).length} medan terpakai.
         </p>
         <div className="overflow-x-auto rounded-xl border">
-          <LembarRapor blok={blok} pemetaan={peta} tandai />
+          <LembarRapor blok={blok} pemetaan={peta} tandai ttd={{ koordinator: ttdKoordinator, pengampu: null }} />
         </div>
       </div>
     </div>

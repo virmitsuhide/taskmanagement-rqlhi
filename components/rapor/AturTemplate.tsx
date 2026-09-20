@@ -3,10 +3,10 @@
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { Trash2 } from 'lucide-react'
+import { RefreshCw, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { hapusTemplateAction, ubahTemplateAction } from '@/app/actions/rapor-template'
+import { bacaUlangTemplateAction, hapusTemplateAction, ubahTemplateAction } from '@/app/actions/rapor-template'
 
 /**
  * Pengaturan template: nama, kelas berapa yang memakainya, aktif/tidak.
@@ -33,6 +33,19 @@ export function AturTemplate({ id, nama, tingkatMin, tingkatMax, aktif }: {
       const hasil = await ubahTemplateAction(id, baru)
       if (hasil.error) toast.error(hasil.error)
       else router.refresh()
+    })
+  }
+
+  function bacaUlang() {
+    if (!confirm('Baca ulang berkas .docx-nya? Pemetaan medan akan disusun ulang dari tebakan baru dan perlu Anda periksa lagi.')) return
+    mulai(async () => {
+      const hasil = await bacaUlangTemplateAction(id)
+      if (hasil.error) {
+        toast.error(hasil.error)
+        return
+      }
+      toast.success('Template dibaca ulang. Periksa pemetaannya.')
+      router.refresh()
     })
   }
 
@@ -74,7 +87,12 @@ export function AturTemplate({ id, nama, tingkatMin, tingkatMax, aktif }: {
         Aktif
       </label>
 
-      <Button type="button" variant="outline" size="sm" onClick={hapus} disabled={pending} className="ml-auto">
+      {/* Dipakai setelah penerjemah .docx diperbaiki: template lama tetap
+          menyimpan hasil terjemahan lama sampai dibaca ulang. */}
+      <Button type="button" variant="outline" size="sm" onClick={bacaUlang} disabled={pending} className="ml-auto">
+        <RefreshCw /> Baca ulang berkas
+      </Button>
+      <Button type="button" variant="outline" size="sm" onClick={hapus} disabled={pending}>
         <Trash2 /> Hapus
       </Button>
     </div>

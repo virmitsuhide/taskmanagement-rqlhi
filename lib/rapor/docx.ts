@@ -91,7 +91,21 @@ export interface BlokKotak {
   paragraf: string[]
 }
 
-export type Blok = BlokParagraf | BlokTabel | BlokKotak
+/**
+ * Paragraf kosong — jeda vertikal yang sengaja ditulis di template.
+ *
+ * Dulu dibuang, dan itu keliru: empat baris kosong antara "Koordinator
+ * Al-Qur'an" dan "Erna, S.Pd" bukan sisa pengetikan, melainkan ruang tanda
+ * tangan. Membuangnya membuat nama menempel di bawah jabatan dan tidak
+ * menyisakan tempat untuk tanda tangan sama sekali.
+ */
+export interface BlokJeda {
+  jenis: 'jeda'
+  /** Berapa paragraf kosong berturut-turut. */
+  baris: number
+}
+
+export type Blok = BlokParagraf | BlokTabel | BlokKotak | BlokJeda
 
 // ─── Penerjemah ──────────────────────────────────────────────────────────────
 
@@ -182,7 +196,16 @@ export function bacaDocument(xml: string): Blok[] {
 
     const pPr = potong.match(/<w:pPr>[\s\S]*?<\/w:pPr>/)?.[0] ?? ''
     const segmen = segmenParagraf(buangPPr(potong))
-    if (segmen.length === 0 || segmen.every(s => s === '')) continue
+
+    // Paragraf kosong berturut-turut digabung jadi satu jeda: yang penting
+    // tingginya, bukan berapa kali tombol Enter ditekan.
+    if (segmen.length === 0 || segmen.every(s => s === '')) {
+      const akhir = blok[blok.length - 1]
+      if (akhir?.jenis === 'jeda') akhir.baris += 1
+      else blok.push({ jenis: 'jeda', baris: 1 })
+      continue
+    }
+
     blok.push({
       jenis: 'paragraf',
       segmen,

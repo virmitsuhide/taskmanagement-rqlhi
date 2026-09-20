@@ -2,6 +2,7 @@ import { notFound, redirect } from 'next/navigation'
 import { getSession } from '@/lib/auth/session'
 import { canManageRaporTemplate, JENJANG_LABELS } from '@/lib/auth/permissions'
 import { getRaporTemplate } from '@/lib/data/rapor-template'
+import { ttdSrc } from '@/lib/kpi/ttd-berkas'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { PemetaanTemplate } from '@/components/rapor/PemetaanTemplate'
 import { AturTemplate } from '@/components/rapor/AturTemplate'
@@ -18,6 +19,8 @@ export default async function PemetaanTemplatePage({ params }: PageProps) {
   const template = await getRaporTemplate(id)
   if (!template) notFound()
   if (!canManageRaporTemplate(session.role, template.jenjang)) redirect('/dashboard')
+
+  const ttdKoordinator = await ttdSrc(template.ttd_koordinator_path)
 
   return (
     <div>
@@ -50,6 +53,7 @@ export default async function PemetaanTemplatePage({ params }: PageProps) {
             nama_koordinator: template.nama_koordinator,
             nip_koordinator: template.nip_koordinator,
           }}
+          ttdKoordinator={ttdKoordinator}
         />
       </div>
     </div>

@@ -21,13 +21,15 @@ export interface RaporTemplate {
   tempat_terbit: string
   nama_koordinator: string
   nip_koordinator: string
+  /** Path objek di bucket signatures (tertutup); null = ttd basah. */
+  ttd_koordinator_path: string | null
   aktif: boolean
   updated_at: string
 }
 
 const KOLOM =
   'id, nama, jenjang, tingkat_min, tingkat_max, file_path, file_nama, blok, pemetaan,' +
-  ' tempat_terbit, nama_koordinator, nip_koordinator, aktif, updated_at'
+  ' tempat_terbit, nama_koordinator, nip_koordinator, ttd_koordinator_path, aktif, updated_at'
 
 /** false = migrasi 0082 belum dijalankan. */
 export interface DaftarTemplate {

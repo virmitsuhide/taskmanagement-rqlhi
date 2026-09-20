@@ -8,6 +8,7 @@ import { getJumlahPertemuan, getRekapAbsensi } from '@/lib/data/absensi'
 import { persenHadir, REKAP_KOSONG, type RekapAbsensi } from '@/lib/rq/absensi'
 import { JENJANG_LABELS } from '@/lib/auth/permissions'
 import { formatTanggal } from '@/lib/rq/ujian'
+import { ttdSrc } from '@/lib/kpi/ttd-berkas'
 import type { HalaqohSesi } from '@/lib/data/setoran-sesi'
 import type { KodeMedan } from '@/lib/rapor/medan'
 import { templateUntuk, type RaporTemplate } from '@/lib/data/rapor-template'
@@ -73,6 +74,8 @@ export interface BahanRapor {
   sepi: boolean
   /** Template yang berlaku untuk anak ini; null = belum ada yang cocok. */
   template: RaporTemplate | null
+  /** Url bertanda tangan untuk gambar ttd; null = ruang ttd dibiarkan kosong. */
+  ttd: { pengampu: string | null; koordinator: string | null }
 }
 
 function kosongkan(): Record<KodeMedan, string> {
@@ -137,10 +140,21 @@ export async function getBahanRaporSesi(
       getPetaHalaman(),
       getInfoSurat(),
       supabase.from('rapor_isian').select('student_id, deskripsi, timpaan').in('student_id', ids).eq('term_id', term.id),
-      supabase.from('halaqoh').select('wali_teacher:teachers!halaqoh_wali_teacher_id_fkey(full_name, nip)').eq('id', halaqoh.id).maybeSingle(),
+      supabase.from('halaqoh').select('wali_teacher:teachers!halaqoh_wali_teacher_id_fkey(full_name, nip, signature_path)').eq('id', halaqoh.id).maybeSingle(),
     ])
 
-  const pengampu = (pengampuRes.data as unknown as { wali_teacher: { full_name: string; nip: string | null } | null } | null)?.wali_teacher ?? null
+  const pengampu = (pengampuRes.data as unknown as {
+    wali_teacher: { full_name: string; nip: string | null; signature_path: string | null } | null
+  } | null)?.wali_teacher ?? null
+
+  // Url ttd dibuat sekali untuk seluruh sesi: pengampunya satu orang, dan
+  // koordinatornya satu per template. Membuatnya per anak berarti puluhan
+  // url bertanda tangan untuk gambar yang sama persis.
+  const ttdPengampu = await ttdSrc(pengampu?.signature_path)
+  const ttdKoordinator = new Map<string, string | null>()
+  for (const tpl of templates) {
+    if (tpl.ttd_koordinator_path) ttdKoordinator.set(tpl.id, await ttdSrc(tpl.ttd_koordinator_path))
+  }
   const isianPer = new Map(
     ((isianRes.data ?? []) as { student_id: string; deskripsi: string; timpaan: Record<string, string> }[])
       .map(r => [r.student_id, r]),
@@ -229,6 +243,10 @@ export async function getBahanRaporSesi(
       absensi: rekap,
       sepi: ts.length === 0 && tf.length === 0,
       template,
+      ttd: {
+        pengampu: ttdPengampu,
+        koordinator: template ? (ttdKoordinator.get(template.id) ?? null) : null,
+      },
     }
   })
 }

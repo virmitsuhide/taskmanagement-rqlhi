@@ -22,7 +22,34 @@ interface Props {
   nilai?: Record<KodeMedan, string>
   /** Tandai slot yang terpetakan dengan latar kuning — hanya untuk pratinjau. */
   tandai?: boolean
+  /** Url gambar tanda tangan; null = ruangnya dibiarkan kosong untuk ttd basah. */
+  ttd?: { pengampu: string | null; koordinator: string | null }
   className?: string
+}
+
+const KODE_TTD = ['ttd_pengampu', 'ttd_koordinator', 'ttd_keduanya'] as const
+type KodeTtd = (typeof KODE_TTD)[number]
+
+function adalahTtd(kode: KodeMedan | undefined): kode is KodeTtd {
+  return (KODE_TTD as readonly string[]).includes(kode ?? '')
+}
+
+/**
+ * Gambar tanda tangan untuk sebuah spot, berikut posisinya.
+ *
+ * Yang belum punya gambar tetap mengembalikan satu entri bersrc null: ruangnya
+ * harus tetap terbuka supaya bisa ditandatangani basah. Menutupnya karena
+ * gambarnya belum diunggah mengembalikan persis masalah yang diperbaiki —
+ * nama menempel di bawah jabatan tanpa tempat membubuhkan tanda tangan.
+ */
+function gambarTtd(kode: KodeTtd, ttd: Props['ttd']): { src: string | null; posisi: 'kiri' | 'kanan' | 'tengah' }[] {
+  if (kode === 'ttd_keduanya') {
+    return [
+      { src: ttd?.koordinator ?? null, posisi: 'kiri' },
+      { src: ttd?.pengampu ?? null, posisi: 'kanan' },
+    ]
+  }
+  return [{ src: (kode === 'ttd_pengampu' ? ttd?.pengampu : ttd?.koordinator) ?? null, posisi: 'tengah' }]
 }
 
 /** Isi sebuah slot: teks template, data, atau kosong. */
@@ -42,7 +69,7 @@ function isiSlot(
   return { teks: prefiks + (nilai[kode] ?? ''), terisi: true }
 }
 
-export function LembarRapor({ blok, pemetaan, nilai, tandai, className }: Props) {
+export function LembarRapor({ blok, pemetaan, nilai, tandai, ttd, className }: Props) {
   // Slot dihitung ulang dari blok yang sama dengan yang dipakai saat memetakan,
   // jadi id-nya pasti cocok — tidak ada daftar slot kedua yang bisa basi.
   const slot = new Map(cariSlot(blok).map(s => [s.id, s]))
@@ -51,8 +78,29 @@ export function LembarRapor({ blok, pemetaan, nilai, tandai, className }: Props)
   return (
     <div className={cn('rapor-sheet space-y-2 bg-white p-8 text-[11pt] leading-relaxed text-black', className)}>
       {blok.map((b, i) => {
+        // Jeda: ruang kosong yang memang ditulis di template. Tingginya
+        // dipertahankan supaya jarak antarbagian sama dengan berkas Word —
+        // dan bila ia dipetakan sebagai ruang tanda tangan, gambarnya
+        // diletakkan di dalam ruang itu tanpa mengubah tingginya.
+        if (b.jenis === 'jeda') {
+          const kode = pemetaan[`j${i}`]
+          const tinggi = `${(b.baris * 1.6).toFixed(1)}em`
+          if (!adalahTtd(kode)) return <div key={i} aria-hidden style={{ height: tinggi }} />
+          return (
+            <div key={i} className="flex items-end justify-between gap-6" style={{ minHeight: tinggi }}>
+              {gambarTtd(kode, ttd).map((g, j) => (
+                <span key={j} className={cn('flex-1', g.posisi === 'kanan' && 'text-right', g.posisi === 'tengah' && 'text-center')}>
+                  {g.src
+                    // eslint-disable-next-line @next/next/no-img-element
+                    ? <img src={g.src} alt="" className="inline-block max-h-[3.4em] max-w-[160px] object-contain" />
+                    : <span className={sorot(true)} />}
+                </span>
+              ))}
+            </div>
+          )
+        }
+
         if (b.jenis === 'kotak') {
-          const s = slot.get(`k${i}`)
           const adaJudul = tebakDariLabel(b.paragraf[0] ?? '') !== null && (b.paragraf[0]?.length ?? 0) <= 60
           const { teks, terisi } = isiSlot(`k${i}`, (adaJudul ? b.paragraf.slice(1) : b.paragraf).join('\n'), '', pemetaan, nilai)
           return (
@@ -74,6 +122,23 @@ export function LembarRapor({ blok, pemetaan, nilai, tandai, className }: Props)
                     {baris.map((sel, c) => {
                       const id = `t${i}.${r}.${c}`
                       const kepala = r === 0 && b.baris.length > 1
+                      const kode = pemetaan[id]
+                      // Tanda tangan di dalam sel diletakkan DI ATAS teksnya,
+                      // bukan menggantikannya: yang tertulis di sel itu nama
+                      // dan NIY penanda tangannya.
+                      if (!kepala && adalahTtd(kode)) {
+                        return (
+                          <td key={c} className="border border-black px-2 py-1 text-center">
+                            <span className="flex h-[3.6em] items-end justify-center">
+                              {gambarTtd(kode, ttd)[0].src
+                                // eslint-disable-next-line @next/next/no-img-element
+                                ? <img src={gambarTtd(kode, ttd)[0].src!} alt="" className="max-h-[3.4em] max-w-[160px] object-contain" />
+                                : null}
+                            </span>
+                            <span className={sorot(true)}>{sel || ' '}</span>
+                          </td>
+                        )
+                      }
                       const { teks, terisi } = kepala
                         ? { teks: sel, terisi: false }
                         : isiSlot(id, sel, '', pemetaan, nilai)

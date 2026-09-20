@@ -5,6 +5,7 @@ import { createServerClient } from '@/lib/supabase/server'
 import { getSession } from '@/lib/auth/session'
 import { canManageRaporTemplate } from '@/lib/auth/permissions'
 import { bacaDocx } from '@/lib/rapor/docx'
+import { unggahTtd } from '@/lib/kpi/ttd-berkas'
 import { cariSlot, pemetaanAwal, KODE_MEDAN, type KodeMedan } from '@/lib/rapor/medan'
 import type { Jenjang } from '@/types'
 
@@ -170,5 +171,103 @@ export async function hapusTemplateAction(id: string): Promise<Hasil> {
   if (tpl.file_path) await supabase.storage.from(BUCKET).remove([tpl.file_path as string])
 
   revalidatePath('/rapor-quran/template')
+  return { success: true }
+}
+
+/**
+ * Unggah tanda tangan koordinator untuk sebuah template (0083).
+ *
+ * Disimpan di template, bukan di akun penggunanya: yang menandatangani rapor
+ * unit adalah jabatan koordinatornya, dan berkas yang sama dipakai seluruh
+ * angkatan. Berkasnya masuk bucket `signatures` yang tertutup — lihat
+ * lib/kpi/ttd-berkas.ts.
+ */
+export async function unggahTtdKoordinatorAction(id: string, formData: FormData): Promise<Hasil> {
+  const session = await getSession()
+  if (!session) return { error: 'Sesi tidak valid.' }
+
+  const supabase = createServerClient()
+  const { data: tpl } = await supabase.from('rapor_templates').select('jenjang').eq('id', id).maybeSingle()
+  if (!tpl) return { error: 'Template tidak ditemukan.' }
+  if (!canManageRaporTemplate(session.role, tpl.jenjang as Jenjang)) return { error: 'Tidak memiliki izin.' }
+
+  const file = formData.get('ttd')
+  if (!(file instanceof File) || file.size === 0) return { error: 'Pilih gambar tanda tangan lebih dulu.' }
+
+  const hasil = await unggahTtd(file, `rapor-template/${id}`)
+  if ('error' in hasil) return { error: hasil.error }
+
+  // Berkas lama sengaja tidak dihapus: rapor yang sudah tercetak menunjuk
+  // kepadanya, dan mengganti gambar di dokumen yang sudah ditandatangani
+  // persis hal yang dihindari.
+  const { error } = await supabase
+    .from('rapor_templates')
+    .update({ ttd_koordinator_path: hasil.path, updated_at: new Date().toISOString() })
+    .eq('id', id)
+  if (error) return { error: 'Gagal menyimpan tanda tangan. Pastikan migrasi 0083 sudah dijalankan.' }
+
+  revalidatePath(`/rapor-quran/template/${id}`)
+  return { success: true }
+}
+
+/** Lepas tanda tangan koordinator — ruangnya kembali kosong untuk ttd basah. */
+export async function hapusTtdKoordinatorAction(id: string): Promise<Hasil> {
+  const session = await getSession()
+  if (!session) return { error: 'Sesi tidak valid.' }
+
+  const supabase = createServerClient()
+  const { data: tpl } = await supabase.from('rapor_templates').select('jenjang').eq('id', id).maybeSingle()
+  if (!tpl) return { error: 'Template tidak ditemukan.' }
+  if (!canManageRaporTemplate(session.role, tpl.jenjang as Jenjang)) return { error: 'Tidak memiliki izin.' }
+
+  const { error } = await supabase
+    .from('rapor_templates')
+    .update({ ttd_koordinator_path: null, updated_at: new Date().toISOString() })
+    .eq('id', id)
+  if (error) return { error: 'Gagal melepas tanda tangan.' }
+
+  revalidatePath(`/rapor-quran/template/${id}`)
+  return { success: true }
+}
+
+/**
+ * Baca ulang template dari berkas .docx yang tersimpan di arsip.
+ *
+ * Dipakai saat penerjemah .docx diperbaiki — template yang diunggah sebelum
+ * perbaikan tetap menyimpan hasil terjemahan lama. Tanpa ini, satu-satunya
+ * jalan adalah mengunggah ulang berkasnya, dan berkas itu bisa saja sudah
+ * tidak ada di komputer koordinator.
+ *
+ * Pemetaannya ikut disusun ulang dari tebakan baru, BUKAN dipertahankan:
+ * blok yang berubah menggeser id slotnya, dan pemetaan lama yang dipaksa
+ * tetap akan menempel pada baris yang keliru. Koordinator memeriksanya lagi
+ * di layar pemetaan — yang memang sudah ada di hadapannya.
+ */
+export async function bacaUlangTemplateAction(id: string): Promise<Hasil> {
+  const session = await getSession()
+  if (!session) return { error: 'Sesi tidak valid.' }
+
+  const supabase = createServerClient()
+  const { data: tpl } = await supabase
+    .from('rapor_templates').select('jenjang, file_path').eq('id', id).maybeSingle()
+  if (!tpl) return { error: 'Template tidak ditemukan.' }
+  if (!canManageRaporTemplate(session.role, tpl.jenjang as Jenjang)) return { error: 'Tidak memiliki izin.' }
+  if (!tpl.file_path) {
+    return { error: 'Berkas aslinya tidak tersimpan. Unggah ulang .docx-nya sebagai template baru.' }
+  }
+
+  const { data: berkas, error: galatUnduh } = await supabase.storage.from(BUCKET).download(tpl.file_path as string)
+  if (galatUnduh || !berkas) return { error: 'Berkas arsip tidak bisa dibuka. Unggah ulang .docx-nya.' }
+
+  const blok = bacaDocx(Buffer.from(await berkas.arrayBuffer()))
+  if (!blok || blok.length === 0) return { error: 'Berkas arsip tidak terbaca sebagai dokumen Word.' }
+
+  const { error } = await supabase
+    .from('rapor_templates')
+    .update({ blok, pemetaan: pemetaanAwal(cariSlot(blok)), updated_at: new Date().toISOString() })
+    .eq('id', id)
+  if (error) return { error: 'Gagal menyimpan hasil baca ulang.' }
+
+  revalidatePath(`/rapor-quran/template/${id}`)
   return { success: true }
 }
