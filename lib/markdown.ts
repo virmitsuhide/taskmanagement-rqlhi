@@ -47,12 +47,16 @@ export function renderMarkdown(input: string): string {
   const lines = escaped.split('\n')
   const out: string[] = []
   let inList: 'ul' | 'ol' | null = null
+  // Baris teks biasa baru diberi <br /> bila disusul baris teks/kosong lain —
+  // `\n` di HTML hanya spasi, jadi tanpa ini baris kosong ikut hilang.
+  let lastWasText = false
 
   for (const raw of lines) {
     const line = raw.trimEnd()
     const bullet = line.match(/^\s*[-*]\s+(.+)$/)
     const numbered = line.match(/^\s*\d+\.\s+(.+)$/)
 
+    if (bullet || numbered) lastWasText = false
     if (bullet) {
       if (inList === 'ol') { out.push('</ol>'); inList = null }
       if (!inList) { out.push('<ul class="list-disc pl-5 space-y-0.5 my-1">'); inList = 'ul' }
@@ -66,13 +70,16 @@ export function renderMarkdown(input: string): string {
       continue
     }
     if (inList) { out.push(inList === 'ul' ? '</ul>' : '</ol>'); inList = null }
+    if (lastWasText) out[out.length - 1] += '<br />'
     if (line.trim() === '') {
       out.push('<br />')
+      lastWasText = false
     } else {
       out.push(applyInline(line))
+      lastWasText = true
     }
   }
   if (inList) out.push(inList === 'ul' ? '</ul>' : '</ol>')
 
-  return out.join('\n').replace(/(<\/(?:strong|em|code)>)\n(?!<)/g, '$1<br />')
+  return out.join('\n')
 }
