@@ -2,7 +2,7 @@ import { createServerClient } from '@/lib/supabase/server'
 import { UNIT_ORDER, UNIT_LABELS, PROGRAMS_BY_JENJANG, programLabel } from '@/lib/rq/programs'
 import { juzTerjauh, totalJuzHafalan } from '@/lib/rq/hafalan'
 import { getJuzUjianPerSiswa, juzGabunganPerSiswa } from '@/lib/data/hafalan'
-import { getTargetTahfidz } from '@/lib/data/target-tahfidz'
+import { getTargetTahfidzSemua } from '@/lib/data/target-tahfidz'
 import { getPredikatLabel, tanggalWIB } from '@/lib/rq/ujian'
 import type { Jenjang, UjianPredikat } from '@/types'
 
@@ -705,7 +705,7 @@ export async function getUnitHafalanBoards(): Promise<HafalanBoard[]> {
     supabase.from('students').select('id, full_name, jenjang, kelas').eq('is_active', true),
     supabase.from('juz_progress').select('student_id, juz_number, ayat_hafal, mutqin'),
     getJuzUjianPerSiswa(),
-    getTargetTahfidz(UNIT_ORDER),
+    getTargetTahfidzSemua(),
   ])
   const students = (studentsRes.data ?? []) as { id: string; full_name: string; jenjang: Jenjang; kelas: string | null }[]
   const jpRows = (juzProgressRes.data ?? []) as { student_id: string; juz_number: number; ayat_hafal: number; mutqin: boolean }[]

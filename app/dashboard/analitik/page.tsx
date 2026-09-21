@@ -1,25 +1,29 @@
+import { Suspense } from 'react'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { getSession } from '@/lib/auth/session'
 import { canViewAnalytics, canViewGukarRecap } from '@/lib/auth/permissions'
 import { UNIT_LABELS, UNIT_ORDER } from '@/lib/rq/programs'
 import {
-  getRqAnalytics, getUnitHafalanBoards, getSetoranTrend, getHafalanUjianPerUnit, getSiswaDrill, getDrillTahfidz,
+  getRqAnalytics, getUnitHafalanBoards, getSetoranTrend, getHafalanUjianPerUnit, getSiswaDrill,
   type HafalanBoard,
 } from '@/lib/data/analytics'
-import { DrillTahsinBoard } from '@/components/dashboard/DrillTahsinBoard'
-import { DrillTahfidzBoard } from '@/components/dashboard/DrillTahfidzBoard'
+import { drillTahsinSemua, ujianSemua } from '@/lib/data/analitik-cache'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
-import { HafalanUjianBoard } from '@/components/dashboard/HafalanUjianBoard'
 import { SetoranTrendChart } from '@/components/dashboard/SetoranTrendChart'
 import {
-  DashTop, Panel, GroupLabel, Slicer, MonthStepper, KpiCard, StackedBar, ActionRow, hrefDengan, persenUbah,
+  DashTop, Panel, Slicer, MonthStepper, KpiCard, hrefDengan, persenUbah,
 } from '@/components/dashboard/kit'
+import { Seksi, SeksiNav, SeksiMemuat, type InfoSeksi } from '@/components/analitik/seksi'
+import { PanelTindakLanjut } from '@/components/analitik/PanelTindakLanjut'
+import { SeksiCapaian } from '@/components/analitik/SeksiCapaian'
+import { SeksiTarget } from '@/components/analitik/SeksiTarget'
+import { SeksiUjianDrill } from '@/components/analitik/SeksiUjianDrill'
+import { SeksiKelengkapan } from '@/components/analitik/SeksiKelengkapan'
 import { cn } from '@/lib/utils'
 import type { Jenjang } from '@/types'
 import {
-  Users, GraduationCap, BookMarked, BookOpen, ClipboardList, Target, TrendingUp, Trophy, Activity,
-  ArrowDown, Check, ArrowUp, HelpCircle, Layers, Repeat,
+  Users, BookMarked, BookOpen, Target, TrendingUp, Trophy, Layers, Repeat, ListChecks,
 } from 'lucide-react'
 
 type Fokus = 'semua' | 'tahsin' | 'tahfidz'
@@ -30,17 +34,38 @@ interface PageProps {
 
 const PATH = '/dashboard/analitik'
 
+const S = {
+  ringkasan: { id: 'ringkasan', nomor: 1, label: 'Ringkasan' },
+  capaian: { id: 'capaian', nomor: 2, label: 'Capaian per Kelas' },
+  target: { id: 'target', nomor: 3, label: 'Target Tahfidz' },
+  ujian: { id: 'ujian', nomor: 4, label: 'Ujian & Drill' },
+  kelengkapan: { id: 'kelengkapan', nomor: 5, label: 'Kelengkapan' },
+} satisfies Record<string, InfoSeksi>
+
 /**
- * Dashboard analitik manajemen — tata letak Z:
+ * Dashboard analitik manajemen — SATU halaman laporan panjang.
  *
- *   judul & cakupan ─────────────────────► filter (bulan · unit · program)
- *                         ╱
- *   ◄──────── 4 KPI ─────╱
- *   tren 12 bulan (lebar) ─────────────► kondisi hari ini & tindak lanjut
- *                         ╱
- *   perbandingan unit ────────────────► 10 besar hafalan
+ * Sebelumnya isi analitik tersebar di tujuh halaman. Kini semuanya dibaca
+ * berurutan di sini, dalam lima seksi bernomor, dengan filter yang sama
+ * (bulan · unit · program) di URL:
  *
- * lalu rincian dan tautan laporan di bawahnya. Semua filter tinggal di URL.
+ *   ① Ringkasan         — setoran & kenaikan bulan ini, tren, peringkat
+ *   ② Capaian per Kelas — kelas × jilid / juz, ketercapaian target tahsin
+ *   ③ Target Tahfidz    — posisi vs target program
+ *   ④ Ujian & Drill     — yang menunggu ujian, juz yang sudah lulus
+ *   ⑤ Kelengkapan       — halaqoh yang belum diisi guru
+ *
+ * Pembinaan guru & karyawan sengaja TIDAK di sini — lihat /dashboard/analitik/gukar.
+ *
+ * Aturan tak tertulis halaman ini: SATU informasi, SATU tempat. Panel
+ * "Perlu Tindak Lanjut" di seksi ① hanya menghitung dan menautkan, tidak
+ * mengulang rincian seksi di bawahnya.
+ *
+ * Seksi ②–⑤ masing-masing dibungkus Suspense: seksi yang kuerinya cepat
+ * tampil lebih dulu, bukan menunggu seksi yang paling lambat. Datanya
+ * dibagi lewat lib/data/analitik-cache.ts supaya ringkasan dan seksi tidak
+ * mengulang kueri yang sama. Halaman rincian lama tetap ada sebagai tempat
+ * daftar per siswa dan pengaturan, dan tetap dipakai koordinator unit.
  */
 export default async function AnalitikPage({ searchParams }: PageProps) {
   const session = await getSession()
@@ -51,14 +76,14 @@ export default async function AnalitikPage({ searchParams }: PageProps) {
   const jenjang = UNIT_ORDER.includes(sp.unit as Jenjang) ? (sp.unit as Jenjang) : null
   const fokus: Fokus = sp.fokus === 'tahsin' || sp.fokus === 'tahfidz' ? sp.fokus : 'semua'
   const bulanDiminta = /^\d{4}-\d{2}$/.test(sp.bulan ?? '') ? sp.bulan! : null
+  const lihatGukar = canViewGukarRecap(session.role)
 
-  const [a, semuaBoards, trend, semuaUjian, semuaDrill, drillTahfidz] = await Promise.all([
+  const [a, semuaBoards, trend, semuaUjian, semuaDrill] = await Promise.all([
     getRqAnalytics({ bulan: bulanDiminta, jenjang }),
     getUnitHafalanBoards(),
     getSetoranTrend(12, jenjang),
-    getHafalanUjianPerUnit(),
-    getSiswaDrill(),
-    getDrillTahfidz(jenjang ? [jenjang] : undefined),
+    ujianSemua(),
+    drillTahsinSemua(),
   ])
 
   // Bulan dibatasi ke jendela tren 12 bulan — di luar itu tidak ada titik
@@ -74,16 +99,10 @@ export default async function AnalitikPage({ searchParams }: PageProps) {
   const bulanHref = (i: number) =>
     i < 0 || i >= kunciBulan.length ? null : href({ bulan: i === kunciBulan.length - 1 ? undefined : kunciBulan[i] })
 
-  const saringUnit = <T extends { jenjang: Jenjang }>(xs: T[]) => (jenjang ? xs.filter(x => x.jenjang === jenjang) : xs)
-  const boards = saringUnit(semuaBoards)
-  const ujian = saringUnit(semuaUjian)
-  const drill = saringUnit(semuaDrill)
-
+  const boards = jenjang ? semuaBoards.filter(b => b.jenjang === jenjang) : semuaBoards
   const target = ringkasTarget(boards)
-  const drillBelumDiajukan = drill.reduce((n, u) => n + u.belumDiajukan, 0)
-  const drillTahsinTotal = drill.reduce((n, u) => n + u.siswa.length, 0)
   const aktif = a.overview.activeStudents
-  const cakupan = jenjang ? UNIT_LABELS[jenjang] : "Seluruh RQ"
+  const cakupan = jenjang ? UNIT_LABELS[jenjang] : 'Seluruh RQ'
   const tampilTahsin = fokus !== 'tahfidz'
   const tampilTahfidz = fokus !== 'tahsin'
 
@@ -99,15 +118,18 @@ export default async function AnalitikPage({ searchParams }: PageProps) {
 
   const naikIni = (tampilTahsin ? a.monthly.jilidPromotions : 0) + (tampilTahfidz ? a.monthly.juzPromotions : 0)
   const naikLalu = (tampilTahsin ? a.prevMonthly.jilidPromotions : 0) + (tampilTahfidz ? a.prevMonthly.juzPromotions : 0)
+  const drillTahsinTotal = semuaDrill.filter(u => !jenjang || u.jenjang === jenjang).reduce((n, u) => n + u.siswa.length, 0)
 
   const top = papanTeratas(boards)
+  const seksi = Object.values(S).filter(s =>
+    s.id !== 'target' || tampilTahfidz)
 
   return (
     <div>
       <DashboardHeader displayName={session.displayName} role={session.role} title="Analitik RQ" showBack ownH1 />
-      <div className="mx-auto max-w-6xl space-y-5 p-4 md:p-6">
+      <div className="mx-auto max-w-6xl space-y-6 p-4 md:p-6">
 
-        {/* ── Z · garis atas: judul ► filter ── */}
+        {/* ── Z · garis atas halaman: judul ► filter ── */}
         <DashTop
           eyebrow="Dashboard Manajemen"
           title="Analitik Rumah Qur'an"
@@ -136,193 +158,184 @@ export default async function AnalitikPage({ searchParams }: PageProps) {
           }
         />
 
-        {/* ── Z · diagonal: KPI ── */}
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <KpiCard
-            icon={<Users className="h-3.5 w-3.5" />}
-            label="Siswa aktif"
-            value={aktif}
-            sub={`${a.overview.activeHalaqoh.toLocaleString('id-ID')} halaqoh · ${a.overview.activeTeachers.toLocaleString('id-ID')} guru`}
-          />
-          {tampilTahsin && (
-            <KpiCard
-              icon={<BookOpen className="h-3.5 w-3.5" />}
-              label="Tercatat tahsin"
-              value={tercatat(titik?.tahsin)}
-              unit={aktif > 0 && titik && !titik.isBeforeData ? `/ ${aktif.toLocaleString('id-ID')}` : undefined}
-              ratio={aktif > 0 && titik && !titik.isBeforeData ? titik.tahsin / aktif : undefined}
-              delta={deltaSiswa(p => p.tahsin)}
-              sub={catatanBerjalan ?? (!titik || titik.isBeforeData ? 'Belum ada data bulan ini' : undefined)}
-            />
-          )}
-          {tampilTahfidz && (
-            <KpiCard
-              icon={<BookMarked className="h-3.5 w-3.5" />}
-              label="Tercatat tahfidz"
-              value={tercatat(titik?.tahfidz)}
-              unit={aktif > 0 && titik && !titik.isBeforeData ? `/ ${aktif.toLocaleString('id-ID')}` : undefined}
-              ratio={aktif > 0 && titik && !titik.isBeforeData ? titik.tahfidz / aktif : undefined}
-              delta={deltaSiswa(p => p.tahfidz)}
-              sub={catatanBerjalan ?? (!titik || titik.isBeforeData ? 'Belum ada data bulan ini' : undefined)}
-            />
-          )}
-          {/* Program tunggal: slot yang kosong diisi KPI kondisi program itu. */}
-          {fokus === 'tahsin' && (
-            <KpiCard
-              icon={<Repeat className="h-3.5 w-3.5" />}
-              label="Sedang drill tahsin"
-              value={drillTahsinTotal}
-              sub={drillBelumDiajukan > 0 ? `${drillBelumDiajukan} belum diajukan ujian` : 'Semua sudah diajukan ujian'}
-            />
-          )}
-          {fokus === 'tahfidz' && (
-            <KpiCard
-              icon={<Target className="h-3.5 w-3.5" />}
-              label="Sesuai / melampaui target"
-              value={target.terukur > 0 ? `${Math.round(((target.on + target.above) / target.terukur) * 100)}%` : '—'}
-              ratio={target.terukur > 0 ? (target.on + target.above) / target.terukur : undefined}
-              sub={target.terukur > 0 ? `dari ${target.terukur.toLocaleString('id-ID')} siswa terukur · hari ini` : 'Belum ada siswa terukur'}
-            />
-          )}
-          <KpiCard
-            icon={<TrendingUp className="h-3.5 w-3.5" />}
-            label={fokus === 'tahsin' ? 'Kenaikan jilid' : fokus === 'tahfidz' ? 'Kenaikan juz' : 'Kenaikan jilid · juz'}
-            value={fokus === 'semua'
-              ? `${a.monthly.jilidPromotions.toLocaleString('id-ID')} · ${a.monthly.juzPromotions.toLocaleString('id-ID')}`
-              : naikIni}
-            delta={a.isRunningMonth ? undefined : { pct: persenUbah(naikLalu, naikIni), vs: a.prevMonthLabel }}
-            sub={catatanBerjalan ?? `${a.juzTerujiTotal.toLocaleString('id-ID')} juz teruji (lulus ujian)`}
-          />
-        </div>
+        <SeksiNav seksi={seksi} />
 
-        {/* ── Z · garis tengah: tren (utama) ► kondisi hari ini ── */}
-        <div className="grid gap-5 lg:grid-cols-12">
-          <div className="lg:col-span-8">
-            <SetoranTrendChart trend={trend} highlightKey={a.monthKey} fokus={fokus} />
+        {/* ── ① Ringkasan ── */}
+        <Seksi info={S.ringkasan} judul="Ringkasan" pertanyaan="Bagaimana setoran dan kenaikan siswa bulan ini?" catatan={a.monthLabel}>
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <KpiCard
+              icon={<Users className="h-3.5 w-3.5" />}
+              label="Siswa aktif"
+              value={aktif}
+              sub={`${a.overview.activeHalaqoh.toLocaleString('id-ID')} halaqoh · ${a.overview.activeTeachers.toLocaleString('id-ID')} guru`}
+            />
+            {tampilTahsin && (
+              <KpiCard
+                icon={<BookOpen className="h-3.5 w-3.5" />}
+                label="Tercatat tahsin"
+                value={tercatat(titik?.tahsin)}
+                unit={aktif > 0 && titik && !titik.isBeforeData ? `/ ${aktif.toLocaleString('id-ID')}` : undefined}
+                ratio={aktif > 0 && titik && !titik.isBeforeData ? titik.tahsin / aktif : undefined}
+                delta={deltaSiswa(p => p.tahsin)}
+                sub={catatanBerjalan ?? (!titik || titik.isBeforeData ? 'Belum ada data bulan ini' : undefined)}
+              />
+            )}
+            {tampilTahfidz && (
+              <KpiCard
+                icon={<BookMarked className="h-3.5 w-3.5" />}
+                label="Tercatat tahfidz"
+                value={tercatat(titik?.tahfidz)}
+                unit={aktif > 0 && titik && !titik.isBeforeData ? `/ ${aktif.toLocaleString('id-ID')}` : undefined}
+                ratio={aktif > 0 && titik && !titik.isBeforeData ? titik.tahfidz / aktif : undefined}
+                delta={deltaSiswa(p => p.tahfidz)}
+                sub={catatanBerjalan ?? (!titik || titik.isBeforeData ? 'Belum ada data bulan ini' : undefined)}
+              />
+            )}
+            {/* Program tunggal: slot yang kosong diisi KPI kondisi program itu. */}
+            {fokus === 'tahsin' && (
+              <KpiCard
+                icon={<Repeat className="h-3.5 w-3.5" />}
+                label="Sedang drill tahsin"
+                value={drillTahsinTotal}
+                sub="Rincian di seksi Ujian & Drill"
+              />
+            )}
+            {fokus === 'tahfidz' && (
+              <KpiCard
+                icon={<Target className="h-3.5 w-3.5" />}
+                label="Sesuai / melampaui target"
+                value={target.terukur > 0 ? `${Math.round(((target.on + target.above) / target.terukur) * 100)}%` : '—'}
+                ratio={target.terukur > 0 ? (target.on + target.above) / target.terukur : undefined}
+                sub={target.terukur > 0 ? `dari ${target.terukur.toLocaleString('id-ID')} siswa terukur · hari ini` : 'Belum ada siswa terukur'}
+              />
+            )}
+            <KpiCard
+              icon={<TrendingUp className="h-3.5 w-3.5" />}
+              label={fokus === 'tahsin' ? 'Kenaikan jilid' : fokus === 'tahfidz' ? 'Kenaikan juz' : 'Kenaikan jilid · juz'}
+              value={fokus === 'semua'
+                ? `${a.monthly.jilidPromotions.toLocaleString('id-ID')} · ${a.monthly.juzPromotions.toLocaleString('id-ID')}`
+                : naikIni}
+              delta={a.isRunningMonth ? undefined : { pct: persenUbah(naikLalu, naikIni), vs: a.prevMonthLabel }}
+              sub={catatanBerjalan ?? `${a.juzTerujiTotal.toLocaleString('id-ID')} juz teruji (lulus ujian)`}
+            />
           </div>
 
-          <Panel
-            className="lg:col-span-4"
-            title="Kondisi Hari Ini"
-            icon={<Activity className="h-4 w-4" />}
-            sub="Posisi siswa sekarang — tidak mengikuti filter bulan."
-          >
-            <div className="space-y-5">
-              {tampilTahfidz && (
-                <div>
-                  <p className="mb-2 flex items-center justify-between text-xs font-semibold">
-                    <span>Posisi vs target tahfidz</span>
-                    <Link href="/dashboard/analitik/target-tahfidz" className="font-normal text-primary hover:underline">Rincian →</Link>
-                  </p>
-                  {target.berlaku ? (
-                    <StackedBar segments={[
-                      { label: 'Di bawah target', value: target.below, color: 'var(--destructive)', icon: <ArrowDown className="h-3.5 w-3.5" /> },
-                      { label: 'Sesuai target', value: target.on, color: 'var(--success)', icon: <Check className="h-3.5 w-3.5" /> },
-                      { label: 'Melampaui target', value: target.above, color: 'var(--info)', icon: <ArrowUp className="h-3.5 w-3.5" /> },
-                      { label: 'Belum terukur', value: target.belumTerukur, color: 'var(--muted-foreground)', icon: <HelpCircle className="h-3.5 w-3.5" /> },
-                    ]} />
-                  ) : (
-                    <p className="rounded-lg border border-dashed p-3 text-xs text-muted-foreground">
-                      {aktif === 0 ? `Belum ada siswa aktif di ${cakupan}.` : `${cakupan} belum punya rencana target tahfidz.`}
-                    </p>
-                  )}
-                </div>
-              )}
-
-              <div>
-                <p className="mb-1 text-xs font-semibold">Perlu tindak lanjut</p>
-                <div className="-mx-2">
-                  {tampilTahsin && (
-                    <ActionRow count={drillBelumDiajukan} tone="destructive" href="#drill-tahsin"
-                      label="siswa drill tahsin belum diajukan ujian" />
-                  )}
-                  {tampilTahfidz && (
-                    <>
-                      <ActionRow count={drillTahfidz.sedang.length} href="#drill-tahfidz"
-                        label="juz tuntas ziyadah, menunggu diajukan ujian" />
-                      <ActionRow count={target.below} href="/dashboard/analitik/target-tahfidz"
-                        label="siswa tertinggal dari target tahfidz" />
-                    </>
-                  )}
-                </div>
-              </div>
+          {/* Z · garis tengah: tren (utama) ► pekerjaan rumah */}
+          <div className="grid gap-5 lg:grid-cols-12">
+            <div className="lg:col-span-8">
+              <SetoranTrendChart trend={trend} highlightKey={a.monthKey} fokus={fokus} />
             </div>
-          </Panel>
-        </div>
+            <Suspense fallback={<PanelMemuat className="lg:col-span-4" />}>
+              <PanelTindakLanjut className="lg:col-span-4" jenjang={jenjang} fokus={fokus} bulan={a.monthKey} />
+            </Suspense>
+          </div>
 
-        {/* ── Z · garis bawah: perbandingan unit ► papan hafalan ── */}
-        <div className="grid items-start gap-5 lg:grid-cols-12">
-          <Panel
-            className="lg:col-span-7"
-            title="Perbandingan Unit"
-            icon={<Layers className="h-4 w-4" />}
-            sub="Klik nama unit untuk menyaring seluruh dashboard."
-          >
-            <PerbandinganUnit
-              boards={semuaBoards}
-              ujian={semuaUjian}
-              drill={semuaDrill}
-              aktifUnit={jenjang}
-              hrefUnit={j => href({ unit: j })}
-              fokus={fokus}
-            />
-          </Panel>
+          {/* Z · garis bawah: perbandingan unit ► peringkat */}
+          <div className="grid items-start gap-5 lg:grid-cols-12">
+            <Panel
+              className="lg:col-span-7"
+              title="Perbandingan Unit"
+              icon={<Layers className="h-4 w-4" />}
+              sub="Klik nama unit untuk menyaring seluruh halaman."
+            >
+              <PerbandinganUnit
+                boards={semuaBoards}
+                ujian={semuaUjian}
+                drill={semuaDrill}
+                aktifUnit={jenjang}
+                hrefUnit={j => href({ unit: j })}
+                fokus={fokus}
+              />
+            </Panel>
 
-          <Panel
-            className="lg:col-span-5"
-            title="10 Besar Hafalan"
-            icon={<Trophy className="h-4 w-4" />}
-            sub={`${cakupan} · juz dari setoran atau ujian, yang terjauh`}
-          >
-            {top.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Belum ada data hafalan di {cakupan}.</p>
-            ) : (
-              <ol className="divide-y">
-                {top.map((s, i) => (
-                  <li key={s.id}>
-                    <Link href={`/siswa/${s.id}`} className="flex items-center gap-3 py-1.5 hover:bg-muted/40"
-                      title={s.totalAyat > 0 ? `${s.totalAyat.toLocaleString('id-ID')} ayat disetor` : undefined}>
-                      <span className={cn('w-5 shrink-0 text-xs font-bold tabular-nums', i < 3 ? 'text-primary' : 'text-muted-foreground')}>{i + 1}</span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-sm font-medium">{s.name}</span>
-                        <span className="block truncate text-[11px] text-muted-foreground">
-                          {[!jenjang ? s.unit : null, s.kelas ? `Kelas ${s.kelas}` : null].filter(Boolean).join(' · ') || '—'}
+            <Panel
+              className="lg:col-span-5"
+              title="10 Besar Hafalan"
+              icon={<Trophy className="h-4 w-4" />}
+              sub={`${cakupan} · juz dari setoran atau ujian, yang terjauh`}
+            >
+              {top.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Belum ada data hafalan di {cakupan}.</p>
+              ) : (
+                <ol className="divide-y">
+                  {top.map((s, i) => (
+                    <li key={s.id}>
+                      <Link href={`/siswa/${s.id}`} className="flex items-center gap-3 py-1.5 hover:bg-muted/40"
+                        title={s.totalAyat > 0 ? `${s.totalAyat.toLocaleString('id-ID')} ayat disetor` : undefined}>
+                        <span className={cn('w-5 shrink-0 text-xs font-bold tabular-nums', i < 3 ? 'text-primary' : 'text-muted-foreground')}>{i + 1}</span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-sm font-medium">{s.name}</span>
+                          <span className="block truncate text-[11px] text-muted-foreground">
+                            {[!jenjang ? s.unit : null, s.kelas ? `Kelas ${s.kelas}` : null].filter(Boolean).join(' · ') || '—'}
+                          </span>
                         </span>
-                      </span>
-                      <span className="hidden h-1.5 w-16 shrink-0 overflow-hidden rounded-full bg-muted sm:block">
-                        <span className="block h-full rounded-full" style={{ width: `${(s.juzCount / Math.max(1, top[0].juzCount)) * 100}%`, background: 'var(--primary)' }} />
-                      </span>
-                      <span className="w-12 shrink-0 text-right text-sm font-semibold tabular-nums">{s.juzCount} juz</span>
-                    </Link>
-                  </li>
-                ))}
-              </ol>
-            )}
-          </Panel>
-        </div>
+                        <span className="hidden h-1.5 w-16 shrink-0 overflow-hidden rounded-full bg-muted sm:block">
+                          <span className="block h-full rounded-full" style={{ width: `${(s.juzCount / Math.max(1, top[0].juzCount)) * 100}%`, background: 'var(--primary)' }} />
+                        </span>
+                        <span className="w-12 shrink-0 text-right text-sm font-semibold tabular-nums">{s.juzCount} juz</span>
+                      </Link>
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </Panel>
+          </div>
+        </Seksi>
 
-        {/* ── Rincian ── */}
-        <GroupLabel note={`${cakupan} · kondisi hari ini`}>Rincian</GroupLabel>
-        {tampilTahfidz && <HafalanUjianBoard units={ujian} />}
-        {tampilTahsin && <div id="drill-tahsin" className="scroll-mt-4"><DrillTahsinBoard units={drill} /></div>}
-        {tampilTahfidz && <div id="drill-tahfidz" className="scroll-mt-4"><DrillTahfidzBoard data={drillTahfidz} showUnit={!jenjang} /></div>}
+        <Suspense fallback={<SeksiMemuat info={S.capaian} judul="Capaian per Kelas" />}>
+          <SeksiCapaian info={S.capaian} jenjang={jenjang} fokus={fokus} bulan={a.monthKey} />
+        </Suspense>
 
-        {/* ── Laporan lanjutan ── */}
-        <GroupLabel>Laporan Lanjutan</GroupLabel>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <TautanLaporan href="/dashboard/analitik/unit" icon={<GraduationCap className="h-4 w-4" />}
-            judul="Analitik per Unit & Program" ket="Capaian tahsin & tahfidz, ujian juz'iyah & tasmi' tiap unit/program" />
-          <TautanLaporan href="/dashboard/analitik/target-tahfidz" icon={<Target className="h-4 w-4" />}
-            judul="Target Tahfidz Bulanan" ket="Target per program & kelas, kalender pekan efektif, siswa yang tertinggal" />
-          <TautanLaporan href="/dashboard/analitik/kelengkapan" icon={<ClipboardList className="h-4 w-4" />}
-            judul="Kelengkapan Pengisian Capaian" ket="Halaqoh mana yang gurunya belum mengisi capaian bulan ini" />
-          {/* Pembinaan gukar dipisah dari analitik siswa: pesertanya pegawai,
-              satuannya bulanan, dan pemiliknya SDM. */}
-          {canViewGukarRecap(session.role) && (
-            <TautanLaporan href="/dashboard/analitik/gukar" icon={<BookMarked className="h-4 w-4" />}
-              judul="Halaqoh Qur'an Guru & Karyawan" ket="Capaian tahsin & tahfidz dan kehadiran pembinaan pegawai" />
-          )}
-        </div>
+        {tampilTahfidz && (
+          <Suspense fallback={<SeksiMemuat info={S.target} judul="Target Tahfidz" />}>
+            <SeksiTarget info={S.target} jenjang={jenjang} />
+          </Suspense>
+        )}
+
+        <Suspense fallback={<SeksiMemuat info={S.ujian} judul="Ujian & Drill" />}>
+          <SeksiUjianDrill info={S.ujian} jenjang={jenjang} fokus={fokus} />
+        </Suspense>
+
+        <Suspense fallback={<SeksiMemuat info={S.kelengkapan} judul="Kelengkapan Pengisian" />}>
+          <SeksiKelengkapan info={S.kelengkapan} jenjang={jenjang} bulan={a.monthKey} />
+        </Suspense>
+
+        {/* Pembinaan guru & karyawan punya halaman sendiri: pesertanya
+            pegawai, unitnya bukan jenjang siswa, dan pemiliknya SDM. */}
+        {lihatGukar && (
+          <Link href={`/dashboard/analitik/gukar${bulanDiminta ? `?periode=${bulanDiminta}` : ''}`}
+            className="flex items-center gap-3 rounded-xl border bg-card p-4 transition-colors hover:bg-muted/40">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg" style={{ background: 'var(--primary-wash)', color: 'var(--primary)' }}>
+              <BookMarked className="h-4 w-4" />
+            </span>
+            <span className="min-w-0">
+              <span className="block text-sm font-semibold">Analitik Halaqoh Qur&apos;an Guru &amp; Karyawan →</span>
+              <span className="block text-xs text-muted-foreground">Nama yang perlu didampingi, capaian tahsin &amp; tahfidz per unit, kehadiran semester</span>
+            </span>
+          </Link>
+        )}
+
+        <p className="border-t pt-4 text-[11px] text-muted-foreground">
+          Rincian per program dan per siswa:{' '}
+          <Link href="/dashboard/analitik/unit" className="text-primary hover:underline">Analitik per Unit &amp; Program</Link>
+          {' · '}
+          <Link href="/dashboard/analitik/target-tahfidz" className="text-primary hover:underline">Target Tahfidz per Kelas</Link>
+          {' · '}
+          <Link href="/dashboard/analitik/kurikulum" className="text-primary hover:underline">Capaian per Angkatan</Link>
+        </p>
+      </div>
+    </div>
+  )
+}
+
+function PanelMemuat({ className }: { className?: string }) {
+  return (
+    <div className={cn('rounded-xl border bg-card p-5', className)} aria-busy="true">
+      <p className="mb-4 flex items-center gap-2 text-sm font-semibold text-muted-foreground">
+        <ListChecks className="h-4 w-4" /> Perlu Tindak Lanjut
+      </p>
+      <div className="space-y-2">
+        {[0, 1, 2, 3].map(i => <div key={i} className="h-9 animate-pulse rounded-lg bg-muted/60" />)}
       </div>
     </div>
   )
@@ -442,19 +455,5 @@ function PerbandinganUnit({ boards, ujian, drill, aktifUnit, hrefUnit, fokus }: 
         </p>
       )}
     </div>
-  )
-}
-
-function TautanLaporan({ href, icon, judul, ket }: { href: string; icon: React.ReactNode; judul: string; ket: string }) {
-  return (
-    <Link href={href} className="flex items-center gap-3 rounded-xl border bg-card p-4 transition-colors hover:bg-muted/40">
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg" style={{ background: 'var(--primary-wash)', color: 'var(--primary)' }}>
-        {icon}
-      </span>
-      <div className="min-w-0">
-        <p className="text-sm font-semibold">{judul} →</p>
-        <p className="text-xs text-muted-foreground">{ket}</p>
-      </div>
-    </Link>
   )
 }

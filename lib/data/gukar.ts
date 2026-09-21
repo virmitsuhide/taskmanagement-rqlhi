@@ -3,6 +3,7 @@ import { canDoGukarPembinaan } from '@/lib/auth/permissions'
 import type { TeacherEmployment } from '@/types'
 import { type PeriodKey, periodsYearToDate, toPeriodDate } from '@/lib/finance/period'
 import type { TahapJilid } from '@/lib/rq/gukar-setoran'
+import { nilaiTahsin } from '@/lib/rq/gukar-standar'
 import type { GukarGroup, GukarMonthly, GukarParticipant } from '@/types'
 
 /**
@@ -394,4 +395,197 @@ export async function getDaftarSurat(): Promise<SuratRingkas[]> {
     .order('id')
   return ((data ?? []) as { id: number; name_latin: string; total_ayat: number }[])
     .map(s => ({ id: s.id, nama: s.name_latin, ayat: s.total_ayat }))
+}
+
+// ─── Perlu perhatian bulan ini ──────────────────────────────────────────────
+
+/**
+ * Status peserta yang perlu ditindaklanjuti — satu status per orang, diambil
+ * yang paling mendesak. Urutannya mengikuti Laporan Eksekutif SDM (bab 3.7):
+ * belum mengaji paling berat karena orangnya belum mulai sama sekali;
+ * "belum direkap" paling ringan karena bisa jadi hanya pengampunya yang
+ * belum mengisi.
+ */
+export type StatusPerhatian = 'belum_mengaji' | 'tidak_hadir' | 'tanpa_capaian' | 'belum_direkap'
+
+export const LABEL_PERHATIAN: Record<StatusPerhatian, string> = {
+  belum_mengaji: 'Belum mengaji',
+  tidak_hadir: 'Tidak hadir',
+  tanpa_capaian: 'Tanpa capaian tercatat',
+  belum_direkap: 'Belum direkap',
+}
+
+export const URUTAN_PERHATIAN: StatusPerhatian[] = ['belum_mengaji', 'tidak_hadir', 'tanpa_capaian', 'belum_direkap']
+
+export interface PesertaPerhatian {
+  id: string
+  nama: string
+  unit: string
+  kelompok: string
+  pengampu: string
+  status: StatusPerhatian
+  /** Kehadiran bulan ini; slot 0 = belum direkap. */
+  hadir: number
+  slot: number
+}
+
+export interface KelompokBulan {
+  id: string
+  nama: string
+  unit: string
+  pengampu: string
+  peserta: number
+  /** Peserta yang kehadirannya sudah direkap bulan ini. */
+  direkap: number
+  /** Hadir minimal sekali bulan ini. */
+  aktif: number
+  hadir: number
+  slot: number
+  percent: number
+  belumMengaji: number
+}
+
+/** Ringkasan satu unit pada satu bulan — bentuk tabel 3.3 Laporan SDM. */
+export interface UnitBulan {
+  unit: string
+  peserta: number
+  direkap: number
+  aktif: number
+  hadir: number
+  slot: number
+  belumMengaji: number
+}
+
+export interface GukarPerhatian {
+  peserta: PesertaPerhatian[]
+  kelompok: KelompokBulan[]
+  perUnit: UnitBulan[]
+  totalPeserta: number
+}
+
+/** Apakah baris bulan ini memuat capaian apa pun — tahsin atau tahfidz. */
+function adaCapaian(r: GukarMonthly): boolean {
+  return Boolean(
+    r.capaian_tahsin.trim() || r.capaian_tahfidz.trim() || (r.tahap_tahsin ?? '').trim()
+    || r.jilid_id || r.tahsin_surat || r.tahfidz_surat || r.juz_berjalan || r.juz_tuntas !== null,
+  )
+}
+
+/**
+ * Siapa saja yang perlu perhatian pada SATU bulan — bahan daftar nama di
+ * laporan SDM. Berbeda dari getGukarRecap yang mengakumulasi semester:
+ * pimpinan menindaklanjuti per bulan, dan orang yang rajin di Juli tapi
+ * menghilang di Agustus harus muncul di daftar Agustus.
+ */
+export async function getGukarPerhatian(termId: string, period: PeriodKey): Promise<GukarPerhatian> {
+  const kosong: GukarPerhatian = { peserta: [], kelompok: [], perUnit: [], totalPeserta: 0 }
+  try {
+    const supabase = createServerClient()
+
+    const [groupsRes, teachersRes] = await Promise.all([
+      supabase.from('gukar_groups').select('*').eq('term_id', termId).eq('is_active', true),
+      supabase.from('teachers').select('id, full_name'),
+    ])
+    const groups = (groupsRes.data ?? []) as GukarGroup[]
+    if (groups.length === 0) return kosong
+    const namaGuru = new Map(
+      ((teachersRes.data ?? []) as { id: string; full_name: string }[]).map(t => [t.id, t.full_name]),
+    )
+
+    const { data: participantRows } = await supabase
+      .from('gukar_participants').select('*')
+      .in('group_id', groups.map(g => g.id)).eq('is_active', true).order('full_name')
+    const participants = (participantRows ?? []) as GukarParticipant[]
+    if (participants.length === 0) return kosong
+
+    // Bulan-bulan sebelumnya ikut diambil hanya untuk membaca tahap tahsin
+    // terakhir: "belum mengaji" yang dicatat Juli tetap berlaku di Agustus
+    // selama belum ada catatan yang menggantikannya.
+    const { data: monthlyRows } = await supabase
+      .from('gukar_monthly').select('*')
+      .in('participant_id', participants.map(p => p.id))
+      .in('period', periodsYearToDate(period).map(toPeriodDate))
+      .order('period', { ascending: true })
+
+    const perPeserta = new Map<string, GukarMonthly[]>()
+    for (const row of (monthlyRows ?? []) as GukarMonthly[]) {
+      const list = perPeserta.get(row.participant_id)
+      if (list) list.push(row)
+      else perPeserta.set(row.participant_id, [row])
+    }
+
+    const groupById = new Map(groups.map(g => [g.id, g]))
+    const pengampuOf = (g?: GukarGroup) => (g?.pengampu_id ? (namaGuru.get(g.pengampu_id) ?? '—') : '—')
+
+    const semua = participants.map(p => {
+      const rows = perPeserta.get(p.id) ?? []
+      const ini = rows.find(r => r.period.slice(0, 7) === period)
+      const { hadir, slot } = ini ? kehadiranBaris(ini) : { hadir: 0, slot: 0 }
+      const terbaru = [...rows].reverse()
+      const tahap = nilaiTahsin(
+        terbaru.find(r => (r.tahap_tahsin ?? '').trim())?.tahap_tahsin ?? '',
+        terbaru.find(r => r.capaian_tahsin.trim())?.capaian_tahsin || p.level_awal,
+      )
+
+      let status: StatusPerhatian | null = null
+      if (tahap.kategori === 'belum_mengaji') status = 'belum_mengaji'
+      else if (slot > 0 && hadir === 0) status = 'tidak_hadir'
+      else if (slot > 0 && ini && !adaCapaian(ini)) status = 'tanpa_capaian'
+      else if (slot === 0) status = 'belum_direkap'
+
+      const group = groupById.get(p.group_id)
+      return {
+        p, group, hadir, slot, status,
+        unit: group?.unit || p.unit || 'Tanpa unit',
+      }
+    })
+
+    const peserta: PesertaPerhatian[] = semua
+      .filter((x): x is typeof x & { status: StatusPerhatian } => x.status !== null)
+      .map(x => ({
+        id: x.p.id, nama: x.p.full_name, unit: x.unit,
+        kelompok: x.group?.name ?? '—', pengampu: pengampuOf(x.group),
+        status: x.status, hadir: x.hadir, slot: x.slot,
+      }))
+      .sort((a, b) =>
+        a.unit.localeCompare(b.unit)
+        || URUTAN_PERHATIAN.indexOf(a.status) - URUTAN_PERHATIAN.indexOf(b.status)
+        || a.kelompok.localeCompare(b.kelompok) || a.nama.localeCompare(b.nama))
+
+    const kelompok: KelompokBulan[] = groups.map(g => {
+      const anggota = semua.filter(x => x.p.group_id === g.id)
+      const hadir = anggota.reduce((n, x) => n + x.hadir, 0)
+      const slot = anggota.reduce((n, x) => n + x.slot, 0)
+      return {
+        id: g.id, nama: g.name, unit: g.unit || 'Tanpa unit', pengampu: pengampuOf(g),
+        peserta: anggota.length,
+        direkap: anggota.filter(x => x.slot > 0).length,
+        aktif: anggota.filter(x => x.hadir > 0).length,
+        hadir, slot,
+        percent: slot ? Math.round((hadir / slot) * 100) : 0,
+        belumMengaji: anggota.filter(x => x.status === 'belum_mengaji').length,
+      }
+    }).filter(k => k.peserta > 0)
+
+    // Unit dihitung per PESERTA (unit kelompoknya, atau unit dirinya bila
+    // kelompoknya tak berunit) — sama dengan penggolongan daftar perhatian
+    // dan getKesiapanGukar, supaya ketiga tabel per unit bisa disandingkan.
+    const petaUnit = new Map<string, UnitBulan>()
+    for (const x of semua) {
+      const u = petaUnit.get(x.unit) ?? { unit: x.unit, peserta: 0, direkap: 0, aktif: 0, hadir: 0, slot: 0, belumMengaji: 0 }
+      u.peserta++
+      if (x.slot > 0) u.direkap++
+      if (x.hadir > 0) u.aktif++
+      u.hadir += x.hadir
+      u.slot += x.slot
+      if (x.status === 'belum_mengaji') u.belumMengaji++
+      petaUnit.set(x.unit, u)
+    }
+    const perUnit = [...petaUnit.values()].sort((a, b) => b.peserta - a.peserta || a.unit.localeCompare(b.unit))
+
+    return { peserta, kelompok, perUnit, totalPeserta: participants.length }
+  } catch (error) {
+    console.error('[gukar] gagal menyusun daftar perhatian:', error)
+    return kosong
+  }
 }

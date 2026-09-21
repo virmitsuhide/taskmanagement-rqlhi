@@ -1,6 +1,7 @@
 import { createServerClient } from '@/lib/supabase/server'
 import { getJuzUjianPerSiswa, juzGabunganPerSiswa, type BarisJuzProgress } from '@/lib/data/hafalan'
-import { UNIT_LABELS } from '@/lib/rq/programs'
+import { cache } from 'react'
+import { UNIT_LABELS, UNIT_ORDER } from '@/lib/rq/programs'
 import { tanggalWIB } from '@/lib/rq/ujian'
 import {
   RENCANA, URUTAN_RENCANA, buatKurva, buatPetaHalaman, capaianSiswa, formatPosisi, kalenderBawaan,
@@ -345,3 +346,12 @@ export async function getTargetTahfidz(jenjangBoleh: Jenjang[], tanggal = tangga
 
   return { tanggal, kalender, progres: progresHariIni, siswa, perUnit, perRencana, kolomAsalAda }
 }
+
+/**
+ * Target tahfidz seluruh unit, sekali per permintaan.
+ *
+ * Dipakai papan hafalan (getUnitHafalanBoards) dan seksi target di halaman
+ * analitik — tanpa cache() keduanya menghitung ulang seluruh siswa dalam
+ * satu kunjungan halaman yang sama.
+ */
+export const getTargetTahfidzSemua = cache(() => getTargetTahfidz(UNIT_ORDER))

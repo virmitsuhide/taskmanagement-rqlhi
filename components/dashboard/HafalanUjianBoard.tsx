@@ -12,7 +12,11 @@ import type { HafalanUjianUnit } from '@/lib/data/analytics'
  * antara keduanya justru informasi yang dicari — anak yang setorannya sudah
  * jauh tapi belum pernah diujikan.
  */
-export function HafalanUjianBoard({ units }: { units: HafalanUjianUnit[] }) {
+export function HafalanUjianBoard({ units, tampilTeratas = true }: {
+  units: HafalanUjianUnit[]
+  /** false bila halaman sudah punya papan peringkat hafalan sendiri — hindari daftar ganda. */
+  tampilTeratas?: boolean
+}) {
   if (units.length === 0) {
     return (
       <section>
@@ -74,6 +78,7 @@ export function HafalanUjianBoard({ units }: { units: HafalanUjianUnit[] }) {
                 ))}
               </div>
 
+              {tampilTeratas && (
               <div className="mt-3 border-t pt-3">
                 <p className="mb-1.5 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
                   Terbanyak
@@ -94,6 +99,7 @@ export function HafalanUjianBoard({ units }: { units: HafalanUjianUnit[] }) {
                   ))}
                 </ol>
               </div>
+              )}
             </div>
           )
         })}
