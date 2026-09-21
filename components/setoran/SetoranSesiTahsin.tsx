@@ -43,16 +43,17 @@ interface Isian {
 
 /**
  * Setoran KLASIKAL: sekelompok anak membaca bersama halaman/ayat yang sama.
- * Satu isian untuk semua, tapi tiap anggota tetap punya kehadiran dan
- * Lulus/Ulang sendiri — dalam klasikal pun ada yang harus mengulang.
+ * Satu isian bacaan untuk semua, tapi tiap anggota tetap punya kehadiran,
+ * Lulus/Ulang, serta nilai tahsin & adab sendiri — membaca bersama tidak
+ * berarti bacaan dan adab tiap anak sama.
  */
 interface IsianKelompok {
   dipilih: boolean
   halaman: string
   quran: IsianBacaan
   status: Status
-  nilai_tahsin: number | null
-  nilai_sikap: number | null
+  /** Nilai per anggota; tidak ada di peta = belum dinilai. */
+  nilaiAnak: Record<string, { tahsin: number | null; sikap: number | null }>
   catatan: string
   versi: number
   /** Tidak ada di peta = hadir. */
@@ -92,7 +93,7 @@ function isianAwal(s: SiswaSesiTahsin, versi = 0): Isian {
 function kelompokAwal(anggota: SiswaSesiTahsin[], versi = 0): IsianKelompok {
   return {
     dipilih: false, halaman: '', quran: anggota[0] ? bacaanDari(anggota[0]) : BACAAN_KOSONG,
-    status: 'lulus', nilai_tahsin: null, nilai_sikap: null, catatan: '', versi,
+    status: 'lulus', nilaiAnak: {}, catatan: '', versi,
     absen: {}, statusAnak: {},
   }
 }
@@ -203,6 +204,26 @@ export function SetoranSesiTahsin({ siswa, surat, halaqohId, pengaturan }: {
   function ubahKelompok(k: string, perubahan: Partial<IsianKelompok>) {
     setKelompok(prev => ({ ...prev, [k]: { ...prev[k], ...perubahan } }))
   }
+  /**
+   * Nilai satu anggota. Bintang tahsin di bawah tiga ikut menjadikan anak itu
+   * Ulang — sama seperti di setoran individual — tanpa menyentuh anggota lain.
+   */
+  function nilaiAnggota(k: string, id: string, aspek: 'tahsin' | 'sikap', bintang: number, nilai: number) {
+    setKelompok(prev => {
+      const kg = prev[k]
+      const lama = kg.nilaiAnak[id] ?? { tahsin: null, sikap: null }
+      return {
+        ...prev,
+        [k]: {
+          ...kg,
+          nilaiAnak: { ...kg.nilaiAnak, [id]: { ...lama, [aspek]: bintang > 0 ? nilai : null } },
+          statusAnak: aspek === 'tahsin' && bintang > 0
+            ? { ...kg.statusAnak, [id]: harusMengulang(bintang) ? 'ulang' : 'lulus' }
+            : kg.statusAnak,
+        },
+      }
+    })
+  }
 
   function pilihSemua(nilai: boolean) {
     setIsian(prev => Object.fromEntries(
@@ -272,8 +293,8 @@ export function SetoranSesiTahsin({ siswa, surat, halaqohId, pengaturan }: {
           halaman: buku ? (kg.halaman ? Number(kg.halaman) : dasar) : null,
           quran: keBacaanQuran(kg.quran),
           materi: [],
-          nilai_tahsin: kg.nilai_tahsin,
-          nilai_sikap: kg.nilai_sikap,
+          nilai_tahsin: kg.nilaiAnak[s.id]?.tahsin ?? null,
+          nilai_sikap: kg.nilaiAnak[s.id]?.sikap ?? null,
           status: kg.statusAnak[s.id] ?? kg.status,
           catatan: kg.catatan ? `Klasikal · ${kg.catatan}` : 'Klasikal',
           setoran_date: tanggal,
@@ -424,7 +445,7 @@ export function SetoranSesiTahsin({ siswa, surat, halaqohId, pengaturan }: {
                     </div>
                   )}
 
-                  {/* Anggota: hadir & Lulus/Ulang per anak. */}
+                  {/* Anggota: hadir, Lulus/Ulang, dan nilai per anak. */}
                   <div className="rounded-lg border">
                     <p className="border-b bg-muted/40 px-2.5 py-1.5 text-[11px] font-semibold">
                       Anggota · {hadir} hadir dari {g.anggota.length}
@@ -434,53 +455,59 @@ export function SetoranSesiTahsin({ siswa, surat, halaqohId, pengaturan }: {
                         const st = kg.statusAnak[s.id] ?? kg.status
                         const absen = Boolean(kg.absen[s.id])
                         return (
-                          <li key={s.id} className={cn('flex items-center gap-2 px-2.5 py-1.5', absen && 'opacity-50')}>
-                            <input
-                              type="checkbox"
-                              checked={!absen}
-                              onChange={e => ubahKelompok(g.kunci, { absen: { ...kg.absen, [s.id]: !e.target.checked } })}
-                              aria-label={`${s.full_name} hadir`}
-                              className="h-4 w-4 accent-primary"
-                            />
-                            <span className="min-w-0 flex-1">
-                              <span className="block truncate text-sm">{s.full_name}</span>
-                              {isian[s.id]?.galat && <span role="alert" className="block text-[11px] text-destructive">{isian[s.id].galat}</span>}
-                            </span>
-                            {!absen && (
-                              <button
-                                type="button"
-                                onClick={() => ubahKelompok(g.kunci, { statusAnak: { ...kg.statusAnak, [s.id]: st === 'lulus' ? 'ulang' : 'lulus' } })}
-                                className={cn('h-8 shrink-0 rounded-md border px-2 text-xs',
-                                  st === 'lulus' ? 'border-success bg-success-wash text-success' : 'border-warning bg-warning-wash text-warning')}
-                              >
-                                {st === 'lulus' ? '✅ Lulus' : '🔁 Ulang'}
+                          <li key={s.id} className={cn('px-2.5 py-1.5', absen && 'opacity-50')}>
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="checkbox"
+                                checked={!absen}
+                                onChange={e => ubahKelompok(g.kunci, { absen: { ...kg.absen, [s.id]: !e.target.checked } })}
+                                aria-label={`${s.full_name} hadir`}
+                                className="h-4 w-4 accent-primary"
+                              />
+                              <span className="min-w-0 flex-1">
+                                <span className="block truncate text-sm">{s.full_name}</span>
+                                {isian[s.id]?.galat && <span role="alert" className="block text-[11px] text-destructive">{isian[s.id].galat}</span>}
+                              </span>
+                              {!absen && (
+                                <button
+                                  type="button"
+                                  onClick={() => ubahKelompok(g.kunci, { statusAnak: { ...kg.statusAnak, [s.id]: st === 'lulus' ? 'ulang' : 'lulus' } })}
+                                  className={cn('h-8 shrink-0 rounded-md border px-2 text-xs',
+                                    st === 'lulus' ? 'border-success bg-success-wash text-success' : 'border-warning bg-warning-wash text-warning')}
+                                >
+                                  {st === 'lulus' ? '✅ Lulus' : '🔁 Ulang'}
+                                </button>
+                              )}
+                              <button type="button" onClick={() => keluarkan(s.id)} title="Keluarkan — setor individual"
+                                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted">
+                                <X className="h-4 w-4" />
                               </button>
+                            </div>
+                            {/* Anak yang absen tidak dinilai — barisnya tidak disimpan. */}
+                            {!absen && (
+                              <div className="mt-1.5 grid gap-2 pb-1 sm:grid-cols-2 sm:pl-6">
+                                <div key={`t-${kg.versi}`}>
+                                  <p className="mb-0.5 text-[11px] font-medium text-muted-foreground">Nilai tahsin</p>
+                                  <StarInput
+                                    name={`nilai_tahsin_k_${g.kunci}_${s.id}`}
+                                    onChange={(b, n) => nilaiAnggota(g.kunci, s.id, 'tahsin', b, n)}
+                                    disabled={pending}
+                                  />
+                                </div>
+                                <div key={`s-${kg.versi}`}>
+                                  <p className="mb-0.5 text-[11px] font-medium text-muted-foreground">Nilai adab</p>
+                                  <StarInput
+                                    name={`nilai_sikap_k_${g.kunci}_${s.id}`}
+                                    onChange={(b, n) => nilaiAnggota(g.kunci, s.id, 'sikap', b, n)}
+                                    disabled={pending}
+                                  />
+                                </div>
+                              </div>
                             )}
-                            <button type="button" onClick={() => keluarkan(s.id)} title="Keluarkan — setor individual"
-                              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted">
-                              <X className="h-4 w-4" />
-                            </button>
                           </li>
                         )
                       })}
                     </ul>
-                  </div>
-
-                  <div className="grid gap-2 sm:grid-cols-2">
-                    <div key={`t-${kg.versi}`}>
-                      <p className="mb-1 text-xs font-medium">Nilai tahsin (semua anggota)</p>
-                      <StarInput
-                        name={`nilai_tahsin_k_${g.kunci}`}
-                        onChange={(b, n) => ubahKelompok(g.kunci, {
-                          nilai_tahsin: b > 0 ? n : null,
-                          ...(b > 0 ? { status: harusMengulang(b) ? 'ulang' : 'lulus', statusAnak: {} } : {}),
-                        })}
-                      />
-                    </div>
-                    <div key={`s-${kg.versi}`}>
-                      <p className="mb-1 text-xs font-medium">Nilai sikap (semua anggota)</p>
-                      <StarInput name={`nilai_sikap_k_${g.kunci}`} onChange={(b, n) => ubahKelompok(g.kunci, { nilai_sikap: b > 0 ? n : null })} />
-                    </div>
                   </div>
                   <Input
                     placeholder="Catatan kelompok (opsional)"
@@ -600,7 +627,7 @@ export function SetoranSesiTahsin({ siswa, surat, halaqohId, pengaturan }: {
                       />
                     </div>
                     <div key={`s-${v.versi}`}>
-                      <p className="mb-1 text-xs font-medium">Nilai sikap</p>
+                      <p className="mb-1 text-xs font-medium">Nilai adab</p>
                       <StarInput name={`nilai_sikap_${s.id}`} onChange={(b, n) => ubah(s.id, { nilai_sikap: b > 0 ? n : null })} />
                     </div>
                   </div>
