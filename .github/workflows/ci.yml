@@ -12,7 +12,8 @@
 # sengaja tidak di-commit, jadi di mesin CI yang bersih file itu harus dibuat
 # dulu. Tanpanya impor logo di components/brand/Logo.tsx tidak dikenali.
 #
-# `npm run uji` = tujuh skrip uji logika murni. uji:batas-juz dan
+# `npm run uji` = tujuh skrip uji logika murni + uji:skema (membangun database
+# dari drizzle/snapshot/schema.sql di PGlite, tanpa kredensial). uji:batas-juz dan
 # uji:target-tahfidz TIDAK ikut karena membaca database sungguhan — jalankan
 # manual di lokal bila menyentuh lib/rq/batas-juz.ts atau target tahfidz.
 

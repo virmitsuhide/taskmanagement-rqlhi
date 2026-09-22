@@ -12,6 +12,7 @@
     "typecheck": "next typegen && tsc --noEmit",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx scripts/migrate.ts",
+    "db:snapshot": "tsx scripts/snapshot-skema.ts",
     "seed": "tsx scripts/seed.ts",
     "seed:phase0": "tsx scripts/seed-phase0.ts",
     "seed:teachers": "tsx scripts/seed-teachers.ts",
@@ -30,8 +31,9 @@
     "impor:keterlambatan": "tsx scripts/impor-keterlambatan-kpi.ts",
     "kpi:maksimal": "tsx scripts/isi-kpi-maksimal.ts",
     "musyrif:penguji": "tsx scripts/musyrif-penguji.ts",
-    "uji": "npm run uji:gukar && npm run uji:kpi && npm run uji:dependensi && npm run uji:sprint && npm run uji:rutin-bersama && npm run uji:bacaan && npm run uji:materi",
+    "uji": "npm run uji:gukar && npm run uji:kpi && npm run uji:dependensi && npm run uji:sprint && npm run uji:rutin-bersama && npm run uji:bacaan && npm run uji:materi && npm run uji:skema",
     "uji:gukar": "tsx scripts/uji-gukar-standar.ts",
+    "uji:skema": "tsx scripts/uji-skema.ts",
     "uji:kpi": "tsx scripts/uji-kpi.ts",
     "uji:batas-juz": "tsx scripts/uji-batas-juz.ts",
     "uji:target-tahfidz": "tsx scripts/uji-target-tahfidz.ts",
@@ -66,6 +68,7 @@
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4.2.1",
     "@types/bcryptjs": "^2.4.6",

@@ -108,17 +108,17 @@ ada cron/scheduler yang trigger dia. Setengah jadi.
    `drizzle-kit generate` → "No schema changes, nothing to migrate". Commit
    `ad1bfba`.
 
-**Aturan baru ke depan:** perubahan schema **wajib** lewat
-`npm run db:generate` (bukan paste manual ke SQL Editor lagi) → review file
-migration yang dihasilkan → `npm run db:migrate`. Kalau koneksi DB langsung
-tidak tersedia (mis. environment dengan port 5432 diblokir), fallback ke
-paste manual tetap boleh, **tapi wajib** diikuti dengan mendaftarkan tag
-filename-nya ke tabel `drizzle_migrations` secara manual (lihat contoh insert
-di riwayat commit `ad1bfba`) supaya `db:generate` berikutnya tidak drift lagi.
+**Aturan di atas tidak lagi berlaku (22 Sep 2026).** Dalam praktik migrasi
+tetap ditempel manual, ledger `drizzle_migrations` hanya mencatat 17 dari ±90,
+dan `db:generate` menghasilkan migrasi destruktif. Prosedur yang berlaku —
+snapshot skema `drizzle/snapshot/schema.sql` + `npm run db:snapshot` — ada di
+**[`docs/DATABASE.md`](DATABASE.md)**.
 
 ## 6. Constraint & Debt yang Diketahui (Disengaja / Belum Diselesaikan)
 
-- **Tidak ada automated test** sama sekali di repo ini.
+- **Tes otomatis masih tipis.** Sejak 22 Sep 2026 CI (`.github/workflows/ci.yml`)
+  menjalankan typecheck, lint, build, dan `npm run uji` (skrip uji logika domain
+  + uji snapshot skema) tiap push — tapi belum ada tes komponen/halaman.
 - **Split Drizzle vs raw Supabase client** untuk domain guru/tahsin-tahfidz
   dipertahankan sengaja (§4) — migrasi penuh ke Drizzle relations adalah
   perubahan besar yang menyentuh banyak business logic (`setoran.ts` dkk)

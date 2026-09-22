@@ -5,6 +5,34 @@ import { config } from 'dotenv'
 
 config({ path: '.env.local' })
 
+/*
+  PENGAMAN — skrip ini TIDAK boleh dijalankan pada database production.
+
+  Ia menjalankan setiap drizzle/*.sql yang tagnya belum ada di tabel
+  drizzle_migrations. Tetapi migrasi RQ LHI selama ini ditempel manual ke SQL
+  Editor Supabase, dan ledger itu hanya mencatat 17 dari ±90 migrasi — jadi
+  skrip ini akan mencoba menjalankan ulang puluhan migrasi lama (berikut
+  kembaran *_PASTE_TO_SUPABASE.sql-nya) pada data yang sudah ada.
+
+  Dulu ia "aman" hanya karena kebetulan tidak bisa terhubung: host
+  db.<ref>.supabase.co hanya IPv6. Begitu ada yang memakai alamat pooler,
+  pengaman yang kebetulan itu hilang.
+
+  Prosedur yang berlaku: lihat docs/DATABASE.md. Untuk database kosong
+  (mis. staging baru), terapkan drizzle/snapshot/schema.sql, bukan skrip ini.
+*/
+if (process.env.IZINKAN_MIGRATE_LAMA !== 'ya') {
+  console.error([
+    'db:migrate dinonaktifkan — ledger drizzle_migrations tidak lengkap, sehingga',
+    'skrip ini akan menjalankan ulang migrasi lama pada database yang sudah berisi.',
+    '',
+    'Migrasi baru: tempel di SQL Editor Supabase, lalu jalankan `npm run db:snapshot`.',
+    'Database kosong: terapkan drizzle/snapshot/schema.sql.',
+    'Selengkapnya: docs/DATABASE.md',
+  ].join('\n'))
+  process.exit(1)
+}
+
 const DATABASE_URL = process.env.DATABASE_URL
 if (!DATABASE_URL) {
   console.error('ERROR: DATABASE_URL tidak ditemukan di .env.local')
