@@ -8,6 +8,10 @@
 # Yang dijalankan sama persis dengan yang bisa dijalankan di komputer sendiri:
 #   npm run typecheck && npm run lint && npm run uji && npm run build
 #
+# `typecheck` diawali `next typegen`: next-env.d.ts (tipe impor gambar .png)
+# sengaja tidak di-commit, jadi di mesin CI yang bersih file itu harus dibuat
+# dulu. Tanpanya impor logo di components/brand/Logo.tsx tidak dikenali.
+#
 # `npm run uji` = tujuh skrip uji logika murni. uji:batas-juz dan
 # uji:target-tahfidz TIDAK ikut karena membaca database sungguhan — jalankan
 # manual di lokal bila menyentuh lib/rq/batas-juz.ts atau target tahfidz.
@@ -44,9 +48,9 @@ jobs:
       NEXT_PUBLIC_APP_URL: http://localhost:3000
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 24
           cache: npm
