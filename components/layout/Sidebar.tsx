@@ -13,7 +13,7 @@ import { DASHBOARD_LABELS, getAccessibleDashboards, ROLE_LABELS , canManageTeach
 import {
   canViewTerms, canViewGukarRecap, canViewFinance, canViewFinanceNotes, canPostToHome, canViewHumasRequests, canCreateNews,
   canAccessProgramMenu, canEditAbout,
-  canViewStudents, canViewHalaqoh, canViewTeachers, canViewAnalytics, canViewUnitAnalytics,
+  canViewStudents, canViewHalaqoh, canViewTeachers, canViewUnitAnalytics,
   canManageHomepage, canViewKpi, canManageAllAccounts, canManagePengurus, canManageEmployees, canViewUjian,
   canAccessKpiPublikasi, canManageRaporTemplate, canManageKaldik, canViewKpiBanding, canViewTasks, canViewRoutineBoard,
 } from '@/lib/auth/permissions'
@@ -96,7 +96,7 @@ export function Sidebar({ role, displayName, username, lencanaKpi }: Props) {
             ))}
             {canViewUnitAnalytics(role) && (
               <NavItem
-                href={canViewAnalytics(role) ? '/dashboard/analitik' : '/dashboard/analitik/unit'}
+                href="/dashboard/analitik"
                 icon={<BarChart3 className="h-4 w-4" />}
                 label="Analitik RQ"
                 active={isActive('/dashboard/analitik')}

@@ -2,7 +2,7 @@ import { Suspense } from 'react'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { getSession } from '@/lib/auth/session'
-import { canViewAnalytics, canViewGukarRecap } from '@/lib/auth/permissions'
+import { canViewAnalytics, canViewGukarRecap, canViewUnitAnalytics, getAnalyticsJenjang } from '@/lib/auth/permissions'
 import { UNIT_LABELS, UNIT_ORDER } from '@/lib/rq/programs'
 import {
   getRqAnalytics, getUnitHafalanBoards, getSetoranTrend, getHafalanUjianPerUnit, getSiswaDrill,
@@ -43,7 +43,8 @@ const S = {
 } satisfies Record<string, InfoSeksi>
 
 /**
- * Dashboard analitik manajemen — SATU halaman laporan panjang.
+ * Dashboard analitik — SATU halaman laporan panjang, untuk manajemen dan
+ * koordinator unit (koor SD/SMP melihat halaman yang sama, dikunci ke unitnya).
  *
  * Sebelumnya isi analitik tersebar di tujuh halaman. Kini semuanya dibaca
  * berurutan di sini, dalam lima seksi bernomor, dengan filter yang sama
@@ -70,10 +71,21 @@ const S = {
 export default async function AnalitikPage({ searchParams }: PageProps) {
   const session = await getSession()
   if (!session) redirect('/login')
-  if (!canViewAnalytics(session.role)) redirect('/dashboard')
+  if (!canViewUnitAnalytics(session.role)) redirect('/dashboard')
 
   const sp = await searchParams
-  const jenjang = UNIT_ORDER.includes(sp.unit as Jenjang) ? (sp.unit as Jenjang) : null
+
+  /*
+    Koordinator melihat halaman yang SAMA dengan manajemen, hanya dipersempit
+    ke unitnya sendiri (getAnalyticsJenjang — aturan yang sama dengan halaman
+    rincian lain). Unitnya dikunci di sini, di server: ?unit= dari URL tidak
+    bisa membuka unit lain, dan tidak ada pilihan "Semua".
+  */
+  const penuh = canViewAnalytics(session.role)
+  const unitBoleh = penuh ? UNIT_ORDER : UNIT_ORDER.filter(j => getAnalyticsJenjang(session.role).includes(j))
+  const unitDiminta = unitBoleh.includes(sp.unit as Jenjang) ? (sp.unit as Jenjang) : null
+  const jenjang: Jenjang | null = penuh ? unitDiminta : (unitDiminta ?? unitBoleh[0] ?? null)
+  if (!penuh && !jenjang) redirect('/dashboard')
   const fokus: Fokus = sp.fokus === 'tahsin' || sp.fokus === 'tahfidz' ? sp.fokus : 'semua'
   const bulanDiminta = /^\d{4}-\d{2}$/.test(sp.bulan ?? '') ? sp.bulan! : null
   const lihatGukar = canViewGukarRecap(session.role)
@@ -131,7 +143,7 @@ export default async function AnalitikPage({ searchParams }: PageProps) {
 
         {/* ── Z · garis atas halaman: judul ► filter ── */}
         <DashTop
-          eyebrow="Dashboard Manajemen"
+          eyebrow={penuh ? 'Dashboard Manajemen' : 'Dashboard Koordinator'}
           title="Analitik Rumah Qur'an"
           context={<>{cakupan} · {a.monthLabel}{a.isRunningMonth && ' (berjalan)'}</>}
           filters={
@@ -140,8 +152,8 @@ export default async function AnalitikPage({ searchParams }: PageProps) {
               <Slicer
                 label="Unit"
                 options={[
-                  { label: 'Semua', href: href({ unit: undefined }), active: !jenjang },
-                  ...UNIT_ORDER.map(j => ({
+                  ...(penuh ? [{ label: 'Semua', href: href({ unit: undefined }), active: !jenjang }] : []),
+                  ...unitBoleh.map(j => ({
                     label: UNIT_LABELS[j], href: href({ unit: j }), active: jenjang === j,
                   })),
                 ]}
@@ -232,6 +244,7 @@ export default async function AnalitikPage({ searchParams }: PageProps) {
 
           {/* Z · garis bawah: perbandingan unit ► peringkat */}
           <div className="grid items-start gap-5 lg:grid-cols-12">
+            {unitBoleh.length > 1 && (
             <Panel
               className="lg:col-span-7"
               title="Perbandingan Unit"
@@ -239,7 +252,7 @@ export default async function AnalitikPage({ searchParams }: PageProps) {
               sub="Klik nama unit untuk menyaring seluruh halaman."
             >
               <PerbandinganUnit
-                boards={semuaBoards}
+                boards={semuaBoards.filter(b => unitBoleh.includes(b.jenjang))}
                 ujian={semuaUjian}
                 drill={semuaDrill}
                 aktifUnit={jenjang}
@@ -247,9 +260,10 @@ export default async function AnalitikPage({ searchParams }: PageProps) {
                 fokus={fokus}
               />
             </Panel>
+            )}
 
             <Panel
-              className="lg:col-span-5"
+              className={unitBoleh.length > 1 ? 'lg:col-span-5' : 'lg:col-span-12'}
               title="10 Besar Hafalan"
               icon={<Trophy className="h-4 w-4" />}
               sub={`${cakupan} · juz dari setoran atau ujian, yang terjauh`}
