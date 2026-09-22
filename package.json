@@ -30,6 +30,7 @@
     "impor:keterlambatan": "tsx scripts/impor-keterlambatan-kpi.ts",
     "kpi:maksimal": "tsx scripts/isi-kpi-maksimal.ts",
     "musyrif:penguji": "tsx scripts/musyrif-penguji.ts",
+    "uji": "npm run uji:gukar && npm run uji:kpi && npm run uji:dependensi && npm run uji:sprint && npm run uji:rutin-bersama && npm run uji:bacaan && npm run uji:materi",
     "uji:gukar": "tsx scripts/uji-gukar-standar.ts",
     "uji:kpi": "tsx scripts/uji-kpi.ts",
     "uji:batas-juz": "tsx scripts/uji-batas-juz.ts",

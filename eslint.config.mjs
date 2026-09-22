@@ -15,6 +15,11 @@ const eslintConfig = defineConfig([
     // Salinan project pengajuan-ujian yang sudah diporting ke modul /ujian.
     // Ditinggal sementara sebagai rujukan; bukan bagian aplikasi ini.
     "pengajuan-ujian/**",
+    // Perkakas asisten AI (skill & skrip validasinya) — bukan kode aplikasi,
+    // tidak ikut di-commit, dan memakai require() CommonJS yang ditolak
+    // aturan Next. Diabaikan supaya `npm run lint` lokal sama dengan CI.
+    ".claude/**",
+    "agent-skills/**",
   ]),
 ]);
 

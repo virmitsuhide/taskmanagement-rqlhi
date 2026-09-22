@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Pencil, Phone, Mail, GraduationCap, BookOpen } from 'lucide-react'
 import { totalJuzHafalan, ringkasHafalan } from '@/lib/rq/hafalan'
 import { getTahfidzLabel, getPredikatLabel, getStatusLabel } from '@/lib/rq/ujian'
-import type { Jenjang, Gender, UjianTahfidz } from '@/types'
+import type { Jenjang, UjianTahfidz } from '@/types'
 import { getInfoSurat } from '@/lib/data/nama-surat'
 import { teksRentang } from '@/lib/rq/rentang-surat'
 

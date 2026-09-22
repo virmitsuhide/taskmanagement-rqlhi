@@ -1,0 +1,67 @@
+# Pemeriksaan otomatis tiap push & pull request ke master.
+#
+# Hanya MEMERIKSA — tidak men-deploy dan tidak menyentuh database. Karena itu
+# semua variabel lingkungan di bawah sengaja palsu: kunci Supabase production
+# tidak pernah disimpan di GitHub. `next build` tetap lolos dengan nilai palsu
+# karena halaman yang membaca data dirender saat diminta, bukan saat build.
+#
+# Yang dijalankan sama persis dengan yang bisa dijalankan di komputer sendiri:
+#   npm run typecheck && npm run lint && npm run uji && npm run build
+#
+# `npm run uji` = tujuh skrip uji logika murni. uji:batas-juz dan
+# uji:target-tahfidz TIDAK ikut karena membaca database sungguhan — jalankan
+# manual di lokal bila menyentuh lib/rq/batas-juz.ts atau target tahfidz.
+
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+# Push beruntun ke branch yang sama: batalkan pemeriksaan lama yang masih jalan.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  periksa:
+    name: Typecheck · Lint · Uji · Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    env:
+      NEXT_TELEMETRY_DISABLED: '1'
+      SUPABASE_URL: https://ci-dummy.supabase.co
+      SUPABASE_SERVICE_ROLE_KEY: ci-dummy
+      NEXT_PUBLIC_SUPABASE_URL: https://ci-dummy.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-dummy
+      DATABASE_URL: postgres://ci:ci@127.0.0.1:1/ci
+      SESSION_SECRET: ci-dummy-secret-bukan-rahasia-sungguhan
+      RESEND_API_KEY: re_ci_dummy
+      RESEND_FROM_EMAIL: ci@example.com
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Pasang dependensi
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Uji logika domain
+        run: npm run uji
+
+      - name: Build production
+        run: npm run build

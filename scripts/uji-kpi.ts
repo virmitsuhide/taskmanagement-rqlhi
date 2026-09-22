@@ -9,6 +9,14 @@
  */
 import { hitungKpi, levelDari } from '../lib/kpi/hitung'
 
+// Tiap pemeriksaan lewat sini supaya kegagalan ikut dihitung: CI hanya
+// membaca kode keluar program, bukan tanda ✗ yang tercetak di layar.
+let gagal = 0
+function tanda(ok: boolean, teksGagal = '✗'): string {
+  if (!ok) gagal++
+  return ok ? '✓' : teksGagal
+}
+
 const nol = { lateMinutes: 0, dbLateDays: 0, hafalanJuz: 0, hafalanPages: 0, tuhfatulBait: 0,
   bacaanScore: 0, bukuPeganganMeetings: 0, izinWaCases: 0, penggantiCases: 0, penggantiFound: 0 }
 
@@ -23,16 +31,16 @@ const h = hitungKpi(nol, harian, 'sd')
 const HARAP = [100, 100, 40, 0, 0, 100, 20, 4, 4, 100, 100]
 console.log('nilai   :', h.nilai.join(', '))
 console.log('harapan :', HARAP.join(', '))
-console.log('cocok   :', JSON.stringify(h.nilai) === JSON.stringify(HARAP) ? '✓' : '✗')
-console.log(`total   : ${h.total} (Excel 568) ${h.total === 568 ? '✓' : '✗'}`)
-console.log(`rapot   : ${h.rapot} (Excel 51.636363636363633) ${Math.abs(h.rapot - 51.636363636363633) < 1e-9 ? '✓' : '✗'}`)
+console.log('cocok   :', tanda(JSON.stringify(h.nilai) === JSON.stringify(HARAP)))
+console.log(`total   : ${h.total} (Excel 568) ${tanda(h.total === 568)}`)
+console.log(`rapot   : ${h.rapot} (Excel 51.636363636363633) ${tanda(Math.abs(h.rapot - 51.636363636363633) < 1e-9)}`)
 // Nilai & rapot masih diuji terhadap Excel — rumusnya tidak berubah. Yang
 // berubah adalah PENAMAAN pitanya: rubrik RQ kini memakai enam predikat, jadi
 // rapot 51,64 yang dulu "Cukup" menurut lima pita Excel kini "Sangat Kurang".
 // Angka harapannya sengaja disetel ke rubrik yang berlaku, bukan dibiarkan
 // merah — uji yang selalu gagal berhenti dibaca orang, dan uji yang berhenti
 // dibaca tidak lagi menjaga apa pun.
-console.log(`level   : ${h.level} ${h.predikat} (rubrik 2 Sangat Kurang) ${h.level === 2 && h.predikat === 'Sangat Kurang' ? '✓' : '✗'}`)
+console.log(`level   : ${h.level} ${h.predikat} (rubrik 2 Sangat Kurang) ${tanda(h.level === 2 && h.predikat === 'Sangat Kurang')}`)
 
 console.log('\nAmbang level (batas ATAS tiap pita, seperti levelDari):')
 for (const v of [0, 50, 50.5, 60, 60.5, 70, 70.5, 80, 80.5, 90, 90.5, 100]) {
@@ -51,15 +59,18 @@ for (const v of [0, 50, 50.5, 60, 60.5, 70, 70.5, 80, 80.5, 90, 90.5, 100]) {
 //   SMP : 40 + 2 juz x 12   + 5 hal x 0,6  = 67
 console.log('\n── Rubrik SMP ──')
 const smpNol = hitungKpi(nol, harian, 'smp')
-console.log(`SMP semua nol -> total ${smpNol.total} (Excel SMP 568) ${smpNol.total === 568 ? '✓' : '✗'}`)
+console.log(`SMP semua nol -> total ${smpNol.total} (Excel SMP 568) ${tanda(smpNol.total === 568)}`)
 
 const berhafalan = { ...nol, hafalanJuz: 2, hafalanPages: 5 }
 const sdH = hitungKpi(berhafalan, harian, 'sd').nilai[2]
 const smpH = hitungKpi(berhafalan, harian, 'smp').nilai[2]
-console.log(`Hafalan 2 juz + 5 hal -> SD ${sdH} (harap 85) ${sdH === 85 ? '✓' : '✗'}`)
-console.log(`Hafalan 2 juz + 5 hal -> SMP ${smpH} (harap 67) ${smpH === 67 ? '✓' : '✗'}`)
-console.log(`Rubrik keduanya memang berbeda: ${sdH !== smpH ? '✓' : '✗ (parameter tidak terpakai!)'}`)
+console.log(`Hafalan 2 juz + 5 hal -> SD ${sdH} (harap 85) ${tanda(sdH === 85)}`)
+console.log(`Hafalan 2 juz + 5 hal -> SMP ${smpH} (harap 67) ${tanda(smpH === 67)}`)
+console.log(`Rubrik keduanya memang berbeda: ${tanda(sdH !== smpH, '✗ (parameter tidak terpakai!)')}`)
 
 // SD LHI Juara berbagi berkas rubrik dengan SDIT, jadi harus sama dengan SD.
 const juara = hitungKpi(berhafalan, harian, 'sd_juara').nilai[2]
-console.log(`SD LHI Juara ikut rubrik SD: ${juara === sdH ? '✓' : '✗'}`)
+console.log(`SD LHI Juara ikut rubrik SD: ${tanda(juara === sdH)}`)
+
+console.log(`\n${gagal === 0 ? '✓ SEMUA LOLOS' : `✗ ${gagal} pemeriksaan GAGAL`}`)
+process.exitCode = gagal === 0 ? 0 : 1

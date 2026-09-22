@@ -11,7 +11,7 @@
  * Tidak menyentuh database sama sekali: murni fungsi lib/rq.
  */
 
-import { hafalanDariTeks, surahTerjauh, predikatHafalan } from '../lib/rq/quran'
+import { surahTerjauh, predikatHafalan } from '../lib/rq/quran'
 import { nilaiTahsin, nilaiTahfidz, statusTerhadapStandar } from '../lib/rq/gukar-standar'
 
 let gagal = 0
