@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
+import Image from 'next/image'
 import { getSession } from '@/lib/auth/session'
 import { canPostToHome } from '@/lib/auth/permissions'
 import { createServerClient } from '@/lib/supabase/server'
@@ -8,7 +9,7 @@ import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
-import { Plus, Eye, EyeOff, Trash2 } from 'lucide-react'
+import { Plus, Eye, EyeOff, Trash2, Pencil } from 'lucide-react'
 import { stripMarkdown } from '@/lib/markdown'
 import type { PublicPost } from '@/types'
 
@@ -61,6 +62,11 @@ export default async function HomePostPage() {
               <Card key={post.id} className={!post.is_active ? 'opacity-60' : ''}>
                 <CardHeader className="pb-2 pt-4 px-4">
                   <div className="flex items-start justify-between gap-2">
+                    {post.image_url && (
+                      <span className="relative w-12 shrink-0 aspect-[4/5] overflow-hidden rounded-md border bg-muted">
+                        <Image src={post.image_url} alt="" fill sizes="48px" className="object-cover" />
+                      </span>
+                    )}
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
                         <Badge variant="secondary" className="text-xs">{TYPE_LABELS[post.type]}</Badge>
@@ -75,6 +81,9 @@ export default async function HomePostPage() {
                       <p className="text-xs text-muted-foreground">{formatDate(post.created_at)}</p>
                     </div>
                     <div className="flex gap-1">
+                      <Button asChild size="sm" variant="ghost" className="h-8 w-8 p-0" title="Sunting">
+                        <Link href={`/home-post/${post.id}/edit`} aria-label={`Sunting ${post.title}`}><Pencil className="h-3.5 w-3.5" /></Link>
+                      </Button>
                       <form action={togglePublicPostAction.bind(null, post.id, !post.is_active) as unknown as (fd: FormData) => void}>
                         <Button size="sm" variant="ghost" type="submit" className="h-8 w-8 p-0">
                           {post.is_active ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}

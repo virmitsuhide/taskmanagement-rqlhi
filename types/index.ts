@@ -381,6 +381,8 @@ export interface PublicPost {
   priority?: PostPriority | null
   /** Post sebelum migrasi 0030 belum punya ikon — lihat postIconOf(). */
   icon?: PostIcon | null
+  /** Url publik gambar/flyer (0088); null/undefined = tanpa gambar. */
+  image_url?: string | null
   created_by: string
   is_active: boolean
   created_at: string

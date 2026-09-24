@@ -13,11 +13,11 @@
 const SISI_MAKS = 800
 const KUALITAS = 0.85
 
-export async function kompresFotoProfil(file: File): Promise<File> {
+export async function kompresFotoProfil(file: File, sisiMaks = SISI_MAKS): Promise<File> {
   if (!file.type.startsWith('image/')) return file
   try {
     const bitmap = await createImageBitmap(file)
-    const skala = Math.min(1, SISI_MAKS / Math.max(bitmap.width, bitmap.height))
+    const skala = Math.min(1, sisiMaks / Math.max(bitmap.width, bitmap.height))
     const lebar = Math.round(bitmap.width * skala)
     const tinggi = Math.round(bitmap.height * skala)
 
@@ -45,10 +45,10 @@ export async function kompresFotoProfil(file: File): Promise<File> {
  * Ganti isi <input type="file"> dengan versi yang sudah dikompres, supaya
  * form yang dikirim apa adanya (action={…}) ikut membawa file kecilnya.
  */
-export async function gantiDenganFotoKompres(input: HTMLInputElement): Promise<File | null> {
+export async function gantiDenganFotoKompres(input: HTMLInputElement, sisiMaks = SISI_MAKS): Promise<File | null> {
   const asli = input.files?.[0]
   if (!asli) return null
-  const kecil = await kompresFotoProfil(asli)
+  const kecil = await kompresFotoProfil(asli, sisiMaks)
   if (kecil !== asli && typeof DataTransfer !== 'undefined') {
     const dt = new DataTransfer()
     dt.items.add(kecil)

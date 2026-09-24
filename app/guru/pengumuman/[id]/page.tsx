@@ -116,6 +116,18 @@ export default async function PengumumanGuruPage({
 
           <div className="my-5 h-px bg-border" />
 
+          {/* Flyer utuh — sama dengan halaman publik; ketuk untuk ukuran aslinya. */}
+          {post.image_url && (
+            <a href={post.image_url} target="_blank" rel="noopener noreferrer" className="mb-6 block" title="Buka gambar ukuran penuh">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={post.image_url}
+                alt={`Flyer: ${post.title}`}
+                className="mx-auto max-h-[80vh] w-auto max-w-full rounded-md border object-contain shadow-sm"
+              />
+            </a>
+          )}
+
           <Markdown content={post.content} className="text-[15px] leading-[28px]" />
         </div>
       </article>

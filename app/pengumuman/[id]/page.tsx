@@ -38,6 +38,8 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   return {
     title: `${post.title} — RQ LHI`,
     description: stripMarkdown(post.content).slice(0, 160),
+    // Flyer ikut tampil sebagai pratinjau saat tautan pengumuman dibagikan ke WhatsApp.
+    ...(post.image_url ? { openGraph: { images: [{ url: post.image_url }] } } : {}),
   }
 }
 
@@ -115,6 +117,18 @@ export default async function PengumumanDetailPage({ params }: { params: Promise
             )}
 
             <div className="my-5 h-px bg-current opacity-10" />
+
+            {/* Flyer utuh — tidak dipotong; ketuk untuk membuka ukuran aslinya. */}
+            {post.image_url && (
+              <a href={post.image_url} target="_blank" rel="noopener noreferrer" className="mb-6 block" title="Buka gambar ukuran penuh">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={post.image_url}
+                  alt={`Flyer: ${post.title}`}
+                  className="mx-auto max-h-[80vh] w-auto max-w-full rounded-md border border-black/10 object-contain shadow-sm dark:border-white/10"
+                />
+              </a>
+            )}
 
             {/* Isi lengkap — mendukung tebal, miring, coret, daftar, dan emoji */}
             <Markdown content={post.content} className="text-[15px] leading-[28px]" />

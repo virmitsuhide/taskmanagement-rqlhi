@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { ArrowRight, CalendarDays, Clock } from 'lucide-react'
 import { POST_ICONS, postIconOf } from '@/lib/home/post-icons'
 import { adalahTugas, labelTanggalPost, lewatTenggatPost } from '@/lib/home/post-tanggal'
@@ -108,10 +109,17 @@ export function AnnouncementBoard({ posts, title = 'Pengumuman', limit = 6 }: Pr
                 key={post.id}
                 className="group relative flex items-start gap-3.5 rounded-xl border bg-background/40 px-3.5 py-3 hover:border-foreground/20 hover:bg-muted/40 transition-colors"
               >
-                {/* Ikon prioritas */}
-                <span className={`shrink-0 inline-flex h-8 w-8 items-center justify-center rounded-lg ${meta.iconWrap}`}>
-                  <Icon className="h-4 w-4" />
-                </span>
+                {/* Flyer sebagai thumbnail bila ada — potret, seperti flyer
+                    pada umumnya; tanpa gambar, ikon prioritas seperti biasa. */}
+                {post.image_url ? (
+                  <span className="relative shrink-0 w-16 aspect-[4/5] overflow-hidden rounded-lg border bg-muted sm:w-20">
+                    <Image src={post.image_url} alt="" fill sizes="80px" className="object-cover" />
+                  </span>
+                ) : (
+                  <span className={`shrink-0 inline-flex h-8 w-8 items-center justify-center rounded-lg ${meta.iconWrap}`}>
+                    <Icon className="h-4 w-4" />
+                  </span>
+                )}
 
                 {/* Konten */}
                 <div className="flex-1 min-w-0">
