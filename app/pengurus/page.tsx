@@ -27,8 +27,8 @@ export default async function PengurusPage() {
   return (
     <div>
       <DashboardHeader displayName={session.displayName} role={session.role} title="Pengurus" showBack ownH1 />
-      <div className="p-4 md:p-6 max-w-3xl mx-auto">
-        <h1 className="text-2xl font-bold leading-tight">Pengurus RQ LHI</h1>
+      <div className="p-4 md:p-8 max-w-3xl mx-auto">
+        <h1 className="text-3xl leading-tight">Pengurus RQ LHI</h1>
         <p className="text-sm text-muted-foreground mt-0.5 mb-5">
           {terisi} jabatan terisi
           {kosong > 0 && ` · ${kosong} masih kosong`} · {calon.length} nama tersedia
@@ -51,7 +51,7 @@ export default async function PengurusPage() {
           </div>
         </div>
 
-        <div className="overflow-hidden rounded-xl border bg-card">
+        <div className="overflow-hidden rounded-2xl border bg-card">
           {jabatan.map(baris => (
             <JabatanRow key={baris.role} baris={baris} calon={calon} />
           ))}

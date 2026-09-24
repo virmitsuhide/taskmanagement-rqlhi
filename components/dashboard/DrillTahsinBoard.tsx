@@ -20,7 +20,7 @@ const UJIAN: Record<SiswaDrill['ujian'], { label: string; kelas: string }> = {
 export function DrillTahsinBoard({ units }: { units: DrillUnit[] }) {
   return (
     <section>
-      <h2 className="mb-1 flex items-center gap-2 text-sm font-semibold">
+      <h2 className="font-heading text-lg font-medium mb-1 flex items-center gap-2">
         <Repeat className="h-4 w-4" /> Siswa Drill Tahsin
       </h2>
       <p className="mb-3 text-xs text-muted-foreground">
@@ -35,7 +35,7 @@ export function DrillTahsinBoard({ units }: { units: DrillUnit[] }) {
       ) : (
         <div className="grid gap-4 md:grid-cols-2">
           {units.map(u => (
-            <div key={u.jenjang} className="rounded-xl border bg-card p-4">
+            <div key={u.jenjang} className="rounded-2xl border bg-card p-4">
               <div className="flex items-baseline justify-between gap-2">
                 <p className="font-medium">{u.label}</p>
                 <p className="text-xs text-muted-foreground">

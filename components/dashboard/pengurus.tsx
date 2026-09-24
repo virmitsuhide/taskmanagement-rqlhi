@@ -80,11 +80,11 @@ export function PanelFokus({ judul, sub, ringkasan, saring, tampilPelaksana, har
         </Kosong>
       ) : (
         <>
-          <ul className="-mx-2 divide-y">
+          <ul className="space-y-2">
             {daftar.map(t => <BarisTugas key={t.id} tugas={t} hariIni={hariIni} tampilPelaksana={tampilPelaksana} />)}
           </ul>
           {totalTersaring > daftar.length && (
-            <Link href={semuaHref} className="mt-3 inline-block text-xs text-muted-foreground hover:text-foreground">
+            <Link href={semuaHref} className="mt-3 inline-block text-[13px] font-semibold text-primary hover:underline">
               +{(totalTersaring - daftar.length).toLocaleString('id-ID')} tugas lainnya →
             </Link>
           )}
@@ -99,18 +99,18 @@ function BarisTugas({ tugas, hariIni, tampilPelaksana }: { tugas: Task; hariIni:
   const orang = tampilPelaksana ? tugas.assignee?.display_name : tugas.assigner?.display_name
   return (
     <li>
-      <Link href={`/tasks/${tugas.id}`} className="group flex items-start gap-3 rounded-lg px-2 py-2.5 transition-colors hover:bg-muted/50">
+      <Link href={`/tasks/${tugas.id}`} className="group flex items-start gap-3 rounded-xl border border-border/70 bg-card px-3.5 py-3 transition-[border-color,box-shadow] hover:border-primary/40 hover:shadow-sm">
         {/* Titik prioritas: bentuk + warna, bukan warna saja. */}
         <span
           className={cn(
-            'mt-1.5 h-2 w-2 shrink-0 rounded-full',
-            tugas.priority === 'high' ? 'bg-destructive' : tugas.priority === 'middle' ? 'bg-warning' : 'bg-muted-foreground/40',
+            'mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full ring-4',
+            tugas.priority === 'high' ? 'bg-destructive ring-destructive-wash' : tugas.priority === 'middle' ? 'bg-warning ring-warning-wash' : 'bg-muted-foreground/40 ring-muted',
           )}
           title={`Prioritas ${tugas.priority === 'high' ? 'tinggi' : tugas.priority === 'middle' ? 'sedang' : 'rendah'}`}
         />
         <span className="min-w-0 flex-1">
-          <span className="line-clamp-2 text-sm font-medium leading-snug">{tugas.title}</span>
-          <span className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
+          <span className="line-clamp-2 text-sm font-semibold leading-snug">{tugas.title}</span>
+          <span className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
             {tenggat && (
               <span className={cn('inline-flex items-center gap-1', tenggat.nada)}>
                 {tenggat.nada.includes('destructive') ? <AlertCircle className="h-3 w-3" /> : <CalendarDays className="h-3 w-3" />}
@@ -151,11 +151,12 @@ export function PanelReview({ tugas, className }: { tugas: Task[]; className?: s
           {tugas.slice(0, 6).map(t => (
             <li key={t.id}>
               <Link href={`/tasks/${t.id}`} className="flex items-center gap-3 rounded-lg px-2 py-2.5 transition-colors hover:bg-muted/50">
+                <Inisial nama={t.assignee?.display_name} />
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-medium">{t.title}</span>
+                  <span className="block truncate text-sm font-semibold">{t.title}</span>
                   <span className="block truncate text-xs text-muted-foreground">oleh {t.assignee?.display_name ?? '—'}</span>
                 </span>
-                <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                <span className="inline-flex h-8 shrink-0 items-center rounded-lg bg-primary px-3 text-xs font-semibold text-primary-foreground">Tinjau</span>
               </Link>
             </li>
           ))}
@@ -262,24 +263,19 @@ export function PanelUjian({ tahsin, tahfidz, cakupan, baru, className }: {
       sub={<>{cakupan}{baru > 0 && <> · <span className="font-medium text-foreground">{baru > 99 ? '99+' : baru} masuk sejak kunjungan terakhir</span></>}</>}
       action={{ href: '/ujian/ajukan', label: 'Ajukan' }}
     >
-      <ul className="space-y-2">
+      <ul className="space-y-4">
         {baris.map(b => (
           <li key={b.jenis}>
-            <Link href={`/ujian/kelola?jenis=${b.jenis}`} className="flex items-center gap-3 rounded-lg border p-3 transition-colors hover:bg-muted/40">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg" style={{ background: 'var(--primary-wash)', color: 'var(--primary)' }}>
-                {b.ikon}
+            <Link href={`/ujian/kelola?jenis=${b.jenis}`} className="group block rounded-xl transition-colors">
+              <span className="flex items-baseline gap-2">
+                <span className="text-sm font-semibold group-hover:underline">{b.label}</span>
+                <span className="truncate text-xs text-muted-foreground">{b.ket}</span>
               </span>
-              <span className="min-w-0 flex-1">
-                <span className="block text-sm font-medium">{b.label}</span>
-                <span className="block text-xs text-muted-foreground">
-                  {b.s.dijadwalkan.toLocaleString('id-ID')} terjadwal · {b.s.selesai.toLocaleString('id-ID')} selesai
-                </span>
-              </span>
-              <span className="text-right">
-                <span className={cn('block text-xl font-bold leading-none tabular-nums', b.s.diajukan > 0 && 'text-warning')}>
-                  {b.s.diajukan.toLocaleString('id-ID')}
-                </span>
-                <span className="mt-0.5 block text-[10px] text-muted-foreground">perlu dijadwalkan</span>
+              {/* Tiga tahap berurutan: hanya "diajukan" yang menuntut tindakan. */}
+              <span className="mt-2 grid grid-cols-3 gap-1.5">
+                <Tahap n={b.s.diajukan} label="Perlu dijadwalkan" nada={b.s.diajukan > 0 ? 'warning' : 'muted'} />
+                <Tahap n={b.s.dijadwalkan} label="Terjadwal" nada="info" />
+                <Tahap n={b.s.selesai} label="Selesai" nada="success" />
               </span>
             </Link>
           </li>
@@ -303,12 +299,12 @@ export function PanelRapat({ rapat, judul = 'Rapat Terbaru', className }: { rapa
             return (
               <li key={m.id}>
                 <Link href={`/rapat/${m.id}`} className="flex items-center gap-3 rounded-lg px-2 py-2.5 transition-colors hover:bg-muted/50">
-                  <span className="flex w-11 shrink-0 flex-col items-center rounded-lg border bg-muted/40 py-1">
-                    <span className="text-base font-bold leading-none tabular-nums">{tgl}</span>
-                    <span className="mt-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">{BULAN_PENDEK[bln - 1]}</span>
+                  <span className="flex w-12 shrink-0 flex-col items-center rounded-xl bg-background py-1.5">
+                    <span className="font-heading text-xl font-medium leading-none tabular-nums">{tgl}</span>
+                    <span className="mt-0.5 text-[10px] font-bold uppercase tracking-wide text-primary">{BULAN_PENDEK[bln - 1]}</span>
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-medium">{m.subject}</span>
+                    <span className="block truncate text-sm font-semibold">{m.subject}</span>
                     <span className="flex items-center gap-2 truncate text-xs text-muted-foreground">
                       <span>{MEETING_TYPE_LABELS[m.type] ?? m.type}</span>
                       {m.location && <span className="inline-flex min-w-0 items-center gap-0.5"><MapPin className="h-3 w-3 shrink-0" /><span className="truncate">{m.location}</span></span>}
@@ -483,9 +479,58 @@ export function PanelRequest({ request, className }: { request: ContentRequest[]
 
 // ─── Bantu ───────────────────────────────────────────────────────────────────
 
+/**
+ * Pintasan sebagai deretan tombol di bawah judul halaman. Tombol pertama
+ * adalah aksi utama jabatan itu (urutan dari KONFIG), sisanya sekunder.
+ */
+export function PintasanBaris({ items }: { items: Pintasan[] }) {
+  if (items.length === 0) return null
+  return (
+    <nav aria-label="Pintasan" className="flex flex-wrap gap-2">
+      {items.map((p, i) => (
+        <Link
+          key={p.href}
+          href={p.href}
+          title={p.ket}
+          className={cn(
+            'inline-flex h-10 items-center gap-2 rounded-xl px-4 text-sm font-semibold transition-colors [&_svg]:h-4 [&_svg]:w-4',
+            i === 0
+              ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+              : 'border bg-card text-foreground hover:border-primary/40 [&_svg]:text-primary',
+          )}
+        >
+          {p.ikon}
+          {p.label}
+        </Link>
+      ))}
+    </nav>
+  )
+}
+
+function Tahap({ n, label, nada }: { n: number; label: string; nada: 'warning' | 'info' | 'success' | 'muted' }) {
+  const warna = nada === 'muted' ? 'var(--muted-foreground)' : `var(--${nada})`
+  const latar = nada === 'muted' ? 'var(--muted)' : `var(--${nada}-wash)`
+  return (
+    <span className="flex flex-col rounded-lg px-2.5 py-2" style={{ background: latar, color: warna }}>
+      <span className="font-heading text-2xl font-medium leading-none tabular-nums">{n.toLocaleString('id-ID')}</span>
+      <span className="mt-1 text-[11px] font-semibold leading-tight">{label}</span>
+    </span>
+  )
+}
+
+/** Lingkaran inisial dari nama tampilan — dekorasi, jadi aria-hidden. */
+function Inisial({ nama }: { nama?: string | null }) {
+  const huruf = (nama ?? '?').replace(/^(Ust(adz|adzah|zh)?\.?)\s+/i, '').split(/\s+/).slice(0, 2).map(w => w[0]?.toUpperCase() ?? '').join('')
+  return (
+    <span aria-hidden className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent-warm-wash text-xs font-bold text-warning">
+      {huruf || '?'}
+    </span>
+  )
+}
+
 function Kosong({ ikon, children }: { ikon: React.ReactNode; children: React.ReactNode }) {
   return (
-    <div className="flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed px-4 py-8 text-center">
+    <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed bg-muted/30 px-4 py-8 text-center">
       <span className="text-muted-foreground/60">{ikon}</span>
       <p className="text-sm text-muted-foreground">{children}</p>
     </div>

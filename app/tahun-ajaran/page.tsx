@@ -32,7 +32,7 @@ export default async function TahunAjaranPage() {
 
       <div className="p-4 md:p-6 max-w-4xl space-y-5">
         <div>
-          <h1 className="text-2xl font-bold leading-tight">Tahun Ajaran</h1>
+          <h1 className="text-3xl leading-tight">Tahun Ajaran</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
             Semester berjalan menjadi acuan seluruh halaqoh, penempatan santri, dan penugasan guru.
           </p>

@@ -61,7 +61,7 @@ export function PesanWaLaporanOrtu({ laporan, tautan }: { laporan: LaporanOrtu; 
   }
 
   return (
-    <section className="space-y-3 rounded-xl border bg-card p-4 print:hidden">
+    <section className="space-y-3 rounded-2xl border bg-card p-4 print:hidden">
       <div>
         <p className="flex items-center gap-2 text-sm font-semibold"><MessageCircle className="h-4 w-4" /> Pesan WhatsApp untuk Ayah/Bunda</p>
         <p className="mt-0.5 text-xs text-muted-foreground">

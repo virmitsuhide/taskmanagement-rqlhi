@@ -110,7 +110,7 @@ export default async function TeacherDetailPage({ params, searchParams }: PagePr
         breadcrumbs={[{ label: 'Ustadz', href: '/ustadz' }, { label: teacher.full_name }]}
         showBack
       />
-      <div className="p-4 md:p-6 max-w-5xl mx-auto">
+      <div className="p-4 md:p-8 max-w-5xl mx-auto">
 
         {new_password && (
           <PasswordBanner password={new_password} username={teacher.username} />
@@ -129,14 +129,14 @@ export default async function TeacherDetailPage({ params, searchParams }: PagePr
         )}
 
         {/* Hero */}
-        <div className="rounded-xl border bg-card p-5 mb-6">
+        <div className="rounded-2xl border bg-card p-5 mb-6">
           <div className="flex items-start gap-4 flex-wrap">
             <div className="w-16 h-16 rounded-xl bg-muted flex items-center justify-center text-2xl font-bold shrink-0">
               {initials}
             </div>
             <div className="flex-1 min-w-[200px]">
               <div className="flex items-center gap-2 flex-wrap">
-                <h1 className="text-2xl font-bold leading-tight">{teacher.full_name}</h1>
+                <h1 className="text-3xl leading-tight">{teacher.full_name}</h1>
                 {!teacher.is_active && <span className="text-xs text-warning">⚠ Nonaktif</span>}
               </div>
               <code className="text-xs bg-muted px-2 py-0.5 rounded">@{teacher.username}</code>
@@ -227,7 +227,7 @@ export default async function TeacherDetailPage({ params, searchParams }: PagePr
 
         {/* Halaqoh yang diampu */}
         <section>
-          <h2 className="text-base font-semibold mb-3 flex items-center gap-2">
+          <h2 className="font-heading text-lg font-medium mb-3 flex items-center gap-2">
             <BookOpen className="h-4 w-4" />
             Halaqoh sebagai Wali
           </h2>

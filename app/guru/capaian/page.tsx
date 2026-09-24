@@ -81,7 +81,7 @@ export default async function CapaianBulananPage({ searchParams }: PageProps) {
     <div className="min-h-screen" style={{ background: 'var(--secondary)' }}>
       <div className="max-w-5xl mx-auto px-4 md:px-6 py-6">
         <h1
-          className="text-2xl font-extrabold tracking-tight"
+          className="text-3xl tracking-tight"
           style={{ fontFamily: 'var(--font-playfair), Georgia, serif' }}
         >
           Capaian Bulanan

@@ -92,7 +92,7 @@ function BudgetTable({
   return (
     <Card>
       <CardContent className="p-4">
-        <h2 className="mb-3 text-sm font-semibold">{title}</h2>
+        <h2 className="font-heading text-lg font-medium mb-3">{title}</h2>
 
         <div className="overflow-x-auto">
           <table className="w-full text-sm">

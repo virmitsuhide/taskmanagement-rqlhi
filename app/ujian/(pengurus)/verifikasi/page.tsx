@@ -57,7 +57,7 @@ export default async function VerifikasiRiwayatPage({ searchParams }: PageProps)
     <div>
       <DashboardHeader displayName={session.displayName} role={session.role} title="Verifikasi Riwayat" showBack ownH1
         breadcrumbs={[{ label: 'Ujian', href: '/ujian/kelola' }, { label: 'Verifikasi Riwayat' }]} />
-      <div className="mx-auto max-w-5xl space-y-5 p-4 md:p-6">
+      <div className="mx-auto max-w-5xl space-y-5 p-4 md:p-8">
         <UjianSubNav />
 
         <DashTop

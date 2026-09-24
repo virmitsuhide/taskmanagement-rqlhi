@@ -23,9 +23,9 @@ export default async function AjukanUjianPage() {
         breadcrumbs={[{ label: 'Ujian', href: '/ujian/kelola' }, { label: 'Ajukan' }]}
       />
 
-      <div className="p-4 md:p-6 max-w-3xl mx-auto space-y-5">
+      <div className="p-4 md:p-8 max-w-3xl mx-auto space-y-5">
         <div>
-          <h1 className="text-2xl font-bold leading-tight">Ajukan Ujian</h1>
+          <h1 className="text-3xl leading-tight">Ajukan Ujian</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Pengajuan masuk ke antrian dengan status <em>Diajukan</em>, lalu tinggal dijadwalkan
             dari halaman Kelola.

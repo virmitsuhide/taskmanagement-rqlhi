@@ -88,7 +88,7 @@ export default async function RaporKpiGuruDetail({ params }: PageProps) {
   const ttdSaya = await ttdSrc(p?.signature_path)
 
   return (
-    <div className="mx-auto max-w-[880px] p-4 md:p-6">
+    <div className="mx-auto max-w-[880px] p-4 md:p-8">
       <Link
         href="/guru/rapor-kpi"
         className="mb-4 inline-flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground print:hidden"

@@ -148,7 +148,7 @@ export function ProgramForm({ action, defaultValues, submitLabel = 'Simpan' }: P
       {/* Isi halaman detail */}
       <div className="rounded-xl border bg-muted/20 p-4 md:p-5 space-y-5">
         <div>
-          <h2 className="text-sm font-semibold">Isi Halaman Detail</h2>
+          <h2 className="font-heading text-lg font-medium">Isi Halaman Detail</h2>
           <p className="text-xs text-muted-foreground mt-0.5">
             Bagian ini tampil di <code className="text-foreground">/program/…</code>. Boleh dikosongkan
             dulu — bagian yang kosong tidak ikut ditampilkan.

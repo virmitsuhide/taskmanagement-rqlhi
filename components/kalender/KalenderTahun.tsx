@@ -220,8 +220,8 @@ export function KalenderTahun({ tahun, events, unitBoleh }: Props) {
             per.set(t, [...(per.get(t) ?? []), e])
           }
           return (
-            <section key={i} className="rounded-xl border bg-card p-3">
-              <h2 className="mb-2 flex items-baseline justify-between text-sm font-semibold">
+            <section key={i} className="rounded-2xl border bg-card p-3">
+              <h2 className="font-heading text-lg font-medium mb-2 flex items-baseline justify-between">
                 {BULAN_ID[i]}
                 <span className="text-[11px] font-normal text-muted-foreground">{agenda.length}</span>
               </h2>
@@ -273,7 +273,7 @@ export function KalenderTahun({ tahun, events, unitBoleh }: Props) {
           Kisi menjawab "kapan"; daftar ini menjawab "apa". Dipisah supaya
           kartu bulan tetap ringkas dan dua belasnya muat dalam satu layar. */}
       {pilih && (
-        <section className="space-y-2 rounded-xl border bg-card p-4">
+        <section className="space-y-2 rounded-2xl border bg-card p-4">
           <div className="flex items-start justify-between gap-2">
             <h2 className="font-semibold">
               {new Date(`${pilih}T00:00:00+07:00`).toLocaleDateString('id-ID', {
@@ -337,7 +337,7 @@ export function KalenderTahun({ tahun, events, unitBoleh }: Props) {
       )}
 
       {/* ── Legenda ── */}
-      <div className="flex flex-wrap gap-x-4 gap-y-1.5 rounded-xl border bg-card p-3 text-[11px]">
+      <div className="flex flex-wrap gap-x-4 gap-y-1.5 rounded-2xl border bg-card p-3 text-[11px]">
         {KALDIK_TIPE.map(t => (
           <span key={t} className="flex items-center gap-1.5">
             <span aria-hidden className="h-2 w-2 rounded-full" style={{ background: TIPE_WARNA[t] }} />

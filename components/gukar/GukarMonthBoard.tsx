@@ -261,7 +261,7 @@ function RekapKehadiran({
     <section className="space-y-3 rounded-lg border bg-card p-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h2 className="text-sm font-semibold">Rekap Kehadiran {formatPeriod(period)}</h2>
+          <h2 className="font-heading text-lg font-medium">Rekap Kehadiran {formatPeriod(period)}</h2>
           <p className="text-xs text-muted-foreground">
             Diisi di akhir bulan dari catatan kehadiran pengampu. Kosongkan bila belum direkap.
           </p>
@@ -534,7 +534,7 @@ function CapaianForm({
 
       <p className="rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground">
         {posisiBeku
-          ? '🔒 Setoran bulan ini sudah terkunci — posisi di bawah adalah setoran akhir. Nilai & catatan masih bisa disimpan.'
+          ? 'Setoran bulan ini sudah terkunci — posisi di bawah adalah setoran akhir. Nilai & catatan masih bisa disimpan.'
           : record?.awal_tanggal
             ? `Setoran awal ${labelHariSetor(record.awal_tanggal)}. Posisi yang disimpan di sini meralat setoran sedang (terakhir ${labelHariSetor(record.setoran_terakhir ?? record.awal_tanggal)}).`
             : 'Belum ada setoran bulan ini. Posisi yang disimpan di sini sekaligus menjadi setoran awal.'}

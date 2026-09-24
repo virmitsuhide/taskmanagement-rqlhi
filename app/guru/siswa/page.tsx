@@ -16,7 +16,7 @@ export default async function GuruSiswaPage() {
       <div className="max-w-4xl mx-auto px-4 md:px-6 py-6">
         <div className="mb-5">
           <h1
-            className="text-2xl font-extrabold tracking-tight"
+            className="text-3xl tracking-tight"
             style={{ fontFamily: 'var(--font-playfair), Georgia, serif' }}
           >
             Siswa Saya

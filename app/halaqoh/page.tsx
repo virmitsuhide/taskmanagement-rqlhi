@@ -185,12 +185,15 @@ export default async function HalaqohListPage({ searchParams }: PageProps) {
   return (
     <div>
       <DashboardHeader displayName={session.displayName} role={session.role} title="Halaqoh" showBack ownH1 />
-      <div className="p-4 md:p-6 max-w-6xl mx-auto">
-        <div className="flex items-end justify-between gap-3 flex-wrap mb-5">
+      <div className="p-4 md:p-8 max-w-6xl mx-auto">
+        <div className="flex items-end justify-between gap-3 flex-wrap mb-7">
           <div>
-            <h1 className="text-2xl font-bold leading-tight">Halaqoh</h1>
-            <p className="text-sm text-muted-foreground mt-0.5">
-              Kelompok belajar tahsin &amp; tahfidz
+            <p className="text-xs font-bold uppercase tracking-[0.1em] text-warning">Tahsin &amp; tahfidz</p>
+            <h1 className="mt-2 text-3xl leading-tight md:text-4xl">Halaqoh</h1>
+            <p className="text-sm text-muted-foreground mt-1.5">
+              Kelompok belajar tahsin &amp; tahfidz ·{' '}
+              <b className="font-semibold text-foreground tabular-nums">{halaqohList.length}</b> halaqoh ·{' '}
+              <b className="font-semibold text-foreground tabular-nums">{totalSiswa}</b> siswa
             </p>
           </div>
           {canCreateAny && (
@@ -198,10 +201,10 @@ export default async function HalaqohListPage({ searchParams }: PageProps) {
               {/* Impor kelompok ditaruh berdampingan dengan Buat Halaqoh: yang
                   satu menyiapkan wadahnya, yang lain mengisinya — dan urutan
                   itulah yang harus dikerjakan saat pembagian semester baru. */}
-              <Button asChild size="sm" variant="outline">
+              <Button asChild variant="outline">
                 <Link href="/halaqoh/impor"><Upload className="h-4 w-4 mr-1" />Impor Kelompok</Link>
               </Button>
-              <Button asChild size="sm">
+              <Button asChild>
                 <Link href="/halaqoh/baru"><Plus className="h-4 w-4 mr-1" />Buat Halaqoh</Link>
               </Button>
             </div>
@@ -210,11 +213,11 @@ export default async function HalaqohListPage({ searchParams }: PageProps) {
 
         {/* Baris alat: cari · unit · ringkasan. Ringkasannya di kanan supaya
             mata jatuh ke daftar dulu, bukan ke angka. */}
-        <div className="flex flex-wrap items-center gap-2 mb-3">
+        <div className="flex flex-wrap items-center gap-3 mb-4">
           <div className="w-full sm:w-72">
             <SearchInput placeholder="Cari wali atau nama halaqoh…" />
           </div>
-          <div className="flex gap-1 rounded-lg bg-muted p-1 overflow-x-auto">
+          <div role="group" aria-label="Unit" className="flex gap-0.5 rounded-[10px] bg-muted p-[3px] overflow-x-auto">
             <UnitChip href={hrefFor(undefined, sesiFilter, q)} active={!jenjangFilter}>Semua Unit</UnitChip>
             {viewableJenjang.map(j => (
               <UnitChip key={j} href={hrefFor(j, sesiFilter, q)} active={jenjangFilter === j}>
@@ -222,16 +225,11 @@ export default async function HalaqohListPage({ searchParams }: PageProps) {
               </UnitChip>
             ))}
           </div>
-          <div className="flex-1" />
-          <span className="text-xs text-muted-foreground tabular-nums">
-            <b className="text-foreground">{halaqohList.length}</b> halaqoh ·{' '}
-            <b className="text-foreground">{totalSiswa}</b> siswa
-          </span>
         </div>
 
         {/* Tab sesi. Jam ikut ditampilkan karena itulah pembeda sesungguhnya
             antar sesi — nomornya sendiri tidak memberi tahu apa-apa. */}
-        <div className="flex gap-1 mb-4 overflow-x-auto border-b">
+        <div className="flex gap-2 mb-4 overflow-x-auto border-b">
           {sesiTabs.map(s => (
             <SesiTab key={s} href={hrefFor(jenjangFilter, s, q)} active={sesiFilter === s}>
               {s === 0 ? 'Belum ada sesi' : sesiLabel(s)}{' '}
@@ -263,10 +261,10 @@ export default async function HalaqohListPage({ searchParams }: PageProps) {
             </p>
           </div>
         ) : (
-          <div className="rounded-xl border bg-card overflow-hidden">
+          <div className="rounded-2xl border bg-card overflow-hidden">
             {/* ── Layar lebar: tabel padat ── */}
             <div className="hidden md:block">
-              <div className={cn('grid px-5 bg-muted/40 border-b', COLS)}>
+              <div className={cn('grid px-5 bg-muted/50 border-b', COLS)}>
                 <HeadCell className="text-right pr-3">#</HeadCell>
                 <HeadCell>Pengampu</HeadCell>
                 <HeadCell>Tempat</HeadCell>
@@ -373,7 +371,7 @@ function CapaianChips({ c }: { c?: Capaian }) {
       {bagian.map(b => (
         <span
           key={b.label}
-          className={cn('rounded px-1.5 py-px text-[10.5px] font-semibold whitespace-nowrap', b.kelas)}
+          className={cn('rounded-md px-2 py-0.5 text-[11px] font-semibold whitespace-nowrap', b.kelas)}
         >
           {b.n} {b.label}
         </span>
@@ -406,7 +404,7 @@ function DesktopRow(
     // membungkus tombol Edit di dalam <a> lain (anchor bersarang tidak sah).
     <div
       className={cn(
-        'group relative grid items-center h-14 px-5 border-b last:border-b-0 transition-colors hover:bg-muted/40',
+        'group relative grid items-center h-16 px-5 border-b last:border-b-0 transition-colors hover:bg-primary-wash/40',
         COLS,
         // Halaqoh nonaktif diredupkan seluruh barisnya, bukan cuma diberi
         // lencana — supaya bedanya terlihat saat memindai, bukan saat membaca.
@@ -507,7 +505,7 @@ function UnitChip({
     <Link
       href={href}
       className={cn(
-        'whitespace-nowrap rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
+        'whitespace-nowrap rounded-[7px] px-3 py-1.5 text-[13px] font-semibold transition-colors',
         active
           ? 'bg-card text-foreground shadow-sm'
           : 'text-muted-foreground hover:text-foreground',
@@ -543,9 +541,9 @@ function SesiTab({
     <Link
       href={href}
       className={cn(
-        'whitespace-nowrap border-b-2 px-3 py-2 text-sm transition-colors',
+        '-mb-px whitespace-nowrap border-b-2 px-3 py-2.5 text-sm font-semibold transition-colors',
         active
-          ? 'border-primary font-medium text-foreground'
+          ? 'border-primary text-foreground'
           : 'border-transparent text-muted-foreground hover:text-foreground',
       )}
     >

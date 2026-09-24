@@ -36,7 +36,7 @@ export function AnnouncementCard({ post }: Props) {
       : 'bg-muted text-muted-foreground'
 
   return (
-    <article className="group rounded-xl border bg-card p-5 hover:border-foreground/20 hover:shadow-sm transition cursor-pointer">
+    <article className="group rounded-2xl border bg-card p-5 hover:border-foreground/20 hover:shadow-sm transition cursor-pointer">
       <div className="grid grid-cols-[auto_1fr_auto] gap-5 items-center">
         <div className="text-center pr-5 border-r border-dashed min-w-[64px]">
           <div className="text-xl font-semibold leading-none tracking-tight">{day}</div>

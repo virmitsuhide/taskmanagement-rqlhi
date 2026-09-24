@@ -43,13 +43,13 @@ export function MeetingCard({ meeting }: Props) {
   return (
     <Link
       href={`/rapat/${meeting.id}`}
-      className="group relative block rounded-xl border bg-card p-4 transition hover:border-foreground/20 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className="group relative block rounded-2xl border bg-card p-4 transition hover:border-primary/40 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
       <span className={`absolute left-0 top-3 bottom-3 w-1 rounded-r ${colors.dot}`} aria-hidden />
 
       <div className="flex items-start justify-between gap-2 mb-2">
         <div className="flex-1 min-w-0">
-          <h3 className="font-medium text-sm leading-snug pl-2 group-hover:text-foreground">
+          <h3 className="font-semibold text-[15px] leading-snug pl-2 group-hover:text-foreground">
             {meeting.subject}
           </h3>
         </div>

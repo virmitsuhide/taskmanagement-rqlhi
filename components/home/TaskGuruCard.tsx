@@ -46,7 +46,7 @@ export function TaskGuruCard({ post, index = 0 }: Props) {
   const stripText = overdue ? 'text-accent-warm' : 'text-primary'
 
   return (
-    <article className="group rounded-xl border bg-card overflow-hidden hover:border-foreground/20 hover:shadow-sm transition">
+    <article className="group rounded-2xl border bg-card overflow-hidden hover:border-foreground/20 hover:shadow-sm transition">
       <div className="grid grid-cols-[92px_1fr]">
         <div className={`flex flex-col items-center justify-center gap-1 py-5 px-3 border-r ${stripBg}`}>
           <div className={`text-3xl font-semibold leading-none tracking-tight ${stripText}`}>{due[0]}</div>

@@ -298,7 +298,7 @@ export function StudentForm({
       </Section>
 
       {mode === 'edit' && (
-        <label className="flex cursor-pointer items-start gap-3 rounded-xl border bg-card p-4 transition-colors hover:bg-muted/40 has-[:checked]:border-primary/40 has-[:checked]:bg-primary/5 sm:p-5">
+        <label className="flex cursor-pointer items-start gap-3 rounded-2xl border bg-card p-4 transition-colors hover:bg-muted/40 has-[:checked]:border-primary/40 has-[:checked]:bg-primary/5 sm:p-5">
           <input
             type="checkbox"
             name="is_active"
@@ -342,13 +342,13 @@ function Section({ icon: Icon, title, description, children }: {
   children: ReactNode
 }) {
   return (
-    <section className="overflow-hidden rounded-xl border bg-card text-card-foreground">
+    <section className="overflow-hidden rounded-2xl border bg-card text-card-foreground">
       <header className="flex items-start gap-3 border-b bg-muted/30 px-4 py-3 sm:px-5">
         <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary dark:bg-primary/20">
           <Icon className="size-4" aria-hidden />
         </span>
         <div className="min-w-0 pt-1">
-          <h2 className="text-sm font-semibold leading-tight">{title}</h2>
+          <h2 className="font-heading text-lg font-medium leading-tight">{title}</h2>
           {description && <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">{description}</p>}
         </div>
       </header>

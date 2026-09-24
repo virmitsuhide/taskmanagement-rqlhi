@@ -55,7 +55,7 @@ export function SetoranTrendChart({ trend, highlightKey, fokus = 'semua' }: Prop
 
   if (isEmpty) {
     return (
-      <section className="rounded-xl border bg-card p-5">
+      <section className="rounded-2xl border bg-card p-5">
         {/* Sumber tiap titik disebut terang-terangan. Bulan tertutup dibaca dari
           rangkuman, bulan berjalan dari setoran harian yang masih ditulis —
           dan pembaca berhak tahu angka terakhir belum setara dengan sebelumnya. */}
@@ -105,7 +105,7 @@ export function SetoranTrendChart({ trend, highlightKey, fokus = 'semua' }: Prop
     visible.map(p => `${p.full}: tahsin ${p.tahsin}, tahfidz ${p.tahfidz}.`).join(' ')
 
   return (
-    <section className="rounded-xl border bg-card p-5">
+    <section className="rounded-2xl border bg-card p-5">
       <Heading />
 
       <div className="flex flex-wrap items-center gap-x-5 gap-y-2 mb-3">
@@ -236,7 +236,7 @@ export function SetoranTrendChart({ trend, highlightKey, fokus = 'semua' }: Prop
 function Heading({ catatan }: { catatan?: string }) {
   return (
     <div className="mb-4">
-      <h2 className="text-sm font-semibold flex items-center gap-2">
+      <h2 className="font-heading text-lg font-medium flex items-center gap-2">
         <TrendingUp className="h-4 w-4" /> Siswa Tercatat per Bulan
       </h2>
       {catatan && <p className="mt-1 text-xs text-muted-foreground">{catatan}</p>}

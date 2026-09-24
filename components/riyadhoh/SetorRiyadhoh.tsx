@@ -39,7 +39,7 @@ export async function SetorRiyadhoh({ jenis, diminta }: { jenis: 'tahsin' | 'tah
             <ChevronLeft className="size-4" /> Riyadhoh
           </Link>
           <h1 className="mt-1 text-2xl font-extrabold tracking-tight" style={{ fontFamily: 'var(--font-playfair), Georgia, serif' }}>
-            {jenis === 'tahsin' ? '📖 Setor Tahsin' : '✨ Setor Tahfidz'} — Riyadhoh {LABEL_KELOMPOK[terpilih.kelompok]}
+            {jenis === 'tahsin' ? 'Setor Tahsin' : 'Setor Tahfidz'} — Riyadhoh {LABEL_KELOMPOK[terpilih.kelompok]}
           </h1>
           <p className="text-sm text-muted-foreground">
             {tanggalTeks} · setoran ini ikut menjadi capaian sekolah anak, dan guru halaqohnya melanjutkan dari sini.

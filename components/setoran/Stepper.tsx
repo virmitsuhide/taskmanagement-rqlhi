@@ -38,7 +38,7 @@ export function Stepper({ label, value, onChange, bawaan, min = 1, max, disabled
   const sekarang = value.trim() !== '' && Number.isFinite(Number(value)) ? Number(value) : bawaan ?? null
   const batas = (n: number) => Math.max(min, max !== undefined ? Math.min(max, n) : n)
   const geser = (d: number) => onChange(String(batas((sekarang ?? min - d) + d)))
-  const tombol = 'flex h-11 w-11 shrink-0 items-center justify-center rounded-md border bg-card text-foreground transition-colors active:bg-muted disabled:opacity-30'
+  const tombol = 'flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border bg-card text-foreground transition-colors active:bg-muted disabled:opacity-30'
 
   return (
     <div className={cn('space-y-1', className)}>
@@ -57,7 +57,7 @@ export function Stepper({ label, value, onChange, bawaan, min = 1, max, disabled
           disabled={disabled}
           aria-label={rest['aria-label'] ?? label}
           // Placeholder bawaan dibuat sepekat isian: bagi guru itu memang angkanya.
-          className="h-11 w-16 rounded-md border bg-background text-center text-base font-semibold tabular-nums outline-none placeholder:text-foreground focus-visible:ring-2 focus-visible:ring-ring [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+          className="h-11 w-16 rounded-xl border bg-card text-center font-heading text-xl font-medium tabular-nums outline-none placeholder:text-foreground focus-visible:ring-2 focus-visible:ring-ring [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
         />
         <button type="button" className={tombol} onClick={() => geser(1)}
           disabled={disabled || (max !== undefined && sekarang !== null && sekarang >= max)} aria-label={`Tambah ${label ?? ''}`.trim()}>

@@ -150,7 +150,7 @@ export default async function TasksPage({ searchParams }: PageProps) {
       {/* Kanvas bertint supaya kartu (bg-card) punya kontras di mode terang,
           di mana --card dan --background sama-sama putih. */}
       <div className="flex-1 bg-muted/50 dark:bg-background">
-      <div className="p-4 md:p-6 max-w-3xl mx-auto">
+      <div className="p-4 md:p-8 max-w-3xl mx-auto">
         <div className="flex items-end justify-between gap-3 flex-wrap mb-5">
           <div>
             <p className="text-2xl font-bold leading-tight">Tugas Saya</p>
@@ -275,10 +275,10 @@ function BucketSection({
   icon: React.ReactNode; title: string; emptyHint: string; tasks: Task[]; showAssigner: boolean
 }) {
   return (
-    <section className="overflow-hidden rounded-xl border bg-card shadow-sm">
+    <section className="overflow-hidden rounded-2xl border bg-card shadow-sm">
       <div className="flex items-center gap-2 border-b bg-muted/40 px-4 py-3">
         {icon}
-        <h2 className="text-sm font-semibold">{title}</h2>
+        <h2 className="font-heading text-lg font-medium">{title}</h2>
         <span className="ml-auto rounded-full bg-background px-2 py-0.5 text-[11px] font-medium text-muted-foreground tabular-nums">
           {tasks.length}
         </span>

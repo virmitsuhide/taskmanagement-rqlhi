@@ -38,7 +38,7 @@ export function TeacherStrip({ title, teachers }: Props) {
           <Link
             key={teacher.id}
             href="/profil-guru"
-            className="rounded-xl border bg-card p-4 flex flex-col items-center text-center hover:border-primary/40 hover:shadow-sm transition-all"
+            className="rounded-2xl border bg-card p-4 flex flex-col items-center text-center hover:border-primary/40 hover:shadow-sm transition-all"
           >
             <Avatar className="size-14 mb-2.5 overflow-hidden">
               {teacher.photo_url && (

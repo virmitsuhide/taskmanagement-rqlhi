@@ -59,7 +59,7 @@ export function TaskEditForm({ task }: { task: Task }) {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="pendek">⚡ Jangka Pendek</SelectItem>
-                <SelectItem value="panjang">🎯 Jangka Panjang</SelectItem>
+                <SelectItem value="panjang">Jangka Panjang</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -111,7 +111,7 @@ export function TaskEditForm({ task }: { task: Task }) {
         </CardContent>
       </Card>
 
-      <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
+      <div className="overflow-hidden rounded-2xl border bg-card shadow-sm">
         {state?.error && (
           <p className="border-b bg-destructive/10 px-4 py-2.5 text-sm text-destructive">
             {state.error}

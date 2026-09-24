@@ -49,7 +49,7 @@ export default async function BandingKpiPage({ searchParams }: PageProps) {
         breadcrumbs={[{ label: 'KPI Guru', href: '/kpi' }, { label: 'Banding' }]}
       />
 
-      <div className="mx-auto max-w-[1000px] p-4 md:p-6">
+      <div className="mx-auto max-w-[1000px] p-4 md:p-8">
         <Link
           href="/kpi"
           className="mb-4 inline-flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
@@ -57,7 +57,7 @@ export default async function BandingKpiPage({ searchParams }: PageProps) {
           <ArrowLeft className="h-3.5 w-3.5" />Kembali ke KPI bulanan
         </Link>
 
-        <h1 className="text-2xl font-bold leading-tight">Banding Rapor KPI</h1>
+        <h1 className="text-3xl leading-tight">Banding Rapor KPI</h1>
         <p className="mb-4 mt-0.5 text-sm text-muted-foreground">
           Tingkat 1 diputus SDM (sengketa data), tingkat 2 diputus Kepala RQ (sengketa
           penilaian, final). Tenggat memutus {MASA_PUTUSAN_HARI_KERJA} hari kerja.

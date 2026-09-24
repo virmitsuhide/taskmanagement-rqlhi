@@ -176,14 +176,14 @@ export function KelolaUjian({
               {tfTampil.map((item, i) => {
                 const kunci = kunciPengaju(item)
                 return (
-                  <li key={item.id} className="rounded-xl border bg-card p-3.5">
+                  <li key={item.id} className="rounded-2xl border bg-card p-4">
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex min-w-0 items-start gap-2">
                         <span className="mt-0.5 shrink-0 text-xs font-medium text-muted-foreground">
                           {i + 1}
                         </span>
                         <div className="min-w-0">
-                          <p className="font-medium">
+                          <p className="font-semibold">
                             {item.nama_siswa}
                             {item.is_quls && <Badge variant="info" className="ml-1.5 align-middle">QULS</Badge>}
                           </p>
@@ -248,14 +248,14 @@ export function KelolaUjian({
                 const lulus = item.siswa.filter(s => s.predikat === 'lulus').length
                 const kunci = kunciPengaju(item)
                 return (
-                  <li key={item.id} className="rounded-xl border bg-card p-3.5">
+                  <li key={item.id} className="rounded-2xl border bg-card p-4">
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex min-w-0 items-start gap-2">
                         <span className="mt-0.5 shrink-0 text-xs font-medium text-muted-foreground">
                           {i + 1}
                         </span>
                         <div className="min-w-0">
-                          <p className="truncate font-medium">{item.nama_kelompok}</p>
+                          <p className="truncate font-semibold">{item.nama_kelompok}</p>
                           <p className="mt-0.5 text-xs text-muted-foreground">
                             {item.unit} · {formatTahsinLevels(item)} · {item.siswa.length} siswa · Sesi {item.sesi}
                           </p>
@@ -354,7 +354,7 @@ export function KelolaUjian({
 function BarisSaringan({ judul, children }: { judul: string; children: React.ReactNode }) {
   return (
     <div className="flex flex-wrap items-center gap-1.5">
-      <span className="text-xs font-medium text-muted-foreground">{judul}</span>
+      <span className="text-[11px] font-bold uppercase tracking-[0.08em] text-muted-foreground">{judul}</span>
       {children}
     </div>
   )
@@ -373,10 +373,10 @@ function Chip({
       onClick={onClick}
       aria-pressed={aktif}
       className={cn(
-        'shrink-0 rounded-md border transition-colors',
-        kecil ? 'px-2.5 py-1 text-xs' : 'px-3 py-1.5 text-xs font-medium',
+        'shrink-0 rounded-lg border transition-colors',
+        kecil ? 'px-2.5 py-1 text-xs font-medium' : 'px-3 py-1.5 text-[13px] font-semibold',
         aktif
-          ? 'border-primary bg-primary/10 text-primary'
+          ? 'border-primary bg-primary text-primary-foreground'
           : 'bg-card text-muted-foreground hover:text-foreground',
       )}
     >

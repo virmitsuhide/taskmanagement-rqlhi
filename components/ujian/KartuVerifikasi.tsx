@@ -53,7 +53,7 @@ export function KartuVerifikasi({ s, terbuka = false }: { s: StatusHafalanSiswa;
   })
 
   return (
-    <article className="rounded-xl border bg-card">
+    <article className="rounded-2xl border bg-card">
       <button type="button" onClick={() => setBuka(b => !b)} aria-expanded={buka}
         className="flex w-full items-center gap-3 p-4 text-left">
         <div className="min-w-0 flex-1">

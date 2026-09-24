@@ -31,7 +31,7 @@ export function EmployeeForm({
   const [state, action, isPending] = useActionState<FormState, FormData>(kirim, null)
 
   return (
-    <form action={action} className="space-y-4 rounded-xl border bg-card p-4 shadow-sm">
+    <form action={action} className="space-y-4 rounded-2xl border bg-card p-4 shadow-sm">
       {initial?.id && <input type="hidden" name="id" value={initial.id} />}
 
       <div className="grid gap-4 sm:grid-cols-2">

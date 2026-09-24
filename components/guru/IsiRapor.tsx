@@ -98,7 +98,7 @@ export function IsiRapor({
   return (
     <div className="space-y-4">
       {/* ── Penjelajah sesi ── */}
-      <div className="flex items-center justify-between gap-2 rounded-xl border bg-card p-2">
+      <div className="flex items-center justify-between gap-2 rounded-2xl border bg-card p-2">
         <Button type="button" variant="outline" size="sm" disabled={!sebelum || pending} onClick={() => pindah(sebelum)}>
           <ChevronLeft />
           <span className="max-w-[9rem] truncate">{sebelum?.nama ?? 'Awal'}</span>
@@ -123,7 +123,7 @@ export function IsiRapor({
 
       {/* ── Deskripsi bebas (template tanpa isian merah) ── */}
       {pakaiDeskripsi && (
-        <div className="space-y-2 rounded-xl border bg-card p-4">
+        <div className="space-y-2 rounded-2xl border bg-card p-4">
           <div className="flex items-baseline justify-between gap-2">
             <label className="font-semibold" htmlFor="deskripsi">Deskripsi perkembangan</label>
             <span className="text-xs text-muted-foreground">{deskripsi.trim().length} huruf</span>
@@ -146,7 +146,7 @@ export function IsiRapor({
 
       {/* ── Timpaan angka ── */}
       {bisaDitimpa.length > 0 && (
-        <details className="rounded-xl border bg-card p-4">
+        <details className="rounded-2xl border bg-card p-4">
           <summary className="cursor-pointer font-semibold">Timpa angka</summary>
           <p className="mt-1 text-sm text-muted-foreground">
             Kosongkan untuk memakai hitungan sistem. Diisi hanya bila ada pertimbangan lain — anak yang lama sakit,
@@ -204,7 +204,7 @@ function IsianMerah({ slot, isian, sisip, pending, ubah }: {
 }) {
   const kosong = slot.filter(s => !isian[s.id]?.trim()).length
   return (
-    <div className="space-y-3 rounded-xl border bg-card p-4">
+    <div className="space-y-3 rounded-2xl border bg-card p-4">
       <div>
         <div className="flex items-baseline justify-between gap-2">
           <h2 className="font-semibold">Isian rapor</h2>

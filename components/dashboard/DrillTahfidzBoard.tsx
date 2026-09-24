@@ -20,7 +20,7 @@ export function DrillTahfidzBoard({ data, showUnit = true }: { data: DrillTahfid
 
   return (
     <section>
-      <h2 className="mb-1 flex items-center gap-2 text-sm font-semibold">
+      <h2 className="font-heading text-lg font-medium mb-1 flex items-center gap-2">
         <Timer className="h-4 w-4" /> Persiapan Ujian 1 Juz (Drill Tahfidz)
       </h2>
       <p className="mb-3 text-xs text-muted-foreground">
@@ -36,7 +36,7 @@ export function DrillTahfidzBoard({ data, showUnit = true }: { data: DrillTahfid
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
-        <div className="rounded-xl border bg-card p-4">
+        <div className="rounded-2xl border bg-card p-4">
           <p className="mb-3 text-sm font-medium">Rata-rata lama persiapan per juz</p>
           {perJuz.length === 0 ? (
             <p className="text-sm text-muted-foreground">
@@ -75,7 +75,7 @@ export function DrillTahfidzBoard({ data, showUnit = true }: { data: DrillTahfid
           )}
         </div>
 
-        <div className="rounded-xl border bg-card p-4">
+        <div className="rounded-2xl border bg-card p-4">
           <p className="mb-3 text-sm font-medium">Sedang drill, terlama menunggu</p>
           {sedang.length === 0 ? (
             <p className="text-sm text-muted-foreground">Tidak ada juz yang sedang menunggu diajukan.</p>
@@ -109,7 +109,7 @@ function ringkas(s: StatLama): string {
 
 function Kpi({ label, nilai, ket }: { label: string; nilai: string; ket: string }) {
   return (
-    <div className="rounded-xl border bg-card p-4">
+    <div className="rounded-2xl border bg-card p-4">
       <p className="text-xs text-muted-foreground">{label}</p>
       <p className="mt-1.5 text-2xl font-bold leading-none">{nilai}</p>
       <p className="mt-1 text-[10px] text-muted-foreground">{ket}</p>

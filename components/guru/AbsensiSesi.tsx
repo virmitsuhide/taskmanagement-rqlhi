@@ -83,7 +83,7 @@ export function AbsensiSesi({ halaqohId, tanggal, siswa, awal }: Props) {
         {siswa.map(s => {
           const v = isian[s.id]
           return (
-            <li key={s.id} className="rounded-xl border bg-card p-3">
+            <li key={s.id} className="rounded-2xl border bg-card p-3">
               {/* Di HP selalu bertumpuk: nama di atas, empat tombol selebar
                   kartu di bawahnya. Sebelumnya memakai flex-wrap, dan itu
                   membuat letaknya bergantung pada panjang nama — tombol anak

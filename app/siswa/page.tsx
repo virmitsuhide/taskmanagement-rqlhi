@@ -285,10 +285,10 @@ export default async function SiswaListPage({ searchParams }: PageProps) {
   return (
     <div>
       <DashboardHeader displayName={session.displayName} role={session.role} title="Siswa" showBack ownH1 />
-      <div className="p-4 md:p-6 max-w-6xl mx-auto">
+      <div className="p-4 md:p-8 max-w-6xl mx-auto">
         <div className="flex items-end justify-between gap-3 flex-wrap mb-5">
           <div>
-            <h1 className="text-2xl font-bold leading-tight">Siswa</h1>
+            <h1 className="text-3xl leading-tight">Siswa</h1>
             <p className="text-sm text-muted-foreground mt-0.5">
               {JENJANG_LABELS[jenjang]}
               {kelas ? ` · Kelas ${kelas} · ${baris.length} siswa` : ' · belum ada kelas'}

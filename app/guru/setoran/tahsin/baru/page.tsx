@@ -80,12 +80,12 @@ export default async function NewTahsinSetoranPage({ searchParams }: PageProps) 
       <div className="max-w-4xl mx-auto px-4 md:px-6 py-6">
         <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
           <div>
-            <p className="text-[11px] uppercase tracking-[1.8px] text-muted-foreground">Setoran Harian</p>
+            <p className="text-xs font-bold uppercase tracking-[0.1em] text-warning">Setoran Harian</p>
             <h1
-              className="text-2xl font-extrabold tracking-tight"
+              className="text-3xl tracking-tight"
               style={{ fontFamily: 'var(--font-playfair), Georgia, serif' }}
             >
-              📖 Setor Tahsin
+              Setor Tahsin
             </h1>
           </div>
           <Link href="/guru/setoran/tahsin/sesi" className="text-sm font-medium text-primary hover:underline">

@@ -301,7 +301,7 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
         )}
 
         {/* Hero */}
-        <div className="rounded-xl border bg-card p-5">
+        <div className="rounded-2xl border bg-card p-5">
           <div className="flex items-start gap-4 flex-wrap">
             <div
               className="w-14 h-14 rounded-xl flex items-center justify-center text-xl font-bold text-white shrink-0"
@@ -311,7 +311,7 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
             </div>
             <div className="flex-1 min-w-[180px]">
               <h1
-                className="text-2xl font-extrabold tracking-tight"
+                className="text-3xl tracking-tight"
                 style={{ fontFamily: 'var(--font-playfair), Georgia, serif' }}
               >
                 {student.full_name}
@@ -324,7 +324,7 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
               <div className="mt-2 flex flex-wrap gap-2">
                 {student.current_jilid?.is_terminal ? (
                   <span className="inline-flex items-center gap-1.5 text-sm px-2.5 py-1 rounded-lg" style={{ background: 'var(--success-wash)', color: 'var(--success)' }}>
-                    🎓 Lulus Tahsin{student.current_method?.name ? ` · ${student.current_method.name}` : ''}
+                    Lulus Tahsin{student.current_method?.name ? ` · ${student.current_method.name}` : ''}
                   </span>
                 ) : (
                   <span className="inline-flex items-center gap-1.5 text-sm px-2.5 py-1 rounded-lg" style={{ background: 'var(--primary-wash)', color: 'var(--primary)' }}>
@@ -342,7 +342,7 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
                       ? `Berikutnya: materi ${progresMateri.berikutnya.nomor} — ${progresMateri.berikutnya.nama}`
                       : 'Semua materi sudah lulus'}
                   >
-                    🧠 {progresMateri.lulus}/{progresMateri.total} materi
+                    {progresMateri.lulus}/{progresMateri.total} materi
                     {progresMateri.tuntas
                       ? ' · tuntas'
                       : progresMateri.berjalan > 0 ? ` · ${progresMateri.berjalan} berjalan` : ''}
@@ -360,7 +360,7 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
                     style={{ background: 'var(--secondary)', color: 'var(--foreground)' }}
                     title="Posisi bacaan mushaf — berjalan terpisah dari halaman buku"
                   >
-                    📖 {student.quran_surat.name_latin}
+                    {student.quran_surat.name_latin}
                     {student.current_quran_ayat ? `:${student.current_quran_ayat}` : ''}
                     {student.current_quran_halaman ? ` · hal. ${student.current_quran_halaman}` : ''}
                   </span>
@@ -371,7 +371,7 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
                     style={{ background: 'var(--warning-wash)', color: 'var(--warning)' }}
                     title="Sudah lulus halaman terakhir — jilid berikutnya terbuka setelah lulus ujian tahsin"
                   >
-                    🔁 DRILL sejak {tanggalPendek(student.tahsin_drill_sejak)} · menunggu ujian
+                    DRILL sejak {tanggalPendek(student.tahsin_drill_sejak)} · menunggu ujian
                   </span>
                 )}
                 {drillTahfidz.map(d => (
@@ -381,7 +381,7 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
                     style={{ background: 'var(--warning-wash)', color: 'var(--warning)' }}
                     title="Ziyadah juz ini sudah tuntas — ajukan ujian 1 juz lewat menu Pengajuan Ujian"
                   >
-                    ✨ Juz {d.juz} DRILL sejak {tanggalPendek(d.sejak)} · ajukan ujian
+                    Juz {d.juz} DRILL sejak {tanggalPendek(d.sejak)} · ajukan ujian
                   </span>
                 ))}
                 <span className="inline-flex items-center gap-1.5 text-sm px-2.5 py-1 rounded-lg" style={{ background: 'var(--success-wash)', color: 'var(--success)' }}>
@@ -408,7 +408,7 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
                 </>
               )}
               <Button asChild variant="outline">
-                <Link href={`/guru/siswa/${id}/rapor`}>📄 Rapor &amp; Share</Link>
+                <Link href={`/guru/siswa/${id}/rapor`}>Rapor &amp; Share</Link>
               </Button>
             </div>
           </div>
@@ -418,7 +418,7 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
         {/* ── Peta belajar tahsin ── */}
         {nodeTahsin.length > 0 && (
           <section>
-            <h2 className="text-sm font-semibold mb-3 flex items-center gap-2">
+            <h2 className="font-heading text-lg font-medium mb-3 flex items-center gap-2">
               <BookOpen className="h-4 w-4" /> Peta Tahsin — {student.current_method?.name}
             </h2>
             <PetaLevel
@@ -435,7 +435,7 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
 
         {!student.current_method && (
           <section>
-            <h2 className="text-sm font-semibold mb-3 flex items-center gap-2">
+            <h2 className="font-heading text-lg font-medium mb-3 flex items-center gap-2">
               <BookOpen className="h-4 w-4" /> Peta Tahsin
             </h2>
             <div className="rounded-xl border border-dashed bg-card p-6 text-center">
@@ -449,7 +449,7 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
 
         {/* ── Peta belajar tahfidz ── */}
         <section>
-          <h2 className="text-sm font-semibold mb-3 flex items-center gap-2">
+          <h2 className="font-heading text-lg font-medium mb-3 flex items-center gap-2">
             <Sparkles className="h-4 w-4" /> Peta Tahfidz — 30 Juz
           </h2>
 
@@ -460,7 +460,7 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
               { label: 'Juz teruji', nilai: ujianSelesai.jumlah, ket: 'lulus ujian' },
               { label: "Tasmi' dilalui", nilai: (tasmiCount ?? 0) + tasmiUjian.length, ket: 'ujian 3/5 juz lulus' },
             ].map(k => (
-              <div key={k.label} className="rounded-xl border bg-card px-3 py-2.5">
+              <div key={k.label} className="rounded-2xl border bg-card px-3 py-2.5">
                 <p className="text-[11px] text-muted-foreground leading-tight">{k.label}</p>
                 <p className="text-2xl font-bold tabular-nums leading-tight">{k.nilai}</p>
                 <p className="text-[10px] text-muted-foreground/80">{k.ket}</p>
@@ -495,7 +495,7 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
 
         {/* Riwayat setoran */}
         <section>
-          <h2 className="text-sm font-semibold mb-3">Riwayat Setoran Tahsin</h2>
+          <h2 className="font-heading text-lg font-medium mb-3">Riwayat Setoran Tahsin</h2>
           {!logs || logs.length === 0 ? (
             <div className="rounded-xl border border-dashed bg-card py-8 text-center text-sm text-muted-foreground">
               Belum ada setoran tercatat.
@@ -506,7 +506,7 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
               </div>
             </div>
           ) : (
-            <div className="rounded-xl border bg-card divide-y">
+            <div className="rounded-2xl border bg-card divide-y">
               {logs.map(log => {
                 const jilid = (log.jilid as unknown as { label: string } | null)?.label ?? '—'
                 return (
@@ -546,8 +546,8 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
         {/* Riwayat kenaikan jilid */}
         {promotions && promotions.length > 0 && (
           <section>
-            <h2 className="text-sm font-semibold mb-3">🎉 Kenaikan Jilid</h2>
-            <div className="rounded-xl border bg-card divide-y">
+            <h2 className="font-heading text-lg font-medium mb-3">Kenaikan Jilid</h2>
+            <div className="rounded-2xl border bg-card divide-y">
               {promotions.map(p => {
                 const from = (p.from_jilid as unknown as { label: string } | null)?.label ?? '?'
                 const to = (p.to_jilid as unknown as { label: string } | null)?.label ?? '?'
@@ -566,7 +566,7 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
 
         {/* Riwayat setoran tahfidz */}
         <section>
-          <h2 className="text-sm font-semibold mb-3">Riwayat Setoran Tahfidz</h2>
+          <h2 className="font-heading text-lg font-medium mb-3">Riwayat Setoran Tahfidz</h2>
           {tahfidzLogs.length === 0 ? (
             <div className="rounded-xl border border-dashed bg-card py-8 text-center text-sm text-muted-foreground">
               Belum ada setoran tahfidz.
@@ -577,7 +577,7 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
               </div>
             </div>
           ) : (
-            <div className="rounded-xl border bg-card divide-y">
+            <div className="rounded-2xl border bg-card divide-y">
               {tahfidzLogs.map(log => {
                 const suratName = log.surat?.name_latin ?? '—'
                 return (
@@ -614,8 +614,8 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
 
         {/* Riwayat ujian — tahfidz (juz'iyyah & tasmi') dan tahsin, dari modul Pengajuan Ujian */}
         <section>
-          <h2 className="text-sm font-semibold mb-3 flex items-center justify-between gap-2">
-            <span>📝 Riwayat Ujian</span>
+          <h2 className="font-heading text-lg font-medium mb-3 flex items-center justify-between gap-2">
+            <span>Riwayat Ujian</span>
             {riwayatUjian.length > 0 && (
               <span className="text-xs font-normal text-muted-foreground">
                 {riwayatUjian.filter(u => u.status === 'selesai').length} selesai
@@ -629,7 +629,7 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
               <Link href="/guru/ujian" className="text-primary hover:underline">Ajukan ujian →</Link>
             </div>
           ) : (
-            <div className="rounded-xl border bg-card divide-y">
+            <div className="rounded-2xl border bg-card divide-y">
               {riwayatUjian.map(u => (
                 <div key={`${u.jenis}-${u.id}`} className="p-3">
                   <div className="flex items-center justify-between gap-2">
@@ -670,8 +670,8 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
         {/* Riwayat tasmi' (tabel lama tasmi_logs — kini tasmi' tercatat di Riwayat Ujian) */}
         {tasmiLogs.length > 0 && (
           <section>
-            <h2 className="text-sm font-semibold mb-3">🎤 Riwayat Tasmi&apos;</h2>
-            <div className="rounded-xl border bg-card divide-y">
+            <h2 className="font-heading text-lg font-medium mb-3">Riwayat Tasmi&apos;</h2>
+            <div className="rounded-2xl border bg-card divide-y">
               {tasmiLogs.map(log => (
                 <div key={log.id} className="p-3">
                   <div className="flex items-center justify-between gap-2">
@@ -703,8 +703,8 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
         {/* Juz teruji — dari ujian yang selesai, menggantikan "mutqin" */}
         {ujianSelesai.selesai.size > 0 && (
           <section>
-            <h2 className="text-sm font-semibold mb-3">🏆 Juz Teruji</h2>
-            <div className="rounded-xl border bg-card p-4 flex flex-wrap gap-2">
+            <h2 className="font-heading text-lg font-medium mb-3">Juz Teruji</h2>
+            <div className="rounded-2xl border bg-card p-4 flex flex-wrap gap-2">
               {URUTAN_JUZ_TAHFIDZ.filter(j => ujianSelesai.selesai.has(j)).map(j => (
                 <span
                   key={j}

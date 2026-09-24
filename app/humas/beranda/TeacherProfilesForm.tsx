@@ -140,7 +140,7 @@ export function TeacherProfilesForm({ teachers }: { teachers: Row[] }) {
           return (
             <div
               key={teacher.id}
-              className={`rounded-xl border bg-card p-4 ${hidden ? 'hidden' : ''}`}
+              className={`rounded-2xl border bg-card p-4 ${hidden ? 'hidden' : ''}`}
             >
               <input type="hidden" name="teacher_id" value={teacher.id} />
 

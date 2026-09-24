@@ -53,7 +53,7 @@ function FundCard({
     <Card>
       <CardContent className="p-4">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-sm font-semibold">{fund.name}</h2>
+          <h2 className="font-heading text-lg font-medium">{fund.name}</h2>
           {canManage && (
             <div className="flex gap-1">
               <Button

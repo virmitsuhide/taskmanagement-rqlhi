@@ -91,28 +91,29 @@ export default async function KpiPage({ searchParams }: PageProps) {
   return (
     <div>
       <DashboardHeader displayName={session.displayName} role={session.role} title="KPI Bulanan Guru" showBack ownH1 />
-      <div className="p-4 md:p-6 max-w-[1400px] mx-auto">
-        <div className="flex items-end justify-between gap-3 flex-wrap mb-5">
+      <div className="p-4 md:p-8 max-w-[1400px] mx-auto">
+        <div className="flex items-end justify-between gap-3 flex-wrap mb-7">
           <div>
-            <h1 className="text-2xl font-bold leading-tight">KPI Bulanan Guru</h1>
-            <p className="text-sm text-muted-foreground mt-0.5">
+            <p className="text-xs font-bold uppercase tracking-[0.1em] text-warning">Kinerja guru</p>
+            <h1 className="mt-2 text-3xl leading-tight md:text-4xl">KPI Bulanan Guru</h1>
+            <p className="text-sm text-muted-foreground mt-1.5">
               {MONTH_NAMES[month - 1]} {year} · {KPI_UNITS.find(u => u.key === unit)?.label}
             </p>
           </div>
-          <Button asChild size="sm" variant="outline">
+          <Button asChild variant="outline">
             <Link href={`/kpi/rapor?unit=${unit}&year=${year}`}>
               <FileText className="h-4 w-4 mr-1" />Rapor Semester
             </Link>
           </Button>
         </div>
 
-        <div className="flex gap-1 rounded-lg bg-muted p-1 mb-3 w-fit overflow-x-auto">
+        <div role="group" aria-label="Unit" className="flex gap-0.5 rounded-[10px] bg-muted p-[3px] mb-4 w-fit overflow-x-auto">
           {KPI_UNITS.map(u => (
             <Link
               key={u.key}
               href={href({ unit: u.key })}
               className={cn(
-                'px-3 py-1.5 rounded-md text-xs font-medium transition-colors whitespace-nowrap',
+                'px-3 py-1.5 rounded-[7px] text-[13px] font-semibold transition-colors whitespace-nowrap',
                 unit === u.key ? 'bg-card shadow-sm' : 'text-muted-foreground hover:text-foreground',
               )}
             >
@@ -127,7 +128,7 @@ export default async function KpiPage({ searchParams }: PageProps) {
               key={m}
               href={href({ month: i + 1 })}
               className={cn(
-                'px-2.5 py-1.5 text-xs whitespace-nowrap border-b-2 -mb-px transition-colors',
+                'px-2.5 py-2 text-[13px] font-medium whitespace-nowrap border-b-2 -mb-px transition-colors',
                 month === i + 1
                   ? 'border-primary font-semibold text-foreground'
                   : 'border-transparent text-muted-foreground hover:text-foreground',
@@ -142,7 +143,7 @@ export default async function KpiPage({ searchParams }: PageProps) {
               key={y}
               href={href({ year: y })}
               className={cn(
-                'px-2.5 py-1.5 text-xs whitespace-nowrap border-b-2 -mb-px transition-colors tabular-nums',
+                'px-2.5 py-2 text-[13px] font-medium whitespace-nowrap border-b-2 -mb-px transition-colors tabular-nums',
                 year === y
                   ? 'border-primary font-semibold text-foreground'
                   : 'border-transparent text-muted-foreground hover:text-foreground',
@@ -153,7 +154,7 @@ export default async function KpiPage({ searchParams }: PageProps) {
           ))}
         </div>
 
-        <p className="text-xs text-muted-foreground mb-3 tabular-nums">
+        <p className="text-sm text-muted-foreground mb-4 tabular-nums">
           <b className="text-foreground">{dinilai.length}</b> dari <b className="text-foreground">{rows.length}</b> guru sudah dinilai
           {rataRata !== null && (
             <> · rata-rata rapot <b className="text-foreground">{rataRata.toFixed(1)}</b></>
@@ -175,12 +176,12 @@ export default async function KpiPage({ searchParams }: PageProps) {
             <p className="text-sm text-muted-foreground">Belum ada guru aktif di unit ini.</p>
           </div>
         ) : (
-          <div className="overflow-x-auto rounded-lg border">
+          <div className="overflow-x-auto rounded-2xl border bg-card">
             <table className="w-full text-xs">
-              <thead className="bg-muted/50">
+              <thead className="bg-muted/60">
                 <tr>
-                  <th className="px-2 py-2 text-left font-medium w-8">#</th>
-                  <th className="px-2 py-2 text-left font-medium min-w-[200px]">Nama Guru</th>
+                  <th className="px-3 py-2.5 text-left font-semibold w-8">#</th>
+                  <th className="px-2 py-2.5 text-left font-semibold min-w-[200px]">Nama Guru</th>
                   {SINGKATAN.map((s, i) => (
                     <th key={s} className="px-2 py-2 text-center font-medium whitespace-nowrap" title={KPI_INDIKATOR[i]}>
                       {s}
@@ -199,8 +200,8 @@ export default async function KpiPage({ searchParams }: PageProps) {
                   const h = r.entry ? nilaiDari(r.entry) : null
                   return (
                     <tr key={r.teacherId} className="border-t hover:bg-muted/30">
-                      <td className="px-2 py-2 text-muted-foreground tabular-nums">{i + 1}</td>
-                      <td className="px-2 py-2 font-medium">
+                      <td className="px-3 py-2.5 text-muted-foreground tabular-nums">{i + 1}</td>
+                      <td className="px-2 py-2.5 font-semibold">
                         {r.fullName}
                         {/*
                           Guru ini dinilai di unit ini pada bulan tersebut, tapi
@@ -279,7 +280,12 @@ export default async function KpiPage({ searchParams }: PageProps) {
                       </td>
                       {h ? (
                         h.nilai.map((n, j) => (
-                          <td key={j} className="px-2 py-2 text-center tabular-nums">{Math.round(n * 10) / 10}</td>
+                          <td key={j} className="px-1 py-1.5 text-center">
+                            {/* Sel berwarna menurut rentang nilai — sama dengan tangga predikat. */}
+                            <span className={cn('inline-flex h-7 min-w-[2.25rem] items-center justify-center rounded-md px-1 font-semibold tabular-nums', nadaSel(n))}>
+                              {Math.round(n * 10) / 10}
+                            </span>
+                          </td>
                         ))
                       ) : (
                         <td colSpan={11} className="px-2 py-2 text-center text-muted-foreground italic">
@@ -289,7 +295,7 @@ export default async function KpiPage({ searchParams }: PageProps) {
                       <td className="px-2 py-2 text-center tabular-nums font-medium">
                         {h ? Math.round(h.total * 10) / 10 : '—'}
                       </td>
-                      <td className="px-2 py-2 text-center tabular-nums font-bold">
+                      <td className="px-2 py-2 text-center font-heading text-lg font-medium tabular-nums">
                         {h ? h.rapot.toFixed(1) : '—'}
                       </td>
                       <td className="px-2 py-2 text-center">
@@ -355,4 +361,16 @@ export default async function KpiPage({ searchParams }: PageProps) {
       </div>
     </div>
   )
+}
+
+/**
+ * Warna sel indikator, mengikuti ambang tangga predikat KPI (91 / 81 / 71 / 61).
+ * Hanya tampilan: nilainya sendiri tetap tertulis di dalam sel.
+ */
+function nadaSel(n: number): string {
+  if (n >= 91) return 'bg-primary text-primary-foreground'
+  if (n >= 81) return 'bg-chart-2/35 text-foreground'
+  if (n >= 71) return 'bg-primary-wash text-foreground'
+  if (n >= 61) return 'bg-warning-wash text-warning'
+  return 'bg-destructive-wash text-destructive'
 }

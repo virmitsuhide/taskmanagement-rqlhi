@@ -256,7 +256,7 @@ export function GanttChart({
   })
 
   return (
-    <div className="overflow-x-auto rounded-xl border bg-card shadow-sm">
+    <div className="overflow-x-auto rounded-2xl border bg-card shadow-sm">
       <div style={{ minWidth: LABEL_W + timeline.widthPx }}>
         {/* ── Sumbu waktu ─────────────────────────────────────────── */}
         <div className="flex border-b bg-muted/40">

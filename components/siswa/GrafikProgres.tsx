@@ -28,10 +28,10 @@ export function GrafikProgres({ data, kode, hrefDasar, tanpaTahsin }: {
 
   return (
     <section id="progres" className="scroll-mt-4">
-      <h2 className="text-sm font-semibold mb-3 flex items-center gap-2">
+      <h2 className="font-heading text-lg font-medium mb-3 flex items-center gap-2">
         <TrendingUp className="h-4 w-4" /> Grafik Progres
       </h2>
-      <div className="rounded-xl border bg-card p-5 space-y-5">
+      <div className="rounded-2xl border bg-card p-5 space-y-5">
         <div className="space-y-2">
           <div className="flex flex-wrap gap-2" role="group" aria-label="Periode progres">
             {URUTAN_PROGRES.map(k => (

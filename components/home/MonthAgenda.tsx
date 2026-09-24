@@ -124,7 +124,7 @@ export function MonthAgenda({ posts, kaldiEvents = [], todayIso, title = "Agenda
   const selectedLabel = `${DAY_FULL[selected.getDay()]}, ${selected.getDate()} ${MONTH_SHORT[selected.getMonth()]} ${selected.getFullYear()}`
 
   return (
-    <div className="rounded-xl border bg-card p-5">
+    <div className="rounded-2xl border bg-card p-5">
       <div className="flex items-start justify-between mb-4">
         <div>
           <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">

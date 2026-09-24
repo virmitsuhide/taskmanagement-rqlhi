@@ -363,7 +363,7 @@ export function SetoranSesiTahsin({ siswa, surat, halaqohId, pengaturan, tanggal
         onTimpa={() => kirim(tertunda.map(b => ({ ...b, timpa: true })))}
         onBatal={() => { setGanda([]); setTertunda([]) }}
       />
-      <div className="flex flex-wrap items-end gap-3 rounded-xl border bg-card p-3">
+      <div className="flex flex-wrap items-end gap-3 rounded-2xl border bg-card p-4">
         <div className="space-y-1">
           <label htmlFor="tanggal_sesi" className="text-xs font-medium">Tanggal setor</label>
           <Input id="tanggal_sesi" type="date" value={tanggal} onChange={e => setTanggal(e.target.value)} readOnly={Boolean(tanggalTetap)} className="h-9 w-44 read-only:bg-muted" />
@@ -412,7 +412,7 @@ export function SetoranSesiTahsin({ siswa, surat, halaqohId, pengaturan, tanggal
                   type="checkbox"
                   checked={kg.dipilih}
                   onChange={e => ubahKelompok(g.kunci, { dipilih: e.target.checked })}
-                  className="mt-1 h-4 w-4 accent-primary"
+                  className="mt-0.5 h-5 w-5 accent-primary"
                 />
                 <span className="min-w-0 flex-1">
                   <span className="flex items-center gap-1.5 text-sm font-semibold">
@@ -441,14 +441,14 @@ export function SetoranSesiTahsin({ siswa, surat, halaqohId, pengaturan, tanggal
                   </div>
 
                   {wakil?.baca_quran && (
-                    <div className="rounded-lg border border-dashed p-2.5">
-                      <p className="mb-1.5 text-xs font-semibold">📖 Bacaan Al-Qur&rsquo;an bersama</p>
+                    <div className="rounded-xl border border-dashed p-2.5">
+                      <p className="mb-1.5 text-xs font-semibold">Bacaan Al-Qur&rsquo;an bersama</p>
                       <BacaanQuranInput value={kg.quran} onChange={q => ubahKelompok(g.kunci, { quran: q })} surat={surat} disabled={pending} />
                     </div>
                   )}
 
                   {/* Anggota: hadir, Lulus/Ulang, dan nilai per anak. */}
-                  <div className="rounded-lg border">
+                  <div className="rounded-xl border">
                     <p className="border-b bg-muted/40 px-2.5 py-1.5 text-[11px] font-semibold">
                       Anggota · {hadir} hadir dari {g.anggota.length}
                     </p>
@@ -464,7 +464,7 @@ export function SetoranSesiTahsin({ siswa, surat, halaqohId, pengaturan, tanggal
                                 checked={!absen}
                                 onChange={e => ubahKelompok(g.kunci, { absen: { ...kg.absen, [s.id]: !e.target.checked } })}
                                 aria-label={`${s.full_name} hadir`}
-                                className="h-4 w-4 accent-primary"
+                                className="h-5 w-5 accent-primary"
                               />
                               <span className="min-w-0 flex-1">
                                 <span className="block truncate text-sm">{s.full_name}</span>
@@ -477,7 +477,7 @@ export function SetoranSesiTahsin({ siswa, surat, halaqohId, pengaturan, tanggal
                                   className={cn('h-8 shrink-0 rounded-md border px-2 text-xs',
                                     st === 'lulus' ? 'border-success bg-success-wash text-success' : 'border-warning bg-warning-wash text-warning')}
                                 >
-                                  {st === 'lulus' ? '✅ Lulus' : '🔁 Ulang'}
+                                  {st === 'lulus' ? 'Lulus' : 'Ulang'}
                                 </button>
                               )}
                               <button type="button" onClick={() => keluarkan(s.id)} title="Keluarkan — setor individual"
@@ -518,7 +518,7 @@ export function SetoranSesiTahsin({ siswa, surat, halaqohId, pengaturan, tanggal
                     className="h-9"
                   />
                   {halamanTerakhir && kg.status === 'lulus' && (
-                    <p className="text-xs text-primary">🎯 Halaman terakhir — anggota yang lulus masuk DRILL sampai lulus ujian tahsin.</p>
+                    <p className="text-xs text-primary">Halaman terakhir — anggota yang lulus masuk DRILL sampai lulus ujian tahsin.</p>
                   )}
                 </div>
               )}
@@ -535,7 +535,7 @@ export function SetoranSesiTahsin({ siswa, surat, halaqohId, pengaturan, tanggal
             <li
               key={s.id}
               className={cn(
-                'rounded-xl border bg-card p-3 transition-colors',
+                'rounded-2xl border bg-card p-3 transition-colors',
                 v.dipilih && 'border-primary/60',
                 v.galat && 'border-destructive',
               )}
@@ -545,10 +545,10 @@ export function SetoranSesiTahsin({ siswa, surat, halaqohId, pengaturan, tanggal
                   type="checkbox"
                   checked={v.dipilih}
                   onChange={e => ubah(s.id, { dipilih: e.target.checked })}
-                  className="mt-1 h-4 w-4 accent-primary"
+                  className="mt-0.5 h-5 w-5 accent-primary"
                 />
                 <span className="min-w-0 flex-1">
-                  <span className="flex flex-wrap items-center gap-1.5 text-sm font-medium">
+                  <span className="flex flex-wrap items-center gap-1.5 text-[15px] font-semibold">
                     {s.full_name}
                     {s.drill_sejak && (
                       <span className="rounded-full bg-warning-wash px-1.5 py-px text-[10px] font-semibold text-warning">DRILL</span>
@@ -593,8 +593,8 @@ export function SetoranSesiTahsin({ siswa, surat, halaqohId, pengaturan, tanggal
                   </div>
 
                   {s.materi.length > 0 && (
-                    <div className="rounded-lg border p-2.5">
-                      <p className="mb-1.5 text-xs font-semibold">🧠 Hafalan {s.jilid_label}</p>
+                    <div className="rounded-xl border p-2.5">
+                      <p className="mb-1.5 text-xs font-semibold">Hafalan {s.jilid_label}</p>
                       <PilihMateri
                         materi={s.materi}
                         hasilTerakhir={s.materi_hasil}
@@ -606,9 +606,9 @@ export function SetoranSesiTahsin({ siswa, surat, halaqohId, pengaturan, tanggal
                   )}
 
                   {s.baca_quran && (
-                    <div className="rounded-lg border border-dashed p-2.5">
+                    <div className="rounded-xl border border-dashed p-2.5">
                       <p className="mb-1.5 text-xs font-semibold">
-                        📖 Bacaan Al-Qur&rsquo;an
+                        Bacaan Al-Qur&rsquo;an
                         {s.total_halaman !== null && (
                           <span className="ml-1.5 font-normal text-muted-foreground">— berjalan bersama hafalan {s.jilid_label}</span>
                         )}
@@ -619,7 +619,7 @@ export function SetoranSesiTahsin({ siswa, surat, halaqohId, pengaturan, tanggal
 
                   <div className="grid gap-2 sm:grid-cols-2">
                     <div key={`t-${v.versi}`}>
-                      <p className="mb-1 text-xs font-medium">Nilai tahsin</p>
+                      <p className="mb-1.5 text-[11px] font-bold uppercase tracking-[0.08em] text-muted-foreground">Nilai tahsin</p>
                       <StarInput
                         name={`nilai_tahsin_${s.id}`}
                         onChange={(b, n) => ubah(s.id, {
@@ -629,7 +629,7 @@ export function SetoranSesiTahsin({ siswa, surat, halaqohId, pengaturan, tanggal
                       />
                     </div>
                     <div key={`s-${v.versi}`}>
-                      <p className="mb-1 text-xs font-medium">Nilai adab</p>
+                      <p className="mb-1.5 text-[11px] font-bold uppercase tracking-[0.08em] text-muted-foreground">Nilai adab</p>
                       <StarInput name={`nilai_sikap_${s.id}`} onChange={(b, n) => ubah(s.id, { nilai_sikap: b > 0 ? n : null })} />
                     </div>
                   </div>
@@ -642,7 +642,7 @@ export function SetoranSesiTahsin({ siswa, surat, halaqohId, pengaturan, tanggal
                   />
 
                   {!s.drill_sejak && s.materi.length === 0 && v.status === 'lulus' && halamanTerakhir && (
-                    <p className="text-xs text-primary">🎯 Halaman terakhir — setelah disimpan anak masuk DRILL sampai lulus ujian tahsin.</p>
+                    <p className="text-xs text-primary">Halaman terakhir — setelah disimpan anak masuk DRILL sampai lulus ujian tahsin.</p>
                   )}
                   {v.galat && <p role="alert" className="text-xs font-medium text-destructive">{v.galat}</p>}
                 </div>
@@ -675,7 +675,7 @@ export function SetoranSesiTahsin({ siswa, surat, halaqohId, pengaturan, tanggal
 
       {/* Tombol simpan menempel di bawah layar — satu sesi bisa belasan
           kartu, dan menggulung kembali ke atas hanya untuk menyimpan melelahkan. */}
-      <div className="sticky bottom-0 -mx-4 border-t bg-background/95 px-4 py-3 backdrop-blur md:mx-0 md:rounded-xl md:border">
+      <div className="sticky bottom-0 -mx-4 border-t bg-card/95 px-4 py-3 shadow-[0_-4px_16px_rgb(23_33_31/0.06)] backdrop-blur md:mx-0 md:rounded-2xl md:border">
         <Button type="button" size="lg" className="w-full" onClick={simpan} disabled={pending || jumlahDipilih === 0}>
           {pending ? 'Menyimpan…' : jumlahDipilih > 0 ? `Simpan ${jumlahDipilih} setoran` : 'Centang anak yang setor'}
         </Button>
@@ -700,7 +700,7 @@ function TombolStatus({ value, onChange }: { value: Status; onChange: (s: Status
               : 'bg-card',
           )}
         >
-          {st === 'lulus' ? '✅ Lulus' : '🔁 Ulang'}
+          {st === 'lulus' ? 'Lulus' : 'Ulang'}
         </button>
       ))}
     </div>

@@ -142,7 +142,7 @@ export function SetoranSesiGukar({
 
   if (terkunci) {
     return (
-      <div className="flex items-start gap-3 rounded-xl border bg-card p-4 text-sm">
+      <div className="flex items-start gap-3 rounded-2xl border bg-card p-4 text-sm">
         <Lock className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
         <p>
           Setoran bulan ini sudah dikunci sebagai <strong>setoran akhir</strong>.
@@ -154,7 +154,7 @@ export function SetoranSesiGukar({
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-end gap-3 rounded-xl border bg-card p-3">
+      <div className="flex flex-wrap items-end gap-3 rounded-2xl border bg-card p-3">
         <div className="space-y-1">
           <label htmlFor="tanggal_setor" className="text-xs font-medium">Tanggal setor</label>
           <Input
@@ -196,7 +196,7 @@ export function SetoranSesiGukar({
             <li
               key={p.id}
               className={cn(
-                'rounded-xl border bg-card p-3 transition-colors',
+                'rounded-2xl border bg-card p-3 transition-colors',
                 v.dipilih && 'border-primary/60',
                 v.galat && 'border-destructive',
               )}
@@ -228,7 +228,7 @@ export function SetoranSesiGukar({
               {v.dipilih && (
                 <div className="mt-3 space-y-3 border-t pt-3 pl-7">
                   <div className="space-y-1.5">
-                    <p className="text-xs font-semibold">📖 Tahsin</p>
+                    <p className="text-xs font-semibold">Tahsin</p>
                     <div className="grid gap-2 sm:grid-cols-3">
                       {!p.metode_id && (
                         <select
@@ -292,7 +292,7 @@ export function SetoranSesiGukar({
 
                   <div className="space-y-1.5">
                     <p className="text-xs font-semibold">
-                      🧠 Tahfidz
+                      Tahfidz
                       {kini?.awal_tanggal && ringkasPosisiTahfidz(
                         { surat: kini.awal_tahfidz_surat, ayat: kini.awal_tahfidz_ayat }, namaSurat,
                       ) && (

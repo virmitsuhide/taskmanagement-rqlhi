@@ -32,10 +32,10 @@ export default async function AsalSiswaPage() {
   return (
     <div>
       <DashboardHeader displayName={session.displayName} role={session.role} title="Asal Siswa SMP" showBack ownH1 />
-      <div className="p-4 md:p-6 max-w-3xl mx-auto space-y-5">
+      <div className="p-4 md:p-8 max-w-3xl mx-auto space-y-5">
         <div>
-          <p className="text-[11px] uppercase tracking-[1.8px] text-muted-foreground">Target Tahfidz</p>
-          <h1 className="text-2xl font-bold leading-tight">Siswa SMP Lulusan SD LHI</h1>
+          <p className="text-xs font-bold uppercase tracking-[0.1em] text-warning">Target Tahfidz</p>
+          <h1 className="text-3xl leading-tight">Siswa SMP Lulusan SD LHI</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
             Yang dicentang memakai target <strong>internal</strong> (hafalan baru mulai juz 29). Selainnya memakai target eksternal (mulai juz 30).
           </p>

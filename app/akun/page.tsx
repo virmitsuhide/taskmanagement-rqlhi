@@ -35,8 +35,8 @@ export default async function AkunPage() {
   return (
     <div>
       <DashboardHeader displayName={session.displayName} role={session.role} title="Akun & Password" showBack ownH1 />
-      <div className="p-4 md:p-6 max-w-3xl mx-auto">
-        <h1 className="text-2xl font-bold leading-tight">Akun &amp; Password</h1>
+      <div className="p-4 md:p-8 max-w-3xl mx-auto">
+        <h1 className="text-3xl leading-tight">Akun &amp; Password</h1>
         <p className="text-sm text-muted-foreground mt-0.5 mb-5">
           {pengurus.length} akun pengurus · {guru.length} akun guru · {karyawan.length} akun karyawan
         </p>
@@ -65,8 +65,8 @@ export default async function AkunPage() {
         </div>
 
         <section className="mb-6">
-          <h2 className="text-sm font-semibold mb-2">Pengurus</h2>
-          <div className="overflow-hidden rounded-xl border bg-card">
+          <h2 className="font-heading text-lg font-medium mb-2">Pengurus</h2>
+          <div className="overflow-hidden rounded-2xl border bg-card">
             {pengurus.length === 0 ? (
               <p className="px-3 py-6 text-center text-sm text-muted-foreground">Belum ada akun pengurus.</p>
             ) : (
@@ -85,8 +85,8 @@ export default async function AkunPage() {
         </section>
 
         <section>
-          <h2 className="text-sm font-semibold mb-2">Guru</h2>
-          <div className="overflow-hidden rounded-xl border bg-card">
+          <h2 className="font-heading text-lg font-medium mb-2">Guru</h2>
+          <div className="overflow-hidden rounded-2xl border bg-card">
             {guru.length === 0 ? (
               <p className="px-3 py-6 text-center text-sm text-muted-foreground">Belum ada akun guru.</p>
             ) : (
@@ -106,8 +106,8 @@ export default async function AkunPage() {
         </section>
 
         <section className="mt-6">
-          <h2 className="text-sm font-semibold mb-2">Karyawan</h2>
-          <div className="overflow-hidden rounded-xl border bg-card">
+          <h2 className="font-heading text-lg font-medium mb-2">Karyawan</h2>
+          <div className="overflow-hidden rounded-2xl border bg-card">
             {karyawan.length === 0 ? (
               <p className="px-3 py-6 text-center text-sm text-muted-foreground">Belum ada akun karyawan.</p>
             ) : (

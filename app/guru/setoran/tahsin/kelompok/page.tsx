@@ -29,9 +29,9 @@ export default async function AturKelompokPage({ searchParams }: PageProps) {
       <div className="mx-auto max-w-3xl space-y-4 px-4 py-6 md:px-6">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <p className="text-[11px] uppercase tracking-[1.8px] text-muted-foreground">Setoran Tahsin</p>
-            <h1 className="text-2xl font-extrabold tracking-tight" style={{ fontFamily: 'var(--font-playfair), Georgia, serif' }}>
-              👥 Atur Kelompok Klasikal
+            <p className="text-xs font-bold uppercase tracking-[0.1em] text-warning">Setoran Tahsin</p>
+            <h1 className="text-3xl tracking-tight" style={{ fontFamily: 'var(--font-playfair), Georgia, serif' }}>
+              Atur Kelompok Klasikal
             </h1>
             <p className="mt-0.5 text-sm text-muted-foreground">Tentukan anak yang membaca bersama. Anak di luar kelompok setor individual.</p>
           </div>

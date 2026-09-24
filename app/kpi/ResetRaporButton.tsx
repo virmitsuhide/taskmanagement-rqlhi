@@ -70,7 +70,7 @@ export function ResetRaporButton({ kpiId, fullName, status, rapot }: Props) {
         role="dialog"
         aria-modal="true"
         aria-label={`Hapus penilaian KPI ${fullName}`}
-        className="fixed left-1/2 top-1/2 z-50 w-[min(92vw,420px)] -translate-x-1/2 -translate-y-1/2 rounded-xl border bg-card p-5 shadow-lg"
+        className="fixed left-1/2 top-1/2 z-50 w-[min(92vw,420px)] -translate-x-1/2 -translate-y-1/2 rounded-2xl border bg-card p-5 shadow-lg"
       >
         <p className="text-sm font-semibold text-destructive">Hapus penilaian KPI?</p>
         <p className="mt-1.5 text-sm">

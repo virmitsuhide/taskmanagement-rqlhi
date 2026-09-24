@@ -52,7 +52,7 @@ export default async function EditStudentPage({ params }: PageProps) {
             <UserPen className="size-5" aria-hidden />
           </span>
           <div className="min-w-0">
-            <h1 className="text-xl font-bold leading-tight md:text-2xl">Edit Siswa</h1>
+            <h1 className="text-3xl leading-tight md:text-2xl">Edit Siswa</h1>
             <p className="truncate text-sm text-muted-foreground">
               {student.full_name}
               {student.nis && <span className="tabular-nums"> &middot; NIS {student.nis}</span>}

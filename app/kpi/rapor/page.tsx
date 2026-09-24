@@ -35,7 +35,7 @@ export default async function RaporSemesterPage({ searchParams }: PageProps) {
   return (
     <div>
       <DashboardHeader displayName={session.displayName} role={session.role} title="Rapor Semester Guru" showBack ownH1 />
-      <div className="p-4 md:p-6 max-w-[1200px] mx-auto">
+      <div className="p-4 md:p-8 max-w-[1200px] mx-auto">
         <Link
           href={`/kpi?unit=${unit}&year=${year}`}
           className="mb-4 inline-flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
@@ -43,7 +43,7 @@ export default async function RaporSemesterPage({ searchParams }: PageProps) {
           <ArrowLeft className="h-3.5 w-3.5" />Kembali ke KPI bulanan
         </Link>
 
-        <h1 className="text-2xl font-bold leading-tight">Rapor Semester Guru Qur&apos;an</h1>
+        <h1 className="text-3xl leading-tight">Rapor Semester Guru Qur&apos;an</h1>
         <p className="text-sm text-muted-foreground mt-0.5 mb-5">
           Semester {semester === 'ganjil' ? 'Ganjil' : 'Genap'} {year} · {KPI_UNITS.find(u => u.key === unit)?.label}
         </p>
@@ -159,7 +159,7 @@ export default async function RaporSemesterPage({ searchParams }: PageProps) {
             </p>
 
             <section className="mt-6">
-              <h2 className="text-sm font-semibold mb-2">Skala Level & Tindak Lanjut</h2>
+              <h2 className="font-heading text-lg font-medium mb-2">Skala Level & Tindak Lanjut</h2>
               <div className="overflow-x-auto rounded-lg border">
                 <table className="w-full text-xs">
                   <thead className="bg-muted/50">

@@ -49,7 +49,7 @@ export default async function KeranjangSampahRapatPage() {
   return (
     <div>
       <DashboardHeader displayName={session.displayName} role={session.role} title="Keranjang Sampah" />
-      <div className="p-4 md:p-6 max-w-4xl mx-auto space-y-5">
+      <div className="p-4 md:p-8 max-w-4xl mx-auto space-y-5">
         <div>
           <Button asChild size="sm" variant="ghost" className="-ml-2 mb-2">
             <Link href="/rapat"><ArrowLeft className="h-4 w-4" />Kembali ke daftar rapat</Link>
@@ -73,7 +73,7 @@ export default async function KeranjangSampahRapatPage() {
         ) : (
           <div className="space-y-3">
             {meetings.map(m => (
-              <div key={m.id} className="rounded-xl border bg-card p-4 space-y-3">
+              <div key={m.id} className="rounded-2xl border bg-card p-4 space-y-3">
                 <div className="flex items-start justify-between gap-3 flex-wrap">
                   <div className="min-w-0">
                     <p className="font-medium leading-snug">{m.subject}</p>

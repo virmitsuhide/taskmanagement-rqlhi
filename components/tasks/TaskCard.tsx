@@ -42,7 +42,7 @@ export function TaskCard({ task, showAssignee = true, showAssigner = false, hash
   return (
     <Link
       href={hash ? `/tasks/${task.id}#${hash}` : `/tasks/${task.id}`}
-      className="group relative block overflow-hidden rounded-xl border bg-card p-4 shadow-sm transition hover:border-foreground/25 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className="group relative block overflow-hidden rounded-2xl border bg-card p-4 shadow-[0_1px_2px_rgb(23_33_31/0.05)] transition hover:border-primary/40 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
       <span
         className={`absolute left-0 top-3 bottom-3 w-1 rounded-r ${STATUS_BAR[task.status] ?? 'bg-muted-foreground/30'}`}
@@ -50,7 +50,7 @@ export function TaskCard({ task, showAssignee = true, showAssigner = false, hash
       />
 
       <div className="flex items-start justify-between gap-2 mb-1.5 pl-2">
-        <h3 className={`font-medium text-sm leading-snug flex-1 ${task.status === 'done' ? 'text-muted-foreground line-through decoration-1' : ''}`}>
+        <h3 className={`font-semibold text-sm leading-snug flex-1 ${task.status === 'done' ? 'text-muted-foreground line-through decoration-1' : ''}`}>
           {task.title}
         </h3>
         <div className="flex flex-col gap-1 items-end shrink-0">

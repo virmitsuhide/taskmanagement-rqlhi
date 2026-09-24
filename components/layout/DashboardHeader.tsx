@@ -60,7 +60,7 @@ export function DashboardHeader({ role, title, showBack, breadcrumbs, ownH1 }: P
           {title && (
             ownH1
               ? <p className="font-heading text-lg font-medium truncate">{title}</p>
-              : <h1 className="font-heading text-lg font-medium truncate">{title}</h1>
+              : <h1 className="font-heading text-3xl font-medium truncate">{title}</h1>
           )}
         </div>
         <div className="flex items-center gap-1.5 shrink-0">

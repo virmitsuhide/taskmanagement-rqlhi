@@ -54,10 +54,10 @@ export function KalenderUjian({ events, year, month, todayWIB }: Props) {
   const acaraTerpilih = dipilih ? (perTanggal[dipilih] ?? []) : []
 
   return (
-    <div className="overflow-hidden rounded-xl border bg-card">
+    <div className="overflow-hidden rounded-2xl border bg-card">
       <div className="flex items-center justify-between gap-2 border-b px-4 py-3">
         <div>
-          <h2 className="text-sm font-semibold">
+          <h2 className="font-heading text-lg font-medium">
             Jadwal ujian — {BULAN_ID[month]} {year}
           </h2>
           <p className="mt-0.5 text-xs text-muted-foreground">

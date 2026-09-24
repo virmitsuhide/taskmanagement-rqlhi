@@ -56,7 +56,7 @@ export default async function GukarGroupPage({ params, searchParams }: PageProps
 
   return (
     <div>
-      <div className="p-4 md:p-6 max-w-5xl mx-auto">
+      <div className="p-4 md:p-8 max-w-5xl mx-auto">
         <Link
           href="/guru/gukar"
           className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
@@ -64,7 +64,7 @@ export default async function GukarGroupPage({ params, searchParams }: PageProps
           <ArrowLeft className="h-4 w-4" />Kelompok saya
         </Link>
 
-        <h1 className="mt-2 text-2xl font-bold leading-tight">{group.name}</h1>
+        <h1 className="mt-2 text-3xl leading-tight">{group.name}</h1>
         <p className="text-sm text-muted-foreground">
           {participants.length} peserta{group.unit ? ` · ${group.unit}` : ''}
           {term ? ` · ${formatTerm(term)}` : ''}

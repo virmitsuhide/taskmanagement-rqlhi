@@ -52,7 +52,7 @@ export default async function LaporanOrtuPage({ searchParams }: PageProps) {
     <div className="min-h-screen" style={{ background: 'var(--secondary)' }}>
       <div className="mx-auto max-w-4xl space-y-5 px-4 py-6 md:px-6 print:max-w-none print:p-0">
         <div className="print:hidden">
-          <p className="text-[11px] uppercase tracking-[1.8px] text-muted-foreground">Laporan</p>
+          <p className="text-xs font-bold uppercase tracking-[0.1em] text-warning">Laporan</p>
           <h1 className="text-2xl font-extrabold tracking-tight" style={{ fontFamily: 'var(--font-playfair), Georgia, serif' }}>
             Laporan Orang Tua
           </h1>

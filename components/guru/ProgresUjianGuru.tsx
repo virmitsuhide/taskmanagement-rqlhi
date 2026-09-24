@@ -136,10 +136,10 @@ export function ProgresUjianGuru({ teacherId, tahfidz, tahsin, idSiswa, tersembu
   const [terbuka, setTerbuka] = useState<Set<string>>(() => new Set())
 
   return (
-    <section className="mb-6 rounded-xl border bg-card">
+    <section className="mb-6 rounded-2xl border bg-card">
       <div className="flex flex-wrap items-center gap-2 border-b px-4 py-2.5">
         <ScrollText className="h-4 w-4 text-muted-foreground" />
-        <h2 className="text-sm font-semibold">Progres Ujian Anak</h2>
+        <h2 className="font-heading text-lg font-medium">Progres Ujian Anak</h2>
         {berjalan > 0 && (
           <span className="rounded-full bg-primary-wash px-2 py-0.5 text-[11px] font-medium text-primary">
             {berjalan} berjalan

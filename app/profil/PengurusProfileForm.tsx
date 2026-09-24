@@ -113,7 +113,7 @@ export function PengurusProfileForm({ profile, amanahLabel }: Props) {
     <form action={action} className="space-y-8">
       {/* ── Foto & sapaan ─────────────────────────────────────── */}
       <section className="space-y-4">
-        <h2 className="text-sm font-semibold">Identitas</h2>
+        <h2 className="font-heading text-lg font-medium">Identitas</h2>
 
         <div className="flex items-start gap-4">
           <PhotoAdjuster

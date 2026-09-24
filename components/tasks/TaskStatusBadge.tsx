@@ -5,11 +5,11 @@ import type { TaskStatus, TaskPriority, TaskWeight } from '@/types'
 type BadgeVariant = React.ComponentProps<typeof Badge>['variant']
 
 const STATUS_CONFIG: Record<TaskStatus, { label: string; variant: BadgeVariant; className?: string }> = {
-  todo: { label: 'To Do', variant: 'outline', className: 'text-muted-foreground' },
-  in_progress: { label: 'In Progress', variant: 'info' },
-  problem: { label: 'Problem', variant: 'destructive' },
-  submitted: { label: 'Review', variant: 'warning' },
-  done: { label: 'Done', variant: 'success' },
+  todo: { label: 'Belum mulai', variant: 'outline', className: 'text-muted-foreground' },
+  in_progress: { label: 'Dikerjakan', variant: 'info' },
+  problem: { label: 'Ada kendala', variant: 'destructive' },
+  submitted: { label: 'Diserahkan', variant: 'warning' },
+  done: { label: 'Selesai', variant: 'success' },
   returned: { label: 'Dikembalikan', variant: 'destructive' },
 }
 

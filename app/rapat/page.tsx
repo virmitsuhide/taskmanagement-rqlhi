@@ -173,7 +173,7 @@ export default async function RapatPage({ searchParams }: PageProps) {
   return (
     <div>
       <DashboardHeader displayName={session.displayName} role={session.role} title="Rapat & Notulen" />
-      <div className="p-4 md:p-6 max-w-4xl mx-auto space-y-5">
+      <div className="p-4 md:p-8 max-w-4xl mx-auto space-y-5">
         <div className="flex items-end justify-between gap-3 flex-wrap">
           <div>
             <p className="text-2xl font-bold leading-tight">Rapat &amp; Notulen</p>
@@ -246,7 +246,7 @@ export default async function RapatPage({ searchParams }: PageProps) {
           </div>
         ) : (
           <>
-            <div className="overflow-x-auto rounded-xl border bg-card">
+            <div className="overflow-x-auto rounded-2xl border bg-card">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b text-left text-[11px] uppercase tracking-wider text-muted-foreground">

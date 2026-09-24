@@ -100,7 +100,7 @@ export default async function ProfilPage() {
   return (
     <div>
       <DashboardHeader displayName={session.displayName} role={session.role} title="Profil" />
-      <div className="p-4 md:p-6 max-w-2xl mx-auto">
+      <div className="p-4 md:p-8 max-w-2xl mx-auto">
         <div className="mb-6 flex items-center gap-4 p-4 rounded-lg border bg-muted/30">
           <div className="h-14 w-14 rounded-full overflow-hidden bg-muted flex items-center justify-center shrink-0 border">
             {fotoUrl ? (
@@ -182,7 +182,7 @@ export default async function ProfilPage() {
         )}
 
         <div className="border-t pt-6">
-          <h2 className="text-sm font-semibold mb-4">Akun</h2>
+          <h2 className="font-heading text-lg font-medium mb-4">Akun</h2>
           <ProfileForm user={profile} />
         </div>
       </div>

@@ -175,8 +175,8 @@ function DailySubForm({
       )}
 
       {/* Surat + ayat */}
-      <fieldset className="border-t pt-4 space-y-3">
-        <legend className="text-sm font-semibold mb-1">Materi</legend>
+      <fieldset className="rounded-2xl border bg-card p-4 md:p-5 [&>legend]:float-left [&>legend]:w-full [&>legend+*]:clear-both space-y-3">
+        <legend className="font-heading text-lg font-medium mb-3">Materi</legend>
         <input type="hidden" name="surat_ke_id" value={suratKeId ?? ''} />
 
         {lintas ? (
@@ -281,7 +281,7 @@ function DailySubForm({
       <ScoreFields />
 
       {/* Catatan + tanggal */}
-      <div className="grid grid-cols-1 sm:grid-cols-[1fr_180px] gap-3 border-t pt-4">
+      <div className="grid grid-cols-1 sm:grid-cols-[1fr_180px] gap-3 rounded-2xl border bg-card p-4 md:p-5">
         <div className="space-y-1.5">
           <Label htmlFor="catatan">Catatan Guru</Label>
           <Textarea id="catatan" name="catatan" rows={2} placeholder="contoh: lancar, perlu perbaikan waqaf..." disabled={isPending} />
@@ -300,7 +300,7 @@ function DailySubForm({
       />
 
       {state?.error && (
-        <p className="text-sm text-destructive bg-destructive/10 px-3 py-2 rounded-md">{state.error}</p>
+        <p className="text-sm font-medium text-destructive bg-destructive-wash px-4 py-3 rounded-xl">{state.error}</p>
       )}
 
       <div className="flex gap-2 pt-2">
@@ -318,8 +318,8 @@ function DailySubForm({
 // ─── Penilaian (dipakai bersama) ────────────────────────────────────
 function ScoreFields() {
   return (
-    <fieldset className="border-t pt-4">
-      <legend className="text-sm font-semibold mb-3">Penilaian</legend>
+    <fieldset className="rounded-2xl border bg-card p-4 md:p-5 [&>legend]:float-left [&>legend]:w-full [&>legend+*]:clear-both">
+      <legend className="font-heading text-lg font-medium mb-3">Penilaian</legend>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-muted/30 rounded-lg p-4">
         <div>
           <p className="text-xs font-medium mb-1.5">Nilai Tahfidz</p>

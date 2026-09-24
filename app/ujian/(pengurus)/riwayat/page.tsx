@@ -40,9 +40,9 @@ export default async function RiwayatUjianPage({ searchParams }: PageProps) {
         breadcrumbs={[{ label: 'Ujian', href: '/ujian/kelola' }, { label: 'Riwayat' }]}
       />
 
-      <div className="p-4 md:p-6 max-w-3xl mx-auto space-y-5">
+      <div className="p-4 md:p-8 max-w-3xl mx-auto space-y-5">
         <div>
-          <h1 className="text-2xl font-bold leading-tight">Riwayat Ujian per Penguji</h1>
+          <h1 className="text-3xl leading-tight">Riwayat Ujian per Penguji</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             {units.join(' & ')} · ujian yang sudah terlaksana, dikelompokkan menurut pengujinya.
           </p>

@@ -43,7 +43,7 @@ export default async function AnggaranPage({ searchParams }: PageProps) {
       <div className="p-4 md:p-6 space-y-5 max-w-5xl">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h1 className="text-lg font-semibold">Anggaran</h1>
+            <h1 className="text-3xl">Anggaran</h1>
             <p className="text-sm text-muted-foreground">
               Pembanding realisasi di tabel 1.5 laporan. Realisasinya terisi sendiri dari transaksi.
             </p>

@@ -14,11 +14,11 @@ export interface BoardColumn {
 
 // 'returned' (dikembalikan setelah review) jatuh kembali ke To Do.
 export const BOARD_COLUMNS: { key: BoardColumnKey; label: string; statuses: TaskStatus[] }[] = [
-  { key: 'todo',        label: 'To Do',       statuses: ['todo', 'returned'] },
-  { key: 'in_progress', label: 'In Progress', statuses: ['in_progress'] },
-  { key: 'problem',     label: 'Problem',     statuses: ['problem'] },
-  { key: 'submitted',   label: 'Review',      statuses: ['submitted'] },
-  { key: 'done',        label: 'Done',        statuses: ['done'] },
+  { key: 'todo',        label: 'Belum mulai', statuses: ['todo', 'returned'] },
+  { key: 'in_progress', label: 'Dikerjakan',  statuses: ['in_progress'] },
+  { key: 'problem',     label: 'Ada kendala', statuses: ['problem'] },
+  { key: 'submitted',   label: 'Diserahkan',  statuses: ['submitted'] },
+  { key: 'done',        label: 'Selesai',     statuses: ['done'] },
 ]
 
 /** Jumlah task 'done' maksimum yang ditampilkan di kolom (hindari kolom membengkak). */

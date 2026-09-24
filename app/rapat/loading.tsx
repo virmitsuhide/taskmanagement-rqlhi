@@ -7,7 +7,7 @@ export default function Loading() {
         <Skeleton className="h-7 w-7 rounded-md" />
         <Skeleton className="h-5 w-32" />
       </div>
-      <div className="p-4 md:p-6 max-w-4xl mx-auto space-y-6">
+      <div className="p-4 md:p-8 max-w-4xl mx-auto space-y-6">
         <div className="flex items-end justify-between">
           <div className="space-y-2">
             <Skeleton className="h-8 w-44" />

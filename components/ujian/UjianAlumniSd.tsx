@@ -45,7 +45,7 @@ export function UjianAlumniSd({ siswa }: { siswa: UjianAlumniSd[] }) {
 
   return (
     <div className="space-y-4">
-      <div className="rounded-xl border bg-card p-4">
+      <div className="rounded-2xl border bg-card p-4">
         <p className="text-xs font-medium mb-2">Isian bawaan untuk setiap catatan baru</p>
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="space-y-1.5">
@@ -79,8 +79,8 @@ export function UjianAlumniSd({ siswa }: { siswa: UjianAlumniSd[] }) {
       {tampil.length === 0 ? (
         <p className="rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">Semua alumni sudah punya catatan ujian.</p>
       ) : perKelas.map(([kelas, anggota]) => (
-        <section key={kelas} className="rounded-xl border bg-card">
-          <h2 className="border-b px-4 py-2.5 text-sm font-semibold">Kelas {kelas} <span className="font-normal text-muted-foreground">· {anggota.length} siswa</span></h2>
+        <section key={kelas} className="rounded-2xl border bg-card">
+          <h2 className="font-heading text-lg font-medium border-b px-4 py-2.5">Kelas {kelas} <span className="font-normal text-muted-foreground">· {anggota.length} siswa</span></h2>
           <ul className="divide-y">
             {anggota.map(s => (
               <li key={s.id} className="px-4 py-3">

@@ -37,9 +37,9 @@ export default async function ProgresSesiPage({ searchParams }: PageProps) {
     <div className="min-h-screen" style={{ background: 'var(--secondary)' }}>
       <div className="max-w-6xl mx-auto px-4 md:px-6 py-6 space-y-4">
         <div>
-          <p className="text-[11px] uppercase tracking-[1.8px] text-muted-foreground">Rekap Setoran</p>
+          <p className="text-xs font-bold uppercase tracking-[0.1em] text-warning">Rekap Setoran</p>
           <h1
-            className="text-2xl font-extrabold tracking-tight"
+            className="text-3xl tracking-tight"
             style={{ fontFamily: 'var(--font-playfair), Georgia, serif' }}
           >
             Progres per Sesi
@@ -60,7 +60,7 @@ export default async function ProgresSesiPage({ searchParams }: PageProps) {
                 j === jenis ? 'border-primary bg-primary-wash font-semibold text-primary' : 'bg-card hover:bg-accent',
               )}
             >
-              {j === 'tahsin' ? '📖 Tahsin' : '✨ Tahfidz'}
+              {j === 'tahsin' ? 'Tahsin' : 'Tahfidz'}
             </Link>
           ))}
         </div>

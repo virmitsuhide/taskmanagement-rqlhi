@@ -94,7 +94,7 @@ export default async function RekapTasmiPage({ searchParams }: PageProps) {
     <div>
       <DashboardHeader displayName={session.displayName} role={session.role} title="Rekap Tasmi'" showBack ownH1
         breadcrumbs={[{ label: 'Ujian', href: '/ujian/kelola' }, { label: "Rekap Tasmi'" }]} />
-      <div className="mx-auto max-w-6xl space-y-5 p-4 md:p-6">
+      <div className="mx-auto max-w-6xl space-y-5 p-4 md:p-8">
         <UjianSubNav />
 
         <DashTop

@@ -44,7 +44,7 @@ export default async function TugasRutinBaruPage({ searchParams }: PageProps) {
       />
 
       <div className="flex-1 bg-muted/50 dark:bg-background">
-        <div className="mx-auto max-w-2xl p-4 md:p-6">
+        <div className="mx-auto max-w-2xl p-4 md:p-8">
           <Button asChild variant="ghost" size="sm" className="-ml-2 mb-3">
             <Link href="/tugas-rutin">
               <ArrowLeft className="mr-1 h-4 w-4" />Kembali ke checklist
@@ -52,7 +52,7 @@ export default async function TugasRutinBaruPage({ searchParams }: PageProps) {
           </Button>
 
           <div className="mb-5">
-            <h1 className="text-2xl font-bold leading-tight">Tambah Tugas Rutin</h1>
+            <h1 className="text-3xl leading-tight">Tambah Tugas Rutin</h1>
             <p className="mt-0.5 text-sm text-muted-foreground">
               Setelah disimpan, tugas ini muncul di checklist Anda dan bisa dicentang
               tiap periodenya.

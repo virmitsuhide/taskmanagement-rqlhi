@@ -47,7 +47,7 @@ export function PemetaanUjian({ baris }: { baris: BarisPemetaan[] }) {
   return (
     <div className="space-y-6">
       <section>
-        <h2 className="mb-1 text-sm font-semibold">
+        <h2 className="font-heading text-lg font-medium mb-1">
           Belum dipasangkan ({belum.length})
         </h2>
         <p className="mb-3 text-xs text-muted-foreground">
@@ -67,7 +67,7 @@ export function PemetaanUjian({ baris }: { baris: BarisPemetaan[] }) {
 
       {sudah.length > 0 && (
         <section>
-          <h2 className="mb-3 text-sm font-semibold">Sudah dipasangkan ({sudah.length})</h2>
+          <h2 className="font-heading text-lg font-medium mb-3">Sudah dipasangkan ({sudah.length})</h2>
           <div className="space-y-2">
             {sudah.map(b => <BarisSudah key={b.id} baris={b} />)}
           </div>
@@ -102,7 +102,7 @@ function Baris({ baris }: { baris: BarisPemetaan }) {
   }
 
   return (
-    <div className="rounded-xl border bg-card p-4">
+    <div className="rounded-2xl border bg-card p-4">
       <div className="mb-3">
         <p className="font-medium">{baris.nama_siswa}</p>
         <p className="text-xs text-muted-foreground">

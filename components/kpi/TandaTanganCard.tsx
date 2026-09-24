@@ -34,8 +34,8 @@ export function TandaTanganCard({ aksi, src, fokus, nama, keterangan }: Props) {
   const [state, formAction, pending] = useActionState(aksi, null)
 
   return (
-    <form action={formAction} className="rounded-xl border bg-card p-4">
-      <h2 className="text-sm font-semibold">Tanda Tangan</h2>
+    <form action={formAction} className="rounded-2xl border bg-card p-4">
+      <h2 className="font-heading text-lg font-medium">Tanda Tangan</h2>
       <p className="mb-3 mt-0.5 text-xs text-muted-foreground">{keterangan}</p>
 
       <TandaTanganField src={src} initial={fokus} nama={nama} />

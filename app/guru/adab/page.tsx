@@ -44,9 +44,9 @@ export default async function CatatanAdabPage({ searchParams }: PageProps) {
     <div className="min-h-screen" style={{ background: 'var(--secondary)' }}>
       <div className="max-w-4xl mx-auto px-4 md:px-6 py-6 space-y-4">
         <div>
-          <p className="text-[11px] uppercase tracking-[1.8px] text-muted-foreground">Rekap Setoran</p>
+          <p className="text-xs font-bold uppercase tracking-[0.1em] text-warning">Rekap Setoran</p>
           <h1
-            className="text-2xl font-extrabold tracking-tight"
+            className="text-3xl tracking-tight"
             style={{ fontFamily: 'var(--font-playfair), Georgia, serif' }}
           >
             Catatan Adab
@@ -66,18 +66,18 @@ export default async function CatatanAdabPage({ searchParams }: PageProps) {
             <FilterSesiBulan basePath="/guru/adab" daftar={daftar} halaqoh={halaqoh} periode={periode} semua={daftar.length > 1} />
 
             <div className="grid grid-cols-3 gap-3">
-              <div className="rounded-xl border bg-card p-4">
+              <div className="rounded-2xl border bg-card p-4">
                 <p className="text-xs text-muted-foreground">Anak tercatat</p>
                 <p className="text-2xl font-bold mt-1.5 leading-none">
                   {data.siswa.length.toLocaleString('id-ID')}
                   <span className="ml-1 text-sm font-normal text-muted-foreground">/ {data.jumlahSiswa.toLocaleString('id-ID')}</span>
                 </p>
               </div>
-              <div className="rounded-xl border bg-card p-4">
+              <div className="rounded-2xl border bg-card p-4">
                 <p className="text-xs text-muted-foreground">Kejadian adab rendah</p>
                 <p className="text-2xl font-bold mt-1.5 leading-none">{data.totalRendah.toLocaleString('id-ID')}</p>
               </div>
-              <div className="rounded-xl border bg-card p-4">
+              <div className="rounded-2xl border bg-card p-4">
                 <p className="text-xs text-muted-foreground">Setoran dinilai adabnya</p>
                 <p className="text-2xl font-bold mt-1.5 leading-none">{data.totalDinilai.toLocaleString('id-ID')}</p>
               </div>
@@ -94,7 +94,7 @@ export default async function CatatanAdabPage({ searchParams }: PageProps) {
             ) : (
               <ul className="space-y-2">
                 {data.siswa.map(s => (
-                  <li key={s.id} className="rounded-xl border bg-card p-4">
+                  <li key={s.id} className="rounded-2xl border bg-card p-4">
                     <div className="flex flex-wrap items-baseline justify-between gap-2">
                       <div>
                         <Link href={`/guru/siswa/${s.id}`} className="font-semibold hover:underline">{s.nama}</Link>

@@ -17,8 +17,8 @@ export default async function NewTeacherPage() {
         breadcrumbs={[{ label: 'Ustadz', href: '/ustadz' }, { label: 'Tambah Guru' }]}
         showBack
       />
-      <div className="p-4 md:p-6 max-w-5xl mx-auto">
-        <h1 className="text-2xl font-bold leading-tight mb-1">Tambah Akun Guru</h1>
+      <div className="p-4 md:p-8 max-w-5xl mx-auto">
+        <h1 className="text-3xl leading-tight mb-1">Tambah Akun Guru</h1>
         <p className="text-sm text-muted-foreground mb-6">
           Akun ini akan dipakai guru untuk login ke <code className="px-1 py-0.5 bg-muted rounded text-xs">/guru/login</code>
         </p>

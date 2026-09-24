@@ -276,7 +276,7 @@ export function MeetingForm({ allowedTypes, action, defaultValues, submitLabel =
       </Card>
 
       {/* ── Aksi ─────────────────────────────────────────────────────────── */}
-      <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
+      <div className="overflow-hidden rounded-2xl border bg-card shadow-sm">
         {state?.error && (
           <p className="border-b bg-destructive/10 px-4 py-2.5 text-sm text-destructive">
             {state.error}

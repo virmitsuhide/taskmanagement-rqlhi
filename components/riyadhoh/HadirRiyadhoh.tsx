@@ -48,9 +48,9 @@ export function HadirRiyadhoh({ tanggal, peserta, hadir, terkunci }: {
   }
 
   return (
-    <section className="space-y-3 rounded-xl border bg-card p-3">
+    <section className="space-y-3 rounded-2xl border bg-card p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-sm font-semibold">Kehadiran <span className="font-normal text-muted-foreground">· {jumlahHadir}/{peserta.length} hadir</span></h2>
+        <h2 className="font-heading text-lg font-medium">Kehadiran <span className="font-normal text-muted-foreground">· {jumlahHadir}/{peserta.length} hadir</span></h2>
         {!terkunci && (
           <Button size="sm" variant="outline" onClick={() => setIsi(v => Object.fromEntries(peserta.map(p => [p.id, v[p.id] ?? 'hadir'])))}>
             Sisanya hadir

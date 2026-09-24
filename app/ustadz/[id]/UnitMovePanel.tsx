@@ -72,7 +72,7 @@ export function UnitMovePanel({ teacherId, teacherName, currentUnit, riwayat }: 
 
   return (
     <section>
-      <h2 className="text-base font-semibold mb-3 flex items-center gap-2">
+      <h2 className="font-heading text-lg font-medium mb-3 flex items-center gap-2">
         <ArrowRightLeft className="h-4 w-4" />
         Unit Penempatan
       </h2>

@@ -56,7 +56,7 @@ export default async function RapatDetailPage({ params }: { params: Promise<{ id
         breadcrumbs={[{ label: 'Rapat & Notulen', href: '/rapat' }, { label: m.subject }]}
         ownH1
       />
-      <div className="p-4 md:p-6 max-w-3xl mx-auto">
+      <div className="p-4 md:p-8 max-w-3xl mx-auto">
         <div className="flex items-center justify-between gap-2 mb-4 print:hidden">
           <Button asChild variant="ghost" size="sm">
             <Link href="/rapat"><ArrowLeft className="h-4 w-4 mr-1" />Kembali</Link>
@@ -78,11 +78,11 @@ export default async function RapatDetailPage({ params }: { params: Promise<{ id
         </div>
 
         {/* Meeting header card */}
-        <div className="rounded-xl border bg-card p-5 md:p-6 mb-6">
+        <div className="rounded-2xl border bg-card p-5 md:p-6 mb-6">
           <Badge variant="outline" className="mb-3 text-[10px] font-medium uppercase tracking-wide">
             {MEETING_TYPE_LABELS[m.type]}
           </Badge>
-          <h1 className="text-xl md:text-2xl font-bold leading-tight tracking-tight">{m.subject}</h1>
+          <h1 className="text-3xl md:text-2xl leading-tight tracking-tight">{m.subject}</h1>
 
           <div className="grid sm:grid-cols-2 gap-y-2 gap-x-6 mt-4 text-sm">
             <InfoRow icon={<Calendar className="h-4 w-4" />} label="Tanggal" value={formatDate(m.date)} />
@@ -120,7 +120,7 @@ export default async function RapatDetailPage({ params }: { params: Promise<{ id
         {/* Agenda items */}
         <div>
           <div className="flex items-center justify-between mb-4">
-            <h2 className="font-semibold text-base">
+            <h2 className="font-heading text-lg font-medium">
               Notulen Rapat
               <span className="ml-2 text-xs font-normal text-muted-foreground">
                 ({items.length} poin)
@@ -140,7 +140,7 @@ export default async function RapatDetailPage({ params }: { params: Promise<{ id
                 const style = agendaTagStyle(item.tag)
                 const label = AGENDA_TAG_LABELS[item.tag] ?? 'Lainnya'
                 return (
-                  <div key={item.id} className="relative rounded-xl border bg-card p-4 pl-5 overflow-hidden">
+                  <div key={item.id} className="relative rounded-2xl border bg-card p-4 pl-5 overflow-hidden">
                     <span className={`absolute left-0 top-0 bottom-0 w-1 ${style.bar}`} aria-hidden />
                     <div className="flex items-center justify-between gap-3 mb-2">
                       <span className="text-xs text-muted-foreground font-medium">Poin #{idx + 1}</span>

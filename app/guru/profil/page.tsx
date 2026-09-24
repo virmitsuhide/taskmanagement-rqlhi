@@ -63,9 +63,9 @@ export default async function ProfilGuruSendiriPage() {
 
   return (
     <div className="min-h-screen">
-      <div className="mx-auto max-w-3xl p-4 md:p-6">
+      <div className="mx-auto max-w-3xl p-4 md:p-8">
         <h1
-          className="text-2xl font-bold leading-tight"
+          className="text-3xl leading-tight"
           style={{ fontFamily: 'var(--font-playfair), Georgia, serif' }}
         >
           Profil Saya

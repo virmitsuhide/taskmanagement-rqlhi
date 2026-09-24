@@ -48,7 +48,7 @@ export function SectionsForm({ sections }: { sections: HomeSection[] }) {
         {order.map((section, i) => {
           const meta = SECTION_META[section.key]
           return (
-            <div key={section.key} className="rounded-xl border bg-card p-4">
+            <div key={section.key} className="rounded-2xl border bg-card p-4">
               <input type="hidden" name={`order_${section.key}`} value={i} />
 
               <div className="flex items-start gap-3">

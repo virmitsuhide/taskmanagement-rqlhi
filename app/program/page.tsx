@@ -16,7 +16,7 @@ export default async function ProgramPage() {
     <div>
       <PublicHeader />
 
-      <div className="p-4 md:p-6 max-w-5xl mx-auto pb-16">
+      <div className="p-4 md:p-8 max-w-5xl mx-auto pb-16">
         <div className="flex items-start justify-between gap-4 mb-7 flex-wrap">
           <div>
             <Link
@@ -51,7 +51,7 @@ export default async function ProgramPage() {
                 <Link
                   key={program.slug}
                   href={`/program/${program.slug}`}
-                  className="group flex flex-col rounded-xl border bg-card overflow-hidden transition-all hover:shadow-md hover:border-foreground/20"
+                  className="group flex flex-col rounded-2xl border bg-card overflow-hidden transition-all hover:shadow-md hover:border-foreground/20"
                 >
                   {/* Gambar artikel; kalau kosong pakai gradasi aksen + ikon */}
                   <div className="relative w-full aspect-[16/10] overflow-hidden border-b">

@@ -159,9 +159,9 @@ export function GuruProfileForm({ profile, scope }: Props) {
 
       {/* ── Kepegawaian (admin saja) ─────────────────── */}
       {adminScope && (
-        <section className="space-y-4 rounded-xl border bg-card p-4 shadow-sm">
+        <section className="space-y-4 rounded-2xl border bg-card p-4 shadow-sm">
           <div>
-            <h2 className="text-sm font-semibold">Kepegawaian</h2>
+            <h2 className="font-heading text-lg font-medium">Kepegawaian</h2>
             <p className="mt-0.5 text-[11px] text-muted-foreground">
               {karyawanScope
                 ? 'Hanya admin yang bisa mengubah bagian ini.'
@@ -285,8 +285,8 @@ export function GuruProfileForm({ profile, scope }: Props) {
       )}
 
       {/* ── Data diri ─────────────────────────────────────────── */}
-      <section className="space-y-4 rounded-xl border bg-card p-4 shadow-sm">
-        <h2 className="text-sm font-semibold">Data Diri</h2>
+      <section className="space-y-4 rounded-2xl border bg-card p-4 shadow-sm">
+        <h2 className="font-heading text-lg font-medium">Data Diri</h2>
         {scope === 'guru' && (
           <p className="-mt-2 text-[11px] text-muted-foreground">
             Nama lengkap, NIP, unit, dan TMT dikelola SDM. Kalau ada yang keliru,

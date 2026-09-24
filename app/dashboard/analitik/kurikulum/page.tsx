@@ -48,15 +48,15 @@ export default async function KurikulumPage({ searchParams }: PageProps) {
         ownH1
       />
 
-      <div className="p-4 md:p-6 max-w-5xl mx-auto space-y-6">
+      <div className="p-4 md:p-8 max-w-5xl mx-auto space-y-6">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <p className="text-[11px] uppercase tracking-[1.8px] text-muted-foreground">
+            <p className="text-xs font-bold uppercase tracking-[0.1em] text-warning">
               {semuaUnit
                 ? 'Seluruh Unit'
                 : `Unit ${scope.map(j => JENJANG_LABELS[j]).join(' · ')}`}
             </p>
-            <h1 className="text-2xl font-bold leading-tight">Capaian Pembelajaran Al-Qur&apos;an</h1>
+            <h1 className="text-3xl leading-tight">Capaian Pembelajaran Al-Qur&apos;an</h1>
             <p className="text-sm text-muted-foreground mt-0.5">
               Ketercapaian target tahsin &amp; tahfidz per angkatan · {formatPeriod(period)}
             </p>
@@ -88,8 +88,8 @@ export default async function KurikulumPage({ searchParams }: PageProps) {
             )}
 
             {/* Rekapitulasi lintas bulan — bentuk tabel 2.1.1 pada laporan. */}
-            <section className="rounded-xl border bg-card p-5">
-              <h2 className="text-sm font-semibold">Rekapitulasi Ketercapaian Target</h2>
+            <section className="rounded-2xl border bg-card p-5">
+              <h2 className="font-heading text-lg font-medium">Rekapitulasi Ketercapaian Target</h2>
               <p className="text-xs text-muted-foreground mt-0.5 mb-3">
                 Jumlah siswa yang mencapai target, dibandingkan seluruh siswa angkatan.
               </p>
@@ -142,9 +142,9 @@ export default async function KurikulumPage({ searchParams }: PageProps) {
 
             {/* Sebaran per angkatan — bentuk tabel per kelas pada laporan. */}
             {rows.map(row => (
-              <section key={`sebaran-${row.jenjang}-${row.tingkat}`} className="rounded-xl border bg-card p-5">
+              <section key={`sebaran-${row.jenjang}-${row.tingkat}`} className="rounded-2xl border bg-card p-5">
                 <div className="flex flex-wrap items-baseline justify-between gap-2">
-                  <h2 className="text-sm font-semibold">
+                  <h2 className="font-heading text-lg font-medium">
                     {JENJANG_LABELS[row.jenjang]} Kelas {row.tingkat}
                   </h2>
                   <p className="text-xs text-muted-foreground">
@@ -199,7 +199,7 @@ export default async function KurikulumPage({ searchParams }: PageProps) {
 
 function Kpi({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
-    <div className="rounded-xl border bg-card p-4">
+    <div className="rounded-2xl border bg-card p-4">
       <p className="text-xs text-muted-foreground">{label}</p>
       <p className="mt-1 text-2xl font-bold leading-none tabular-nums">{value}</p>
       {hint && <p className="mt-1 text-[11px] text-muted-foreground">{hint}</p>}

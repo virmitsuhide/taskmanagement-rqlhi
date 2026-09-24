@@ -30,8 +30,8 @@ export default async function ImportStudentsPage() {
         breadcrumbs={[{ label: 'Siswa', href: '/siswa' }, { label: 'Impor Excel' }]}
         showBack
       />
-      <div className="p-4 md:p-6 max-w-5xl mx-auto">
-        <h1 className="text-2xl font-bold leading-tight mb-1">Impor Siswa dari Excel</h1>
+      <div className="p-4 md:p-8 max-w-5xl mx-auto">
+        <h1 className="text-3xl leading-tight mb-1">Impor Siswa dari Excel</h1>
         <p className="text-sm text-muted-foreground mb-6">
           Kolomnya sama dengan formulir Tambah Siswa. Unggah dulu, periksa hasilnya, baru simpan.
         </p>

@@ -64,12 +64,12 @@ export default async function RiwayatGuruPage({ searchParams }: PageProps) {
       />
 
       <div className="flex-1 bg-muted/50 dark:bg-background">
-        <div className="mx-auto max-w-4xl p-4 md:p-6">
+        <div className="mx-auto max-w-4xl p-4 md:p-8">
           <Button asChild variant="ghost" size="sm" className="-ml-2 mb-2">
             <Link href={kembali}><ArrowLeft className="mr-1 h-4 w-4" />Kembali ke profil</Link>
           </Button>
 
-          <h1 className="text-2xl font-bold leading-tight">{profile.full_name}</h1>
+          <h1 className="text-3xl leading-tight">{profile.full_name}</h1>
           <p className="mb-4 mt-0.5 text-sm text-muted-foreground">
             {UNIT_PENUGASAN_LABELS[unit]} · {riwayat.length} bulan penilaian tercatat
           </p>
@@ -114,7 +114,7 @@ export default async function RiwayatGuruPage({ searchParams }: PageProps) {
 function TabKpi({ riwayat }: { riwayat: RiwayatKpiBulan[] }) {
   return (
     <>
-      <div className="overflow-x-auto rounded-xl border bg-card shadow-sm">
+      <div className="overflow-x-auto rounded-2xl border bg-card shadow-sm">
         <table className="w-full text-xs">
           <thead className="bg-muted/50">
             <tr>
@@ -161,7 +161,7 @@ function TabRapor({
   bolehCetak: boolean
 }) {
   return (
-    <div className="divide-y overflow-hidden rounded-xl border bg-card shadow-sm">
+    <div className="divide-y overflow-hidden rounded-2xl border bg-card shadow-sm">
       {riwayat.map(r => (
         <div key={`${r.year}-${r.month}`} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3">
           <div className="min-w-0 flex-1">
@@ -211,9 +211,9 @@ function TabCatatan({ riwayat }: { riwayat: RiwayatKpiBulan[] }) {
   return (
     <div className="space-y-3">
       {berisi.map(r => (
-        <div key={`${r.year}-${r.month}`} className="overflow-hidden rounded-xl border bg-card shadow-sm">
+        <div key={`${r.year}-${r.month}`} className="overflow-hidden rounded-2xl border bg-card shadow-sm">
           <div className="flex items-center gap-2 border-b bg-muted/40 px-4 py-2.5">
-            <h2 className="text-sm font-semibold">{r.label}</h2>
+            <h2 className="font-heading text-lg font-medium">{r.label}</h2>
             <span className={cn('rounded px-1.5 py-0.5 text-[11px] font-medium', KPI_LEVEL_TONE[r.level])}>
               {r.rapot.toFixed(1)} · {r.predikat}
             </span>

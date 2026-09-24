@@ -56,8 +56,8 @@ export default async function RaporQuranPage({ searchParams }: PageProps) {
     <div className="min-h-screen" style={{ background: 'var(--secondary)' }}>
       <div className="mx-auto max-w-3xl space-y-5 px-4 py-6 md:px-6">
         <div>
-          <p className="text-[11px] uppercase tracking-[1.8px] text-muted-foreground">Laporan</p>
-          <h1 className="text-2xl font-extrabold tracking-tight" style={{ fontFamily: 'var(--font-playfair), Georgia, serif' }}>
+          <p className="text-xs font-bold uppercase tracking-[0.1em] text-warning">Laporan</p>
+          <h1 className="text-3xl tracking-tight" style={{ fontFamily: 'var(--font-playfair), Georgia, serif' }}>
             Rapor Qur&apos;an
           </h1>
           <p className="mt-0.5 text-sm text-muted-foreground">
@@ -72,7 +72,7 @@ export default async function RaporQuranPage({ searchParams }: PageProps) {
           </div>
         ) : (
           <>
-            <div className="space-y-3 rounded-xl border bg-card p-4">
+            <div className="space-y-3 rounded-2xl border bg-card p-4">
               {semuaSesi.length > 1 && (
                 <Slicer label="Sesi" options={semuaSesi.map(h => ({
                   label: h.sesi && semuaSesi.filter(x => x.sesi === h.sesi).length === 1 ? `Sesi ${h.sesi}` : h.name,
@@ -119,7 +119,7 @@ export default async function RaporQuranPage({ searchParams }: PageProps) {
                     <li key={b.student.id}>
                       <Link
                         href={`${PATH}/${b.student.id}?term=${term.id}&jenis=${jenis}`}
-                        className="flex items-center justify-between gap-3 rounded-xl border bg-card p-3 hover:bg-accent"
+                        className="flex items-center justify-between gap-3 rounded-2xl border bg-card p-3 hover:bg-accent"
                       >
                         <div className="min-w-0">
                           <p className="truncate font-medium">

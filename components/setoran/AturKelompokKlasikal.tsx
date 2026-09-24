@@ -93,7 +93,7 @@ export function AturKelompokKlasikal({ halaqohId, siswa, kelompok }: {
   return (
     <div className="space-y-4">
       {/* Kelompok */}
-      <section className="space-y-2 rounded-xl border bg-card p-3">
+      <section className="space-y-2 rounded-2xl border bg-card p-3">
         <div className="flex flex-wrap items-center gap-2">
           <p className="flex-1 text-sm font-semibold">Kelompok klasikal</p>
           <Button type="button" size="sm" variant="outline" className="h-8 text-xs" onClick={usulkan}>
@@ -133,7 +133,7 @@ export function AturKelompokKlasikal({ halaqohId, siswa, kelompok }: {
       </section>
 
       {/* Anak */}
-      <section className="rounded-xl border bg-card">
+      <section className="rounded-2xl border bg-card">
         <p className="border-b px-3 py-2 text-sm font-semibold">Anak di sesi ini</p>
         <ul className="divide-y">
           {siswa.map(s => {

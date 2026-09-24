@@ -61,7 +61,7 @@ export default async function TentangPage({ searchParams }: PageProps) {
     <div>
       <PublicHeader />
 
-      <div className="p-4 md:p-6 max-w-5xl mx-auto">
+      <div className="p-4 md:p-8 max-w-5xl mx-auto">
         <Link
           href="/"
           className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground mb-3 transition-colors"
@@ -202,7 +202,7 @@ function RoleCard({
   label: string
 }) {
   return (
-    <div className="rounded-xl border bg-card px-4 py-3 flex items-center gap-3">
+    <div className="rounded-2xl border bg-card px-4 py-3 flex items-center gap-3">
       <div className={`inline-flex items-center justify-center rounded-lg p-2 ${iconBg}`}>
         <Icon className={`h-4 w-4 ${iconColor}`} />
       </div>
@@ -220,7 +220,7 @@ function KoordinatorWithSubordinate({
 }) {
   const Icon = koor.icon
   return (
-    <div className="rounded-xl border bg-card overflow-hidden">
+    <div className="rounded-2xl border bg-card overflow-hidden">
       <div className="px-4 py-3 flex items-center gap-3 border-b">
         <div className={`inline-flex items-center justify-center rounded-lg p-2 ${koor.iconBg}`}>
           <Icon className={`h-4 w-4 ${koor.iconColor}`} />
@@ -299,7 +299,7 @@ function ContentBlock({
   placeholder: string
 }) {
   return (
-    <div className="rounded-xl border bg-card p-5 md:p-6">
+    <div className="rounded-2xl border bg-card p-5 md:p-6">
       <div className="flex items-center gap-3 mb-4">
         <div className={`inline-flex items-center justify-center rounded-lg p-2 ${accent}`}>
           <Icon className="h-4 w-4" />

@@ -37,7 +37,7 @@ export default async function TransaksiPage({ searchParams }: PageProps) {
       <div className="p-4 md:p-6 space-y-5 max-w-5xl">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h1 className="text-lg font-semibold">Transaksi</h1>
+            <h1 className="text-3xl">Transaksi</h1>
             <p className="text-sm text-muted-foreground">
               Setiap penerimaan dan pengeluaran dicatat di sini — tabel laporan disusun dari data ini.
             </p>

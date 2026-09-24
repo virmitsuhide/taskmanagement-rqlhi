@@ -164,7 +164,7 @@ export default async function TaskDetailPage({
         )}
 
         {/* Task header */}
-        <div className="rounded-xl border bg-card p-5 shadow-sm">
+        <div className="rounded-2xl border bg-card p-5 shadow-sm">
           <div className="flex flex-wrap gap-2 mb-2">
             <TaskStatusBadge status={task.status} />
             <TaskPriorityBadge priority={task.priority} />
@@ -175,7 +175,7 @@ export default async function TaskDetailPage({
               </Badge>
             )}
           </div>
-          <h1 className="text-xl font-bold mb-3">{task.title}</h1>
+          <h1 className="text-3xl mb-3">{task.title}</h1>
           {task.description && (
             <p className="text-sm text-muted-foreground whitespace-pre-line">{task.description}</p>
           )}
@@ -247,10 +247,10 @@ export default async function TaskDetailPage({
         {/* Garis waktu tugas ini saja. Sengaja dipasang tepat di bawah daftar
             rincian: itulah tempat orang baru saja mengetik tanggal, dan akibat
             dari tanggal itu harus terlihat tanpa berpindah halaman. */}
-        <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
+        <div className="overflow-hidden rounded-2xl border bg-card shadow-sm">
           <div className="flex flex-wrap items-center gap-2 border-b bg-muted/40 px-5 py-3">
             <GanttChartSquare className="h-4 w-4 text-muted-foreground" />
-            <h2 className="text-sm font-semibold">Gantt Chart Tugas Ini</h2>
+            <h2 className="font-heading text-lg font-medium">Gantt Chart Tugas Ini</h2>
             <div className="ml-auto flex items-center gap-2">
               <div className="inline-flex rounded-lg bg-background p-0.5">
                 {GANTT_SCALES.map(sc => (
@@ -291,8 +291,8 @@ export default async function TaskDetailPage({
 
         {/* Status change actions */}
         {allowedNextStatuses.length > 0 && (
-          <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
-            <h2 className="border-b bg-muted/40 px-5 py-3 text-sm font-semibold">Ubah Status</h2>
+          <div className="overflow-hidden rounded-2xl border bg-card shadow-sm">
+            <h2 className="font-heading text-lg font-medium border-b bg-muted/40 px-5 py-3">Ubah Status</h2>
             <div className="p-5 pb-2">
               {allowedNextStatuses.map(nextStatus => (
                 <StatusChangeForm
@@ -307,8 +307,8 @@ export default async function TaskDetailPage({
         )}
 
         {/* History */}
-        <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
-          <h2 className="border-b bg-muted/40 px-5 py-3 text-sm font-semibold">Riwayat</h2>
+        <div className="overflow-hidden rounded-2xl border bg-card shadow-sm">
+          <h2 className="font-heading text-lg font-medium border-b bg-muted/40 px-5 py-3">Riwayat</h2>
           <div className="space-y-3 p-5">
             {history.map(h => (
               <div key={h.id} className="flex gap-3">
@@ -329,7 +329,7 @@ export default async function TaskDetailPage({
         </div>
 
         {/* Diskusi / Komentar */}
-        <div className="rounded-xl border bg-card p-5 shadow-sm">
+        <div className="rounded-2xl border bg-card p-5 shadow-sm">
           <TaskComments
             taskId={id}
             taskTitle={task.title}

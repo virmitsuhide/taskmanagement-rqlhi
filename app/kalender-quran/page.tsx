@@ -99,7 +99,7 @@ export default async function KalenderQuranPage({ searchParams }: PageProps) {
           </div>
         ) : (
           <>
-            <div className="space-y-3 rounded-xl border bg-card p-4">
+            <div className="space-y-3 rounded-2xl border bg-card p-4">
               {unitBoleh.length > 1 && (
                 <Slicer label="Unit" options={unitBoleh.map(j => ({
                   label: JENJANG_LABELS[j], href: href({ unit: j, angkatan: undefined }), active: j === unit,
@@ -155,7 +155,7 @@ export default async function KalenderQuranPage({ searchParams }: PageProps) {
                 kehadiran, jadi ia sengaja ditampilkan berdampingan dengan
                 rekap bulanan — bukan di halaman lain. */}
             {angkatan.length > 0 && (
-              <section className="space-y-2 rounded-xl border bg-card p-4">
+              <section className="space-y-2 rounded-2xl border bg-card p-4">
                 <div>
                   <h2 className="font-semibold">
                     Rekap tatap muka satu semester — {term.semester === 'ganjil' ? 'Ganjil' : 'Genap'} {term.year_label}

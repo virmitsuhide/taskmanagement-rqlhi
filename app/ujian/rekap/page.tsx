@@ -47,7 +47,7 @@ export default async function RekapUjianPage({ searchParams }: PageProps) {
     <div>
       <PublicHeader />
 
-      <div className="p-4 md:p-6 max-w-5xl mx-auto min-h-[50vh]">
+      <div className="p-4 md:p-8 max-w-5xl mx-auto min-h-[50vh]">
         <Link
           href="/ujian"
           className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground mb-3 transition-colors"
@@ -57,7 +57,7 @@ export default async function RekapUjianPage({ searchParams }: PageProps) {
 
         <div className="flex items-start justify-between gap-4 mb-6 flex-wrap">
           <div>
-            <h1 className="text-2xl font-bold leading-tight">Rekap Hasil Ujian</h1>
+            <h1 className="text-3xl leading-tight">Rekap Hasil Ujian</h1>
             <p className="text-sm text-muted-foreground mt-0.5">
               Ujian tahsin &amp; tahfidz yang sudah terlaksana pada {BULAN_ID[month - 1]} {year}
             </p>

@@ -34,7 +34,7 @@ export function RowSection({
   const kepala = (
     <>
       <div className="min-w-0">
-        <h2 className="text-sm font-semibold">{title}</h2>
+        <h2 className="font-heading text-lg font-medium">{title}</h2>
         {desc && <p className="mt-0.5 text-[11px] text-muted-foreground">{desc}</p>}
       </div>
       <Button type="button" size="sm" variant="outline" onClick={onAdd} className="shrink-0">
@@ -45,7 +45,7 @@ export function RowSection({
 
   if (variant === 'card') {
     return (
-      <section className="overflow-hidden rounded-xl border bg-card shadow-sm">
+      <section className="overflow-hidden rounded-2xl border bg-card shadow-sm">
         <div className="flex items-start justify-between gap-3 border-b bg-muted/40 px-4 py-3">
           {kepala}
         </div>

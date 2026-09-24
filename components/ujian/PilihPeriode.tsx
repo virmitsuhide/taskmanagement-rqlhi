@@ -33,7 +33,7 @@ export function PilihPeriode({ month, year, children }: Props) {
   const pilihanTahun = Array.from({ length: 5 }, (_, i) => tahunIni - 2 + i)
 
   return (
-    <div className="flex flex-wrap items-center gap-2 rounded-xl border bg-card p-3">
+    <div className="flex flex-wrap items-center gap-2 rounded-2xl border bg-card p-3">
       <span className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
         <CalendarDays className="h-3.5 w-3.5" /> Periode
       </span>

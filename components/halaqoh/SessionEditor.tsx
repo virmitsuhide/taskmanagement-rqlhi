@@ -31,7 +31,7 @@ export function SessionEditor({ halaqohId, sessions, canManage }: Props) {
     <section>
       <div className="mb-3 flex items-end justify-between gap-2">
         <div>
-          <h2 className="text-base font-semibold flex items-center gap-2">
+          <h2 className="font-heading text-lg font-medium flex items-center gap-2">
             <Clock className="h-4 w-4" />Jadwal Sesi
           </h2>
           <p className="text-xs text-muted-foreground mt-0.5">

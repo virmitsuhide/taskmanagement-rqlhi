@@ -79,33 +79,34 @@ export default async function StudentDetailPage({ params }: PageProps) {
         breadcrumbs={[{ label: 'Siswa', href: '/siswa' }, { label: student.full_name }]}
         showBack
       />
-      <div className="p-4 md:p-6 max-w-5xl mx-auto space-y-6">
+      <div className="p-4 md:p-8 max-w-5xl mx-auto space-y-6">
 
         {/* Hero */}
-        <div className="rounded-xl border bg-card p-5">
-          <div className="flex items-start gap-4 flex-wrap">
-            <div className="w-16 h-16 rounded-xl bg-muted flex items-center justify-center text-2xl font-bold shrink-0">
+        <div className="rounded-2xl border bg-card p-5 md:p-6">
+          <div className="flex items-start gap-5 flex-wrap">
+            <div aria-hidden className="w-20 h-20 rounded-full bg-primary-wash text-primary flex items-center justify-center font-heading text-3xl shrink-0">
               {initials}
             </div>
             <div className="flex-1 min-w-[200px]">
-              <div className="flex items-center gap-2 flex-wrap">
-                <h1 className="text-2xl font-bold leading-tight">{student.full_name}</h1>
+              <p className="text-xs font-bold uppercase tracking-[0.1em] text-warning">Siswa · {JENJANG_LABELS[student.jenjang as Jenjang]}</p>
+              <div className="mt-1.5 flex items-center gap-2 flex-wrap">
+                <h1 className="text-3xl leading-tight">{student.full_name}</h1>
                 <span className="text-sm">{genderIcon}</span>
-                {!student.is_active && <span className="text-xs text-amber-600">⚠ Nonaktif</span>}
+                {!student.is_active && <span className="rounded-md bg-warning-wash px-2 py-0.5 text-xs font-semibold text-warning">Nonaktif</span>}
               </div>
-              <p className="text-xs text-muted-foreground mt-1">
+              <p className="text-sm text-muted-foreground mt-1">
                 {student.nis ? `NIS ${student.nis} · ` : ''}
                 Bergabung {new Date(student.enrolled_at).toLocaleDateString('id-ID', { year: 'numeric', month: 'short' })}
               </p>
-              <div className="flex flex-wrap gap-3 mt-3 text-sm">
-                <span className="inline-flex items-center gap-1.5">
+              <div className="flex flex-wrap gap-2 mt-3 text-sm">
+                <span className="inline-flex items-center gap-1.5 rounded-lg bg-muted px-2.5 py-1 font-medium">
                   <GraduationCap className="h-4 w-4 text-muted-foreground" />
                   {JENJANG_LABELS[student.jenjang as Jenjang]}{student.kelas ? ` · Kelas ${student.kelas}` : ''}
                 </span>
                 {student.halaqoh && (
                   <Link
                     href={`/halaqoh/${student.halaqoh.id}`}
-                    className="inline-flex items-center gap-1.5 hover:underline"
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-muted px-2.5 py-1 font-medium hover:bg-primary-wash hover:text-primary"
                   >
                     <BookOpen className="h-4 w-4 text-muted-foreground" />
                     {student.halaqoh.name}
@@ -114,7 +115,7 @@ export default async function StudentDetailPage({ params }: PageProps) {
               </div>
             </div>
             {canEdit && (
-              <Button asChild size="sm" variant="outline">
+              <Button asChild variant="outline">
                 <Link href={`/siswa/${id}/edit`}><Pencil className="h-3.5 w-3.5 mr-1" />Edit</Link>
               </Button>
             )}
@@ -122,17 +123,17 @@ export default async function StudentDetailPage({ params }: PageProps) {
         </div>
 
         {/* Tahsin & Tahfidz status */}
-        <div className="grid sm:grid-cols-2 gap-4">
-          <div className="rounded-xl border bg-card p-4">
-            <h2 className="text-sm font-semibold mb-2 flex items-center gap-1.5">
-              📖 Tahsin
+        <div className="grid sm:grid-cols-2 gap-5">
+          <div className="rounded-2xl border bg-card p-5">
+            <h2 className="text-[11px] font-bold uppercase tracking-[0.08em] text-muted-foreground mb-2 flex items-center gap-1.5">
+              Tahsin
             </h2>
             {student.current_jilid ? (
               <div>
-                <p className="text-lg font-bold">
+                <p className="font-heading text-2xl font-medium leading-tight">
                   {student.current_method?.name ?? '?'} · {student.current_jilid.label}
                 </p>
-                <p className="text-xs text-muted-foreground">
+                <p className="mt-1 text-sm text-muted-foreground">
                   Halaman {student.current_jilid_page ?? '—'} · {tahsinCount ?? 0} setoran tercatat
                 </p>
               </div>
@@ -141,16 +142,16 @@ export default async function StudentDetailPage({ params }: PageProps) {
             )}
           </div>
 
-          <div className="rounded-xl border bg-card p-4">
-            <h2 className="text-sm font-semibold mb-2 flex items-center gap-1.5">
-              ✨ Tahfidz
+          <div className="rounded-2xl border bg-card p-5">
+            <h2 className="text-[11px] font-bold uppercase tracking-[0.08em] text-muted-foreground mb-2 flex items-center gap-1.5">
+              Tahfidz
             </h2>
             {juzProgress && juzProgress.length > 0 ? (
               <div>
-                <p className="text-lg font-bold">
+                <p className="font-heading text-2xl font-medium leading-tight">
                   Juz {juzProgress[juzProgress.length - 1].juz_number} aktif
                 </p>
-                <p className="text-xs text-muted-foreground">
+                <p className="mt-1 text-sm text-muted-foreground">
                   {juzProgress.length} juz sudah disetor · {tahfidzCount ?? 0} setoran tercatat
                 </p>
               </div>
@@ -171,8 +172,8 @@ export default async function StudentDetailPage({ params }: PageProps) {
 
         {/* Wali */}
         {(student.wali_name || student.wali_phone || student.wali_email) && (
-          <div className="rounded-xl border bg-card p-5">
-            <h2 className="text-sm font-semibold mb-3">Wali Murid</h2>
+          <div className="rounded-2xl border bg-card p-5">
+            <h2 className="font-heading text-xl font-medium mb-3">Wali murid</h2>
             <div className="space-y-1.5 text-sm">
               {student.wali_name && <p className="font-medium">{student.wali_name}</p>}
               {student.wali_phone && (
@@ -198,14 +199,14 @@ export default async function StudentDetailPage({ params }: PageProps) {
             setoran, dan justru inilah yang paling sering ditanyakan. */}
         {ujian.length > 0 && (
           <section className="mt-6">
-            <h2 className="text-base font-semibold">Riwayat Ujian</h2>
+            <h2 className="font-heading text-2xl font-medium">Riwayat ujian</h2>
             <p className="mt-0.5 mb-3 text-xs text-muted-foreground">
               {ringkasHafalan(juzHafalan)}
             </p>
-            <div className="overflow-hidden rounded-xl border bg-card">
+            <div className="overflow-hidden rounded-2xl border bg-card">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b text-left text-[11px] tracking-wider text-muted-foreground uppercase">
+                  <tr className="border-b bg-muted/50 text-left text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
                     <th className="px-3 py-2.5">Ujian</th>
                     <th className="w-36 px-3 py-2.5">Tanggal</th>
                     <th className="w-32 px-3 py-2.5">Penguji</th>
@@ -235,7 +236,7 @@ export default async function StudentDetailPage({ params }: PageProps) {
 
         {canKoreksi && (
           <section className="mt-6">
-            <h2 className="text-base font-semibold">Riwayat Setoran</h2>
+            <h2 className="font-heading text-2xl font-medium">Riwayat setoran</h2>
 
             <p className="text-xs text-muted-foreground mt-0.5 mb-3">
               20 setoran terakhir. Guru mencatat, pengurus membetulkan bila ada salah input.

@@ -68,7 +68,7 @@ export function HeaderUserCard({
 
   return (
     <div ref={wrapRef} className="relative shrink-0">
-      <div className="flex items-center rounded-xl border bg-card shadow-sm overflow-hidden">
+      <div className="flex items-center rounded-2xl border bg-card shadow-sm overflow-hidden">
         <Link
           href={profileHref}
           title="Buka profil"

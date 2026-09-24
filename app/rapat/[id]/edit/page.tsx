@@ -57,7 +57,7 @@ export default async function EditRapatPage({ params }: { params: Promise<{ id: 
         ]}
       />
       <div className="flex-1 bg-muted/50 dark:bg-background">
-        <div className="p-4 md:p-6 max-w-2xl mx-auto">
+        <div className="p-4 md:p-8 max-w-2xl mx-auto">
           <Button asChild variant="ghost" size="sm" className="mb-4">
             <Link href={`/rapat/${id}`}><ArrowLeft className="h-4 w-4 mr-1" />Kembali</Link>
           </Button>

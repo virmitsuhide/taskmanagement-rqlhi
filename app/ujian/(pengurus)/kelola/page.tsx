@@ -49,9 +49,9 @@ export default async function KelolaUjianPage({ searchParams }: PageProps) {
       />
       <TandaiUjianDilihat />
 
-      <div className="p-4 md:p-6 max-w-3xl mx-auto space-y-5">
+      <div className="p-4 md:p-8 max-w-3xl mx-auto space-y-5">
         <div>
-          <h1 className="text-2xl font-bold leading-tight">Kelola Pengajuan Ujian</h1>
+          <h1 className="text-3xl leading-tight">Kelola Pengajuan Ujian</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             {units.join(' & ')} · {total} pengajuan · jadwalkan, tentukan penguji, lalu isi nilainya.
           </p>

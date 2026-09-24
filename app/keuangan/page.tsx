@@ -45,10 +45,10 @@ export default async function KeuanganPage({ searchParams }: PageProps) {
         showBack
       />
 
-      <div className="p-4 md:p-6 space-y-5 max-w-5xl">
+      <div className="p-4 md:p-8 space-y-6 max-w-5xl">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h1 className="text-lg font-semibold">Keuangan Rumah Qur&apos;an</h1>
+            <h1 className="text-3xl">Keuangan Rumah Qur&apos;an</h1>
             <p className="text-sm text-muted-foreground">
               Pencatatan, rekap, dan laporan bulanan untuk BPH.
             </p>
@@ -89,7 +89,7 @@ export default async function KeuanganPage({ searchParams }: PageProps) {
         {/* Hal yang perlu ditindaklanjuti sebelum laporan dikirim ke BPH. */}
         {(receivables.length > 0 || unallocated > 0) && (
           <section className="space-y-2">
-            <h2 className="text-sm font-semibold">Perlu Ditindaklanjuti</h2>
+            <h2 className="font-heading text-lg font-medium">Perlu Ditindaklanjuti</h2>
             <div className="grid gap-2 sm:grid-cols-2">
               {receivables.length > 0 && (
                 <Card>
@@ -144,7 +144,7 @@ export default async function KeuanganPage({ searchParams }: PageProps) {
                   <PiggyBank className="h-4 w-4 text-muted-foreground" />
                   <p className="text-sm font-medium">{fund.name}</p>
                 </div>
-                <p className="mt-2 text-lg font-semibold tabular-nums">{formatRupiah(fund.closing)}</p>
+                <p className="mt-2 font-heading text-2xl font-medium tabular-nums">{formatRupiah(fund.closing)}</p>
                 <p className="text-xs text-muted-foreground">
                   Saldo akhir {formatPeriod(period)} · {fund.entries.length} mutasi bulan ini
                 </p>
@@ -181,8 +181,8 @@ function SummaryCard({
   return (
     <Card>
       <CardContent className="p-4">
-        <p className="text-xs uppercase tracking-wide text-muted-foreground">{label}</p>
-        <p className={`mt-1 text-xl font-semibold tabular-nums ${toneClass}`}>{value}</p>
+        <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-muted-foreground">{label}</p>
+        <p className={`mt-2 font-heading text-3xl font-medium leading-none tabular-nums ${toneClass}`}>{value}</p>
         <p className="mt-0.5 text-xs text-muted-foreground">{hint}</p>
       </CardContent>
     </Card>
@@ -200,7 +200,7 @@ function PostSummary({
     <Card>
       <CardContent className="p-4">
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-sm font-semibold">{title}</h2>
+          <h2 className="font-heading text-lg font-medium">{title}</h2>
           <span className="text-sm font-semibold tabular-nums">{formatRupiah(total)}</span>
         </div>
         <ul className="space-y-1.5">

@@ -64,10 +64,10 @@ function UnitPanel({ unit }: { unit: UnitLearning }) {
 
   return (
     <div className="space-y-4">
-      <section className="rounded-xl border bg-card p-5">
+      <section className="rounded-2xl border bg-card p-5">
         <div className="flex items-center gap-2 mb-1">
           <GraduationCap className="h-4 w-4 text-primary" />
-          <h2 className="text-base font-semibold">{unit.label}</h2>
+          <h2 className="font-heading text-lg font-medium">{unit.label}</h2>
           <span className="ml-auto flex items-center gap-1 text-xs text-muted-foreground">
             <Users className="h-3.5 w-3.5" />{unit.studentCount} siswa
           </span>
@@ -97,7 +97,7 @@ function UnitPanel({ unit }: { unit: UnitLearning }) {
         type="button"
         onClick={() => setShowTT(v => !v)}
         aria-expanded={showTT}
-        className="w-full flex items-center justify-center gap-2 rounded-xl border bg-card px-4 py-3 text-sm font-medium hover:bg-muted/40 transition-colors"
+        className="w-full flex items-center justify-center gap-2 rounded-2xl border bg-card px-4 py-3 text-sm font-medium hover:bg-muted/40 transition-colors"
       >
         <BarChart3 className="h-4 w-4 text-primary" />
         {showTT ? 'Sembunyikan' : 'Lihat'} Analitik Tahsin &amp; Tahfidz — {unit.label}
@@ -158,7 +158,7 @@ function TahsinTahfidzView({ unit }: { unit: UnitLearning }) {
 
       {/* Tahsin & Tahfidz bulan terpilih */}
       <div className="grid lg:grid-cols-2 gap-4">
-        <section className="rounded-xl border bg-card p-4">
+        <section className="rounded-2xl border bg-card p-4">
           <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
             <h3 className="text-sm font-semibold flex items-center gap-2"><BookOpen className="h-4 w-4" /> Tahsin</h3>
             <div className="flex items-center gap-1.5">
@@ -178,7 +178,7 @@ function TahsinTahfidzView({ unit }: { unit: UnitLearning }) {
           <ScoreRows avg={tahsinAvg} label="Tahsin" />
         </section>
 
-        <section className="rounded-xl border bg-card p-4">
+        <section className="rounded-2xl border bg-card p-4">
           <h3 className="text-sm font-semibold flex items-center gap-2 mb-3"><Sparkles className="h-4 w-4" /> Tahfidz <span className="text-xs font-normal text-muted-foreground">({MONTHS[month - 1]} {year})</span></h3>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
             <Metric label="Ziyadah" value={tahfidz.filter(l => normKind(l.kind) === 'ziyadah').length} accent />
@@ -197,7 +197,7 @@ function TahsinTahfidzView({ unit }: { unit: UnitLearning }) {
       </div>
 
       {/* Siswa per metode */}
-      <section className="rounded-xl border bg-card p-4">
+      <section className="rounded-2xl border bg-card p-4">
         <h3 className="text-sm font-semibold mb-3 flex items-center gap-2"><BookOpen className="h-4 w-4" /> Siswa per Metode</h3>
         {unit.byMethod.length === 0 ? <Empty /> : (
           <div className="space-y-3">
@@ -207,7 +207,7 @@ function TahsinTahfidzView({ unit }: { unit: UnitLearning }) {
       </section>
 
       {/* Sebaran siswa per tahap */}
-      <section className="rounded-xl border bg-card p-4">
+      <section className="rounded-2xl border bg-card p-4">
         <h3 className="text-sm font-semibold mb-1 flex items-center gap-2"><GraduationCap className="h-4 w-4" /> Sebaran Siswa per Tahap</h3>
         <p className="text-xs text-muted-foreground mb-3">Jumlah siswa aktif di tiap jilid/tahap.</p>
         {unit.levelDistribution.length === 0 ? <Empty /> : (
@@ -220,7 +220,7 @@ function TahsinTahfidzView({ unit }: { unit: UnitLearning }) {
                   <div className="space-y-1.5">
                     {m.levels.map(l => (
                       <div key={l.order_num} className="flex items-center gap-2">
-                        <span className="text-[11px] w-24 shrink-0 truncate" title={l.label}>{l.isTerminal ? '🎓 ' : ''}{l.label}</span>
+                        <span className="text-[11px] w-24 shrink-0 truncate" title={l.label}>{l.isTerminal ? '' : ''}{l.label}</span>
                         <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
                           <div className="h-full rounded-full" style={{ width: `${(l.count / maxLvl) * 100}%`, background: l.isTerminal ? 'var(--success)' : l.isQuran ? 'var(--info)' : 'var(--primary)' }} />
                         </div>
@@ -236,7 +236,7 @@ function TahsinTahfidzView({ unit }: { unit: UnitLearning }) {
       </section>
 
       {/* Sebaran tahapan jilid per kelas */}
-      <section className="rounded-xl border bg-card p-4">
+      <section className="rounded-2xl border bg-card p-4">
         <h3 className="text-sm font-semibold mb-3 flex items-center gap-2"><GraduationCap className="h-4 w-4" /> Sebaran Tahapan Jilid per Kelas</h3>
         {unit.jilidByKelas.length === 0 ? <Empty /> : (
           <div className="grid sm:grid-cols-2 gap-3">
@@ -257,7 +257,7 @@ function TahsinTahfidzView({ unit }: { unit: UnitLearning }) {
       </section>
 
       {/* Sebaran hafalan per juz */}
-      <section className="rounded-xl border bg-card p-4">
+      <section className="rounded-2xl border bg-card p-4">
         <h3 className="text-sm font-semibold mb-1 flex items-center gap-2"><Sparkles className="h-4 w-4" /> Sebaran Hafalan per Juz</h3>
         <p className="text-xs text-muted-foreground mb-3">Berapa siswa yang sedang di tiap juz (urutan 30→26 lalu 1→25).</p>
         {unit.juzHistogram.length === 0 ? <Empty /> : (
@@ -276,7 +276,7 @@ function TahsinTahfidzView({ unit }: { unit: UnitLearning }) {
       </section>
 
       {/* Sebaran jumlah juz dihafal per kelas */}
-      <section className="rounded-xl border bg-card p-4">
+      <section className="rounded-2xl border bg-card p-4">
         <h3 className="text-sm font-semibold mb-1 flex items-center gap-2"><Award className="h-4 w-4" /> Sebaran Jumlah Juz Dihafal per Kelas</h3>
         <p className="text-xs text-muted-foreground mb-3">Jumlah juz tuntas tiap anak (juz yang sedang dihafal belum dihitung).</p>
         {unit.juzByKelas.length === 0 ? <Empty /> : (
@@ -411,7 +411,7 @@ function Empty() { return <p className="text-sm text-muted-foreground">Belum ada
 
 function Kpi({ icon, label, value }: { icon: React.ReactNode; label: string; value: number }) {
   return (
-    <div className="rounded-xl border bg-card p-3">
+    <div className="rounded-2xl border bg-card p-3">
       <div className="flex items-center gap-1.5 text-xs text-muted-foreground">{icon}<span>{label}</span></div>
       <p className="text-2xl font-bold mt-1 leading-none">{value.toLocaleString('id-ID')}</p>
     </div>

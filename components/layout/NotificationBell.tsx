@@ -15,9 +15,9 @@ import { BarisNotifUjian } from '@/components/ujian/BarisNotifUjian'
 import type { TaskStatus } from '@/types'
 
 const STATUS_LABELS: Record<TaskStatus, string> = {
-  todo: 'To Do',
+  todo: 'Belum mulai',
   in_progress: 'Dikerjakan',
-  problem: 'Bermasalah',
+  problem: 'Ada kendala',
   submitted: 'Menunggu Review',
   done: 'Selesai',
   returned: 'Dikembalikan',

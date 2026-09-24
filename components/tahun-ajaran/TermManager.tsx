@@ -176,7 +176,7 @@ function TermForm({ onDone }: { onDone: () => void }) {
     <Card>
       <CardContent className="p-4">
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-sm font-semibold">Tahun Ajaran Baru</h2>
+          <h2 className="font-heading text-lg font-medium">Tahun Ajaran Baru</h2>
           <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={onDone} aria-label="Tutup">
             <X className="h-4 w-4" />
           </Button>

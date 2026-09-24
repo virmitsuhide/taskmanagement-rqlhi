@@ -208,10 +208,10 @@ export default async function UstadzListPage({ searchParams }: PageProps) {
   return (
     <div>
       <DashboardHeader displayName={session.displayName} role={session.role} title="Ustadz / Guru" showBack ownH1 />
-      <div className="p-4 md:p-6 max-w-5xl mx-auto">
+      <div className="p-4 md:p-8 max-w-5xl mx-auto">
         <div className="flex items-end justify-between gap-3 flex-wrap mb-5">
           <div>
-            <h1 className="text-2xl font-bold leading-tight">Ustadz / Guru</h1>
+            <h1 className="text-3xl leading-tight">Ustadz / Guru</h1>
             <p className="text-sm text-muted-foreground mt-0.5">
               {teachers.length} guru {STATUS_LABELS[status].toLowerCase()}
               {kategoriAktif !== 'semua' && ` · ${labelKategori(kategoriAktif)}`}

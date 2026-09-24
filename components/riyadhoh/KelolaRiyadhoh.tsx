@@ -66,7 +66,7 @@ function Jadwal({ bulan, sabtu, jadwal, giliranSebelum, jumlah }: Props & { juml
   }
 
   return (
-    <section className="overflow-hidden rounded-xl border bg-card">
+    <section className="overflow-hidden rounded-2xl border bg-card">
       <Kepala ikon={<CalendarDays className="size-4" />} judul="Jadwal Sabtu">
         Tiap Sabtu diisi satu kelompok. Sabtu yang dibiarkan libur tidak muncul di Portal Guru.
       </Kepala>
@@ -151,7 +151,7 @@ function Pengampu({ pengampu, guru }: { pengampu: PengampuRiyadhoh[]; guru: Prop
   const ganti = (daftar: KelompokRiyadhoh[], g: KelompokRiyadhoh) => (daftar.includes(g) ? daftar.filter(x => x !== g) : [...daftar, g])
 
   return (
-    <section className="overflow-hidden rounded-xl border bg-card">
+    <section className="overflow-hidden rounded-2xl border bg-card">
       <Kepala ikon={<UserPlus className="size-4" />} judul="Pengampu">
         Guru SD maupun SMP. Pengampu hanya bisa mencatat pada Sabtu kelompok yang ia ampu.
       </Kepala>
@@ -254,7 +254,7 @@ function Peserta({ siswa, jumlah, tanpaGender }: { siswa: PesertaRiyadhoh[]; jum
   }
 
   return (
-    <section className="overflow-hidden rounded-xl border bg-card">
+    <section className="overflow-hidden rounded-2xl border bg-card">
       <Kepala ikon={<Users className="size-4" />} judul="Peserta">
         Otomatis: seluruh kelas 9 SMP dan QuLS kelas 7–8. Anak yang perlu dikecualikan bisa dikeluarkan atau
         dimasukkan di sini; kenaikan kelas tahun depan terbaca sendiri.
@@ -322,7 +322,7 @@ function Kepala({ ikon, judul, children }: { ikon: React.ReactNode; judul: strin
     <header className="flex items-start gap-3 border-b bg-muted/30 px-4 py-3">
       <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary dark:bg-primary/20">{ikon}</span>
       <div className="min-w-0 pt-1">
-        <h2 className="text-sm font-semibold leading-tight">{judul}</h2>
+        <h2 className="font-heading text-lg font-medium leading-tight">{judul}</h2>
         {children && <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">{children}</p>}
       </div>
     </header>

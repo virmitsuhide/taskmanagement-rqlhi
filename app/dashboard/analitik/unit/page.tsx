@@ -40,10 +40,10 @@ export default async function AnalitikUnitPage() {
         showBack
         ownH1
       />
-      <div className="p-4 md:p-6 max-w-5xl mx-auto space-y-6">
+      <div className="p-4 md:p-8 max-w-5xl mx-auto space-y-6">
         <div>
-          <p className="text-[11px] uppercase tracking-[1.8px] text-muted-foreground">{scopeLabel}</p>
-          <h1 className="text-2xl font-bold leading-tight">Analitik per Unit &amp; Program</h1>
+          <p className="text-xs font-bold uppercase tracking-[0.1em] text-warning">{scopeLabel}</p>
+          <h1 className="text-3xl leading-tight">Analitik per Unit &amp; Program</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
             Capaian tahsin, tahfidz, ujian juz&apos;iyah &amp; tasmi&apos; tiap program
             {isFullAccess ? (
@@ -59,7 +59,7 @@ export default async function AnalitikUnitPage() {
 
         <Link
           href="/dashboard/analitik/capaian"
-          className="flex items-center gap-3 rounded-xl border bg-card p-4 hover:bg-muted/40 transition-colors"
+          className="flex items-center gap-3 rounded-2xl border bg-card p-4 hover:bg-muted/40 transition-colors"
         >
           <span
             className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
@@ -77,7 +77,7 @@ export default async function AnalitikUnitPage() {
 
         <Link
           href="/dashboard/analitik/kurikulum"
-          className="flex items-center gap-3 rounded-xl border bg-card p-4 hover:bg-muted/40 transition-colors"
+          className="flex items-center gap-3 rounded-2xl border bg-card p-4 hover:bg-muted/40 transition-colors"
         >
           <span
             className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
@@ -97,7 +97,7 @@ export default async function AnalitikUnitPage() {
             ditaruh di halaman yang memang mereka buka. */}
         <Link
           href="/dashboard/analitik/kelengkapan"
-          className="flex items-center gap-3 rounded-xl border bg-card p-4 hover:bg-muted/40 transition-colors"
+          className="flex items-center gap-3 rounded-2xl border bg-card p-4 hover:bg-muted/40 transition-colors"
         >
           <span
             className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
@@ -115,7 +115,7 @@ export default async function AnalitikUnitPage() {
 
         <Link
           href="/dashboard/analitik/target-tahfidz"
-          className="flex items-center gap-3 rounded-xl border bg-card p-4 hover:bg-muted/40 transition-colors"
+          className="flex items-center gap-3 rounded-2xl border bg-card p-4 hover:bg-muted/40 transition-colors"
         >
           <span
             className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"

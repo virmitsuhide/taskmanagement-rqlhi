@@ -221,7 +221,7 @@ function TransactionForm({
     <Card>
       <CardContent className="p-4">
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-sm font-semibold">
+          <h2 className="font-heading text-lg font-medium">
             {transaction ? 'Sunting' : 'Catat'} {kind === 'pemasukan' ? 'Pemasukan' : 'Pengeluaran'}
           </h2>
           <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={onDone} aria-label="Tutup">
@@ -338,7 +338,7 @@ function TransactionForm({
 
 function ReceivableList({ receivables, canManage }: { receivables: Receivable[]; canManage: boolean }) {
   if (receivables.length === 0) {
-    return <p className="py-6 text-sm text-muted-foreground">Tidak ada piutang tertunggak. 🎉</p>
+    return <p className="py-6 text-sm text-muted-foreground">Tidak ada piutang tertunggak.</p>
   }
 
   const total = receivables.reduce((sum, r) => sum + r.transaction.amount, 0)
@@ -347,7 +347,7 @@ function ReceivableList({ receivables, canManage }: { receivables: Receivable[];
     <Card>
       <CardContent className="p-4">
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-sm font-semibold">Piutang Tertunggak</h2>
+          <h2 className="font-heading text-lg font-medium">Piutang Tertunggak</h2>
           <span className="text-sm font-semibold tabular-nums">{formatRupiah(total)}</span>
         </div>
         <ul className="divide-y">

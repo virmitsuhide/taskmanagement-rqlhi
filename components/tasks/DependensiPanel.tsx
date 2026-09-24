@@ -72,10 +72,10 @@ export function DependensiPanel({ taskId, menunggu, ditunggu, bisaAtur, bisaGese
   }
 
   return (
-    <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
+    <div className="overflow-hidden rounded-2xl border bg-card shadow-sm">
       <div className="flex flex-wrap items-center gap-2 border-b bg-muted/40 px-5 py-3">
         <Link2 className="h-4 w-4 text-muted-foreground" />
-        <h2 className="text-sm font-semibold">Ketergantungan</h2>
+        <h2 className="font-heading text-lg font-medium">Ketergantungan</h2>
         {aktif.length > 0 && (
           <span className="rounded-full bg-background px-2 py-0.5 text-[11px] font-medium tabular-nums text-muted-foreground">
             menunggu {aktif.length} tugas

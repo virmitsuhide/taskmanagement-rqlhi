@@ -52,13 +52,13 @@ export default async function GukarStandarPage({ searchParams }: PageProps) {
         ownH1
       />
 
-      <div className="p-4 md:p-6 max-w-5xl mx-auto space-y-6">
+      <div className="p-4 md:p-8 max-w-5xl mx-auto space-y-6">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <p className="text-[11px] uppercase tracking-[1.8px] text-muted-foreground">
+            <p className="text-xs font-bold uppercase tracking-[0.1em] text-warning">
               Mentoring Qur&apos;an Guru &amp; Karyawan
             </p>
-            <h1 className="text-2xl font-bold leading-tight">Kesiapan Standar Kepegawaian</h1>
+            <h1 className="text-3xl leading-tight">Kesiapan Standar Kepegawaian</h1>
             <p className="text-sm text-muted-foreground mt-0.5">
               {term ? formatTerm(term) : 'Belum ada semester berjalan'} · capaian terakhir s.d.{' '}
               {formatPeriod(period)}
@@ -125,8 +125,8 @@ export default async function GukarStandarPage({ searchParams }: PageProps) {
             )}
 
             {/* ── 03 Cakupan & partisipasi per unit ────────────────── */}
-            <section className="rounded-xl border bg-card p-5">
-              <h2 className="text-sm font-semibold">Cakupan &amp; Partisipasi per Unit</h2>
+            <section className="rounded-2xl border bg-card p-5">
+              <h2 className="font-heading text-lg font-medium">Cakupan &amp; Partisipasi per Unit</h2>
               <p className="mt-0.5 mb-3 text-xs text-muted-foreground">
                 Jumlah peserta dan kelengkapan data tiap unit.
               </p>
@@ -196,8 +196,8 @@ export default async function GukarStandarPage({ searchParams }: PageProps) {
             </div>
 
             {/* ── 05.3 Corong kesiapan ─────────────────────────────── */}
-            <section className="rounded-xl border bg-card p-5">
-              <h2 className="text-sm font-semibold">Corong Kesiapan terhadap Baseline Inti</h2>
+            <section className="rounded-2xl border bg-card p-5">
+              <h2 className="font-heading text-lg font-medium">Corong Kesiapan terhadap Baseline Inti</h2>
               <p className="mt-0.5 mb-3 text-xs text-muted-foreground">
                 Penyusutan dari populasi termonitor sampai yang memenuhi kedua syarat inti
                 (tahsin ≥ Jilid 6 <span className="font-medium">dan</span> tahfidz ≥ 1 juz).
@@ -227,8 +227,8 @@ export default async function GukarStandarPage({ searchParams }: PageProps) {
             </section>
 
             {/* ── 08 Lampiran: rekap per kelompok pengampu ─────────── */}
-            <section className="rounded-xl border bg-card p-5">
-              <h2 className="text-sm font-semibold">Rekap Kesiapan per Kelompok Pengampu</h2>
+            <section className="rounded-2xl border bg-card p-5">
+              <h2 className="font-heading text-lg font-medium">Rekap Kesiapan per Kelompok Pengampu</h2>
               <p className="mt-0.5 mb-3 text-xs text-muted-foreground">
                 &quot;Inti&quot; = memenuhi ambang tahsin sekaligus tahfidz ≥ 1 juz.
               </p>
@@ -282,8 +282,8 @@ export default async function GukarStandarPage({ searchParams }: PageProps) {
             />
 
             {/* ── 04 Acuan standar kepegawaian ─────────────────────── */}
-            <section className="rounded-xl border bg-card p-5">
-              <h2 className="text-sm font-semibold">Acuan Standar Kepegawaian</h2>
+            <section className="rounded-2xl border bg-card p-5">
+              <h2 className="font-heading text-lg font-medium">Acuan Standar Kepegawaian</h2>
               <p className="mt-0.5 mb-3 text-xs text-muted-foreground">
                 Syarat minimal Al-Qur&apos;an per kategori peran — Peraturan Kepegawaian Yayasan
                 Pionir Pendidikan Indonesia, SOP Pengajuan Pegawai Tetap 2025.
@@ -326,7 +326,7 @@ export default async function GukarStandarPage({ searchParams }: PageProps) {
             {/* ── Rincian & penetapan status ───────────────────────── */}
             <section className="space-y-3">
               <div>
-                <h2 className="text-sm font-semibold">Rincian Seluruh Peserta</h2>
+                <h2 className="font-heading text-lg font-medium">Rincian Seluruh Peserta</h2>
                 <p className="text-xs text-muted-foreground">
                   {dapatMenyunting
                     ? 'Tetapkan status kepegawaian dan kategori peran di sini — dua kolom itu yang menentukan ambang pembanding tiap orang.'
@@ -378,7 +378,7 @@ function Kpi({
   hint: string
 }) {
   return (
-    <div className="rounded-xl border bg-card p-4">
+    <div className="rounded-2xl border bg-card p-4">
       <span
         className="mb-2 flex h-9 w-9 items-center justify-center rounded-lg"
         style={{ background: 'var(--primary-wash)', color: 'var(--primary)' }}
@@ -401,8 +401,8 @@ function Sebaran({
   total: number
 }) {
   return (
-    <section className="rounded-xl border bg-card p-5">
-      <h2 className="text-sm font-semibold">{judul}</h2>
+    <section className="rounded-2xl border bg-card p-5">
+      <h2 className="font-heading text-lg font-medium">{judul}</h2>
       <p className="mt-0.5 mb-3 text-xs text-muted-foreground">{keterangan}</p>
       <div className="space-y-1.5">
         {baris.map(b => (
@@ -447,8 +447,8 @@ function Fokus({
   peserta: KesiapanPeserta[]
 }) {
   return (
-    <section className="rounded-xl border bg-card p-5">
-      <h2 className="text-sm font-semibold">{judul}</h2>
+    <section className="rounded-2xl border bg-card p-5">
+      <h2 className="font-heading text-lg font-medium">{judul}</h2>
       <p className="mt-0.5 mb-3 text-xs text-muted-foreground">{keterangan}</p>
       {peserta.length === 0 ? (
         <p className="text-sm text-muted-foreground">{kosong}</p>

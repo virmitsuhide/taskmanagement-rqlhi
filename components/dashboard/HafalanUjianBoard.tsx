@@ -20,7 +20,7 @@ export function HafalanUjianBoard({ units, tampilTeratas = true }: {
   if (units.length === 0) {
     return (
       <section>
-        <h2 className="mb-1 text-sm font-semibold">Hafalan Lulus Ujian</h2>
+        <h2 className="font-heading text-lg font-medium mb-1">Hafalan Lulus Ujian</h2>
         <div className="rounded-xl border border-dashed py-10 text-center">
           <ScrollText className="mx-auto mb-2 h-8 w-8 text-muted-foreground/40" />
           <p className="text-sm text-muted-foreground">
@@ -40,7 +40,7 @@ export function HafalanUjianBoard({ units, tampilTeratas = true }: {
 
   return (
     <section>
-      <h2 className="mb-1 text-sm font-semibold">Hafalan Lulus Ujian</h2>
+      <h2 className="font-heading text-lg font-medium mb-1">Hafalan Lulus Ujian</h2>
       <p className="mb-3 text-xs text-muted-foreground">
         Dihitung dari catatan ujian yang selesai, memakai urutan hafalan
         30&ndash;26 lalu 1&ndash;25. Satu catatan sudah menyimpulkan juz-juz
@@ -51,7 +51,7 @@ export function HafalanUjianBoard({ units, tampilTeratas = true }: {
         {units.map(u => {
           const maxSebaran = Math.max(1, ...u.sebaran.map(s => s.siswa))
           return (
-            <div key={u.jenjang} className="rounded-xl border bg-card p-4">
+            <div key={u.jenjang} className="rounded-2xl border bg-card p-4">
               <div className="flex items-baseline justify-between gap-2">
                 <p className="font-medium">{u.label}</p>
                 <p className="text-xs text-muted-foreground">

@@ -249,6 +249,20 @@
     --sidebar-border: oklch(1 0 0 / 10%);
 }
 
+/*
+ * Judul halaman (h1) di ruang pengurus & portal guru memakai huruf judul
+ * Teduh. Sengaja di luar @layer supaya menang atas kelas font-bold /
+ * font-extrabold yang ditulis per halaman — satu aturan, bukan seratus suntingan.
+ * Lembar cetak (rapor, laporan) dikecualikan: bentuknya mengikuti dokumen.
+ */
+@media screen {
+  :is(#main-content, .portal-guru) h1:not(:where(.report-sheet *, .theme-light *)) {
+    font-family: var(--font-display), Georgia, serif;
+    font-weight: 500;
+    letter-spacing: -0.01em;
+  }
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

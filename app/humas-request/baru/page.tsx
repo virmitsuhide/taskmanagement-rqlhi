@@ -21,11 +21,11 @@ export default async function BuatHumasRequestPage() {
         breadcrumbs={[{ label: 'Request Humas', href: '/humas-request' }, { label: 'Request Baru' }]}
         ownH1
       />
-      <div className="p-4 md:p-6 max-w-2xl mx-auto">
+      <div className="p-4 md:p-8 max-w-2xl mx-auto">
         <Button asChild variant="ghost" size="sm" className="mb-4">
           <Link href="/humas-request"><ArrowLeft className="h-4 w-4 mr-1" />Kembali ke Daftar Request</Link>
         </Button>
-        <h1 className="text-xl font-bold mb-6">Request Konten ke Humas</h1>
+        <h1 className="text-3xl mb-6">Request Konten ke Humas</h1>
         <ContentRequestForm />
       </div>
     </div>

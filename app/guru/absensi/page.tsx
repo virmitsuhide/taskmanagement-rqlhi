@@ -48,8 +48,8 @@ export default async function AbsensiPage({ searchParams }: PageProps) {
     <div className="min-h-screen" style={{ background: 'var(--secondary)' }}>
       <div className="mx-auto max-w-2xl space-y-5 px-4 py-6 md:px-6">
         <div>
-          <p className="text-[11px] uppercase tracking-[1.8px] text-muted-foreground">Setoran</p>
-          <h1 className="text-2xl font-extrabold tracking-tight" style={{ fontFamily: 'var(--font-playfair), Georgia, serif' }}>
+          <p className="text-xs font-bold uppercase tracking-[0.1em] text-warning">Setoran</p>
+          <h1 className="text-3xl tracking-tight" style={{ fontFamily: 'var(--font-playfair), Georgia, serif' }}>
             Daftar Hadir
           </h1>
           <p className="mt-0.5 text-sm text-muted-foreground">
@@ -78,7 +78,7 @@ export default async function AbsensiPage({ searchParams }: PageProps) {
           </div>
         ) : (
           <>
-            <div className="space-y-3 rounded-xl border bg-card p-4">
+            <div className="space-y-3 rounded-2xl border bg-card p-4">
               {semuaSesi.length > 1 && (
                 <Slicer label="Sesi" options={semuaSesi.map(h => ({
                   label: h.sesi && semuaSesi.filter(x => x.sesi === h.sesi).length === 1 ? `Sesi ${h.sesi}` : h.name,

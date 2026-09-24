@@ -41,7 +41,7 @@ export default async function NewStudentPage({ searchParams }: PageProps) {
             <UserPlus className="size-5" aria-hidden />
           </span>
           <div className="min-w-0">
-            <h1 className="text-xl font-bold leading-tight md:text-2xl">Tambah Siswa</h1>
+            <h1 className="text-3xl leading-tight md:text-2xl">Tambah Siswa</h1>
             <p className="text-sm text-muted-foreground">Data siswa baru untuk modul tahsin/tahfidz</p>
           </div>
         </div>

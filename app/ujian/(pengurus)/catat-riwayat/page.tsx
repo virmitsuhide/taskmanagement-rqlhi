@@ -25,9 +25,9 @@ export default async function CatatRiwayatUjianPage() {
         breadcrumbs={[{ label: 'Ujian', href: '/ujian/kelola' }, { label: 'Catat Riwayat' }]}
       />
 
-      <div className="p-4 md:p-6 max-w-3xl mx-auto space-y-5">
+      <div className="p-4 md:p-8 max-w-3xl mx-auto space-y-5">
         <div>
-          <h1 className="text-2xl font-bold leading-tight">Catat Riwayat Tasmi&apos; Lama</h1>
+          <h1 className="text-3xl leading-tight">Catat Riwayat Tasmi&apos; Lama</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Untuk tasmi&apos; 1, 3, dan 5 juz yang sudah terjadi sebelum sistem dipakai. Catatan langsung
             berstatus <em>Selesai</em> dan terhitung sebagai juz teruji — tanpa masuk antrian, tanpa
@@ -40,7 +40,7 @@ export default async function CatatRiwayatUjianPage() {
         {units.includes('SMP') && (
           <Link
             href="/ujian/catat-riwayat/alumni-sd"
-            className="flex items-center gap-3 rounded-xl border bg-card p-4 hover:bg-muted/40 transition-colors"
+            className="flex items-center gap-3 rounded-2xl border bg-card p-4 hover:bg-muted/40 transition-colors"
           >
             <span className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'var(--primary-wash)', color: 'var(--primary)' }}>
               <GraduationCap className="h-4 w-4" />

@@ -142,7 +142,7 @@ export function ImportKelompok(props: Props) {
       <LangkahTemplate {...props} />
 
       {/* ── 2. Unggah ── */}
-      <section className="rounded-xl border bg-card p-4">
+      <section className="rounded-2xl border bg-card p-4">
         <Judul n={2} teks="Unggah berkas yang sudah diisi" />
         <input
           ref={inputRef}
@@ -178,7 +178,7 @@ export function ImportKelompok(props: Props) {
 
       {/* ── 3. Periksa ── */}
       {baris && (
-        <section className="overflow-hidden rounded-xl border bg-card">
+        <section className="overflow-hidden rounded-2xl border bg-card">
           <div className="p-4 pb-0">
             <Judul n={3} teks="Periksa sebelum disimpan" />
           </div>
@@ -286,7 +286,7 @@ function LangkahTemplate({ halaqohList, santri }: Props) {
   }
 
   return (
-    <section className="rounded-xl border bg-card p-4">
+    <section className="rounded-2xl border bg-card p-4">
       <Judul n={1} teks="Unduh pembagian yang berlaku sekarang" />
       <p className="mb-3 text-sm text-muted-foreground">
         Tiga lembar — Sesi 1, 2, dan 3 — sudah terisi {santri.length} santri beserta
@@ -384,7 +384,7 @@ function TabelBermasalah({ rows }: { rows: HasilKelompok[] }) {
 
 function Ringkasan({ hasil, onUlang }: { hasil: HasilImporKelompok; onUlang: () => void }) {
   return (
-    <div className="overflow-hidden rounded-xl border bg-card">
+    <div className="overflow-hidden rounded-2xl border bg-card">
       <div className="flex items-center gap-3 border-b bg-success-wash px-4 py-4">
         <CheckCircle2 className="h-6 w-6 shrink-0 text-success" />
         <div>
@@ -424,7 +424,7 @@ function Ringkasan({ hasil, onUlang }: { hasil: HasilImporKelompok; onUlang: () 
 
 function Judul({ n, teks }: { n: number; teks: string }) {
   return (
-    <h2 className="mb-2 flex items-center gap-2 text-sm font-semibold">
+    <h2 className="font-heading text-lg font-medium mb-2 flex items-center gap-2">
       <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary-wash text-[11px] font-bold text-primary">
         {n}
       </span>
@@ -441,8 +441,8 @@ function TabPeriksa({
       type="button"
       onClick={onClick}
       className={cn(
-        'whitespace-nowrap border-b-2 px-3 py-2 text-sm transition-colors',
-        active ? 'border-primary font-medium text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground',
+        '-mb-px whitespace-nowrap border-b-2 px-3 py-2.5 text-sm font-semibold transition-colors',
+        active ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground',
       )}
     >
       {children}

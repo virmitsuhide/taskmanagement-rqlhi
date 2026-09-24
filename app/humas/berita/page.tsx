@@ -143,7 +143,7 @@ export default async function KelolaBeritaPage({ searchParams }: PageProps) {
         {/* Judul + aksi utama */}
         <div className="flex items-start justify-between gap-4 mb-6 flex-wrap">
           <div>
-            <h1 className="text-2xl font-bold leading-tight">Kelola Berita</h1>
+            <h1 className="text-3xl leading-tight">Kelola Berita</h1>
             <p className="text-sm text-muted-foreground mt-0.5">
               Tulis, terbitkan, dan sunting berita &amp; artikel yang tampil di halaman publik.
             </p>
@@ -223,7 +223,7 @@ export default async function KelolaBeritaPage({ searchParams }: PageProps) {
             )}
           </div>
         ) : (
-          <div className="rounded-xl border bg-card overflow-hidden">
+          <div className="rounded-2xl border bg-card overflow-hidden">
             {/* Kepala tabel — hanya di layar lebar; di mobile tiap baris jadi kartu. */}
             <div className="hidden md:grid grid-cols-[1fr_130px_110px_130px_150px] gap-3 px-4 py-2.5 border-b bg-muted/30 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
               <span>Judul</span>
@@ -347,7 +347,7 @@ function StatTile({
   const valueColor =
     tone === 'success' ? 'text-success' : tone === 'muted' ? 'text-muted-foreground' : 'text-foreground'
   return (
-    <div className="rounded-xl border bg-card px-4 py-3">
+    <div className="rounded-2xl border bg-card px-4 py-3">
       <span className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
         {icon}
         {label}

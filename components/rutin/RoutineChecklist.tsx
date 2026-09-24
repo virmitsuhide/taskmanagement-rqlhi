@@ -118,10 +118,10 @@ function GroupSection({ group, pengurus }: { group: RoutineGroup; pengurus: Peng
   }
 
   return (
-    <section className="overflow-hidden rounded-xl border bg-card shadow-sm">
+    <section className="overflow-hidden rounded-2xl border bg-card shadow-sm">
       <div className="border-b bg-muted/40 px-5 py-3">
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-          <h2 className="text-sm font-semibold">{CADENCE_LABELS[group.cadence]}</h2>
+          <h2 className="font-heading text-lg font-medium">{CADENCE_LABELS[group.cadence]}</h2>
           <span className="text-[11px] text-muted-foreground">
             {CADENCE_PERIOD_LABELS[group.cadence]} · {labelPeriode(group.cadence)}
           </span>

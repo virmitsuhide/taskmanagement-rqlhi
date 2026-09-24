@@ -808,7 +808,8 @@ CREATE TABLE public.public_posts (
   created_at timestamp with time zone DEFAULT now(),
   updated_at timestamp with time zone DEFAULT now(),
   priority post_priority DEFAULT 'info'::post_priority NOT NULL,
-  icon post_icon
+  icon post_icon,
+  image_url text
 );
 
 CREATE TABLE public.rapor_isian (
@@ -1942,6 +1943,7 @@ COMMENT ON COLUMN public.jilid_levels.baca_quran IS 'Tahap ini ikut mencatat bac
    semua tahap is_quran, dan untuk Gharib & Tajwid UMMI yang bukunya dihafal
    sambil anak tetap membaca Al-Qur''an.';
 COMMENT ON COLUMN public.jilid_promotions.source_log_id IS 'Setoran yang menyebabkan kenaikan ini. Dihapusnya setoran ikut menghapus kenaikan lewat CASCADE. NULL untuk kenaikan yang dicatat manual.';
+COMMENT ON COLUMN public.public_posts.image_url IS 'Url publik gambar/flyer post (bucket news-images, folder pengumuman/). NULL = tanpa gambar.';
 COMMENT ON COLUMN public.rapor_templates.ttd_koordinator_path IS 'Path objek di bucket signatures (tertutup). NULL = ruang tanda tangan
    dibiarkan kosong untuk ditandatangani basah.';
 COMMENT ON TABLE public.riyadhoh_jadwal IS 'Sabtu Riyadhoh dan kelompok yang masuk (L = putra, P = putri). Sabtu tanpa baris = libur.';

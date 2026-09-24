@@ -80,7 +80,7 @@ export function TabelProgres({
   const adaSetoran = data.baris.some(b => b.jumlahHari > 0)
 
   return (
-    <div className="rounded-xl border bg-card">
+    <div className="rounded-2xl border bg-card">
       {!adaSetoran && (
         <p className="border-b px-3 py-2 text-sm text-muted-foreground">
           Belum ada setoran {jenis} di sesi ini pada bulan tersebut.

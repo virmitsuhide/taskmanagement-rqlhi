@@ -1,3 +1,4 @@
+import { BookOpen, Sparkles, Users } from 'lucide-react'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { getTeacherSession } from '@/lib/auth/teacher-session'
@@ -56,9 +57,9 @@ export default async function TeacherHomePage() {
     <div className="min-h-screen" style={{ background: 'var(--secondary)' }}>
       <div className="max-w-4xl mx-auto px-4 md:px-6 py-8">
         <div className="mb-6">
-          <p className="text-[11px] uppercase tracking-[1.8px] text-muted-foreground">{dateLabel}</p>
+          <p className="text-xs font-bold uppercase tracking-[0.1em] text-warning">{dateLabel}</p>
           <h1
-            className="text-3xl font-extrabold mt-1.5 tracking-tight"
+            className="text-3xl mt-1.5 tracking-tight"
             style={{ fontFamily: 'var(--font-playfair), Georgia, serif' }}
           >
             Assalamu&apos;alaikum,{' '}
@@ -108,9 +109,9 @@ export default async function TeacherHomePage() {
 
         {/* Quick action */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-8">
-          <QuickAction href="/guru/setoran/tahsin/baru" emoji="📖" title="Setor Tahsin" desc="Catat bacaan jilid harian" />
-          <QuickAction href="/guru/setoran/tahfidz/baru" emoji="✨" title="Setor Tahfidz" desc="Ziyadah / muroja'ah" />
-          <QuickAction href="/guru/siswa" emoji="👥" title="Siswa Saya" desc="Lihat semua siswa & progress" />
+          <QuickAction href="/guru/setoran/tahsin/baru" icon={<BookOpen className="h-[18px] w-[18px]" />} title="Setor Tahsin" desc="Catat bacaan jilid harian" />
+          <QuickAction href="/guru/setoran/tahfidz/baru" icon={<Sparkles className="h-[18px] w-[18px]" />} title="Setor Tahfidz" desc="Ziyadah / muroja'ah" />
+          <QuickAction href="/guru/siswa" icon={<Users className="h-[18px] w-[18px]" />} title="Siswa Saya" desc="Lihat semua siswa & progress" />
         </div>
 
         {/* 2 kolom: antrian + sidebar statistik */}
@@ -118,7 +119,7 @@ export default async function TeacherHomePage() {
           {/* Antrian setoran */}
           <section>
             <div className="flex items-end justify-between mb-3">
-              <h2 className="text-base font-semibold">Antrian Setoran Hari Ini</h2>
+              <h2 className="font-heading text-xl font-medium">Antrian Setoran Hari Ini</h2>
               <Link href="/guru/siswa" className="text-xs text-muted-foreground hover:underline">Lihat semua →</Link>
             </div>
 
@@ -127,11 +128,11 @@ export default async function TeacherHomePage() {
                 Anda belum mengampu halaqoh manapun. Hubungi admin untuk assign halaqoh.
               </div>
             ) : antrian.length === 0 ? (
-              <div className="rounded-xl border bg-card py-10 text-center text-sm text-muted-foreground">
-                🎉 Semua siswa sudah setor hari ini. Barakallahu fiik!
+              <div className="rounded-2xl border bg-card py-10 text-center text-sm text-muted-foreground">
+                Semua siswa sudah setor hari ini. Barakallahu fiik!
               </div>
             ) : (
-              <div className="rounded-xl border bg-card divide-y">
+              <div className="rounded-2xl border bg-card divide-y">
                 {antrian.map(s => {
                   const d = daysAgo(s.last_setoran_date)
                   return (
@@ -143,7 +144,7 @@ export default async function TeacherHomePage() {
                         <p className="font-medium text-sm truncate">{s.full_name}</p>
                         <p className="text-xs text-muted-foreground truncate">
                           {s.lulus_tahsin
-                            ? `🎓 Lulus Tahsin${s.last_tahfidz_surat ? ` · tahfidz ${s.last_tahfidz_surat}` : ''}`
+                            ? `Lulus Tahsin${s.last_tahfidz_surat ? ` · tahfidz ${s.last_tahfidz_surat}` : ''}`
                             : s.current_method_name && s.current_jilid_label
                               ? `${s.current_method_name} ${s.current_jilid_label} · hal. ${s.current_jilid_page ?? '—'}`
                               : 'Belum ada data tahsin'}
@@ -167,9 +168,9 @@ export default async function TeacherHomePage() {
           {/* Sidebar statistik */}
           <aside className="space-y-4">
             {/* Aktivitas pekan ini */}
-            <div className="rounded-xl border bg-card p-4">
+            <div className="rounded-2xl border bg-card p-4">
               <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-semibold">📈 Aktivitas Pekan Ini</h3>
+                <h3 className="text-sm font-semibold">Aktivitas Pekan Ini</h3>
                 <Link href="/guru/statistik" className="text-[11px] text-muted-foreground hover:underline">Detail →</Link>
               </div>
               <div className="space-y-2">
@@ -182,8 +183,8 @@ export default async function TeacherHomePage() {
 
             {/* Ringkasan halaqoh */}
             {halaqohSummary.length > 0 && (
-              <div className="rounded-xl border bg-card p-4">
-                <h3 className="text-sm font-semibold mb-3">📿 Halaqoh Saya</h3>
+              <div className="rounded-2xl border bg-card p-4">
+                <h3 className="text-sm font-semibold mb-3">Halaqoh Saya</h3>
                 <div className="space-y-3">
                   {halaqohSummary.map(h => {
                     const pct = h.studentCount > 0 ? Math.round((h.setorTodayCount / h.studentCount) * 100) : 0
@@ -222,24 +223,24 @@ function StatRow({ label, value, accent }: { label: string; value: number; accen
 function StatCard({ num, label, tone }: { num: number; label: string; tone?: 'ok' | 'warm' }) {
   const style =
     tone === 'ok' ? { background: 'var(--success-wash)', borderColor: 'var(--success)' }
-    : tone === 'warm' ? { background: 'var(--primary-wash)', borderColor: 'var(--border)' }
+    : tone === 'warm' ? { background: 'var(--accent-warm-wash)', borderColor: 'var(--border)' }
     : { background: 'var(--card)', borderColor: 'var(--border)' }
-  const numColor = tone === 'ok' ? 'var(--success)' : tone === 'warm' ? 'var(--primary)' : 'var(--foreground)'
+  const numColor = tone === 'ok' ? 'var(--success)' : tone === 'warm' ? 'var(--warning)' : 'var(--foreground)'
   return (
-    <div className="rounded-xl border p-4" style={style}>
-      <div className="text-3xl font-extrabold leading-none" style={{ fontFamily: 'var(--font-playfair), serif', color: numColor }}>
+    <div className="rounded-2xl border p-4" style={style}>
+      <div className="text-4xl font-medium leading-none tabular-nums" style={{ fontFamily: 'var(--font-playfair), serif', color: numColor }}>
         {num}
       </div>
-      <div className="text-[11px] uppercase tracking-wider text-muted-foreground mt-1.5">{label}</div>
+      <div className="text-xs font-semibold text-muted-foreground mt-2">{label}</div>
     </div>
   )
 }
 
-function QuickAction({ href, emoji, title, desc }: { href: string; emoji: string; title: string; desc: string }) {
+function QuickAction({ href, icon, title, desc }: { href: string; icon: React.ReactNode; title: string; desc: string }) {
   return (
-    <Link href={href} className="rounded-xl border bg-card p-4 hover:border-[var(--primary)] transition-colors">
-      <div className="w-9 h-9 rounded-lg flex items-center justify-center mb-2" style={{ background: 'var(--primary-wash)' }}>
-        {emoji}
+    <Link href={href} className="rounded-2xl border bg-card p-4 transition-[border-color,box-shadow] hover:border-primary/40 hover:shadow-sm">
+      <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-3 text-primary" style={{ background: 'var(--primary-wash)' }}>
+        {icon}
       </div>
       <p className="font-semibold text-sm">{title}</p>
       <p className="text-xs text-muted-foreground mt-0.5">{desc}</p>

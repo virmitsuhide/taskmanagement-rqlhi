@@ -37,10 +37,10 @@ export default async function KaryawanPage() {
   return (
     <div>
       <DashboardHeader displayName={session.displayName} role={session.role} title="Karyawan" showBack ownH1 />
-      <div className="p-4 md:p-6 max-w-3xl mx-auto">
+      <div className="p-4 md:p-8 max-w-3xl mx-auto">
         <div className="mb-5 flex items-start justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-bold leading-tight">Karyawan RQ</h1>
+            <h1 className="text-3xl leading-tight">Karyawan RQ</h1>
             <p className="mt-0.5 text-sm text-muted-foreground">
               {daftar.length} akun · portal mereka hanya berisi Profil
             </p>
@@ -57,7 +57,7 @@ export default async function KaryawanPage() {
           </div>
         )}
 
-        <div className="overflow-hidden rounded-xl border bg-card">
+        <div className="overflow-hidden rounded-2xl border bg-card">
           {daftar.length === 0 && !error ? (
             <p className="px-3 py-8 text-center text-sm text-muted-foreground">
               Belum ada akun karyawan.

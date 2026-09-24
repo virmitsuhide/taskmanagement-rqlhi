@@ -109,7 +109,7 @@ export default async function PublikasiKpiPage({ searchParams }: PageProps) {
         breadcrumbs={[{ label: 'KPI Guru', href: '/kpi' }, { label: 'Publikasi Rapor' }]}
       />
 
-      <div className="mx-auto max-w-[1200px] p-4 md:p-6">
+      <div className="mx-auto max-w-[1200px] p-4 md:p-8">
         <Link
           href="/kpi"
           className="mb-4 inline-flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
@@ -117,7 +117,7 @@ export default async function PublikasiKpiPage({ searchParams }: PageProps) {
           <ArrowLeft className="h-3.5 w-3.5" />Kembali ke KPI bulanan
         </Link>
 
-        <h1 className="text-2xl font-bold leading-tight">Publikasi Rapor KPI</h1>
+        <h1 className="text-3xl leading-tight">Publikasi Rapor KPI</h1>
         <p className="mb-5 mt-0.5 text-sm text-muted-foreground">
           {MONTH_NAMES[month - 1]} {year} · {unitSaya.find(u => u.key === unit)?.label}
           {menunggu.length > 0 && ` · ${menunggu.length} menunggu tanda tangan Anda`}

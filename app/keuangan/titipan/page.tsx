@@ -36,7 +36,7 @@ export default async function TitipanPage({ searchParams }: PageProps) {
       <div className="p-4 md:p-6 space-y-5 max-w-4xl">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h1 className="text-lg font-semibold">Dana Titipan</h1>
+            <h1 className="text-3xl">Dana Titipan</h1>
             <p className="text-sm text-muted-foreground">
               Saldo awal dihitung dari mutasi bulan-bulan sebelumnya, bukan diketik ulang.
             </p>

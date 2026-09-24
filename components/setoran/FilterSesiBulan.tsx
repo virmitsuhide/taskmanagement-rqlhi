@@ -37,7 +37,7 @@ export function FilterSesiBulan({
 }) {
   const dasar = { ...params, halaqoh, periode }
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-card p-3">
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border bg-card p-3">
       {(daftar.length > 1 || semua) ? (
         <div className="flex flex-wrap gap-2" role="group" aria-label="Pilih sesi">
           {semua && (

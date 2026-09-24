@@ -41,7 +41,7 @@ export default async function PapanTugasRutinPage() {
       />
 
       <div className="flex-1 bg-muted/50 dark:bg-background">
-        <div className="mx-auto max-w-5xl p-4 md:p-6">
+        <div className="mx-auto max-w-5xl p-4 md:p-8">
           <Button asChild variant="ghost" size="sm" className="-ml-2 mb-3">
             <Link href="/tugas-rutin">
               <ArrowLeft className="mr-1 h-4 w-4" />Kembali ke tugas rutin saya
@@ -50,7 +50,7 @@ export default async function PapanTugasRutinPage() {
 
           <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
             <div>
-              <h1 className="text-2xl font-bold leading-tight">Papan Tugas Rutin</h1>
+              <h1 className="text-3xl leading-tight">Papan Tugas Rutin</h1>
               <p className="mt-0.5 max-w-2xl text-sm text-muted-foreground">
                 Seluruh pekerjaan berulang pengurus pada periode yang sedang berjalan —
                 pekanan ({labelPeriode('pekanan')}), bulanan ({labelPeriode('bulanan')}),
@@ -63,7 +63,7 @@ export default async function PapanTugasRutinPage() {
           <PapanRutin board={board} />
 
           <p className="mt-5 text-[11px] text-muted-foreground">
-            💡 Papan ini hanya menampilkan periode yang sedang berjalan. Laporan periode
+            Papan ini hanya menampilkan periode yang sedang berjalan. Laporan periode
             sebelumnya tetap tersimpan, tapi tidak ikut ditampilkan di sini — yang perlu
             ditindaklanjuti adalah yang sedang terjadi.
           </p>

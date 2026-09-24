@@ -134,10 +134,10 @@ export default async function PembenahanKelasPage() {
         title="Kelas Belum Jelas"
         breadcrumbs={[{ label: 'Siswa', href: '/siswa' }, { label: 'Kelas Belum Jelas' }]}
       />
-      <div className="mx-auto max-w-3xl space-y-5 p-4 md:p-6">
+      <div className="mx-auto max-w-3xl space-y-5 p-4 md:p-8">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h1 className="text-2xl leading-tight font-bold">Kelas Belum Jelas</h1>
+            <h1 className="text-3xl leading-tight">Kelas Belum Jelas</h1>
             <p className="mt-0.5 text-sm text-muted-foreground">
               {total === 0
                 ? 'Semua siswa sudah punya kelas yang jelas.'

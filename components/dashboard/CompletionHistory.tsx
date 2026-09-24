@@ -127,7 +127,7 @@ function HistoryCard({ entry }: { entry: CompletedTaskEntry }) {
   }
 
   return (
-    <div className="rounded-xl border bg-card p-4">
+    <div className="rounded-2xl border bg-card p-4">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <Link href={`/tasks/${task.id}`} className="font-medium text-sm hover:underline inline-flex items-center gap-1">

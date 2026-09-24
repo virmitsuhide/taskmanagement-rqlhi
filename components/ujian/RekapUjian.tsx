@@ -105,7 +105,7 @@ export function RekapUjian({ tahfidz, tahsin, month, year, bolehEkspor }: Props)
           )}
 
           <div className="grid grid-cols-2 gap-3">
-            <div className="rounded-xl border bg-card p-4">
+            <div className="rounded-2xl border bg-card p-4">
               <p className="text-2xl font-semibold">{tahfidz.length}</p>
               <p className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
                 <BookOpen className="h-3.5 w-3.5" /> Tahfidz selesai
@@ -120,7 +120,7 @@ export function RekapUjian({ tahfidz, tahsin, month, year, bolehEkspor }: Props)
                 </ul>
               )}
             </div>
-            <div className="rounded-xl border bg-card p-4">
+            <div className="rounded-2xl border bg-card p-4">
               <p className="text-2xl font-semibold">{tahsin.length}</p>
               <p className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
                 <ClipboardList className="h-3.5 w-3.5" /> Kelompok tahsin selesai
@@ -147,13 +147,13 @@ export function RekapUjian({ tahfidz, tahsin, month, year, bolehEkspor }: Props)
 
           {tfTampil.length > 0 && (
             <section>
-              <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold">
+              <h2 className="font-heading text-lg font-medium mb-3 flex items-center gap-2">
                 <BookOpen className="h-4 w-4 text-info" />
                 Tahfidz <span className="font-normal text-muted-foreground">({tfTampil.length})</span>
               </h2>
               <div className="space-y-2">
                 {tfTampil.map(item => (
-                  <article key={item.id} className="rounded-xl border bg-card p-4">
+                  <article key={item.id} className="rounded-2xl border bg-card p-4">
                     <div className="mb-1 flex flex-wrap items-center gap-2">
                       <Badge variant="outline">{item.unit}</Badge>
                       {item.is_quls && <Badge variant="info">QULS</Badge>}
@@ -185,7 +185,7 @@ export function RekapUjian({ tahfidz, tahsin, month, year, bolehEkspor }: Props)
 
           {tsTampil.length > 0 && (
             <section>
-              <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold">
+              <h2 className="font-heading text-lg font-medium mb-3 flex items-center gap-2">
                 <ClipboardList className="h-4 w-4 text-primary" />
                 Tahsin <span className="font-normal text-muted-foreground">({tsTampil.length})</span>
               </h2>
@@ -196,7 +196,7 @@ export function RekapUjian({ tahfidz, tahsin, month, year, bolehEkspor }: Props)
                   const mengulang = item.siswa.filter(s => s.predikat === 'mengulang').length
 
                   return (
-                    <article key={item.id} className="rounded-xl border bg-card p-4">
+                    <article key={item.id} className="rounded-2xl border bg-card p-4">
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
                           <div className="mb-1 flex flex-wrap items-center gap-2">

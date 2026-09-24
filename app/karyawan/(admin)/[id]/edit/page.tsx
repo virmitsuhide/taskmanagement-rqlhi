@@ -53,9 +53,9 @@ export default async function SuntingKaryawanPage({ params, searchParams }: Page
         breadcrumbs={[{ label: 'Karyawan', href: '/karyawan' }, { label: employee.full_name }]}
         showBack
       />
-      <div className="p-4 md:p-6 max-w-3xl mx-auto space-y-6">
+      <div className="p-4 md:p-8 max-w-3xl mx-auto space-y-6">
         <div>
-          <h1 className="text-2xl font-bold leading-tight">{employee.full_name}</h1>
+          <h1 className="text-3xl leading-tight">{employee.full_name}</h1>
           <p className="mt-0.5 text-sm text-muted-foreground">@{employee.username}</p>
         </div>
 
@@ -77,13 +77,13 @@ export default async function SuntingKaryawanPage({ params, searchParams }: Page
         )}
 
         <section>
-          <h2 className="mb-2 text-sm font-semibold">Akun &amp; Kepegawaian</h2>
+          <h2 className="font-heading text-lg font-medium mb-2">Akun &amp; Kepegawaian</h2>
           <EmployeeForm mode="edit" initial={employee} />
         </section>
 
         {profile && (
           <section>
-            <h2 className="mb-2 text-sm font-semibold">Data Diri</h2>
+            <h2 className="font-heading text-lg font-medium mb-2">Data Diri</h2>
             <GuruProfileForm profile={profile} scope="karyawan-sdm" />
           </section>
         )}

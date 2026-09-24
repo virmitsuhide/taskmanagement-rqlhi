@@ -80,7 +80,7 @@ export function GukarStandarTable({ peserta, dapatMenyunting }: Props) {
         </span>
       </div>
 
-      <div className="overflow-x-auto rounded-xl border bg-card">
+      <div className="overflow-x-auto rounded-2xl border bg-card">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b text-left text-xs text-muted-foreground">

@@ -210,7 +210,7 @@ export function PindahSiswa({ siswa, tujuan, sesiSekarang, canManage }: Props) {
       {/* Bilah aksi menempel di bawah layar: daftar 30 anak lebih panjang dari
           satu layar, dan tombolnya harus terjangkau di mana pun gulirannya. */}
       {memilih && dipilih.size > 0 && (
-        <div className="sticky bottom-4 z-20 mt-3 flex flex-wrap items-center gap-3 rounded-xl border bg-card px-4 py-3 shadow-lg">
+        <div className="sticky bottom-4 z-20 mt-3 flex flex-wrap items-center gap-3 rounded-2xl border bg-card px-4 py-3 shadow-lg">
           <span className="text-sm font-medium">
             {dipilih.size} santri dipilih
           </span>

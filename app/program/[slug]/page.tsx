@@ -29,7 +29,7 @@ function Section({
 }) {
   if (!content) return null
   return (
-    <div className="rounded-xl border bg-card p-5 md:p-6">
+    <div className="rounded-2xl border bg-card p-5 md:p-6">
       <div className="flex items-center gap-3 mb-3">
         <div className={`inline-flex items-center justify-center rounded-lg p-2 ${iconBg}`}>
           <Icon className={`h-4 w-4 ${iconColor}`} />
@@ -73,7 +73,7 @@ export default async function ProgramDetailPage({ params }: PageProps) {
         <PublicHeader />
       )}
 
-      <div className="p-4 md:p-6 max-w-3xl mx-auto pb-16">
+      <div className="p-4 md:p-8 max-w-3xl mx-auto pb-16">
         <div className="flex items-center justify-between gap-3 mb-6">
           <Link
             href="/program"
@@ -101,7 +101,7 @@ export default async function ProgramDetailPage({ params }: PageProps) {
         )}
 
         {/* Hero */}
-        <div className="rounded-xl border bg-card overflow-hidden mb-6">
+        <div className="rounded-2xl border bg-card overflow-hidden mb-6">
           {program.photo_url ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img

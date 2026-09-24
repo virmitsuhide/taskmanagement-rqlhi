@@ -59,14 +59,14 @@ export default async function HalaqohDetailPage({ params }: PageProps) {
         breadcrumbs={[{ label: 'Halaqoh', href: '/halaqoh' }, { label: halaqoh.name }]}
         showBack
       />
-      <div className="p-4 md:p-6 max-w-5xl mx-auto space-y-6">
+      <div className="p-4 md:p-8 max-w-5xl mx-auto space-y-6">
 
         {/* Header */}
-        <div className="rounded-xl border bg-card p-5">
+        <div className="rounded-2xl border bg-card p-5">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
-                <h1 className="text-2xl font-bold leading-tight">{halaqoh.name}</h1>
+                <h1 className="text-3xl leading-tight">{halaqoh.name}</h1>
                 <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-muted">
                   {JENJANG_LABELS[halaqoh.jenjang as Jenjang]}
                 </span>
@@ -123,7 +123,7 @@ export default async function HalaqohDetailPage({ params }: PageProps) {
         {/* Siswa */}
         <section>
           <div className="flex items-end justify-between mb-3">
-            <h2 className="text-base font-semibold">Daftar Siswa</h2>
+            <h2 className="font-heading text-lg font-medium">Daftar Siswa</h2>
             {canEdit && (
               <Button asChild size="sm" variant="outline">
                 <Link href={`/siswa/baru?halaqoh_id=${id}`}>+ Tambah Siswa</Link>

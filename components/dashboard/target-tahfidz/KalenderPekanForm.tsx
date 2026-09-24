@@ -40,10 +40,10 @@ export function KalenderPekanForm({ tahunAjaran, bulan, sumber, bisaUbah, tabelA
     bulan.filter(b => b.semester === semester).reduce((t, b) => t + (Number((nilai[b.bulan] ?? '').replace(',', '.')) || 0), 0)
 
   return (
-    <section className="rounded-xl border bg-card p-5">
+    <section className="rounded-2xl border bg-card p-5">
       <div className="mb-4 flex flex-wrap items-start justify-between gap-2">
         <div>
-          <h2 className="text-sm font-semibold flex items-center gap-2">
+          <h2 className="font-heading text-lg font-medium flex items-center gap-2">
             <CalendarDays className="h-4 w-4" /> Kalender Pekan Efektif · TA {tahunAjaran}
           </h2>
           <p className="text-xs text-muted-foreground mt-0.5">

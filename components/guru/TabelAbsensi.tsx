@@ -34,7 +34,7 @@ export function TabelAbsensi({ data, hariIni, tautanSiswa }: {
   )
 
   return (
-    <div className="rounded-xl border bg-card">
+    <div className="rounded-2xl border bg-card">
       {!adaAbsensi && (
         <p className="border-b px-3 py-2 text-sm text-muted-foreground">
           Belum ada absensi di sesi ini pada bulan tersebut.

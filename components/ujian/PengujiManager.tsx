@@ -77,7 +77,7 @@ export function PengujiManager(
 
   return (
     <div className="space-y-4">
-      <div className="space-y-2 rounded-xl border bg-card p-4">
+      <div className="space-y-2 rounded-2xl border bg-card p-4">
         <label htmlFor="cari-guru" className="text-sm font-medium">
           Tambah penguji
         </label>
@@ -162,7 +162,7 @@ export function PengujiManager(
         <ul className="space-y-2">
           {pengujis.map(p => (
             <li key={p.id}
-              className="flex items-center justify-between gap-2 rounded-xl border bg-card px-4 py-3">
+              className="flex items-center justify-between gap-2 rounded-2xl border bg-card px-4 py-3">
               <div className="min-w-0">
                 <p className="truncate text-sm font-medium">{p.nama}</p>
                 <p className="mt-0.5 text-xs text-muted-foreground">

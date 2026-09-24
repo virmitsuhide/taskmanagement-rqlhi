@@ -99,7 +99,7 @@ function Kelompok({ kelompok }: { kelompok: KelompokBenah }) {
   }
 
   return (
-    <section className="rounded-xl border bg-card">
+    <section className="rounded-2xl border bg-card">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b px-4 py-3">
         <div>
           <p className="text-sm font-semibold">

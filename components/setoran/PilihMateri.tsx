@@ -40,9 +40,9 @@ export type PilihanMateri = Record<string, HasilMateri>
  * terbentuk saat program berjalan — yang dirangkai akan hilang saat build.
  */
 const HASIL: { nilai: HasilMateri; label: string; aktif: string }[] = [
-  { nilai: 'ulang',  label: '🔁 Ulang',  aktif: 'border-warning text-warning' },
+  { nilai: 'ulang',  label: 'Ulang',  aktif: 'border-warning text-warning' },
   { nilai: 'lanjut', label: '➡️ Lanjut', aktif: 'border-primary text-primary' },
-  { nilai: 'lulus',  label: '✅ Lulus',  aktif: 'border-success text-success' },
+  { nilai: 'lulus',  label: 'Lulus',  aktif: 'border-success text-success' },
 ]
 
 interface Props {
@@ -115,7 +115,7 @@ export function PilihMateri({ materi, hasilTerakhir, value, onChange, disabled }
 
       {tampil.length === 0 ? (
         <p className="rounded-md border border-dashed px-3 py-2 text-xs text-muted-foreground">
-          🎉 Semua materi sudah lulus — anak siap diajukan ujian tahsin.
+          Semua materi sudah lulus — anak siap diajukan ujian tahsin.
         </p>
       ) : (
         <ul className="space-y-1">

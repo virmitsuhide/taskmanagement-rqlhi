@@ -81,7 +81,7 @@ export function TaskForm({ assignableUsers, defaults, personalMode }: Props) {
         <div className="space-y-1.5">
           <Label>Untuk</Label>
           <div className="px-3 py-2 rounded-md bg-muted text-sm">
-            👤 Diri sendiri ({personalMode.selfName})
+            Diri sendiri ({personalMode.selfName})
           </div>
         </div>
       ) : (
@@ -106,7 +106,7 @@ export function TaskForm({ assignableUsers, defaults, personalMode }: Props) {
         <div className="space-y-1.5">
           <Label>Horizon</Label>
           <div className="px-3 py-2 rounded-md bg-muted text-sm">
-            {personalMode.horizon === 'panjang' ? '🎯 Jangka Panjang' : '⚡ Jangka Pendek'}
+            {personalMode.horizon === 'panjang' ? 'Jangka Panjang' : '⚡ Jangka Pendek'}
           </div>
         </div>
       )}
@@ -160,7 +160,7 @@ export function TaskForm({ assignableUsers, defaults, personalMode }: Props) {
         </CardContent>
       </Card>
 
-      <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
+      <div className="overflow-hidden rounded-2xl border bg-card shadow-sm">
         {state?.error && (
           <p className="border-b bg-destructive/10 px-4 py-2.5 text-sm text-destructive">
             {state.error}

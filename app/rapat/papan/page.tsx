@@ -91,7 +91,7 @@ export default async function PapanRapatPage({ searchParams }: PageProps) {
         breadcrumbs={[{ label: 'Rapat & Notulen', href: '/rapat' }, { label: 'Papan Rapat' }]}
         ownH1
       />
-      <div className="mx-auto max-w-6xl space-y-5 p-4 md:p-6">
+      <div className="mx-auto max-w-6xl space-y-5 p-4 md:p-8">
         <DashTop
           eyebrow="Rapat & Notulen"
           title="Papan Rapat"
@@ -236,7 +236,7 @@ function Kolom({ judul, ikon, jumlah, kosong, children }: {
 }) {
   return (
     <section className="rounded-xl border bg-muted/40 p-3">
-      <h2 className="mb-3 flex items-center gap-2 px-1 text-sm font-semibold">
+      <h2 className="font-heading text-lg font-medium mb-3 flex items-center gap-2 px-1">
         {ikon}{judul}
         <span className="ml-auto rounded-full bg-card px-2 py-0.5 text-xs font-medium tabular-nums text-muted-foreground">{jumlah}</span>
       </h2>

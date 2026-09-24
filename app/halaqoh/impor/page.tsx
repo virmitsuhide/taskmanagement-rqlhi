@@ -85,8 +85,8 @@ function Kerangka({ session, children }: { session: SessionData; children: React
         breadcrumbs={[{ label: 'Halaqoh', href: '/halaqoh' }, { label: 'Impor Kelompok' }]}
         showBack
       />
-      <div className="mx-auto max-w-5xl p-4 md:p-6">
-        <h1 className="mb-1 text-2xl font-bold leading-tight">Impor Pembagian Kelompok</h1>
+      <div className="mx-auto max-w-5xl p-4 md:p-8">
+        <h1 className="mb-1 text-3xl leading-tight">Impor Pembagian Kelompok</h1>
         <p className="mb-6 text-sm text-muted-foreground">
           Untuk pembagian ulang yang jumlahnya banyak — satu lembar per sesi. Berkas ini
           hanya memindahkan santri antar halaqoh; identitasnya tidak diubah, dan halaqoh

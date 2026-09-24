@@ -35,10 +35,10 @@ export function PengumumanBeranda({ teacherId, items, barusanCount, tersembunyiA
   if (tampil.length === 0) return null
 
   return (
-    <section className="mb-6 rounded-xl border bg-card">
+    <section className="mb-6 rounded-2xl border bg-card">
       <div className="flex items-center gap-2 border-b px-4 py-2.5">
         <Megaphone className="h-4 w-4 text-muted-foreground" />
-        <h2 className="text-sm font-semibold">Pengumuman</h2>
+        <h2 className="font-heading text-lg font-medium">Pengumuman</h2>
         {barusanCount > 0 && (
           <span className="ml-auto rounded-full bg-destructive/10 px-2 py-0.5 text-[11px] font-medium text-destructive">
             {barusanCount} baru

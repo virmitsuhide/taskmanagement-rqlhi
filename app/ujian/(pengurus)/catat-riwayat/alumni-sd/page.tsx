@@ -26,9 +26,9 @@ export default async function UjianAlumniSdPage() {
         breadcrumbs={[{ label: 'Ujian', href: '/ujian/kelola' }, { label: 'Catat Riwayat', href: '/ujian/catat-riwayat' }, { label: 'Alumni SD LHI' }]}
       />
 
-      <div className="p-4 md:p-6 max-w-3xl mx-auto space-y-5">
+      <div className="p-4 md:p-8 max-w-3xl mx-auto space-y-5">
         <div>
-          <h1 className="text-2xl font-bold leading-tight">Ujian Tahfidz Alumni SD LHI</h1>
+          <h1 className="text-3xl leading-tight">Ujian Tahfidz Alumni SD LHI</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Catat ujian yang ditempuh siswa SMP semasa di SDIT LHI. Tercatat sebagai ujian unit SD berstatus
             <em> Selesai</em>, langsung terhitung juz teruji dan posisi terhadap target SMPIT internal — tanpa

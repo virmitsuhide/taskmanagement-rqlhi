@@ -148,7 +148,7 @@ function Seksi({
 }) {
   return (
     <section>
-      <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold">
+      <h2 className="font-heading text-lg font-medium mb-3 flex items-center gap-2">
         {icon}
         {judul}
         <span className="font-normal text-muted-foreground">({jumlah})</span>
@@ -176,7 +176,7 @@ function KartuAntrian({
   quls?: boolean
 }) {
   return (
-    <li className="rounded-xl border bg-card p-3.5">
+    <li className="rounded-2xl border bg-card p-3.5">
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 items-start gap-2">
           <span className="mt-0.5 shrink-0 text-xs font-semibold text-muted-foreground">

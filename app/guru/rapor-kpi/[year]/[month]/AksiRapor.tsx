@@ -264,7 +264,7 @@ function FormBanding({
     <form action={formAction} className="rounded-lg border bg-card p-4">
       <input type="hidden" name="kpi_id" value={kpiId} />
 
-      <h2 className="text-sm font-semibold">Ajukan banding</h2>
+      <h2 className="font-heading text-lg font-medium">Ajukan banding</h2>
       <p className="mt-0.5 text-xs text-muted-foreground">
         Pilih indikator yang Anda sanggah, lalu sebutkan nilai yang menurut Anda benar
         beserta alasannya. Banding diperiksa SDM terhadap catatan sumbernya; bila ditolak,
@@ -382,7 +382,7 @@ function RiwayatBanding({
 
   return (
     <div className="rounded-lg border bg-card p-4">
-      <h2 className="mb-2.5 text-sm font-semibold">Riwayat banding</h2>
+      <h2 className="font-heading text-lg font-medium mb-2.5">Riwayat banding</h2>
 
       <ol className="space-y-3">
         {banding.map(b => (

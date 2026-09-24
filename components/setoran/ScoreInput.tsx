@@ -35,7 +35,7 @@ export function ScoreInput({ name, defaultValue = null, presets = [80, 85, 88, 9
               // aspek itu tidak dinilai, bukan bernilai nol.
               onClick={() => setValue(active ? '' : String(preset))}
               aria-pressed={active}
-              className={`h-8 w-11 rounded-md border text-sm tabular-nums transition-colors ${
+              className={`h-11 w-12 rounded-xl border bg-card text-sm font-semibold tabular-nums transition-colors ${
                 active
                   ? 'border-primary bg-primary text-primary-foreground font-medium'
                   : 'hover:bg-accent'

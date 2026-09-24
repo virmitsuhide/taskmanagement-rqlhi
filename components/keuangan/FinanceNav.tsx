@@ -26,9 +26,9 @@ export function FinanceNav({ period }: { period: string }) {
             key={tab.href}
             href={`${tab.href}?periode=${period}`}
             className={cn(
-              'whitespace-nowrap border-b-2 px-3 py-2 text-sm transition-colors',
+              '-mb-px whitespace-nowrap border-b-2 px-3 py-2.5 text-sm font-semibold transition-colors',
               active
-                ? 'border-primary font-medium text-foreground'
+                ? 'border-primary text-foreground'
                 : 'border-transparent text-muted-foreground hover:text-foreground',
             )}
           >

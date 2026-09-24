@@ -7,7 +7,7 @@ export default function Loading() {
         <Skeleton className="h-7 w-24" />
         <Skeleton className="h-5 w-36" />
       </div>
-      <div role="status" aria-busy="true" className="p-4 md:p-6 max-w-3xl mx-auto">
+      <div role="status" aria-busy="true" className="p-4 md:p-8 max-w-3xl mx-auto">
         <span className="sr-only">Memuat…</span>
         <div className="mb-5 flex items-end justify-between gap-3">
           <div className="space-y-2">

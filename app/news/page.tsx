@@ -209,7 +209,7 @@ export default async function NewsPage({ searchParams }: PageProps) {
             {/* Lead */}
             <div className="relative">
               <Link href={`/news/${featured.id}`} className="group block">
-              <article className="rounded-xl border bg-card overflow-hidden hover:border-foreground/20 hover:shadow-sm transition">
+              <article className="rounded-2xl border bg-card overflow-hidden hover:border-foreground/20 hover:shadow-sm transition">
                 {featured.thumbnail_url ? (
                   <div className="relative w-full aspect-[16/10] overflow-hidden">
                     <Image
@@ -287,7 +287,7 @@ export default async function NewsPage({ searchParams }: PageProps) {
             {rest.map(item => (
               <article
                 key={item.id}
-                className="group rounded-xl border bg-card overflow-hidden hover:border-foreground/20 hover:shadow-sm transition relative"
+                className="group rounded-2xl border bg-card overflow-hidden hover:border-foreground/20 hover:shadow-sm transition relative"
               >
                 <Link href={`/news/${item.id}`} className="block">
                   {item.thumbnail_url ? (

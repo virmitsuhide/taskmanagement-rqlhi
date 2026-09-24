@@ -80,10 +80,10 @@ export default async function TaskBoardPage({ searchParams }: PageProps) {
   return (
     <div>
       <DashboardHeader displayName={session.displayName} role={session.role} title="Papan Task" showBack ownH1 />
-      <div className="p-4 md:p-6 max-w-[1400px] mx-auto">
+      <div className="p-4 md:p-8 max-w-[1400px] mx-auto">
         <div className="flex items-end justify-between gap-3 flex-wrap mb-4">
           <div>
-            <h1 className="text-2xl font-bold leading-tight">Papan Kanban</h1>
+            <h1 className="text-3xl leading-tight">Papan Kanban</h1>
             <p className="text-sm text-muted-foreground mt-0.5">
               Tarik kartu antar kolom untuk ubah status. Hanya pelaksana, pemberi tugas,
               dan Kepala RQ yang bisa memindahkan kartu.
@@ -146,7 +146,7 @@ export default async function TaskBoardPage({ searchParams }: PageProps) {
         <KanbanBoard columns={columns} currentUserId={session.userId} currentRole={session.role} dependensi={dependensi} />
 
         <p className="text-xs text-muted-foreground mt-4">
-          💡 Di HP, ketuk kartu untuk buka detail &amp; ubah status di sana. Tarik-lepas optimal di desktop.
+          Di HP, ketuk kartu untuk buka detail &amp; ubah status di sana. Tarik-lepas optimal di desktop.
         </p>
       </div>
     </div>

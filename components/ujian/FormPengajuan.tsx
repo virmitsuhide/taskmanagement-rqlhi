@@ -67,7 +67,7 @@ export function FormPengajuan({ units, redirectTo }: Props) {
         </p>
       )}
 
-      <div className="rounded-xl border bg-card p-4">
+      <div className="rounded-2xl border bg-card p-4">
         {jenis === 'tahfidz'
           ? <FormTahfidz key={unit} unit={unit} redirectTo={redirectTo} />
           : <FormTahsin key={unit} unit={unit} redirectTo={redirectTo} />}

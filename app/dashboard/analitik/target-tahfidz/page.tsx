@@ -69,10 +69,10 @@ export default async function TargetTahfidzPage({ searchParams }: PageProps) {
   return (
     <div>
       <DashboardHeader displayName={session.displayName} role={session.role} title="Target Tahfidz" showBack ownH1 />
-      <div className="p-4 md:p-6 max-w-5xl mx-auto space-y-6">
+      <div className="p-4 md:p-8 max-w-5xl mx-auto space-y-6">
         <div>
-          <p className="text-[11px] uppercase tracking-[1.8px] text-muted-foreground">Target Tahfidz · TA {data.kalender.tahunAjaran}</p>
-          <h1 className="text-2xl font-bold leading-tight">Target Tahfidz Bulanan</h1>
+          <p className="text-xs font-bold uppercase tracking-[0.1em] text-warning">Target Tahfidz · TA {data.kalender.tahunAjaran}</p>
+          <h1 className="text-3xl leading-tight">Target Tahfidz Bulanan</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
             Posisi per {tanggalTeks(data.tanggal)} · semester {data.progres.semester === 1 ? 'ganjil' : 'genap'},{' '}
             {Math.round(data.progres.fraksi * 100)}% pekan efektif sudah lewat
@@ -94,8 +94,8 @@ export default async function TargetTahfidzPage({ searchParams }: PageProps) {
         )}
 
         {/* ── Posisi hari ini ─────────────────────────────────────────── */}
-        <section className="rounded-xl border bg-card p-5">
-          <h2 className="text-sm font-semibold flex items-center gap-2"><Users className="h-4 w-4" /> Posisi Siswa vs Target Hari Ini</h2>
+        <section className="rounded-2xl border bg-card p-5">
+          <h2 className="font-heading text-lg font-medium flex items-center gap-2"><Users className="h-4 w-4" /> Posisi Siswa vs Target Hari Ini</h2>
           <p className="text-xs text-muted-foreground mt-0.5 mb-4">
             &quot;Di bawah&quot; = tertinggal lebih dari {TOLERANSI_PEKAN} pekan materi. &quot;Melampaui&quot; = lebih dari 1 halaman di depan target (sampai 1 juz); lebih dari 1 juz = sangat melampaui, lebih dari 2 juz = sangat jauh melampaui. Hafalan di luar rencana program ikut dihitung. Terukur dari setoran ziyadah &amp; ujian yang tercatat di sistem.
           </p>
@@ -144,8 +144,8 @@ export default async function TargetTahfidzPage({ searchParams }: PageProps) {
         </section>
 
         {/* ── Target akhir bulan ──────────────────────────────────────── */}
-        <section className="rounded-xl border bg-card p-5">
-          <h2 className="text-sm font-semibold flex items-center gap-2"><Target className="h-4 w-4" /> Target Akhir Bulan</h2>
+        <section className="rounded-2xl border bg-card p-5">
+          <h2 className="font-heading text-lg font-medium flex items-center gap-2"><Target className="h-4 w-4" /> Target Akhir Bulan</h2>
           <p className="text-xs text-muted-foreground mt-0.5 mb-3">
             Sampai mana hafalan semestinya di akhir tiap bulan, bila anak mengikuti rencana sejak kelas pertama programnya.
           </p>
@@ -214,8 +214,8 @@ export default async function TargetTahfidzPage({ searchParams }: PageProps) {
         </section>
 
         {/* ── Siswa di kelas terpilih ─────────────────────────────────── */}
-        <section className="rounded-xl border bg-card p-5">
-          <h2 className="text-sm font-semibold">Siswa {RENCANA[kode].label} · Kelas {tingkat}</h2>
+        <section className="rounded-2xl border bg-card p-5">
+          <h2 className="font-heading text-lg font-medium">Siswa {RENCANA[kode].label} · Kelas {tingkat}</h2>
           <p className="text-xs text-muted-foreground mt-0.5 mb-3">
             Diurutkan dari yang paling tertinggal. Selisih dalam pekan materi; positif berarti mendahului target.
           </p>
@@ -231,7 +231,7 @@ export default async function TargetTahfidzPage({ searchParams }: PageProps) {
         {smpDalamLingkup && canTandaiAsalSdLhi(session.role) && (
           <Link
             href="/dashboard/analitik/target-tahfidz/asal-siswa"
-            className="flex items-center justify-between rounded-xl border bg-card p-4 hover:bg-muted/40 transition-colors"
+            className="flex items-center justify-between rounded-2xl border bg-card p-4 hover:bg-muted/40 transition-colors"
           >
             <div className="flex items-center gap-3">
               <span className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'var(--primary-wash)', color: 'var(--primary)' }}>

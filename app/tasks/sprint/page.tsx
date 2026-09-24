@@ -69,10 +69,10 @@ export default async function SprintPage({ searchParams }: PageProps) {
         <div className="mx-auto max-w-5xl space-y-5">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
-              <p className="text-[11px] uppercase tracking-[1.8px] text-muted-foreground">Sprint Bulanan · Product Owner: Kepala RQ</p>
+              <p className="text-xs font-bold uppercase tracking-[0.1em] text-warning">Sprint Bulanan · Product Owner: Kepala RQ</p>
               <div className="flex flex-wrap items-center gap-2">
                 <Link href={href(geserPeriode(periode, -1))} aria-label="Bulan sebelumnya" className="rounded-md p-1 hover:bg-muted"><ChevronLeft className="h-5 w-5" /></Link>
-                <h1 className="text-2xl font-bold leading-tight">Sprint {labelPeriode(periode)}</h1>
+                <h1 className="text-3xl leading-tight">Sprint {labelPeriode(periode)}</h1>
                 <Link href={href(geserPeriode(periode, 1))} aria-label="Bulan berikutnya" className="rounded-md p-1 hover:bg-muted"><ChevronRight className="h-5 w-5" /></Link>
                 <span className="rounded-full px-2.5 py-0.5 text-[11px] font-medium" style={{ background: fase.wash, color: fase.warna }}>{fase.label}</span>
               </div>
@@ -98,10 +98,10 @@ export default async function SprintPage({ searchParams }: PageProps) {
           )}
 
           {ringkasan && (
-            <section className="rounded-xl border bg-card p-5">
+            <section className="rounded-2xl border bg-card p-5">
               <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                 <div>
-                  <h2 className="text-sm font-semibold">Ringkasan Semua Jabatan</h2>
+                  <h2 className="font-heading text-lg font-medium">Ringkasan Semua Jabatan</h2>
                   <p className="text-xs text-muted-foreground">Poin selesai dari poin yang disanggupi. Selesai = sudah diverifikasi pemberi tugas.</p>
                 </div>
                 {po && data.tabelAda && bolehDitutup(periode, hariIni, sprint.ditutupAt) && sprint.id && (
@@ -134,9 +134,9 @@ export default async function SprintPage({ searchParams }: PageProps) {
             bisaUbah={bisaUbah && data.tabelAda && bolehSusun} productOwner={po && data.tabelAda && bolehSusun} terkunci={terkunci}
           />
 
-          <section className="rounded-xl border bg-card p-5">
+          <section className="rounded-2xl border bg-card p-5">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-              <h2 className="flex items-center gap-2 text-sm font-semibold"><ListChecks className="h-4 w-4" /> Tugas yang Disanggupi</h2>
+              <h2 className="font-heading text-lg font-medium flex items-center gap-2"><ListChecks className="h-4 w-4" /> Tugas yang Disanggupi</h2>
               {data.ringkas.jumlah > 0 && (
                 <span className="text-xs tabular-nums text-muted-foreground">
                   {data.ringkas.selesai}/{data.ringkas.jumlah} tugas · {data.ringkas.selesaiPoin}/{data.ringkas.komitmenPoin} poin
@@ -156,15 +156,15 @@ export default async function SprintPage({ searchParams }: PageProps) {
           </section>
 
           {bisaUbah && !terkunci && data.tabelAda && bolehSusun && (
-            <section className="rounded-xl border bg-card p-5">
-              <h2 className="mb-1 flex items-center gap-2 text-sm font-semibold"><Sparkles className="h-4 w-4" /> Saran dari Gantt</h2>
+            <section className="rounded-2xl border bg-card p-5">
+              <h2 className="font-heading text-lg font-medium mb-1 flex items-center gap-2"><Sparkles className="h-4 w-4" /> Saran dari Gantt</h2>
               <DaftarSaran periode={periode} saran={data.saran} dependensi={data.dependensi} komitmenPoin={data.ringkas.komitmenPoin} rataSelesai={rataSelesai} />
             </section>
           )}
 
           {sprint.fase !== 'perencanaan' && (
-            <section className="rounded-xl border bg-card p-5">
-              <h2 className="mb-3 text-sm font-semibold">Review &amp; Retrospektif · {ROLE_LABELS[jabatan]}</h2>
+            <section className="rounded-2xl border bg-card p-5">
+              <h2 className="font-heading text-lg font-medium mb-3">Review &amp; Retrospektif · {ROLE_LABELS[jabatan]}</h2>
               <FormReview
                 key={`review-${periode}-${jabatan}`}
                 periode={periode} jabatan={jabatan} goal={data.goal}

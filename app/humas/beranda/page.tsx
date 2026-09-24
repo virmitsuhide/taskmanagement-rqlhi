@@ -67,7 +67,7 @@ export default async function KelolaBerandaPage({ searchParams }: PageProps) {
       <div className="p-4 md:p-6 max-w-4xl">
         <div className="flex items-start justify-between gap-4 mb-6 flex-wrap">
           <div>
-            <h1 className="text-2xl font-bold leading-tight">Kelola Tampilan Beranda</h1>
+            <h1 className="text-3xl leading-tight">Kelola Tampilan Beranda</h1>
             <p className="text-sm text-muted-foreground mt-0.5">
               Atur seksi yang tampil di halaman depan, teks header &amp; footer, dan profil guru.
             </p>
@@ -109,7 +109,7 @@ export default async function KelolaBerandaPage({ searchParams }: PageProps) {
 
             {contentLinks.length > 0 && (
             <div className="rounded-xl border bg-muted/20 p-5">
-              <h2 className="text-sm font-semibold mb-1">Mengisi kontennya</h2>
+              <h2 className="font-heading text-lg font-medium mb-1">Mengisi kontennya</h2>
               <p className="text-xs text-muted-foreground mb-4">
                 Panel ini mengatur <em>bagaimana</em> konten tampil. Untuk menulis isinya, pakai
                 halaman berikut.

@@ -73,7 +73,7 @@ export function FormRiwayatTahfidz({ units }: { units: UjianUnit[] }) {
   }
 
   return (
-    <form onSubmit={simpan} className="space-y-4 rounded-xl border bg-card p-4">
+    <form onSubmit={simpan} className="space-y-4 rounded-2xl border bg-card p-4">
       {units.length > 1 && (
         <div className="space-y-1.5">
           <Label htmlFor="unit_riwayat">Unit</Label>

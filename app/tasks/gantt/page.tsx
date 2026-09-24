@@ -100,7 +100,7 @@ export default async function GanttPage({ searchParams }: PageProps) {
         <div className="mx-auto max-w-[1400px]">
           <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
             <div>
-              <h1 className="text-2xl font-bold leading-tight">
+              <h1 className="text-3xl leading-tight">
                 {isSelf ? 'Gantt Chart Saya' : `Gantt Chart · ${target.label}`}
               </h1>
               <p className="mt-0.5 text-sm text-muted-foreground">
@@ -216,7 +216,7 @@ export default async function GanttPage({ searchParams }: PageProps) {
               </p>
             )}
             <p className="text-[11px] text-muted-foreground">
-              💡 Geser kanvas ke samping untuk menelusuri tanggal. Ketuk nama tugas untuk membuka detailnya.
+              Geser kanvas ke samping untuk menelusuri tanggal. Ketuk nama tugas untuk membuka detailnya.
             </p>
           </div>
         </div>

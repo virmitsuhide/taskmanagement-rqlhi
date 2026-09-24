@@ -57,7 +57,7 @@ export default async function PemetaanUjianPage() {
         title="Pemetaan Ujian"
         breadcrumbs={[{ label: 'Ujian', href: '/ujian/kelola' }, { label: 'Pemetaan' }]}
       />
-      <div className="mx-auto max-w-3xl space-y-5 p-4 md:p-6">
+      <div className="mx-auto max-w-3xl space-y-5 p-4 md:p-8">
         <UjianSubNav />
 
         <div>

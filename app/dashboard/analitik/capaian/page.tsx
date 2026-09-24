@@ -50,7 +50,7 @@ export default async function CapaianKelasPage({ searchParams }: PageProps) {
   return (
     <div>
       <DashboardHeader displayName={session.displayName} role={session.role} title="Capaian per Kelas" showBack ownH1 />
-      <div className="mx-auto max-w-6xl space-y-5 p-4 md:p-6">
+      <div className="mx-auto max-w-6xl space-y-5 p-4 md:p-8">
         <DashTop
           eyebrow="Kurikulum & Pembelajaran Al-Qur'an"
           title="Capaian Tahsin & Tahfidz per Kelas"

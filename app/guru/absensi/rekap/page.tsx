@@ -42,7 +42,7 @@ export default async function RekapAbsensiPage({ searchParams }: PageProps) {
           <Link href="/guru/absensi" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
             <ArrowLeft className="h-4 w-4" /> Daftar hadir harian
           </Link>
-          <h1 className="mt-1 text-2xl font-extrabold tracking-tight" style={{ fontFamily: 'var(--font-playfair), Georgia, serif' }}>
+          <h1 className="mt-1 text-3xl tracking-tight" style={{ fontFamily: 'var(--font-playfair), Georgia, serif' }}>
             Rekap Kehadiran
           </h1>
           <p className="mt-0.5 text-sm text-muted-foreground">

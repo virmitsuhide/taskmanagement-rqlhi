@@ -25,8 +25,8 @@ export default async function RiyadhohGuruPage({ searchParams }: { searchParams:
     <div className="min-h-screen" style={{ background: 'var(--secondary)' }}>
       <div className="mx-auto max-w-3xl space-y-4 px-4 py-6 md:px-6">
         <div>
-          <p className="text-[11px] uppercase tracking-[1.8px] text-muted-foreground">Halaqoh Sabtu</p>
-          <h1 className="text-2xl font-extrabold tracking-tight" style={{ fontFamily: 'var(--font-playfair), Georgia, serif' }}>
+          <p className="text-xs font-bold uppercase tracking-[0.1em] text-warning">Halaqoh Sabtu</p>
+          <h1 className="text-3xl tracking-tight" style={{ fontFamily: 'var(--font-playfair), Georgia, serif' }}>
             Riyadhoh Qur&apos;an
           </h1>
         </div>
@@ -58,7 +58,7 @@ async function Isi({ sabtu }: { sabtu: Awaited<ReturnType<typeof getSabtuPengamp
     <>
       <PilihSabtu daftar={sabtu.daftar} terpilih={tanggal} hariIni={sabtu.hariIni} />
 
-      <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border bg-card p-3">
+      <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border bg-card p-3">
         <p className="text-sm">
           <span className={cn('mr-2 rounded-full px-2 py-0.5 text-xs font-semibold text-white', kelompok === 'L' ? 'bg-sky-600' : 'bg-rose-600')}>
             {LABEL_KELOMPOK[kelompok]}

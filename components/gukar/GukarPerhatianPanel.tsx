@@ -42,7 +42,7 @@ export function GukarPerhatianPanel({ data, bulan, berjalan, target }: {
       <div className="mb-3 flex items-start gap-2">
         <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
         <div className="min-w-0">
-          <h2 className="text-sm font-semibold">Perlu Perhatian — {bulan}</h2>
+          <h2 className="font-heading text-lg font-medium">Perlu Perhatian — {bulan}</h2>
           <p className="text-xs text-muted-foreground">
             {utama.length.toLocaleString('id-ID')} peserta perlu ditindaklanjuti dari {data.totalPeserta.toLocaleString('id-ID')} terdata
             {berjalan && ' · bulan berjalan, rekap kehadiran mungkin belum lengkap'}

@@ -26,7 +26,7 @@ import { bacaSaring, LABEL_SARING, ringkasFokus, type SaringTugas } from '@/lib/
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { DashTop, KpiCard, Slicer, hrefDengan, type NadaKpi } from '@/components/dashboard/kit'
 import {
-  PanelCapaian, PanelFokus, PanelGukar, PanelPintasan, PanelRapat, PanelRequest, PanelReview, PanelUjian,
+  PanelCapaian, PanelFokus, PanelGukar, PintasanBaris, PanelRapat, PanelRequest, PanelReview, PanelUjian,
   pisahPerhatian,
   type Pintasan,
 } from '@/components/dashboard/pengurus'
@@ -68,6 +68,8 @@ type KunciPintasan =
 
 interface Konfig {
   judul: string
+  /** Pertanyaan yang dijawab halaman ini — judul besar di bagian atas. */
+  tanya: string
   /** Fokus kerja memuat tugas SELURUH tim, bukan tugas pribadi. */
   tim?: boolean
   rapat: (role: UserRole) => MeetingType[]
@@ -86,7 +88,8 @@ interface Konfig {
 const KONFIG: Record<HalamanDashboard, Konfig> = {
   manajemen: {
     judul: 'Dashboard Manajemen',
-    // Menjawab: Pekerjaan tim mana yang tertahan, dan bagaimana pembinaan siswa bulan ini?
+    // Pertanyaan jabatan — tampil sebagai judul halaman.
+    tanya: 'Pekerjaan tim mana yang tertahan, dan bagaimana pembinaan siswa bulan ini?',
     tim: true,
     rapat: () => ['manajemen'],
     rapatJudul: 'Rapat Manajemen',
@@ -96,7 +99,8 @@ const KONFIG: Record<HalamanDashboard, Konfig> = {
   },
   kumik: {
     judul: 'Dashboard Kurikulum',
-    // Menjawab: Apa yang perlu saya selesaikan, dan apakah penilaian serta ujian berjalan?
+    // Pertanyaan jabatan — tampil sebagai judul halaman.
+    tanya: 'Apa yang perlu saya selesaikan, dan apakah penilaian serta ujian berjalan?',
     rapat: role => getCreatableMeetingTypes(role),
     rapatJudul: 'Rapat Kumik',
     samping: ['ujian'],
@@ -105,7 +109,8 @@ const KONFIG: Record<HalamanDashboard, Konfig> = {
   },
   sdm: {
     judul: 'Dashboard SDM',
-    // Menjawab: Siapa guru & karyawan yang perlu didampingi, dan apa tugas saya?
+    // Pertanyaan jabatan — tampil sebagai judul halaman.
+    tanya: 'Siapa guru & karyawan yang perlu didampingi, dan apa tugas saya?',
     rapat: () => ['new_squad'],
     rapatJudul: 'Rapat New Squad',
     samping: ['rapat'],
@@ -114,7 +119,8 @@ const KONFIG: Record<HalamanDashboard, Konfig> = {
   },
   'koor-sd': {
     judul: 'Dashboard Koordinator SD',
-    // Menjawab: Sampai mana siswa SD, apakah penilaian lengkap, dan ujian apa yang menunggu?
+    // Pertanyaan jabatan — tampil sebagai judul halaman.
+    tanya: 'Sampai mana siswa SD, apakah penilaian lengkap, dan ujian apa yang menunggu?',
     rapat: role => [...getCreatableMeetingTypes(role), 'kumik'],
     samping: ['ujian'],
     baris: [['capaian', 'rapat']],
@@ -122,7 +128,8 @@ const KONFIG: Record<HalamanDashboard, Konfig> = {
   },
   'koor-smp': {
     judul: 'Dashboard Koordinator SMP',
-    // Menjawab: Sampai mana siswa SMP, apakah penilaian lengkap, dan ujian apa yang menunggu?
+    // Pertanyaan jabatan — tampil sebagai judul halaman.
+    tanya: 'Sampai mana siswa SMP, apakah penilaian lengkap, dan ujian apa yang menunggu?',
     rapat: role => [...getCreatableMeetingTypes(role), 'kumik'],
     samping: ['ujian'],
     baris: [['capaian', 'rapat']],
@@ -130,7 +137,8 @@ const KONFIG: Record<HalamanDashboard, Konfig> = {
   },
   'koor-qulssd': {
     judul: 'Dashboard Koordinator QULS SD',
-    // Menjawab: Sampai mana siswa QULS, dan kelompok mana yang belum dinilai?
+    // Pertanyaan jabatan — tampil sebagai judul halaman.
+    tanya: 'Sampai mana siswa QULS, dan kelompok mana yang belum dinilai?',
     // Rapat koor SD ikut: kelompok QULS duduk di unit dan sesi yang sama.
     rapat: role => [...getCreatableMeetingTypes(role), 'koor_sd', 'kumik'],
     // Tanpa panel ujian: pengajuan ujian SD masih dipegang koor SD
@@ -141,7 +149,8 @@ const KONFIG: Record<HalamanDashboard, Konfig> = {
   },
   'koor-ekstra': {
     judul: 'Dashboard Koordinator Ekstra',
-    // Menjawab: Tugas apa yang perlu saya selesaikan pekan ini?
+    // Pertanyaan jabatan — tampil sebagai judul halaman.
+    tanya: 'Tugas apa yang perlu saya selesaikan pekan ini?',
     rapat: () => ['kumik'],
     rapatJudul: 'Rapat Kumik',
     samping: ['rapat'],
@@ -150,7 +159,8 @@ const KONFIG: Record<HalamanDashboard, Konfig> = {
   },
   humas: {
     judul: 'Dashboard Humas',
-    // Menjawab: Request konten apa yang masuk, dan tugas apa yang harus selesai?
+    // Pertanyaan jabatan — tampil sebagai judul halaman.
+    tanya: 'Request konten apa yang masuk, dan tugas apa yang harus selesai?',
     rapat: () => [],
     samping: ['request'],
     baris: [],
@@ -158,7 +168,8 @@ const KONFIG: Record<HalamanDashboard, Konfig> = {
   },
   'div-training': {
     judul: 'Dashboard Divisi Training',
-    // Menjawab: Tugas apa yang perlu saya selesaikan pekan ini?
+    // Pertanyaan jabatan — tampil sebagai judul halaman.
+    tanya: 'Tugas apa yang perlu saya selesaikan pekan ini?',
     rapat: () => ['new_squad'],
     rapatJudul: 'Rapat New Squad',
     samping: ['rapat'],
@@ -167,7 +178,8 @@ const KONFIG: Record<HalamanDashboard, Konfig> = {
   },
   pribadi: {
     judul: 'Dashboard Saya',
-    // Menjawab: Apa yang perlu saya kerjakan, dan apa yang terjadi di rapat terakhir?
+    // Pertanyaan jabatan — tampil sebagai judul halaman.
+    tanya: 'Apa yang perlu saya kerjakan, dan apa yang terjadi di rapat terakhir?',
     rapat: role => getViewableMeetingTypes(role),
     samping: ['rapat'],
     baris: [],
@@ -271,12 +283,12 @@ export async function DashboardPengurus({ halaman, session, searchParams }: {
   return (
     <div>
       <DashboardHeader displayName={session.displayName} role={role} title={k.judul} ownH1 />
-      <div className="mx-auto max-w-6xl space-y-5 p-4 md:space-y-6 md:p-6">
+      <div className="mx-auto max-w-7xl space-y-6 p-4 md:space-y-7 md:p-8">
 
         {/* ── Z · garis atas: siapa & kapan ► saringan ── */}
         <DashTop
-          eyebrow={ROLE_LABELS[role]}
-          title={k.judul}
+          eyebrow={`${k.judul} · ${ROLE_LABELS[role]}`}
+          title={k.tanya}
           context={<>{session.displayName} · {hariTeks}{ada('capaian') && <> · {cakupanLabel}</>}</>}
           filters={
             <>
@@ -304,18 +316,21 @@ export async function DashboardPengurus({ halaman, session, searchParams }: {
           }
         />
 
+        {/* Pintasan jabatan ini — tombol di bawah judul, bukan panel di dasar halaman. */}
+        <PintasanBaris items={pintasan} />
+
         {/* ── KPI jabatan ini ── */}
         {kpi.length > 0 && (
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-4">
             {kpi.map(x => <KpiCard key={x.label} {...x} />)}
           </div>
         )}
 
         {/* ── Z · garis tengah: fokus kerja ► yang menunggu Anda ── */}
         {denganTugas && (
-          <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-12">
+          <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-12">
             <PanelFokus
-              className="lg:col-span-8"
+              className="lg:col-span-7"
               judul={k.tim ? 'Tugas Tim yang Berjalan' : 'Fokus Kerja Saya'}
               sub={k.tim ? 'Seluruh divisi · terlambat & tenggat terdekat di atas' : 'Terlambat & tenggat terdekat di atas'}
               ringkasan={fokus}
@@ -324,7 +339,7 @@ export async function DashboardPengurus({ halaman, session, searchParams }: {
               hariIni={hariIni}
               semuaHref={k.tim ? '/tasks/board' : '/tasks'}
             />
-            <div className="min-w-0 space-y-5 lg:col-span-4">
+            <div className="min-w-0 space-y-6 lg:col-span-5">
               <PanelReview tugas={review} />
               {samping.map(p => <Fragment key={p}>{panel[p]('')}</Fragment>)}
             </div>
@@ -333,14 +348,13 @@ export async function DashboardPengurus({ halaman, session, searchParams }: {
 
         {/* ── Z · garis bawah: panel jabatan ── */}
         {baris.map((b, i) => (
-          <div key={i} className="grid grid-cols-1 items-start gap-5 lg:grid-cols-12">
+          <div key={i} className="grid grid-cols-1 items-start gap-6 lg:grid-cols-12">
             {b.map((p, j) => (
               <Fragment key={p}>{panel[p](b.length === 1 ? 'lg:col-span-12' : j === 0 ? 'lg:col-span-7' : 'lg:col-span-5')}</Fragment>
             ))}
           </div>
         ))}
 
-        <PanelPintasan items={pintasan} />
 
         {/* Manajemen: tugas per pengurus & riwayat penyelesaian — alat
             telusur, sengaja di bawah garis Z karena bukan bacaan harian. */}
@@ -354,7 +368,7 @@ export async function DashboardPengurus({ halaman, session, searchParams }: {
               divisions={getBoardDivisions(role)}
             />
             <section>
-              <h2 className="mb-1 text-sm font-semibold">Riwayat Penyelesaian Tugas</h2>
+              <h2 className="mb-2 font-heading text-xl font-medium">Riwayat Penyelesaian Tugas</h2>
               <CompletionHistory members={tim[0]} />
             </section>
           </>

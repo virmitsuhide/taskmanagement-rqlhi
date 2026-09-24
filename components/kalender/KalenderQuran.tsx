@@ -127,7 +127,7 @@ export function KalenderQuran({
   return (
     <div className="space-y-5">
       {/* ── Jadwal dasar ── */}
-      <section className="space-y-3 rounded-xl border bg-card p-4">
+      <section className="space-y-3 rounded-2xl border bg-card p-4">
         <div>
           <h2 className="font-semibold">Hari aktif per program</h2>
           <p className="mt-0.5 text-sm text-muted-foreground">
@@ -169,7 +169,7 @@ export function KalenderQuran({
       </section>
 
       {/* ── Kalender bulan ── */}
-      <section className="space-y-3 rounded-xl border bg-card p-4">
+      <section className="space-y-3 rounded-2xl border bg-card p-4">
         <h2 className="font-semibold">{BULAN_ID[bulan - 1]} {tahun}</h2>
 
         <div className="grid grid-cols-7 gap-1 text-center">
@@ -218,7 +218,7 @@ export function KalenderQuran({
 
       {/* ── Hari terpilih ── */}
       {dipilih && (
-        <section className="space-y-3 rounded-xl border bg-card p-4">
+        <section className="space-y-3 rounded-2xl border bg-card p-4">
           <div>
             <h2 className="font-semibold">
               {new Date(`${dipilih}T00:00:00+07:00`).toLocaleDateString('id-ID', {
@@ -235,7 +235,7 @@ export function KalenderQuran({
           {/* Agenda kaldik — usulan, bukan keputusan. */}
           {(agendaPer.get(dipilih) ?? []).map((a, i) => (
             <p key={i} className="rounded-md border border-dashed px-3 py-2 text-xs">
-              📅 <b>{a.libur ? 'Libur' : 'Agenda'}:</b> {a.judul}
+              <b>{a.libur ? 'Libur' : 'Agenda'}:</b> {a.judul}
               <span className="text-muted-foreground"> — dari kalender pendidikan, perlu Anda sahkan</span>
             </p>
           ))}
@@ -283,7 +283,7 @@ export function KalenderQuran({
       )}
 
       {/* ── Rekap TM ── */}
-      <section className="space-y-2 rounded-xl border bg-card p-4">
+      <section className="space-y-2 rounded-2xl border bg-card p-4">
         <div>
           <h2 className="font-semibold">Rekap tatap muka — {BULAN_ID[bulan - 1]} {tahun}</h2>
           <p className="mt-0.5 text-sm text-muted-foreground">

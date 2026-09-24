@@ -65,7 +65,7 @@ export default async function TemplateRaporPage() {
                     <li key={t.id}>
                       <Link
                         href={`/rapor-quran/template/${t.id}`}
-                        className="group flex items-center gap-3 rounded-xl border bg-card p-4 transition-colors hover:border-primary/40 hover:bg-accent/50"
+                        className="group flex items-center gap-3 rounded-2xl border bg-card p-4 transition-colors hover:border-primary/40 hover:bg-accent/50"
                       >
                         <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary dark:group-hover:bg-primary/20">
                           <FileText className="size-5" aria-hidden />

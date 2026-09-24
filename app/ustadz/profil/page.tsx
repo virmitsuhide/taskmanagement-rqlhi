@@ -50,19 +50,19 @@ export default async function ProfilGuruPage({ searchParams }: PageProps) {
 
       {/* Kanvas bertint supaya kartu (bg-card) punya batas yang terbaca. */}
       <div className="flex-1 bg-muted/50 dark:bg-background">
-        <div className="mx-auto max-w-3xl p-4 md:p-6">
+        <div className="mx-auto max-w-3xl p-4 md:p-8">
           <Button asChild variant="ghost" size="sm" className="-ml-2 mb-2">
             <Link href="/ustadz"><ArrowLeft className="mr-1 h-4 w-4" />Daftar Ustadz / Guru</Link>
           </Button>
 
-          <h1 className="text-2xl font-bold leading-tight">Profil Guru</h1>
+          <h1 className="text-3xl leading-tight">Profil Guru</h1>
           <p className="mb-5 mt-0.5 text-sm text-muted-foreground">
             Data diri &amp; kepegawaian guru Qur&apos;an. TMT yang diisi di sini menjadi
             masa kerja yang tercetak di rapor KPI bulanan.
           </p>
 
           {/* Pemilih — selalu di atas, bahkan setelah profil terbuka */}
-          <div className="mb-4 rounded-xl border bg-card p-4 shadow-sm">
+          <div className="mb-4 rounded-2xl border bg-card p-4 shadow-sm">
             <GuruPicker unit={unit} daftar={daftar} terpilihId={terpilihId} />
             {unit === 'pengurus' && (
               /*
@@ -120,10 +120,10 @@ export default async function ProfilGuruPage({ searchParams }: PageProps) {
               <div className="mb-4 space-y-3">
                 <GuruPager unit={unit} daftar={daftar} terpilihId={profile.id} />
 
-                <div className="rounded-xl border bg-card px-4 py-3 shadow-sm">
+                <div className="rounded-2xl border bg-card px-4 py-3 shadow-sm">
                   <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
                     <div className="min-w-0">
-                      <h2 className="truncate text-base font-semibold">{profile.full_name}</h2>
+                      <h2 className="font-heading text-lg font-medium truncate">{profile.full_name}</h2>
                       <p className="text-[11px] text-muted-foreground">
                         {/*
                           Di tab Pengurus RQ, yang disebut adalah amanahnya —

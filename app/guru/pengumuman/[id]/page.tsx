@@ -74,7 +74,7 @@ export default async function PengumumanGuruPage({
         <ArrowLeft className="h-3.5 w-3.5" />Kembali ke dashboard
       </Link>
 
-      <article className="overflow-hidden rounded-xl border bg-card shadow-sm">
+      <article className="overflow-hidden rounded-2xl border bg-card shadow-sm">
         <div className="px-5 py-6 sm:px-8 sm:py-8">
           <div className="mb-3 flex flex-wrap items-center gap-2">
             <span className="text-[10px] font-semibold uppercase tracking-[1.4px] text-accent-warm">
@@ -91,7 +91,7 @@ export default async function PengumumanGuruPage({
           </div>
 
           <h1
-            className="text-2xl font-bold leading-[1.2] tracking-tight sm:text-[28px]"
+            className="text-3xl leading-[1.2] tracking-tight sm:text-[28px]"
             style={{ fontFamily: 'var(--font-playfair), Georgia, serif' }}
           >
             {post.title}

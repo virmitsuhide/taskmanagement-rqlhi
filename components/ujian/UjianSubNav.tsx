@@ -40,7 +40,7 @@ export function UjianSubNav() {
               key={href}
               href={href}
               aria-current={active ? 'page' : undefined}
-              className={`relative inline-flex items-center gap-1.5 px-3.5 py-3 text-sm font-medium whitespace-nowrap transition-colors ${
+              className={`relative inline-flex items-center gap-1.5 px-3.5 py-3 text-sm font-semibold whitespace-nowrap transition-colors ${
                 active ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'
               }`}
             >

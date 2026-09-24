@@ -31,11 +31,11 @@ export default async function EditHomePostPage({ params }: { params: Promise<{ i
         ownH1
       />
       <div className="flex-1 bg-muted/50 dark:bg-background">
-        <div className="p-4 md:p-6 max-w-2xl mx-auto">
+        <div className="p-4 md:p-8 max-w-2xl mx-auto">
           <Button asChild variant="ghost" size="sm" className="mb-4">
             <Link href="/home-post"><ArrowLeft className="h-4 w-4 mr-1" />Kembali ke Manajemen Home</Link>
           </Button>
-          <h1 className="text-xl font-bold mb-1">Sunting Post</h1>
+          <h1 className="text-3xl mb-1">Sunting Post</h1>
           <p className="text-sm text-muted-foreground mb-6">
             Perubahan langsung tampil di beranda publik setelah disimpan.
           </p>

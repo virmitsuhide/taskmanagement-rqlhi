@@ -58,7 +58,7 @@ export function TeamTasksSwitcher({ tasks, currentUserId, currentRole, boardColu
     <section>
       <div className="flex items-center justify-between mb-3 gap-2">
         <div>
-          <h2 className="text-sm font-semibold">Tugas Tim yang Sedang Berjalan</h2>
+          <h2 className="font-heading text-lg font-medium">Tugas Tim yang Sedang Berjalan</h2>
           <p className="text-xs text-muted-foreground">
             {isBoard ? 'Tarik kartu antar kolom untuk ubah status' : 'Klik pengurus untuk lihat tugas aktifnya'}
           </p>

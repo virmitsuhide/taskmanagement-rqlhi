@@ -24,7 +24,7 @@ export function PetaLevel({ nodes, perBaris = 5, legend }: Props) {
   const rows = berkelok(nodes, perBaris)
 
   return (
-    <div className="rounded-xl border bg-card p-4">
+    <div className="rounded-2xl border bg-card p-4">
       <div className="space-y-1">
         {rows.map((row, ri) => (
           <div key={ri} className="relative">

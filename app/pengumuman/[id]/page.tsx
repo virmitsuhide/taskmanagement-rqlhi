@@ -98,7 +98,7 @@ export default async function PengumumanDetailPage({ params }: { params: Promise
             </div>
 
             <h1
-              className="text-2xl sm:text-[28px] font-bold leading-[1.2] tracking-tight"
+              className="text-3xl sm:text-[28px] leading-[1.2] tracking-tight"
               style={{ fontFamily: "var(--font-playfair), Georgia, serif" }}
             >
               {post.title}

@@ -137,16 +137,16 @@ export function TahsinSetoranForm({
   const today = new Date().toISOString().slice(0, 10)
 
   return (
-    <form onSubmit={kirim.onSubmit} className="space-y-5 max-w-2xl">
+    <form onSubmit={kirim.onSubmit} className="space-y-4 max-w-2xl">
       {/* Siswa */}
       <div className="space-y-1.5">
         <Label htmlFor="student_id">Siswa *</Label>
         {initialStudent ? (
           <>
             <input type="hidden" name="student_id" value={initialStudent.id} />
-            <div className="rounded-lg border px-3 py-2.5 bg-muted/30 flex items-center justify-between">
+            <div className="rounded-xl border px-4 py-3 bg-card flex items-center justify-between">
               <div>
-                <p className="font-medium text-sm">{initialStudent.full_name}</p>
+                <p className="font-semibold">{initialStudent.full_name}</p>
                 <p className="text-xs text-muted-foreground">{initialStudent.halaqoh_name ?? '—'}</p>
               </div>
               <button
@@ -173,8 +173,8 @@ export function TahsinSetoranForm({
       </div>
 
       {/* Materi */}
-      <fieldset className="border-t pt-4 space-y-3">
-        <legend className="text-sm font-semibold mb-1">Materi Setoran</legend>
+      <fieldset className="rounded-2xl border bg-card p-4 md:p-5 [&>legend]:float-left [&>legend]:w-full [&>legend+*]:clear-both space-y-3">
+        <legend className="font-heading text-lg font-medium mb-3">Materi Setoran</legend>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div className="space-y-1.5">
             <Label htmlFor="method_id">Metode *</Label>
@@ -252,8 +252,8 @@ export function TahsinSetoranForm({
           diturunkan dari materi di server.
         */}
         {materiTahap.length > 0 && (
-          <fieldset className="border-t pt-4">
-            <legend className="text-sm font-semibold mb-2">Hafalan {jilidAktif?.label}</legend>
+          <fieldset className="rounded-2xl border bg-card p-4 md:p-5 [&>legend]:float-left [&>legend]:w-full [&>legend+*]:clear-both">
+            <legend className="font-heading text-lg font-medium mb-3">Hafalan {jilidAktif?.label}</legend>
             {Object.entries(materiDipilih).map(([id, hasil]) => (
               <input key={id} type="hidden" name={`materi_${hasil}`} value={id} />
             ))}
@@ -278,7 +278,7 @@ export function TahsinSetoranForm({
         {jilidAktif?.baca_quran && (
           <div className="rounded-lg border p-3" style={{ background: 'var(--primary-wash)' }}>
             <p className="mb-2 text-sm font-semibold">
-              📖 Bacaan Al-Qur&rsquo;an
+              Bacaan Al-Qur&rsquo;an
               {maksHalaman !== null && (
                 <span className="ml-1.5 text-xs font-normal text-muted-foreground">
                   — berjalan bersama hafalan {jilidAktif.label}
@@ -302,7 +302,7 @@ export function TahsinSetoranForm({
 
         {sedangDrill && (
           <div className="rounded-lg border px-3 py-2 text-xs" style={{ background: 'var(--warning-wash)', borderColor: 'var(--warning)', color: 'var(--warning)' }}>
-            <p className="font-semibold">🔁 Sedang DRILL {jilidAktif?.label ?? ''}</p>
+            <p className="font-semibold">Sedang DRILL {jilidAktif?.label ?? ''}</p>
             <p className="mt-0.5">
               Sudah lulus halaman terakhir{selectedStudent?.tahsin_drill_sejak ? ` sejak ${selectedStudent.tahsin_drill_sejak}` : ''}.
               Setoran ini dicatat sebagai latihan drill — halaman boleh mana saja di jilid ini, dan posisi
@@ -313,11 +313,11 @@ export function TahsinSetoranForm({
       </fieldset>
 
       {/* Penilaian */}
-      <fieldset className="border-t pt-4">
-        <legend className="text-sm font-semibold mb-3">Penilaian</legend>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-muted/30 rounded-lg p-4">
+      <fieldset className="rounded-2xl border bg-card p-4 md:p-5 [&>legend]:float-left [&>legend]:w-full [&>legend+*]:clear-both">
+        <legend className="font-heading text-lg font-medium mb-3">Penilaian</legend>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
           <div>
-            <p className="text-xs font-medium mb-1.5">Nilai Tahsin</p>
+            <p className="text-xs font-bold uppercase tracking-[0.08em] text-muted-foreground mb-2">Nilai Tahsin</p>
             {/* Di bawah 3 bintang otomatis menandai setoran ini mengulang —
                 itu aturan RQ, jadi guru tidak perlu mengingatnya sendiri lalu
                 menekan tombol status yang kedua kalinya. */}
@@ -327,7 +327,7 @@ export function TahsinSetoranForm({
             />
           </div>
           <div>
-            <p className="text-xs font-medium mb-1.5">Nilai Sikap</p>
+            <p className="text-xs font-bold uppercase tracking-[0.08em] text-muted-foreground mb-2">Nilai Sikap</p>
             <StarInput name="nilai_sikap" />
           </div>
         </div>
@@ -340,30 +340,30 @@ export function TahsinSetoranForm({
         bisa bertentangan dengannya — server menurunkannya dari materi.
       */}
       {materiTahap.length === 0 && (
-      <fieldset className="border-t pt-4">
-        <legend className="text-sm font-semibold mb-3">Status Halaman</legend>
+      <fieldset className="rounded-2xl border bg-card p-4 md:p-5 [&>legend]:float-left [&>legend]:w-full [&>legend+*]:clear-both">
+        <legend className="font-heading text-lg font-medium mb-3">Status Halaman</legend>
         <input type="hidden" name="status" value={status} />
         <div className="grid grid-cols-2 gap-3 max-w-md">
           <button
             type="button"
             onClick={() => setStatus('lulus')}
-            className="rounded-lg border p-3 text-left transition-colors"
+            className="rounded-xl border-2 p-4 text-left transition-colors"
             style={status === 'lulus'
               ? { borderColor: 'var(--success)', background: 'var(--success-wash)' }
               : { borderColor: 'var(--border)', background: 'var(--card)' }}
           >
-            <p className="font-medium text-sm">✅ Lulus</p>
+            <p className="font-heading text-lg font-medium">Lulus</p>
             <p className="text-xs text-muted-foreground">Lanjut halaman berikutnya</p>
           </button>
           <button
             type="button"
             onClick={() => setStatus('ulang')}
-            className="rounded-lg border p-3 text-left transition-colors"
+            className="rounded-xl border-2 p-4 text-left transition-colors"
             style={status === 'ulang'
               ? { borderColor: 'var(--warning)', background: 'var(--warning-wash)' }
               : { borderColor: 'var(--border)', background: 'var(--card)' }}
           >
-            <p className="font-medium text-sm">🔁 Ulang</p>
+            <p className="font-heading text-lg font-medium">Ulang</p>
             <p className="text-xs text-muted-foreground">Belum tuntas, mengulang</p>
           </button>
         </div>
@@ -371,7 +371,7 @@ export function TahsinSetoranForm({
       )}
 
       {/* Catatan + tanggal */}
-      <div className="grid grid-cols-1 sm:grid-cols-[1fr_180px] gap-3 border-t pt-4">
+      <div className="grid grid-cols-1 sm:grid-cols-[1fr_180px] gap-3 rounded-2xl border bg-card p-4 md:p-5">
         <div className="space-y-1.5">
           <Label htmlFor="catatan">Catatan Guru</Label>
           <Textarea id="catatan" name="catatan" rows={2} placeholder="contoh: perhatikan madd, latih sukun..." disabled={isPending} />
@@ -385,7 +385,7 @@ export function TahsinSetoranForm({
       {/* Pemberitahuan masuk drill — naik jilid tidak lagi dari setoran. */}
       {!sedangDrill && materiTahap.length === 0 && status === 'lulus' && maksHalaman !== null && Number(halamanIsi) >= maksHalaman && (
         <p className="rounded-lg border px-3 py-2 text-xs" style={{ background: 'var(--primary-wash)', borderColor: 'var(--border)' }}>
-          🎯 Ini halaman terakhir {jilidAktif?.label}. Setelah disimpan, anak masuk <strong>DRILL</strong> sampai
+          Ini halaman terakhir {jilidAktif?.label}. Setelah disimpan, anak masuk <strong>DRILL</strong> sampai
           lulus ujian tahsin — ajukan ujiannya lewat menu Pengajuan Ujian.
         </p>
       )}
@@ -398,11 +398,11 @@ export function TahsinSetoranForm({
       />
 
       {state?.error && (
-        <p className="text-sm text-destructive bg-destructive/10 px-3 py-2 rounded-md">{state.error}</p>
+        <p className="text-sm font-medium text-destructive bg-destructive-wash px-4 py-3 rounded-xl">{state.error}</p>
       )}
 
-      <div className="flex gap-2 pt-2">
-        <Button type="submit" disabled={isPending || !studentId} style={{ background: 'var(--primary)', borderColor: 'var(--primary)' }}>
+      <div className="flex gap-2 pt-1">
+        <Button type="submit" size="lg" className="min-w-40" disabled={isPending || !studentId}>
           {isPending ? 'Menyimpan...' : 'Simpan Setoran'}
         </Button>
         <Button type="button" variant="outline" onClick={() => router.back()} disabled={isPending}>

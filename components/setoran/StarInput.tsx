@@ -104,7 +104,7 @@ export function StarInput({ name, defaultValue = null, onChange, disabled }: Pro
         <span className="ml-2 text-sm tabular-nums">
           {bintang > 0 ? (
             <>
-              <span className="font-semibold">{bintang}</span>
+              <span className="font-heading text-lg font-medium">{bintang}</span>
               <span className="text-muted-foreground">★ · nilai {nilaiDariBintang(bintang)}</span>
             </>
           ) : (
@@ -128,13 +128,13 @@ export function StarInput({ name, defaultValue = null, onChange, disabled }: Pro
 
 function Bintang({ terisi }: { terisi: 'penuh' | 'separuh' | 'kosong' }) {
   if (terisi === 'penuh') {
-    return <Star className="h-7 w-7 fill-warning text-warning" aria-hidden />
+    return <Star className="h-7 w-7 fill-[var(--accent-warm)] text-[var(--accent-warm)]" aria-hidden />
   }
   if (terisi === 'separuh') {
     return (
       <span className="relative inline-flex" aria-hidden>
         <Star className="h-7 w-7 text-muted-foreground/40" />
-        <StarHalf className="absolute inset-0 h-7 w-7 fill-warning text-warning" />
+        <StarHalf className="absolute inset-0 h-7 w-7 fill-[var(--accent-warm)] text-[var(--accent-warm)]" />
       </span>
     )
   }

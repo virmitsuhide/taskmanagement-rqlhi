@@ -39,7 +39,7 @@ export default async function ProfilGuruPage() {
     <div>
       <PublicHeader />
 
-      <div className="p-4 md:p-6 max-w-5xl mx-auto min-h-[50vh]">
+      <div className="p-4 md:p-8 max-w-5xl mx-auto min-h-[50vh]">
         <Link
           href="/"
           className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground mb-3 transition-colors"
@@ -49,7 +49,7 @@ export default async function ProfilGuruPage() {
 
         <div className="flex items-start justify-between gap-4 mb-7 flex-wrap">
           <div>
-            <h1 className="text-2xl font-bold leading-tight">{heading}</h1>
+            <h1 className="text-3xl leading-tight">{heading}</h1>
             <p className="text-sm text-muted-foreground mt-0.5">
               Para pengajar yang mendampingi santri Rumah Qur&apos;an LHI
             </p>
@@ -90,7 +90,7 @@ export default async function ProfilGuruPage() {
 
 function TeacherCard({ teacher }: { teacher: PublicTeacher }) {
   return (
-    <article className="rounded-xl border bg-card p-5 flex flex-col items-center text-center">
+    <article className="rounded-2xl border bg-card p-5 flex flex-col items-center text-center">
       <Avatar className="size-20 mb-3.5 overflow-hidden">
         {teacher.photo_url && (
           <AvatarImage src={teacher.photo_url} alt="" style={photoStyle(parseFocus(teacher.photo_focus))} />

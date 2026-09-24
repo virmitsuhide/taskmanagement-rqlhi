@@ -39,7 +39,7 @@ export default async function TugasRutinPage() {
 
       {/* Kanvas bertint supaya kartu (bg-card) punya kontras di mode terang. */}
       <div className="flex-1 bg-muted/50 dark:bg-background">
-        <div className="mx-auto max-w-3xl p-4 md:p-6">
+        <div className="mx-auto max-w-3xl p-4 md:p-8">
           <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
             <div>
               <p className="text-2xl font-bold leading-tight">Tugas Rutin</p>
@@ -110,10 +110,10 @@ export default async function TugasRutinPage() {
 
           {total > 0 && (
             <p className="mt-4 text-[11px] text-muted-foreground">
-              💡 Laporannya berlaku untuk periode berjalan saja. Pekan baru dimulai tiap
+              Laporannya berlaku untuk periode berjalan saja. Pekan baru dimulai tiap
               Senin, bulan baru tiap tanggal 1, dan semester baru tiap Juli &amp; Januari —
               daftarnya kosong lagi dengan sendirinya, tanpa perlu Anda bersihkan.
-              {pending === 0 && missed === 0 && ' Semuanya sudah beres. 🎉'}
+              {pending === 0 && missed === 0 && ' Semuanya sudah beres.'}
             </p>
           )}
         </div>

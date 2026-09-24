@@ -55,9 +55,9 @@ export function KartuGoal({ periode, jabatan, labelJabatan, goal, bisaUbah, prod
   const disahkan = !!goal?.disahkanAt
 
   return (
-    <section className="rounded-xl border bg-card p-5">
+    <section className="rounded-2xl border bg-card p-5">
       <div className="mb-3 flex flex-wrap items-center gap-2">
-        <h2 className="flex items-center gap-2 text-sm font-semibold"><Target className="h-4 w-4" /> Sprint Goal · {labelJabatan}</h2>
+        <h2 className="font-heading text-lg font-medium flex items-center gap-2"><Target className="h-4 w-4" /> Sprint Goal · {labelJabatan}</h2>
         {goal?.goal && (
           disahkan ? (
             <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium" style={{ background: 'var(--success-wash)', color: 'var(--success)' }}>

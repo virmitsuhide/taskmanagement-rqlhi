@@ -71,11 +71,11 @@ export function KenaikanKelas({ term, boleh }: { term: AcademicTerm; boleh: bool
   }
 
   return (
-    <div className="rounded-xl border bg-card p-4 space-y-3">
+    <div className="rounded-2xl border bg-card p-4 space-y-3">
       <div className="flex items-start gap-2">
         <GraduationCap className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
         <div className="min-w-0">
-          <h2 className="text-sm font-semibold">Kenaikan Kelas</h2>
+          <h2 className="font-heading text-lg font-medium">Kenaikan Kelas</h2>
           <p className="mt-0.5 text-xs text-muted-foreground">
             Menaikkan seluruh siswa aktif satu tingkat menuju{' '}
             <b className="text-foreground">{term.year_label}</b> — angkanya naik, rombelnya

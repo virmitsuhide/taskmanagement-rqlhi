@@ -86,7 +86,7 @@ export function PapanRutin({ board }: { board: RoutineBoard }) {
         <section className="overflow-hidden rounded-xl border border-destructive/30 bg-card shadow-sm">
           <div className="flex items-center gap-2 border-b border-destructive/20 bg-destructive-wash px-5 py-3">
             <CircleAlert className="h-4 w-4 shrink-0 text-destructive" />
-            <h2 className="text-sm font-semibold text-destructive">
+            <h2 className="font-heading text-lg font-medium text-destructive">
               Tidak terlaksana periode ini
             </h2>
             <span className="ml-auto rounded-full bg-background px-2 py-0.5 text-[11px] font-medium tabular-nums text-destructive">
@@ -182,7 +182,7 @@ function Saringannya({
   ]
 
   return (
-    <div className="rounded-xl border bg-card p-2 shadow-sm">
+    <div className="rounded-2xl border bg-card p-2 shadow-sm">
       <div className="flex flex-wrap gap-1">
         {opsi.map(o => (
           <button
@@ -226,7 +226,7 @@ function KartuPengurus({
   const missed = owner.items.filter(i => i.outcome === 'tidak_terlaksana').length
 
   return (
-    <section className="overflow-hidden rounded-xl border bg-card shadow-sm">
+    <section className="overflow-hidden rounded-2xl border bg-card shadow-sm">
       <div className="flex items-center gap-3 border-b bg-muted/40 px-4 py-3">
         <Avatar size="lg">
           {owner.photoUrl && <AvatarImage src={owner.photoUrl} alt="" />}

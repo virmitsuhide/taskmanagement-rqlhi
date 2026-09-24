@@ -255,7 +255,7 @@ export function RiwayatUjian({ tahfidz, tahsin, month, year }: Props) {
         </select>
       </PilihPeriode>
 
-      <div className="flex flex-wrap items-center gap-2 rounded-xl border bg-card p-3">
+      <div className="flex flex-wrap items-center gap-2 rounded-2xl border bg-card p-3">
         <span className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
           <Filter className="h-3.5 w-3.5" /> Jenis
         </span>
@@ -339,14 +339,14 @@ export function RiwayatUjian({ tahfidz, tahsin, month, year }: Props) {
         <div className="space-y-5">
           {perPenguji.map(([penguji, items]) => (
             <section key={penguji}>
-              <h2 className="mb-2 flex items-center gap-2 text-sm font-semibold">
+              <h2 className="font-heading text-lg font-medium mb-2 flex items-center gap-2">
                 <UserCheck className="h-4 w-4 text-primary" />
                 {penguji}
                 <span className="font-normal text-muted-foreground">
                   ({items.length} {perSiswa ? 'siswa' : 'ujian'})
                 </span>
               </h2>
-              <ul className="divide-y rounded-xl border bg-card">
+              <ul className="divide-y rounded-2xl border bg-card">
                 {items.map(r => (
                   <li key={r.id} className="flex items-start justify-between gap-3 px-4 py-3">
                     <div className="min-w-0">

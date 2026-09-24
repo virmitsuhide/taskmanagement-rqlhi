@@ -105,7 +105,7 @@ export function ImportSiswa(props: Props) {
       <LangkahTemplate {...props} />
 
       {/* ── 2. Unggah ── */}
-      <section className="rounded-xl border bg-card p-4">
+      <section className="rounded-2xl border bg-card p-4">
         <Judul n={2} teks="Unggah berkas yang sudah diisi" />
         <input
           ref={inputRef}
@@ -141,7 +141,7 @@ export function ImportSiswa(props: Props) {
 
       {/* ── 3. Periksa ── */}
       {baris && (
-        <section className="rounded-xl border bg-card overflow-hidden">
+        <section className="rounded-2xl border bg-card overflow-hidden">
           <div className="p-4 pb-0">
             <Judul n={3} teks="Periksa sebelum disimpan" />
           </div>
@@ -250,7 +250,7 @@ function LangkahTemplate({ allowedJenjang, allowedPrograms, halaqohList, methods
   }
 
   return (
-    <section className="rounded-xl border bg-card p-4">
+    <section className="rounded-2xl border bg-card p-4">
       <Judul n={1} teks="Unduh berkas contoh" />
       <p className="text-sm text-muted-foreground mb-3">
         Berisi judul kolom yang benar, petunjuk tiap kolom, dan daftar nama halaqoh,
@@ -326,7 +326,7 @@ function TabelBermasalah({ rows }: { rows: HasilBaris[] }) {
 
 function Ringkasan({ hasil, onUlang }: { hasil: HasilImpor; onUlang: () => void }) {
   return (
-    <div className="rounded-xl border bg-card overflow-hidden">
+    <div className="rounded-2xl border bg-card overflow-hidden">
       <div className="flex items-center gap-3 border-b bg-success-wash px-4 py-4">
         <CheckCircle2 className="h-6 w-6 text-success shrink-0" />
         <div>
@@ -361,7 +361,7 @@ function Ringkasan({ hasil, onUlang }: { hasil: HasilImpor; onUlang: () => void 
 
 function Judul({ n, teks }: { n: number; teks: string }) {
   return (
-    <h2 className="flex items-center gap-2 text-sm font-semibold mb-2">
+    <h2 className="font-heading text-lg font-medium flex items-center gap-2 mb-2">
       <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary-wash text-[11px] font-bold text-primary">
         {n}
       </span>
@@ -378,8 +378,8 @@ function TabPeriksa({
       type="button"
       onClick={onClick}
       className={cn(
-        'whitespace-nowrap border-b-2 px-3 py-2 text-sm transition-colors',
-        active ? 'border-primary font-medium text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground',
+        '-mb-px whitespace-nowrap border-b-2 px-3 py-2.5 text-sm font-semibold transition-colors',
+        active ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground',
       )}
     >
       {children}

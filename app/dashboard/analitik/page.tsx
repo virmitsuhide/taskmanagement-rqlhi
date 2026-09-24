@@ -139,7 +139,7 @@ export default async function AnalitikPage({ searchParams }: PageProps) {
   return (
     <div>
       <DashboardHeader displayName={session.displayName} role={session.role} title="Analitik RQ" showBack ownH1 />
-      <div className="mx-auto max-w-6xl space-y-6 p-4 md:p-6">
+      <div className="mx-auto max-w-6xl space-y-6 p-4 md:p-8">
 
         {/* ── Z · garis atas halaman: judul ► filter ── */}
         <DashTop
@@ -319,7 +319,7 @@ export default async function AnalitikPage({ searchParams }: PageProps) {
             pegawai, unitnya bukan jenjang siswa, dan pemiliknya SDM. */}
         {lihatGukar && (
           <Link href={`/dashboard/analitik/gukar${bulanDiminta ? `?periode=${bulanDiminta}` : ''}`}
-            className="flex items-center gap-3 rounded-xl border bg-card p-4 transition-colors hover:bg-muted/40">
+            className="flex items-center gap-3 rounded-2xl border bg-card p-4 transition-colors hover:bg-muted/40">
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg" style={{ background: 'var(--primary-wash)', color: 'var(--primary)' }}>
               <BookMarked className="h-4 w-4" />
             </span>
@@ -345,7 +345,7 @@ export default async function AnalitikPage({ searchParams }: PageProps) {
 
 function PanelMemuat({ className }: { className?: string }) {
   return (
-    <div className={cn('rounded-xl border bg-card p-5', className)} aria-busy="true">
+    <div className={cn('rounded-2xl border bg-card p-5', className)} aria-busy="true">
       <p className="mb-4 flex items-center gap-2 text-sm font-semibold text-muted-foreground">
         <ListChecks className="h-4 w-4" /> Perlu Tindak Lanjut
       </p>

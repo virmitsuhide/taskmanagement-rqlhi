@@ -48,7 +48,7 @@ export default async function KalenderPage() {
         ? <DashboardHeader role={session.role} displayName={session.displayName} title="Kalender Pendidikan" showBack ownH1 />
         : <PublicHeader />}
 
-      <div className="mx-auto min-h-[50vh] max-w-5xl space-y-5 p-4 md:p-6">
+      <div className="mx-auto min-h-[50vh] max-w-5xl space-y-5 p-4 md:p-8">
         <div>
           {!masuk && (
             <Link href="/" className="mb-3 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">

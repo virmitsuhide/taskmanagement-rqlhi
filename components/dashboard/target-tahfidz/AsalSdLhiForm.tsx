@@ -43,7 +43,7 @@ export function AsalSdLhiForm({ siswa }: { siswa: SiswaAsal[] }) {
     })
 
   return (
-    <form action={action} className="rounded-xl border bg-card p-5">
+    <form action={action} className="rounded-2xl border bg-card p-5">
       {siswa.map(s => (
         <span key={s.id}>
           <input type="hidden" name="siswa" value={s.id} />

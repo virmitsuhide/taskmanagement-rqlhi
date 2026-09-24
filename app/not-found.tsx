@@ -12,7 +12,7 @@ export default function NotFound() {
         <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-2">
           404
         </p>
-        <h1 className="text-2xl font-bold mb-2 tracking-tight">Halaman tidak ditemukan</h1>
+        <h1 className="text-3xl mb-2 tracking-tight">Halaman tidak ditemukan</h1>
         <p className="text-sm text-muted-foreground mb-6">
           Tautan yang kamu buka mungkin sudah dipindahkan atau dihapus.
         </p>

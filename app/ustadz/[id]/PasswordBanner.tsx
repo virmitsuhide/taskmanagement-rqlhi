@@ -70,7 +70,7 @@ export function PasswordBanner({ password, username }: Props) {
         onClick={copyShareText}
         className="mt-2 text-xs text-warning hover:text-warning/80 underline"
       >
-        📋 Salin teks lengkap (username + password + link login) untuk dikirim ke guru
+        Salin teks lengkap (username + password + link login) untuk dikirim ke guru
       </button>
     </div>
   )

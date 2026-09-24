@@ -26,7 +26,7 @@ export default async function AntrianUjianPage() {
     <div>
       <PublicHeader />
 
-      <div className="p-4 md:p-6 max-w-5xl mx-auto min-h-[50vh]">
+      <div className="p-4 md:p-8 max-w-5xl mx-auto min-h-[50vh]">
         <Link
           href="/"
           className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground mb-3 transition-colors"
@@ -37,7 +37,7 @@ export default async function AntrianUjianPage() {
         <div className="flex items-start justify-between gap-4 mb-6 flex-wrap">
           <div>
             <div className="flex items-center gap-2 flex-wrap">
-              <h1 className="text-2xl font-bold leading-tight">Ujian Tahsin &amp; Tahfidz</h1>
+              <h1 className="text-3xl leading-tight">Ujian Tahsin &amp; Tahfidz</h1>
               <Badge variant="success">{total} antrian aktif</Badge>
             </div>
             <p className="text-sm text-muted-foreground mt-0.5">

@@ -142,11 +142,11 @@ export function StudentBrowser({ students }: Props) {
         <div className="space-y-5">
           {groups.map(([judul, list]) => (
             <section key={judul}>
-              <h2 className="mb-2 flex items-center gap-2 text-sm font-semibold">
+              <h2 className="font-heading text-lg font-medium mb-2 flex items-center gap-2">
                 {judul}
                 <span className="text-xs font-normal text-muted-foreground">({list.length} siswa)</span>
               </h2>
-              <div className="divide-y rounded-xl border bg-card">
+              <div className="divide-y rounded-2xl border bg-card">
                 {list.map(s => {
                   const last = lastLabel(s.last_setoran_date)
                   const phone = phoneOf(s)

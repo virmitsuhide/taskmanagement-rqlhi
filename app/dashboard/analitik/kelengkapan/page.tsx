@@ -51,11 +51,11 @@ export default async function KelengkapanPage({ searchParams }: PageProps) {
         ownH1
       />
 
-      <div className="p-4 md:p-6 max-w-5xl mx-auto space-y-6">
+      <div className="p-4 md:p-8 max-w-5xl mx-auto space-y-6">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <p className="text-[11px] uppercase tracking-[1.8px] text-muted-foreground">Pengawasan</p>
-            <h1 className="text-2xl font-bold leading-tight">Kelengkapan Pengisian Capaian</h1>
+            <p className="text-xs font-bold uppercase tracking-[0.1em] text-warning">Pengawasan</p>
+            <h1 className="text-3xl leading-tight">Kelengkapan Pengisian Capaian</h1>
             <p className="text-sm text-muted-foreground mt-0.5">
               Halaqoh mana yang belum diisi gurunya · {formatPeriod(period)}
             </p>
@@ -100,8 +100,8 @@ export default async function KelengkapanPage({ searchParams }: PageProps) {
             {/* Pola antar bulan sering lebih menjelaskan daripada angka satu
                 bulan: bulan yang kosong merata biasanya berarti belum waktunya
                 diisi, bukan gurunya lalai. */}
-            <section className="rounded-xl border bg-card p-5">
-              <h2 className="text-sm font-semibold mb-4">Pengisian per Bulan</h2>
+            <section className="rounded-2xl border bg-card p-5">
+              <h2 className="font-heading text-lg font-medium mb-4">Pengisian per Bulan</h2>
               <div className="space-y-2">
                 {trend.map(t => (
                   <div key={t.period} className="flex items-center gap-3">
@@ -120,8 +120,8 @@ export default async function KelengkapanPage({ searchParams }: PageProps) {
               </div>
             </section>
 
-            <section className="rounded-xl border bg-card p-5">
-              <h2 className="text-sm font-semibold">Rincian per Halaqoh</h2>
+            <section className="rounded-2xl border bg-card p-5">
+              <h2 className="font-heading text-lg font-medium">Rincian per Halaqoh</h2>
               <p className="text-xs text-muted-foreground mt-0.5 mb-3">
                 Diurutkan dari yang paling perlu ditagih.
               </p>
@@ -210,7 +210,7 @@ function Kpi({
           : ''
 
   return (
-    <div className="rounded-xl border bg-card p-4">
+    <div className="rounded-2xl border bg-card p-4">
       <div className="flex items-center gap-1.5 text-xs text-muted-foreground">{icon}<span>{label}</span></div>
       <p className={`mt-1.5 text-2xl font-bold leading-none tabular-nums ${toneClass}`}>{value}</p>
       {hint && <p className="mt-1 text-[11px] text-muted-foreground">{hint}</p>}

@@ -179,7 +179,7 @@ export function SetoranSesiTahfidz({ siswa, surat, tanggalTetap }: {
         onTimpa={() => kirim(tertunda.map(b => ({ ...b, timpa: true })))}
         onBatal={() => { setGanda([]); setTertunda([]) }}
       />
-      <div className="flex flex-wrap items-end gap-3 rounded-xl border bg-card p-3">
+      <div className="flex flex-wrap items-end gap-3 rounded-2xl border bg-card p-4">
         <div className="space-y-1">
           <label htmlFor="tanggal_sesi_tf" className="text-xs font-medium">Tanggal setor</label>
           <Input id="tanggal_sesi_tf" type="date" value={tanggal} onChange={e => setTanggal(e.target.value)} readOnly={Boolean(tanggalTetap)} className="h-9 w-44 read-only:bg-muted" />
@@ -207,7 +207,7 @@ export function SetoranSesiTahfidz({ siswa, surat, tanggalTetap }: {
             <li
               key={s.id}
               className={cn(
-                'rounded-xl border bg-card p-3 transition-colors',
+                'rounded-2xl border bg-card p-3 transition-colors',
                 v.dipilih && 'border-primary/60',
                 v.galat && 'border-destructive',
               )}
@@ -217,10 +217,10 @@ export function SetoranSesiTahfidz({ siswa, surat, tanggalTetap }: {
                   type="checkbox"
                   checked={v.dipilih}
                   onChange={e => ubah(s.id, { dipilih: e.target.checked })}
-                  className="mt-1 h-4 w-4 accent-primary"
+                  className="mt-0.5 h-5 w-5 accent-primary"
                 />
                 <span className="min-w-0 flex-1">
-                  <span className="flex flex-wrap items-center gap-1.5 text-sm font-medium">
+                  <span className="flex flex-wrap items-center gap-1.5 text-[15px] font-semibold">
                     {s.full_name}
                     {s.drill.map(d => (
                       <span
@@ -353,11 +353,11 @@ export function SetoranSesiTahfidz({ siswa, surat, tanggalTetap }: {
 
                   <div className="grid gap-2 sm:grid-cols-2">
                     <div key={`t-${v.versi}`}>
-                      <p className="mb-1 text-xs font-medium">Nilai tahfidz</p>
+                      <p className="mb-1.5 text-[11px] font-bold uppercase tracking-[0.08em] text-muted-foreground">Nilai tahfidz</p>
                       <StarInput name={`nilai_tahfidz_${s.id}`} onChange={(b, n) => ubah(s.id, { nilai_tahfidz: b > 0 ? n : null })} />
                     </div>
                     <div key={`s-${v.versi}`}>
-                      <p className="mb-1 text-xs font-medium">Nilai sikap</p>
+                      <p className="mb-1.5 text-[11px] font-bold uppercase tracking-[0.08em] text-muted-foreground">Nilai sikap</p>
                       <StarInput name={`nilai_sikap_tf_${s.id}`} onChange={(b, n) => ubah(s.id, { nilai_sikap: b > 0 ? n : null })} />
                     </div>
                   </div>
@@ -376,7 +376,7 @@ export function SetoranSesiTahfidz({ siswa, surat, tanggalTetap }: {
         })}
       </ul>
 
-      <div className="sticky bottom-0 -mx-4 border-t bg-background/95 px-4 py-3 backdrop-blur md:mx-0 md:rounded-xl md:border">
+      <div className="sticky bottom-0 -mx-4 border-t bg-card/95 px-4 py-3 shadow-[0_-4px_16px_rgb(23_33_31/0.06)] backdrop-blur md:mx-0 md:rounded-2xl md:border">
         <Button type="button" size="lg" className="w-full" onClick={simpan} disabled={pending || jumlahDipilih === 0}>
           {pending ? 'Menyimpan…' : jumlahDipilih > 0 ? `Simpan ${jumlahDipilih} setoran` : 'Centang anak yang setor'}
         </Button>

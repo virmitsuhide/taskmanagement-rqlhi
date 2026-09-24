@@ -71,7 +71,7 @@ export default async function GukarAnalitikPage({ searchParams }: PageProps) {
     <div>
       <DashboardHeader displayName={session.displayName} role={session.role} title="Analitik Halaqoh Qur'an Gukar" showBack ownH1 />
 
-      <div className="mx-auto max-w-6xl space-y-6 p-4 md:p-6">
+      <div className="mx-auto max-w-6xl space-y-6 p-4 md:p-8">
         <DashTop
           eyebrow="Pembinaan Guru & Karyawan"
           title="Analitik Halaqoh Qur'an Gukar"

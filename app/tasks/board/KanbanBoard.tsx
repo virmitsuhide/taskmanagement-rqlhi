@@ -225,15 +225,15 @@ export function KanbanBoard({ columns: initialColumns, currentUserId, currentRol
           onDrop={() => handleDrop(col.key)}
           // Kolom = baki bertint; kartu di dalamnya bg-card (putih) agar terlihat
           // terpisah. Tanpa ini kolom dan kartu sama-sama putih di mode terang.
-          className="rounded-xl border bg-muted/50 dark:bg-muted/20 p-3 min-h-[300px] transition-colors"
+          className="rounded-2xl bg-muted/70 dark:bg-muted/20 p-3 min-h-[300px] transition-colors"
           style={overCol === col.key ? { borderColor: COLUMN_ACCENT[col.key], background: 'color-mix(in srgb, ' + COLUMN_ACCENT[col.key] + ' 6%, transparent)' } : undefined}
         >
-          <div className="flex items-center justify-between pb-2.5 mb-2 border-b">
-            <div className="flex items-center gap-2 text-sm font-semibold">
+          <div className="flex items-center justify-between px-1 pb-2.5 mb-1">
+            <div className="flex items-center gap-2 text-sm font-bold">
               <span className="w-2 h-2 rounded-full" style={{ background: COLUMN_ACCENT[col.key] }} />
               {col.label}
             </div>
-            <span className="text-[11px] text-muted-foreground bg-background px-2 py-0.5 rounded-full tabular-nums">{col.tasks.length}</span>
+            <span className="text-xs font-semibold text-muted-foreground bg-card px-2 py-0.5 rounded-md tabular-nums">{col.tasks.length}</span>
           </div>
 
           <div className="space-y-2">
@@ -263,7 +263,7 @@ export function KanbanBoard({ columns: initialColumns, currentUserId, currentRol
                   onClick={() => openTask(task.id)}
                   title={movable ? undefined : 'Hanya pelaksana, pemberi tugas, atau Kepala RQ yang bisa memindahkan kartu ini'}
                   className={cn(
-                    'rounded-lg border p-3 shadow-sm transition hover:shadow-md',
+                    'rounded-xl border p-3.5 shadow-[0_1px_2px_rgb(23_33_31/0.05)] transition hover:shadow-md',
                     movable ? 'cursor-grab active:cursor-grabbing hover:border-foreground/30' : 'cursor-pointer',
                     !problem && 'bg-card',
                   )}
@@ -295,7 +295,7 @@ export function KanbanBoard({ columns: initialColumns, currentUserId, currentRol
                     )}
                   </div>
 
-                  <p className={`text-sm font-medium leading-snug ${task.status === 'done' ? 'line-through text-muted-foreground' : ''}`}>
+                  <p className={`text-sm font-semibold leading-snug ${task.status === 'done' ? 'line-through text-muted-foreground' : ''}`}>
                     {task.title}
                   </p>
 
@@ -348,7 +348,7 @@ export function KanbanBoard({ columns: initialColumns, currentUserId, currentRol
                   <div className="flex items-center justify-between mt-2 text-[11px] text-muted-foreground">
                     <span className={overdue ? 'text-destructive font-medium' : ''}>
                       {task.due_date
-                        ? (overdue ? '⚠ ' : '🗓 ') + new Date(task.due_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })
+                        ? (overdue ? '⚠ ' : '') + new Date(task.due_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })
                         : ''}
                     </span>
                     {task.assignee && (

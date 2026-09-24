@@ -29,12 +29,12 @@ export default async function SetoranSesiTahfidzPage({ searchParams }: PageProps
       <div className="max-w-3xl mx-auto px-4 md:px-6 py-6 space-y-4">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <p className="text-[11px] uppercase tracking-[1.8px] text-muted-foreground">Setoran per Sesi</p>
+            <p className="text-xs font-bold uppercase tracking-[0.1em] text-warning">Setoran per Sesi</p>
             <h1
-              className="text-2xl font-extrabold tracking-tight"
+              className="text-3xl tracking-tight"
               style={{ fontFamily: 'var(--font-playfair), Georgia, serif' }}
             >
-              ✨ Setor Tahfidz — {halaqoh?.sesi ? `Sesi ${halaqoh.sesi}` : halaqoh?.name ?? 'Sesi'}
+              Setor Tahfidz — {halaqoh?.sesi ? `Sesi ${halaqoh.sesi}` : halaqoh?.name ?? 'Sesi'}
             </h1>
           </div>
           <Link href="/guru/setoran/tahfidz/baru" className="text-sm text-muted-foreground hover:underline">
