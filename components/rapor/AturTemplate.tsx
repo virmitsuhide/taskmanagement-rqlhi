@@ -6,7 +6,10 @@ import { toast } from 'sonner'
 import { RefreshCw, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { bacaUlangTemplateAction, hapusTemplateAction, ubahTemplateAction } from '@/app/actions/rapor-template'
+import { SELECT_NATIF } from '@/components/rapor/kontrol'
+import { JENIS_RAPOR, LABEL_JENIS_RAPOR, type JenisRapor } from '@/lib/rapor/jenis'
 
 /**
  * Pengaturan template: nama, kelas berapa yang memakainya, aktif/tidak.
@@ -15,16 +18,17 @@ import { bacaUlangTemplateAction, hapusTemplateAction, ubahTemplateAction } from
  * semester lalu menunjuk template ini, dan daftar isian guru ikut kehilangan
  * rujukannya kalau barisnya hilang.
  */
-export function AturTemplate({ id, nama, tingkatMin, tingkatMax, aktif }: {
+export function AturTemplate({ id, nama, tingkatMin, tingkatMax, aktif, jenis }: {
   id: string
   nama: string
   tingkatMin: number
   tingkatMax: number
   aktif: boolean
+  jenis: JenisRapor
 }) {
   const router = useRouter()
   const [pending, mulai] = useTransition()
-  const [isi, setIsi] = useState({ nama, tingkat_min: tingkatMin, tingkat_max: tingkatMax, aktif })
+  const [isi, setIsi] = useState({ nama, tingkat_min: tingkatMin, tingkat_max: tingkatMax, aktif, jenis: jenis as string })
 
   function simpan(ubahan: Partial<typeof isi>) {
     const baru = { ...isi, ...ubahan }
@@ -63,38 +67,53 @@ export function AturTemplate({ id, nama, tingkatMin, tingkatMax, aktif }: {
   }
 
   return (
-    <div className="flex flex-wrap items-end gap-3 rounded-xl border bg-card p-4">
-      <div className="min-w-[200px] flex-1 space-y-1">
-        <label className="text-xs font-medium" htmlFor="atur-nama">Nama template</label>
-        <Input id="atur-nama" value={isi.nama} disabled={pending} className="h-9"
-          onChange={e => setIsi({ ...isi, nama: e.target.value })}
-          onBlur={e => e.target.value !== nama && simpan({ nama: e.target.value })} />
-      </div>
-
-      <div className="space-y-1">
-        <label className="text-xs font-medium" htmlFor="atur-min">Dipakai kelas</label>
-        <div className="flex items-center gap-2">
-          <Input id="atur-min" type="number" min={1} max={12} value={isi.tingkat_min} disabled={pending} className="h-9 w-20"
-            onChange={e => simpan({ tingkat_min: Number(e.target.value) })} />
-          <span className="text-muted-foreground">–</span>
-          <Input type="number" min={1} max={12} value={isi.tingkat_max} disabled={pending} className="h-9 w-20"
-            onChange={e => simpan({ tingkat_max: Number(e.target.value) })} />
+    <div className="space-y-4 rounded-xl border bg-card p-4 sm:p-5">
+      <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto_auto_auto] sm:items-end">
+        <div className="space-y-1.5">
+          <Label htmlFor="atur-nama">Nama template</Label>
+          <Input id="atur-nama" value={isi.nama} disabled={pending} className="h-10 md:h-9"
+            onChange={e => setIsi({ ...isi, nama: e.target.value })}
+            onBlur={e => e.target.value !== nama && simpan({ nama: e.target.value })} />
         </div>
-      </div>
 
-      <label className="flex h-9 items-center gap-2 text-sm">
-        <input type="checkbox" checked={isi.aktif} disabled={pending} onChange={e => simpan({ aktif: e.target.checked })} />
-        Aktif
-      </label>
+        <div className="space-y-1.5">
+          <Label htmlFor="atur-min">Dipakai kelas</Label>
+          <div className="flex items-center gap-2">
+            <Input id="atur-min" type="number" inputMode="numeric" min={1} max={12} value={isi.tingkat_min} disabled={pending}
+              className="h-10 flex-1 text-center tabular-nums sm:w-16 sm:flex-none md:h-9"
+              onChange={e => simpan({ tingkat_min: Number(e.target.value) })} />
+            <span className="text-muted-foreground">–</span>
+            <Input aria-label="Sampai kelas" type="number" inputMode="numeric" min={1} max={12} value={isi.tingkat_max} disabled={pending}
+              className="h-10 flex-1 text-center tabular-nums sm:w-16 sm:flex-none md:h-9"
+              onChange={e => simpan({ tingkat_max: Number(e.target.value) })} />
+          </div>
+        </div>
+
+        <div className="space-y-1.5">
+          <Label htmlFor="atur-jenis">Jenis laporan</Label>
+          <select id="atur-jenis" value={isi.jenis} disabled={pending} className={SELECT_NATIF}
+            onChange={e => simpan({ jenis: e.target.value })}>
+            {JENIS_RAPOR.map(j => <option key={j} value={j}>{LABEL_JENIS_RAPOR[j]}</option>)}
+          </select>
+        </div>
+
+        <label className="flex h-10 cursor-pointer items-center gap-2 rounded-lg border border-input px-3 text-sm font-medium transition-colors has-[:checked]:border-primary/40 has-[:checked]:bg-primary/10 has-[:checked]:text-primary md:h-9 dark:has-[:checked]:bg-primary/20">
+          <input type="checkbox" checked={isi.aktif} disabled={pending} onChange={e => simpan({ aktif: e.target.checked })} className="size-4 accent-primary" />
+          {isi.aktif ? 'Aktif' : 'Nonaktif'}
+        </label>
+      </div>
 
       {/* Dipakai setelah penerjemah .docx diperbaiki: template lama tetap
           menyimpan hasil terjemahan lama sampai dibaca ulang. */}
-      <Button type="button" variant="outline" size="sm" onClick={bacaUlang} disabled={pending} className="ml-auto">
-        <RefreshCw /> Baca ulang berkas
-      </Button>
-      <Button type="button" variant="outline" size="sm" onClick={hapus} disabled={pending}>
-        <Trash2 /> Hapus
-      </Button>
+      <div className="flex flex-wrap gap-2 border-t pt-3">
+        <Button type="button" variant="outline" size="sm" onClick={bacaUlang} disabled={pending} className="flex-1 sm:flex-none">
+          <RefreshCw /> Baca ulang berkas
+        </Button>
+        <Button type="button" variant="outline" size="sm" onClick={hapus} disabled={pending}
+          className="flex-1 text-destructive hover:bg-destructive/10 hover:text-destructive sm:ml-auto sm:flex-none">
+          <Trash2 /> Hapus
+        </Button>
+      </div>
     </div>
   )
 }

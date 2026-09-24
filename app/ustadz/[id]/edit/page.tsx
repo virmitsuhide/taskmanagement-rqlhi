@@ -4,6 +4,7 @@ import { canManageTeachers } from '@/lib/auth/permissions'
 import { createServerClient } from '@/lib/supabase/server'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { TeacherForm } from '../../baru/TeacherForm'
+import type { TeacherEmployment } from '@/types'
 
 interface PageProps {
   params: Promise<{ id: string }>
@@ -16,11 +17,15 @@ export default async function EditTeacherPage({ params }: PageProps) {
 
   const { id } = await params
   const supabase = createServerClient()
-  const { data: teacher } = await supabase
-    .from('teachers')
-    .select('id, username, full_name, nip, email, phone, is_active, deleted_at, employment_type, joined_at, contract_start, contract_end')
-    .eq('id', id)
-    .maybeSingle()
+  const KOLOM = 'id, username, full_name, nip, email, phone, is_active, deleted_at, employment_type, joined_at, contract_start, contract_end'
+  // gender baru ada setelah migrasi 0086; sebelum itu formnya tetap bisa dibuka.
+  let res = await supabase.from('teachers').select(KOLOM + ', gender').eq('id', id).maybeSingle()
+  if (res.error) res = await supabase.from('teachers').select(KOLOM).eq('id', id).maybeSingle()
+  const teacher = res.data as unknown as (Record<string, unknown> & {
+    id: string; username: string; full_name: string; nip: string | null; email: string | null; phone: string | null
+    is_active: boolean; deleted_at: string | null; employment_type: TeacherEmployment | null; joined_at: string | null
+    contract_start: string | null; contract_end: string | null; gender?: 'L' | 'P' | null
+  }) | null
 
   if (!teacher) notFound()
 

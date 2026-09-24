@@ -1,6 +1,7 @@
 import { createServerClient } from '@/lib/supabase/server'
 import type { Blok } from '@/lib/rapor/docx'
-import type { KodeMedan } from '@/lib/rapor/medan'
+import type { AwalIsian, KodeMedan } from '@/lib/rapor/medan'
+import type { JenisRapor } from '@/lib/rapor/jenis'
 import { tingkatOf } from '@/lib/rq/sesi'
 import type { Jenjang } from '@/types'
 
@@ -24,12 +25,29 @@ export interface RaporTemplate {
   /** Path objek di bucket signatures (tertutup); null = ttd basah. */
   ttd_koordinator_path: string | null
   aktif: boolean
+  /** 0086 — laporan tengah semester (ATS) atau rapor akhir semester. */
+  jenis: JenisRapor
+  /** 0086 — isi awal tiap isian merah (id slot → contoh/kosong/medan). */
+  awal_isian: Record<string, AwalIsian>
   updated_at: string
 }
 
-const KOLOM =
+export { bacaJenisRapor, LABEL_JENIS_RAPOR, type JenisRapor } from '@/lib/rapor/jenis'
+
+const KOLOM_LAMA =
   'id, nama, jenjang, tingkat_min, tingkat_max, file_path, file_nama, blok, pemetaan,' +
   ' tempat_terbit, nama_koordinator, nip_koordinator, ttd_koordinator_path, aktif, updated_at'
+const KOLOM = KOLOM_LAMA + ', jenis, awal_isian'
+
+/**
+ * Sebelum migrasi 0086 dijalankan kolom jenis & awal_isian belum ada, dan
+ * kueri yang menyebutnya gagal seluruhnya. Template lama tetap harus bisa
+ * dipakai — semuanya memang rapor semester — jadi kueri diulang tanpa
+ * kolom baru dan nilainya diisi bawaan.
+ */
+function lengkapi(row: Record<string, unknown>): RaporTemplate {
+  return { jenis: 'semester', awal_isian: {}, ...row } as unknown as RaporTemplate
+}
 
 /** false = migrasi 0082 belum dijalankan. */
 export interface DaftarTemplate {
@@ -39,17 +57,22 @@ export interface DaftarTemplate {
 
 export async function getRaporTemplates(jenjang?: Jenjang[]): Promise<DaftarTemplate> {
   const supabase = createServerClient()
-  let q = supabase.from('rapor_templates').select(KOLOM).order('jenjang').order('tingkat_min')
-  if (jenjang && jenjang.length > 0) q = q.in('jenjang', jenjang)
-  const { data, error } = await q
+  const kueri = (kolom: string) => {
+    let q = supabase.from('rapor_templates').select(kolom).order('jenjang').order('tingkat_min')
+    if (jenjang && jenjang.length > 0) q = q.in('jenjang', jenjang)
+    return q
+  }
+  let { data, error } = await kueri(KOLOM)
+  if (error) ({ data, error } = await kueri(KOLOM_LAMA))
   if (error) return { tabelAda: false, daftar: [] }
-  return { tabelAda: true, daftar: (data ?? []) as unknown as RaporTemplate[] }
+  return { tabelAda: true, daftar: ((data ?? []) as unknown as Record<string, unknown>[]).map(lengkapi) }
 }
 
 export async function getRaporTemplate(id: string): Promise<RaporTemplate | null> {
   const supabase = createServerClient()
-  const { data } = await supabase.from('rapor_templates').select(KOLOM).eq('id', id).maybeSingle()
-  return (data as unknown as RaporTemplate) ?? null
+  let { data, error } = await supabase.from('rapor_templates').select(KOLOM).eq('id', id).maybeSingle()
+  if (error) ({ data, error } = await supabase.from('rapor_templates').select(KOLOM_LAMA).eq('id', id).maybeSingle())
+  return data ? lengkapi(data as unknown as Record<string, unknown>) : null
 }
 
 /**
@@ -61,10 +84,11 @@ export function templateUntuk(
   daftar: RaporTemplate[],
   jenjang: Jenjang,
   kelas: string | null,
+  jenis: JenisRapor = 'semester',
 ): RaporTemplate | null {
   const tingkat = tingkatOf(kelas)
   const cocok = daftar.filter(t =>
-    t.aktif && t.jenjang === jenjang && (tingkat === null || (tingkat >= t.tingkat_min && tingkat <= t.tingkat_max)),
+    t.aktif && t.jenis === jenis && t.jenjang === jenjang && (tingkat === null || (tingkat >= t.tingkat_min && tingkat <= t.tingkat_max)),
   )
   if (cocok.length === 0) return null
   return cocok.sort((a, b) => (a.tingkat_max - a.tingkat_min) - (b.tingkat_max - b.tingkat_min))[0]

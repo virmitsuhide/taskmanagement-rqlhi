@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { CalendarRange, ChevronLeft, ChevronRight } from 'lucide-react'
 import { getSession } from '@/lib/auth/session'
 import { canManageRaporTemplate, getManageableJenjang, JENJANG_LABELS } from '@/lib/auth/permissions'
 import { getCurrentTerm } from '@/lib/data/terms'
@@ -8,8 +8,9 @@ import { getAngkatan, getKalender, getKelasAngkatan } from '@/lib/data/kalender-
 import { hitungTM } from '@/lib/rq/kalender-quran'
 import { agendaPerTanggal, adalahLibur, getKaldikEvents } from '@/lib/data/kaldik'
 import { PROGRAMS_BY_JENJANG } from '@/lib/rq/programs'
-import { tanggalWIB } from '@/lib/rq/ujian'
+import { BULAN_ID, tanggalWIB } from '@/lib/rq/ujian'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
+import { PageTitle } from '@/components/layout/PageTitle'
 import { Slicer, hrefDengan } from '@/components/dashboard/kit'
 import { KalenderQuran, type AgendaHari } from '@/components/kalender/KalenderQuran'
 import type { Jenjang } from '@/types'
@@ -84,14 +85,11 @@ export default async function KalenderQuranPage({ searchParams }: PageProps) {
     <div>
       <DashboardHeader role={session.role} displayName={session.displayName} title="Kalender Qur'an" showBack ownH1 />
 
-      <div className="max-w-4xl space-y-5 p-4 md:p-6">
-        <div>
-          <h1 className="text-2xl font-bold leading-tight">Kalender Qur&apos;an</h1>
-          <p className="mt-0.5 text-sm text-muted-foreground">
-            Hari aktif pembelajaran Al-Qur&apos;an dan sesi yang ditiadakan. Hasilnya adalah jumlah tatap muka (TM) —
-            penyebut kehadiran tiap anak di rapor.
-          </p>
-        </div>
+      <div className="mx-auto max-w-4xl space-y-5 px-4 py-5 md:p-6">
+        <PageTitle icon={<CalendarRange className="size-5" aria-hidden />} title="Kalender Qur'an">
+          Hari aktif pembelajaran Al-Qur&apos;an dan sesi yang ditiadakan. Hasilnya adalah jumlah tatap muka (TM) —
+          penyebut kehadiran tiap anak di rapor.
+        </PageTitle>
 
         {!kalender.tabelAda ? (
           <div className="rounded-xl border border-dashed bg-card p-5 text-sm text-muted-foreground">
@@ -112,14 +110,19 @@ export default async function KalenderQuranPage({ searchParams }: PageProps) {
                   label: `Kelas ${t}`, href: href({ angkatan: String(t) }), active: t === tingkat,
                 }))} />
               )}
-              <div className="flex items-center gap-2">
-                <Link href={href({ bulan: geser(-1) })} className="rounded-lg border bg-card px-2 py-1.5 hover:bg-accent" aria-label="Bulan sebelumnya">
-                  <ChevronLeft className="h-4 w-4" />
-                </Link>
-                <Link href={href({ bulan: geser(1) })} className="rounded-lg border bg-card px-2 py-1.5 hover:bg-accent" aria-label="Bulan berikutnya">
-                  <ChevronRight className="h-4 w-4" />
-                </Link>
-                <span className="text-sm text-muted-foreground">
+              <div className="flex flex-col gap-2 border-t pt-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center gap-1">
+                  <Link href={href({ bulan: geser(-1) })} className="flex size-10 items-center justify-center rounded-lg border bg-card transition-colors hover:bg-accent md:size-9" aria-label="Bulan sebelumnya">
+                    <ChevronLeft className="h-4 w-4" />
+                  </Link>
+                  <span className="min-w-0 flex-1 text-center text-sm font-semibold sm:w-36 sm:flex-none">
+                    {BULAN_ID[bulan - 1]} {tahun}
+                  </span>
+                  <Link href={href({ bulan: geser(1) })} className="flex size-10 items-center justify-center rounded-lg border bg-card transition-colors hover:bg-accent md:size-9" aria-label="Bulan berikutnya">
+                    <ChevronRight className="h-4 w-4" />
+                  </Link>
+                </div>
+                <span className="text-center text-xs text-muted-foreground sm:text-right">
                   Semester berjalan: {term.semester === 'ganjil' ? 'Ganjil' : 'Genap'} {term.year_label}
                 </span>
               </div>

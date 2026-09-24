@@ -2,51 +2,22 @@ import { createServerClient } from '@/lib/supabase/server'
 import type { Task, Meeting, TaskComment, MemberCompletion, CompletedTaskEntry } from '@/types'
 import type { MeetingType } from '@/types'
 
-export async function getDashboardStats(userId: string) {
-  const supabase = createServerClient()
-  const today = new Date()
-  const threeDaysLater = new Date(today)
-  threeDaysLater.setDate(today.getDate() + 3)
-
-  const [myTasksRes, pendingVerifRes] = await Promise.all([
-    supabase
-      .from('tasks')
-      .select('id, status, priority, due_date')
-      .eq('assigned_to', userId)
-      .is('deleted_at', null)
-      .not('status', 'in', '("done")'),
-    supabase
-      .from('tasks')
-      .select('id')
-      .eq('assigned_by', userId)
-      .is('deleted_at', null)
-      .eq('status', 'submitted'),
-  ])
-
-  const myTasks = myTasksRes.data ?? []
-  const urgentCount = myTasks.filter(t => t.priority === 'high').length
-  const dueSoonCount = myTasks.filter(t => {
-    if (!t.due_date) return false
-    const due = new Date(t.due_date)
-    return due >= today && due <= threeDaysLater
-  }).length
-  const inProgressCount = myTasks.filter(t => t.status === 'in_progress').length
-  const pendingVerifCount = pendingVerifRes.data?.length ?? 0
-
-  return { urgentCount, dueSoonCount, pendingVerifCount, inProgressCount }
-}
-
-export async function getMyActiveTasks(userId: string) {
+/**
+ * Seluruh tugas aktif milik satu pengurus — untuk Fokus Kerja di dashboard.
+ *
+ * Tanpa batas (dulu getMyActiveTasks memotong di 10): hitungan di kartu KPI dan di
+ * slicer harus utuh. Daftar yang dipotong 10 akan membuat "Terlambat 3"
+ * padahal yang terlambat ada 12. Satu pengurus jarang memegang lebih dari
+ * beberapa puluh tugas aktif, jadi menariknya utuh tetap murah.
+ */
+export async function getSemuaTugasAktifSaya(userId: string) {
   const supabase = createServerClient()
   const { data } = await supabase
     .from('tasks')
     .select('*, assigner:users!assigned_by(id, display_name, role)')
     .eq('assigned_to', userId)
     .is('deleted_at', null)
-    .not('status', 'in', '("done")')
-    .order('priority', { ascending: false })
-    .order('due_date', { ascending: true, nullsFirst: false })
-    .limit(10)
+    .neq('status', 'done')
   return (data ?? []) as Task[]
 }
 

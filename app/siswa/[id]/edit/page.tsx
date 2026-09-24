@@ -1,4 +1,5 @@
 import { redirect, notFound } from 'next/navigation'
+import { UserPen } from 'lucide-react'
 import { getSession } from '@/lib/auth/session'
 import { canManageStudents, getManageableJenjang, programScopeFor } from '@/lib/auth/permissions'
 import { createServerClient } from '@/lib/supabase/server'
@@ -45,9 +46,20 @@ export default async function EditStudentPage({ params }: PageProps) {
         ]}
         showBack
       />
-      <div className="p-4 md:p-6 max-w-5xl mx-auto">
-        <h1 className="text-2xl font-bold leading-tight mb-1">Edit Siswa</h1>
-        <p className="text-sm text-muted-foreground mb-6">{student.full_name}</p>
+      <div className="mx-auto max-w-3xl px-4 py-5 md:p-6">
+        <div className="mb-5 flex items-center gap-3 md:mb-6">
+          <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary dark:bg-primary/20">
+            <UserPen className="size-5" aria-hidden />
+          </span>
+          <div className="min-w-0">
+            <h1 className="text-xl font-bold leading-tight md:text-2xl">Edit Siswa</h1>
+            <p className="truncate text-sm text-muted-foreground">
+              {student.full_name}
+              {student.nis && <span className="tabular-nums"> &middot; NIS {student.nis}</span>}
+              {!student.is_active && <span className="ml-1.5 rounded-md bg-muted px-1.5 py-0.5 text-[11px] font-medium">Nonaktif</span>}
+            </p>
+          </div>
+        </div>
         <StudentForm
           mode="edit"
           allowedJenjang={getManageableJenjang(session.role)}

@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { ArrowRight, Calendar, ChevronLeft, ChevronRight } from 'lucide-react'
+import { adalahTugas } from '@/lib/home/post-tanggal'
 import type { PublicPost, KaldiEvent } from '@/types'
 
 interface Props {
@@ -250,7 +251,9 @@ export function MonthAgenda({ posts, kaldiEvents = [], todayIso, title = "Agenda
                         className="inline-block mt-1 text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded"
                         style={{ backgroundColor: `${INTERNAL_COLOR}1A`, color: INTERNAL_COLOR }}
                       >
-                        Internal
+                        {/* Tanggal post berarti tenggat bagi tugas, hari
+                            kegiatan bagi pengumuman — lihat post-tanggal.ts. */}
+                        {adalahTugas(item.post) ? 'Tenggat tugas' : 'Kegiatan'}
                       </span>
                     </div>
                   </div>

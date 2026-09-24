@@ -8,9 +8,14 @@ import { inflateRawSync } from 'node:zlib'
  * deflate biasa. Menambah pustaka docx penuh berarti menyeret seluruh model
  * OOXML ke dalam bundel demi dua puluh baris yang benar-benar dipakai.
  *
- * Yang SENGAJA tidak dibaca: font, ukuran huruf, warna, posisi kotak, margin.
+ * Yang SENGAJA tidak dibaca: font, ukuran huruf, posisi kotak, margin.
  * Template dicetak lewat lembar A4 sistem (lihat components/rapor/LembarRapor),
  * jadi yang diambil dari Word adalah ISI dan URUTANNYA — bukan tipografinya.
+ *
+ * Satu pengecualian untuk warna: huruf MERAH. Sekolah menandai bagian yang
+ * boleh diganti dengan merah (template ATS SMP 2026/2027), termasuk potongan
+ * di tengah kalimat deskripsi. Warna itu bukan tipografi di sini — ia
+ * penanda isian, jadi dibaca (lihat Potongan) lalu dibuang saat mencetak.
  */
 
 // ─── ZIP ─────────────────────────────────────────────────────────────────────
@@ -78,6 +83,31 @@ export interface BlokParagraf {
   segmen: string[]
   rata: Rata
   tebal: boolean
+  /**
+   * Teks paragraf yang dipecah menurut warna — hanya ada bila paragraf ini
+   * memuat huruf merah DAN huruf biasa. Paragraf yang seluruhnya merah atau
+   * seluruhnya hitam tidak membutuhkannya: slot segmennya sudah cukup.
+   * Template yang diunggah sebelum fitur ini tidak memilikinya.
+   */
+  potongan?: Potongan[]
+}
+
+/** Satu rentang teks berwarna seragam. merah = bagian yang boleh diganti. */
+export interface Potongan {
+  teks: string
+  merah?: true
+}
+
+/**
+ * Pergantian halaman yang ditulis di template (Ctrl+Enter di Word).
+ *
+ * Template ATS SMP berisi dua lembar: laporan Al-Qur'an reguler dan laporan
+ * Riyadhoh yang hanya berlaku bagi pesertanya. Tanpa penanda ini keduanya
+ * menyatu jadi satu lembar panjang, dan halaman kedua tidak bisa dicetak
+ * terpisah — atau disembunyikan — sama sekali.
+ */
+export interface BlokHalaman {
+  jenis: 'halaman'
 }
 
 export interface BlokTabel {
@@ -89,6 +119,12 @@ export interface BlokTabel {
 export interface BlokKotak {
   jenis: 'kotak'
   paragraf: string[]
+  /**
+   * Potongan hitam/merah per paragraf, sejajar dengan `paragraf` — null untuk
+   * paragraf yang warnanya seragam. Template ATS SMP menaruh deskripsinya di
+   * kotak teks, dengan isian merah di tengah kalimatnya.
+   */
+  potongan?: (Potongan[] | null)[]
 }
 
 /**
@@ -105,7 +141,7 @@ export interface BlokJeda {
   baris: number
 }
 
-export type Blok = BlokParagraf | BlokTabel | BlokKotak | BlokJeda
+export type Blok = BlokParagraf | BlokTabel | BlokKotak | BlokJeda | BlokHalaman
 
 // ─── Penerjemah ──────────────────────────────────────────────────────────────
 
@@ -135,6 +171,75 @@ function segmenParagraf(p: string): string[] {
   return segmen.map(s => s.replace(/\s+/g, ' ').trim()).filter((s, i, a) => s !== '' || (i > 0 && i < a.length - 1))
 }
 
+/**
+ * Merah = kanal merah kuat, hijau & biru lemah. Bukan hanya FF0000: Word
+ * menyimpan "merah" dari palet tema sebagai C00000, EE0000, dan sejenisnya,
+ * sedangkan 1F1F1F (hitam lembut, dipakai di template yang sama) harus
+ * tetap terbaca hitam.
+ */
+export function warnaMerah(hex: string | undefined): boolean {
+  if (!hex || !/^[0-9a-f]{6}$/i.test(hex)) return false
+  const [r, g, b] = [0, 2, 4].map(i => parseInt(hex.slice(i, i + 2), 16))
+  return r >= 0xb0 && g <= 0x60 && b <= 0x60
+}
+
+/**
+ * Paragraf → potongan hitam/merah, atau undefined bila warnanya seragam.
+ *
+ * Word memecah satu frasa menjadi banyak run ("Surat Al-" + "Qiyamah ayat
+ * 34"), jadi run bersebelahan yang sewarna digabung. Spasi di tepi potongan
+ * merah dipindah ke potongan hitam di sebelahnya: mengganti isian tidak boleh
+ * ikut memakan spasi pemisah kata di kalimat yang terkunci.
+ */
+export function potonganParagraf(p: string): Potongan[] | undefined {
+  const mentah: Potongan[] = []
+  for (const run of p.match(/<w:r\b[^>]*>[\s\S]*?<\/w:r>/g) ?? []) {
+    const teks = [...run.matchAll(/<w:t(?:\s[^>]*)?>([\s\S]*?)<\/w:t>|<w:tab\s*\/>|<w:br\s*\/>/g)]
+      .map(m => (m[1] !== undefined ? nyata(m[1]) : ' '))
+      .join('')
+    if (!teks) continue
+    const merah = warnaMerah(run.match(/<w:color w:val="([0-9A-Fa-f]{6})"/)?.[1])
+    // Spasi saja tidak punya warna yang berarti — ikut potongan sebelumnya.
+    const akhir = mentah[mentah.length - 1]
+    if (akhir && (Boolean(akhir.merah) === merah || !teks.trim())) akhir.teks += teks
+    else mentah.push(merah ? { teks, merah: true } : { teks })
+  }
+
+  const hasil: Potongan[] = []
+  const tambahHitam = (teks: string) => {
+    if (!teks) return
+    const akhir = hasil[hasil.length - 1]
+    if (akhir && !akhir.merah) akhir.teks += teks
+    else hasil.push({ teks })
+  }
+  for (const pot of mentah) {
+    if (!pot.merah) { tambahHitam(pot.teks); continue }
+    const [, depan, inti, belakang] = pot.teks.match(/^(\s*)([\s\S]*?)(\s*)$/)!
+    tambahHitam(depan)
+    if (inti) hasil.push({ teks: inti, merah: true })
+    tambahHitam(belakang)
+  }
+
+  const rapi = hasil
+    .map(x => ({ ...x, teks: x.teks.replace(/\s+/g, ' ') }))
+    .filter(x => x.teks !== '')
+  if (rapi.length > 0) {
+    rapi[0].teks = rapi[0].teks.trimStart()
+    rapi[rapi.length - 1].teks = rapi[rapi.length - 1].teks.trimEnd()
+  }
+  const adaMerah = rapi.some(x => x.merah)
+  const adaHitam = rapi.some(x => !x.merah && x.teks.trim())
+  return adaMerah && adaHitam ? rapi : undefined
+}
+
+/** Posisi pergantian halaman di paragraf ini: sebelum isinya, sesudahnya, atau tidak ada. */
+function letakHalaman(p: string, pPr: string): 'sebelum' | 'sesudah' | null {
+  if (/<w:pageBreakBefore(?:\s+w:val="(?:1|true|on)")?\s*\/>/.test(pPr)) return 'sebelum'
+  const i = p.search(/<w:br\b[^>]*w:type="page"/)
+  if (i < 0) return null
+  return segmenParagraf(buangPPr(p.slice(0, i))).join('').trim() ? 'sesudah' : 'sebelum'
+}
+
 function rataDari(pPr: string): Rata {
   const jc = pPr.match(/<w:jc w:val="(\w+)"/)?.[1]
   if (jc === 'center') return 'tengah'
@@ -157,17 +262,17 @@ export function bacaDocument(xml: string): Blok[] {
   // Tanpa ini, <w:p> di dalam kotak tertangkap oleh pemindai badan dokumen
   // sebelum paragraf pembungkusnya selesai, dan kotak deskripsi terurai
   // menjadi paragraf lepas yang kehilangan bingkainya.
-  const kotak: string[][] = []
+  const kotak: { teks: string; potongan: Potongan[] | null }[][] = []
   const body = (bersih.match(/<w:body>([\s\S]*)<\/w:body>/)?.[1] ?? bersih).replace(
     /<w:drawing>[\s\S]*?<\/w:drawing>|<w:pict>[\s\S]*?<\/w:pict>/g,
     gambar => {
       const isi = gambar.match(/<w:txbxContent>([\s\S]*?)<\/w:txbxContent>/)
       if (!isi) return ''
-      const paragraf = (isi[1].match(/<w:p\b[\s\S]*?<\/w:p>/g) ?? [])
-        .map(p => segmenParagraf(buangPPr(p)).join(' '))
-        .filter(Boolean)
-      if (paragraf.length === 0) return ''
-      kotak.push(paragraf)
+      const isiP = (isi[1].match(/<w:p\b[\s\S]*?<\/w:p>/g) ?? [])
+        .map(p => ({ teks: segmenParagraf(buangPPr(p)).join(' '), potongan: potonganParagraf(buangPPr(p)) ?? null }))
+        .filter(p => p.teks)
+      if (isiP.length === 0) return ''
+      kotak.push(isiP)
       return `<rq:kotak n="${kotak.length - 1}"/>`
     },
   )
@@ -191,11 +296,19 @@ export function bacaDocument(xml: string): Blok[] {
     // Paragraf pembungkus kotak teks: kotaknya ditulis sebagai blok sendiri.
     // Teks paragraf itu sendiri (kalau ada) tetap ditulis sesudahnya.
     for (const p of potong.matchAll(/<rq:kotak n="(\d+)"\/>/g)) {
-      blok.push({ jenis: 'kotak', paragraf: kotak[Number(p[1])] })
+      const isi = kotak[Number(p[1])]
+      const potongan = isi.map(x => x.potongan)
+      blok.push({
+        jenis: 'kotak',
+        paragraf: isi.map(x => x.teks),
+        ...(potongan.some(Boolean) ? { potongan } : {}),
+      })
     }
 
     const pPr = potong.match(/<w:pPr>[\s\S]*?<\/w:pPr>/)?.[0] ?? ''
     const segmen = segmenParagraf(buangPPr(potong))
+    const halaman = letakHalaman(potong, pPr)
+    if (halaman === 'sebelum') tambahHalaman(blok)
 
     // Paragraf kosong berturut-turut digabung jadi satu jeda: yang penting
     // tingginya, bukan berapa kali tombol Enter ditekan.
@@ -203,19 +316,34 @@ export function bacaDocument(xml: string): Blok[] {
       const akhir = blok[blok.length - 1]
       if (akhir?.jenis === 'jeda') akhir.baris += 1
       else blok.push({ jenis: 'jeda', baris: 1 })
+      if (halaman === 'sesudah') tambahHalaman(blok)
       continue
     }
 
+    const potongan = potonganParagraf(buangPPr(potong))
     blok.push({
       jenis: 'paragraf',
       segmen,
       rata: rataDari(pPr),
       // Tebal bila seluruh paragrafnya tebal — bukan sekadar satu kata di dalamnya.
       tebal: /<w:b\s*\/>|<w:b w:val="(?:1|true)"/.test(potong.replace(pPr, '')),
+      ...(potongan ? { potongan } : {}),
     })
+    if (halaman === 'sesudah') tambahHalaman(blok)
   }
 
+  // Jeda di ujung halaman tidak bermakna — ia hanya sisa Enter sebelum
+  // Ctrl+Enter — dan pergantian halaman di akhir dokumen tidak menghasilkan
+  // apa pun selain lembar kosong.
+  while (blok.length > 0 && blok[blok.length - 1].jenis === 'halaman') blok.pop()
+
   return blok
+}
+
+/** Satu penanda halaman saja, dan tidak pernah di awal dokumen. */
+function tambahHalaman(blok: Blok[]) {
+  if (blok.length === 0 || blok[blok.length - 1].jenis === 'halaman') return
+  blok.push({ jenis: 'halaman' })
 }
 
 function buangPPr(p: string): string {

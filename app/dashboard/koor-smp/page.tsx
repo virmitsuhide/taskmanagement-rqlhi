@@ -1,69 +1,17 @@
 import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/auth/session'
-import { canViewDashboard, getCreatableMeetingTypes, getAnalyticsJenjang } from '@/lib/auth/permissions'
-import { getDashboardStats, getMyActiveTasks, getRecentMeetings, getPendingVerifications } from '@/lib/data/dashboard'
-import { DashboardHeader } from '@/components/layout/DashboardHeader'
-import { RingkasanPembinaan } from '@/components/dashboard/RingkasanPembinaan'
-import { getRingkasanPembinaan } from '@/lib/data/ringkasan-pembinaan'
-import { DivisionStats } from '@/components/dashboard/DivisionStats'
-import { TaskCard } from '@/components/tasks/TaskCard'
-import { MeetingCard } from '@/components/rapat/MeetingCard'
-import { UjianDashboardCards } from '@/components/ujian/UjianDashboardCards'
+import { canViewDashboard } from '@/lib/auth/permissions'
+import { DashboardPengurus } from '@/components/dashboard/DashboardPengurus'
 
-export default async function KoorSmpDashboardPage() {
+interface PageProps {
+  searchParams: Promise<{ tugas?: string; unit?: string }>
+}
+
+/** Isi & tata letak: lihat KONFIG['koor-smp'] di components/dashboard/DashboardPengurus.tsx. */
+export default async function DashboardKoorSmpPage({ searchParams }: PageProps) {
   const session = await getSession()
   if (!session) redirect('/login')
   if (!canViewDashboard(session.role, 'koor-smp')) redirect('/dashboard')
 
-  const [stats, myTasks, pendingVerif, recentMeetings, pembinaan] = await Promise.all([
-    getDashboardStats(session.userId),
-    getMyActiveTasks(session.userId),
-    getPendingVerifications(session.userId),
-    getRecentMeetings([...getCreatableMeetingTypes(session.role), 'kumik']),
-    getRingkasanPembinaan(getAnalyticsJenjang(session.role)),
-  ])
-
-  return (
-    <div>
-      <DashboardHeader displayName={session.displayName} role={session.role} title="Dashboard Koor SMP" showBack />
-      <div className="p-4 md:p-6 space-y-6 max-w-4xl">
-        <DivisionStats {...stats} />
-
-        <RingkasanPembinaan data={pembinaan} />
-
-        <UjianDashboardCards role={session.role} userId={session.userId} />
-
-        {pendingVerif.length > 0 && (
-          <section>
-            <h2 className="text-sm font-semibold mb-3 text-warning">Perlu Verifikasi ({pendingVerif.length})</h2>
-            <div className="space-y-2">
-              {pendingVerif.map(task => <TaskCard key={task.id} task={task} showAssignee />)}
-            </div>
-          </section>
-        )}
-
-        <section>
-          <h2 className="text-sm font-semibold mb-3">Task Aktif Saya</h2>
-          {myTasks.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-4">Tidak ada task aktif.</p>
-          ) : (
-            <div className="space-y-2">
-              {myTasks.map(task => <TaskCard key={task.id} task={task} showAssignee={false} showAssigner />)}
-            </div>
-          )}
-        </section>
-
-        <section>
-          <h2 className="text-sm font-semibold mb-3">Rapat Terbaru</h2>
-          {recentMeetings.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-4">Belum ada rapat.</p>
-          ) : (
-            <div className="space-y-2">
-              {recentMeetings.map(m => <MeetingCard key={m.id} meeting={m} />)}
-            </div>
-          )}
-        </section>
-      </div>
-    </div>
-  )
+  return <DashboardPengurus halaman="koor-smp" session={session} searchParams={await searchParams} />
 }

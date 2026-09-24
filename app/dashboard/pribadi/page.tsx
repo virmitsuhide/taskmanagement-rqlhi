@@ -1,96 +1,17 @@
 import { redirect } from 'next/navigation'
-import Link from 'next/link'
 import { getSession } from '@/lib/auth/session'
-import { canViewDashboard, canViewFinanceNotes, canViewTasks, canViewUjian, getViewableMeetingTypes } from '@/lib/auth/permissions'
-import { getDashboardStats, getMyActiveTasks, getRecentMeetings, getPendingVerifications } from '@/lib/data/dashboard'
-import { DashboardHeader } from '@/components/layout/DashboardHeader'
-import { DivisionStats } from '@/components/dashboard/DivisionStats'
-import { TaskCard } from '@/components/tasks/TaskCard'
-import { MeetingCard } from '@/components/rapat/MeetingCard'
-import { Button } from '@/components/ui/button'
-import { Plus, FileText, ScrollText } from 'lucide-react'
+import { canViewDashboard } from '@/lib/auth/permissions'
+import { DashboardPengurus } from '@/components/dashboard/DashboardPengurus'
 
-export default async function PribadiDashboardPage() {
+interface PageProps {
+  searchParams: Promise<{ tugas?: string; unit?: string }>
+}
+
+/** Isi & tata letak: lihat KONFIG['pribadi'] di components/dashboard/DashboardPengurus.tsx. */
+export default async function DashboardPribadiPage({ searchParams }: PageProps) {
   const session = await getSession()
   if (!session) redirect('/login')
   if (!canViewDashboard(session.role, 'pribadi')) redirect('/dashboard')
 
-  const meetingTypes = getViewableMeetingTypes(session.role)
-  // Dashboard ini dipakai bersama oleh bendahara, new squad, dan Div Quran
-  // BPA/BPI. Dua yang terakhir tidak memegang modul tugas, jadi seluruh bagian
-  // tugas dilewati: menariknya dari database hanya untuk menampilkan "tidak ada
-  // task aktif" beserta tombol Tambah yang akan ditolak halamannya.
-  const denganTugas = canViewTasks(session.role)
-
-  const [stats, myTasks, pendingVerif, recentMeetings] = await Promise.all([
-    denganTugas ? getDashboardStats(session.userId) : Promise.resolve(null),
-    denganTugas ? getMyActiveTasks(session.userId) : Promise.resolve([]),
-    denganTugas ? getPendingVerifications(session.userId) : Promise.resolve([]),
-    meetingTypes.length ? getRecentMeetings(meetingTypes) : Promise.resolve([]),
-  ])
-
-  return (
-    <div>
-      <DashboardHeader displayName={session.displayName} role={session.role} title="Dashboard Saya" showBack />
-      <div className="p-4 md:p-6 space-y-6 max-w-4xl">
-        {stats && <DivisionStats {...stats} />}
-
-        {pendingVerif.length > 0 && (
-          <section>
-            <h2 className="text-sm font-semibold mb-3 text-warning">Perlu Verifikasi ({pendingVerif.length})</h2>
-            <div className="space-y-2">
-              {pendingVerif.map(task => <TaskCard key={task.id} task={task} showAssignee showAssigner={false} />)}
-            </div>
-          </section>
-        )}
-
-        {denganTugas && (
-          <section>
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-sm font-semibold">Task Aktif Saya</h2>
-              <Button asChild size="sm" variant="outline">
-                <Link href="/tasks/baru"><Plus className="h-3 w-3 mr-1" />Tambah</Link>
-              </Button>
-            </div>
-            {myTasks.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-4">Tidak ada task aktif.</p>
-            ) : (
-              <div className="space-y-2">
-                {myTasks.map(task => <TaskCard key={task.id} task={task} showAssignee={false} showAssigner />)}
-              </div>
-            )}
-            <Link href="/tasks" className="text-xs text-primary hover:underline mt-2 inline-block">Lihat semua task &rarr;</Link>
-          </section>
-        )}
-
-        {/* Tanpa modul tugas, dashboard ini nyaris kosong. Pintasan ujian
-            mengisinya dengan pekerjaan yang memang jadi amanah mereka. */}
-        {!denganTugas && canViewUjian(session.role) && (
-          <section>
-            <Button asChild variant="outline" size="sm">
-              <Link href="/ujian/kelola"><ScrollText className="h-3 w-3 mr-1" />Pengajuan Ujian</Link>
-            </Button>
-          </section>
-        )}
-
-        {canViewFinanceNotes(session.role) && (
-          <section>
-            <Button asChild variant="outline" size="sm">
-              <Link href="/notes"><FileText className="h-3 w-3 mr-1" />Catatan Keuangan</Link>
-            </Button>
-          </section>
-        )}
-
-        {recentMeetings.length > 0 && (
-          <section>
-            <h2 className="text-sm font-semibold mb-3">Rapat Terbaru</h2>
-            <div className="space-y-2">
-              {recentMeetings.map(m => <MeetingCard key={m.id} meeting={m} />)}
-            </div>
-            <Link href="/rapat" className="text-xs text-primary hover:underline mt-2 inline-block">Lihat semua rapat →</Link>
-          </section>
-        )}
-      </div>
-    </div>
-  )
+  return <DashboardPengurus halaman="pribadi" session={session} searchParams={await searchParams} />
 }

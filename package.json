@@ -31,7 +31,7 @@
     "impor:keterlambatan": "tsx scripts/impor-keterlambatan-kpi.ts",
     "kpi:maksimal": "tsx scripts/isi-kpi-maksimal.ts",
     "musyrif:penguji": "tsx scripts/musyrif-penguji.ts",
-    "uji": "npm run uji:gukar && npm run uji:kpi && npm run uji:dependensi && npm run uji:sprint && npm run uji:rutin-bersama && npm run uji:bacaan && npm run uji:materi && npm run uji:skema",
+    "uji": "npm run uji:gukar && npm run uji:kpi && npm run uji:dependensi && npm run uji:sprint && npm run uji:rutin-bersama && npm run uji:bacaan && npm run uji:materi && npm run uji:post-tanggal && npm run uji:fokus-tugas && npm run uji:rapor-isian && npm run uji:skema",
     "uji:gukar": "tsx scripts/uji-gukar-standar.ts",
     "uji:skema": "tsx scripts/uji-skema.ts",
     "uji:kpi": "tsx scripts/uji-kpi.ts",
@@ -42,6 +42,9 @@
     "uji:rutin-bersama": "tsx scripts/uji-rutin-bersama.ts",
     "uji:bacaan": "tsx scripts/uji-bacaan-quran.ts",
     "uji:materi": "tsx scripts/uji-materi-ummi.ts",
+    "uji:post-tanggal": "tsx scripts/uji-post-tanggal.ts",
+    "uji:fokus-tugas": "tsx scripts/uji-fokus-tugas.ts",
+    "uji:rapor-isian": "tsx scripts/uji-rapor-isian.ts",
     "rapikan:halaqoh": "tsx scripts/rapikan-nama-halaqoh.ts",
     "seed:div-quran-boarding": "tsx scripts/seed-div-quran-boarding.ts",
     "impor:tmt": "tsx scripts/impor-tmt-guru.ts"

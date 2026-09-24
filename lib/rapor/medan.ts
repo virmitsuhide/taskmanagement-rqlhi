@@ -28,8 +28,12 @@ export const KODE_MEDAN = [
   'ttd_pengampu', 'ttd_koordinator', 'ttd_keduanya',
   // Periode
   'semester', 'tahun_ajaran', 'tanggal_terbit', 'tempat_terbit', 'tempat_tanggal',
+  // Sapaan yang bergantung jenis kelamin
+  'sapaan_pengampu', 'sapaan_siswa',
   // Diisi guru di layar edit
-  'deskripsi',
+  'deskripsi', 'isian_guru',
+  // Halaman yang hanya dicetak untuk sebagian siswa
+  'halaman_riyadhoh',
   // Perlakuan khusus
   'tetap', 'kosongkan',
 ] as const
@@ -88,7 +92,13 @@ export const MEDAN: InfoMedan[] = [
   { kode: 'tempat_terbit', label: 'Tempat terbit', grup: 'Periode', contoh: 'Banguntapan' },
   { kode: 'tempat_tanggal', label: 'Tempat, tanggal terbit', grup: 'Periode', contoh: 'Banguntapan, 26 Juni 2026' },
 
+  { kode: 'sapaan_pengampu', label: 'ustadz / ustadzah (menurut guru)', grup: 'Sapaan', contoh: 'ustadzah' },
+  { kode: 'sapaan_siswa', label: 'sholih / sholihah (menurut siswa)', grup: 'Sapaan', contoh: 'sholihah' },
+
   { kode: 'deskripsi', label: 'Deskripsi perkembangan (diisi guru)', grup: 'Diisi guru', contoh: 'Alhamdulillah, Ananda…' },
+  { kode: 'isian_guru', label: 'Isian merah (diisi guru)', grup: 'Diisi guru', contoh: 'Sangat baik' },
+
+  { kode: 'halaman_riyadhoh', label: 'Hanya untuk peserta Riyadhoh', grup: 'Halaman', contoh: 'halaman ini disembunyikan bagi siswa lain' },
 
   { kode: 'tetap', label: 'Biarkan apa adanya', grup: 'Perlakuan khusus', contoh: 'teks template tidak diubah' },
   { kode: 'kosongkan', label: 'Kosongkan', grup: 'Perlakuan khusus', contoh: '(dibiarkan kosong)' },
@@ -97,7 +107,7 @@ export const MEDAN: InfoMedan[] = [
 export const MEDAN_PER_KODE = new Map(MEDAN.map(m => [m.kode, m]))
 
 /** Medan yang diisi guru di layar edit, bukan dihitung sistem. */
-export const MEDAN_ISIAN_GURU: KodeMedan[] = ['deskripsi']
+export const MEDAN_ISIAN_GURU: KodeMedan[] = ['deskripsi', 'isian_guru']
 
 // ─── Penebakan ───────────────────────────────────────────────────────────────
 
@@ -185,6 +195,73 @@ export interface Slot {
    * judul kolom, dan menggantinya dengan nama koordinator menghapus judulnya.
    */
   pasti: boolean
+  /**
+   * Hanya untuk isian merah di tengah kalimat: teks hitam yang mengapitnya.
+   * Guru mengisi potongan itu tanpa melihat lembarnya, jadi yang ia butuhkan
+   * adalah kalimat di sekitarnya — "…Ananda ▢ dalam mendengarkan…".
+   */
+  konteks?: { sebelum: string; sesudah: string }
+}
+
+/**
+ * Id slot isian merah: k7.1.m2 = kotak blok ke-7, paragraf ke-1, merah ke-2;
+ * p12.m0 = paragraf blok ke-12, merah ke-0. Dipakai bersama oleh cariSlot
+ * dan LembarRapor supaya keduanya tidak bisa berbeda pendapat.
+ */
+export function idIsian(blokKe: number, paragrafKe: number | null, merahKe: number): string {
+  return paragrafKe === null ? `p${blokKe}.m${merahKe}` : `k${blokKe}.${paragrafKe}.m${merahKe}`
+}
+
+/** Tebakan untuk satu isian merah: sapaan dikenali dari bunyinya, sisanya diisi guru. */
+function tebakIsian(contoh: string): KodeMedan {
+  if (/^ustadz(ah)?$/i.test(contoh.trim())) return 'sapaan_pengampu'
+  if (/^sholih(ah)?$|^shalih(ah)?$/i.test(contoh.trim())) return 'sapaan_siswa'
+  return 'isian_guru'
+}
+
+/** Ambil ±40 huruf di ujung teks, dipotong di batas kata. */
+function ujung(teks: string, dari: 'awal' | 'akhir'): string {
+  const t = teks.trim()
+  if (t.length <= 40) return t
+  if (dari === 'akhir') {
+    const potong = t.slice(-40)
+    return '…' + potong.slice(potong.indexOf(' ') + 1)
+  }
+  const potong = t.slice(0, 40)
+  return potong.slice(0, potong.lastIndexOf(' ')) + '…'
+}
+
+/** Slot untuk tiap potongan merah di satu paragraf berpotongan. */
+function slotIsian(potongan: { teks: string; merah?: true }[], id: (m: number) => string): Slot[] {
+  const hasil: Slot[] = []
+  let m = 0
+  potongan.forEach((pot, j) => {
+    if (!pot.merah) return
+    const tebakan = tebakIsian(pot.teks)
+    hasil.push({
+      id: id(m++),
+      petunjuk: ujung(potongan[j - 1]?.teks ?? '', 'akhir') || 'Awal paragraf',
+      contoh: pot.teks,
+      prefiks: '',
+      tebakan,
+      pasti: true,
+      konteks: { sebelum: ujung(potongan[j - 1]?.teks ?? '', 'akhir'), sesudah: ujung(potongan[j + 1]?.teks ?? '', 'awal') },
+    })
+  })
+  return hasil
+}
+
+/**
+ * Halaman yang judulnya menyebut Riyadhoh: laporan sesi Sabtu, yang hanya
+ * berlaku bagi pesertanya. Dikenali dari beberapa paragraf pertama halaman.
+ */
+function halamanRiyadhoh(blok: Blok[], mulai: number): boolean {
+  for (let j = mulai + 1; j < blok.length && j <= mulai + 6; j++) {
+    const b = blok[j]
+    if (b.jenis === 'halaman') return false
+    if (b.jenis === 'paragraf' && /riyadh?oh/i.test(b.segmen.join(' '))) return true
+  }
+  return false
 }
 
 const POLA_PLACEHOLDER = /\{\{\s*([a-z_]+)\s*\}\}/i
@@ -265,6 +342,21 @@ export function cariSlot(blok: Blok[]): Slot[] {
   const slot: Slot[] = []
 
   blok.forEach((b, i) => {
+    if (b.jenis === 'halaman') {
+      const riyadhoh = halamanRiyadhoh(blok, i)
+      slot.push({
+        id: `h${i}`,
+        petunjuk: `Halaman ${blok.slice(0, i + 1).filter(x => x.jenis === 'halaman').length + 1}`,
+        contoh: riyadhoh ? 'Laporan Riyadhoh Al-Qur’an' : 'halaman lanjutan',
+        prefiks: '',
+        tebakan: riyadhoh ? 'halaman_riyadhoh' : null,
+        // Judulnya menyebut Riyadhoh dengan jelas — mencetaknya untuk siswa
+        // yang tidak ikut Riyadhoh justru kesalahan yang lebih buruk.
+        pasti: riyadhoh,
+      })
+      return
+    }
+
     if (b.jenis === 'jeda') {
       // Ruang kosong antara baris jabatan dan baris nama adalah tempat tanda
       // tangan — itulah sebabnya diketik empat kali Enter, bukan sekali.
@@ -284,6 +376,16 @@ export function cariSlot(blok: Blok[]): Slot[] {
         // Dipakai langsung hanya bila ruang itu benar-benar terapit jabatan di
         // atas dan nama/NIY di bawah. Baris kosong biasa tetap jadi jeda.
         pasti: Boolean(tebakan) && ditutupNama && b.baris >= 2,
+      })
+      return
+    }
+
+    // Kotak berisi isian merah: tiap potongan merah jadi slot sendiri, dan
+    // kotaknya TIDAK lagi menjadi satu slot deskripsi utuh — kalimat hitamnya
+    // terkunci, persis maksud template.
+    if (b.jenis === 'kotak' && b.potongan?.some(Boolean)) {
+      b.potongan.forEach((pot, pk) => {
+        if (pot) slot.push(...slotIsian(pot, m => idIsian(i, pk, m)))
       })
       return
     }
@@ -321,6 +423,15 @@ export function cariSlot(blok: Blok[]): Slot[] {
           })
         })
       })
+      return
+    }
+
+    // Paragraf biasa dengan isian merah di tengah kalimat. Baris identitas
+    // ("Nama ⇥ : Bayu") juga merah, tapi nilainya satu segmen utuh sesudah
+    // titik dua — ia tetap ditangani jalur segmen di bawah, yang sudah tahu
+    // cara menebaknya dari label.
+    if (b.potongan && !b.segmen.some(s => s.startsWith(':')) && !/^.{2,40}?\s*:\s*.+$/.test(b.segmen.find(Boolean) ?? '')) {
+      slot.push(...slotIsian(b.potongan, m => idIsian(i, null, m)))
       return
     }
 
@@ -392,6 +503,52 @@ export function cariSlot(blok: Blok[]): Slot[] {
   })
 
   return slot
+}
+
+// ─── Isi awal isian merah ────────────────────────────────────────────────────
+
+/**
+ * Apa yang sudah tertulis di kolom isian sebelum guru menyentuhnya:
+ * contoh dari template, kosong, atau hitungan sistem untuk medan tertentu.
+ */
+export type AwalIsian = 'contoh' | 'kosong' | KodeMedan
+
+/**
+ * Bawaan: contoh template dipakai HANYA bila ia frasa umum ("Sangat baik",
+ * "berusaha hadir tepat waktu"). Contoh yang memuat angka — "Surat
+ * Al-Qiyamah ayat 34", "Jilid 4 halaman 20" — adalah data anak lain yang
+ * kebetulan dipakai menulis template; memasangnya sebagai isi awal berarti
+ * rapor yang lupa diedit tercetak dengan capaian anak yang salah.
+ */
+export function awalIsianBawaan(s: Pick<Slot, 'contoh'>): AwalIsian {
+  return /\d/.test(s.contoh) ? 'kosong' : 'contoh'
+}
+
+export function isiAwalIsian(
+  s: Pick<Slot, 'contoh'>,
+  awal: AwalIsian | undefined,
+  hitungan: Partial<Record<KodeMedan, string>>,
+): string {
+  const a = awal ?? awalIsianBawaan(s)
+  if (a === 'contoh') return s.contoh
+  if (a === 'kosong') return ''
+  return hitungan[a] ?? ''
+}
+
+/**
+ * Isian merah yang diisi guru di template ini, berurutan seperti di lembar.
+ * Slot yang belum pernah dipetakan (template diunggah sebelum pemetaan
+ * disimpan) memakai tebakannya bila tebakan itu pasti.
+ */
+export function slotIsianGuru(blok: Blok[], pemetaan: Record<string, KodeMedan>): Slot[] {
+  return cariSlot(blok).filter(s => (pemetaan[s.id] ?? (s.pasti ? s.tebakan : null)) === 'isian_guru')
+}
+
+/** "Ustadzah" bila contoh di template berhuruf kapital, "ustadzah" bila tidak. */
+export function ikutHuruf(contoh: string, nilai: string): string {
+  if (!nilai || !contoh) return nilai
+  const kapital = contoh[0] === contoh[0].toUpperCase() && contoh[0] !== contoh[0].toLowerCase()
+  return kapital ? nilai[0].toUpperCase() + nilai.slice(1) : nilai[0].toLowerCase() + nilai.slice(1)
 }
 
 /**

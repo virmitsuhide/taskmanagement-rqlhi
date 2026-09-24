@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation'
+import { UserPlus } from 'lucide-react'
 import { getSession } from '@/lib/auth/session'
 import { getManageableJenjang, programScopeFor } from '@/lib/auth/permissions'
 import { createServerClient } from '@/lib/supabase/server'
@@ -34,9 +35,16 @@ export default async function NewStudentPage({ searchParams }: PageProps) {
         breadcrumbs={[{ label: 'Siswa', href: '/siswa' }, { label: 'Tambah Siswa' }]}
         showBack
       />
-      <div className="p-4 md:p-6 max-w-5xl mx-auto">
-        <h1 className="text-2xl font-bold leading-tight mb-1">Tambah Siswa</h1>
-        <p className="text-sm text-muted-foreground mb-6">Data siswa baru untuk modul tahsin/tahfidz</p>
+      <div className="mx-auto max-w-3xl px-4 py-5 md:p-6">
+        <div className="mb-5 flex items-center gap-3 md:mb-6">
+          <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary dark:bg-primary/20">
+            <UserPlus className="size-5" aria-hidden />
+          </span>
+          <div className="min-w-0">
+            <h1 className="text-xl font-bold leading-tight md:text-2xl">Tambah Siswa</h1>
+            <p className="text-sm text-muted-foreground">Data siswa baru untuk modul tahsin/tahfidz</p>
+          </div>
+        </div>
         <StudentForm
           mode="create"
           allowedJenjang={allowed}

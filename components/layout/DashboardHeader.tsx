@@ -90,7 +90,10 @@ export function DashboardHeader({ role, title, showBack, breadcrumbs, ownH1 }: P
             <span>Dashboard</span>
           </Link>
           {crumbs.map((crumb, i) => (
-            <span key={i} className="flex items-center gap-0.5 min-w-0">
+            // shrink-0, bukan min-w-0: isi remahnya sudah shrink-0, jadi bila
+            // pembungkusnya boleh menciut, teks remah saling menimpa di HP.
+            // Baris ini sendiri sudah bisa digeser (overflow-x-auto).
+            <span key={i} className="flex items-center gap-0.5 shrink-0">
               <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground/40" />
               {crumb.href ? (
                 <Link

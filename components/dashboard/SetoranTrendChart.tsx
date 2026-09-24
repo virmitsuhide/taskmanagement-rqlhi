@@ -25,6 +25,23 @@ function niceCeil(v: number): number {
   return Math.ceil(v / step) * step
 }
 
+/** Tren dari kurang dari enam titik bukan tren (skill dashboard-analitik). */
+const MIN_TITIK = 6
+
+/**
+ * Buang bulan-bulan kosong di depan, sisakan minimal enam titik.
+ *
+ * Bulan sebelum data pertama memang tidak digambar (isBeforeData), tapi
+ * sumbunya tetap memakan tempat: data yang baru ada sejak Juni terjepit di
+ * sepertiga kanan grafik, dengan delapan label bulan kosong di kirinya.
+ * Memotongnya melebarkan jarak antartitik tanpa mengubah satu angka pun.
+ */
+export function potongAwalKosong<T extends { isBeforeData: boolean }>(titik: T[]): T[] {
+  const pertama = titik.findIndex(p => !p.isBeforeData)
+  if (pertama <= 0) return titik
+  return titik.slice(Math.max(0, Math.min(pertama, titik.length - MIN_TITIK)))
+}
+
 interface Props {
   trend: SetoranTrend
   /** 'YYYY-MM' bulan yang sedang dipilih di filter — diberi pita sorot. */
@@ -34,7 +51,7 @@ interface Props {
 }
 
 export function SetoranTrendChart({ trend, highlightKey, fokus = 'semua' }: Props) {
-  const { points, delta, isEmpty } = trend
+  const { delta, isEmpty } = trend
 
   if (isEmpty) {
     return (
@@ -43,7 +60,7 @@ export function SetoranTrendChart({ trend, highlightKey, fokus = 'semua' }: Prop
           rangkuman, bulan berjalan dari setoran harian yang masih ditulis —
           dan pembaca berhak tahu angka terakhir belum setara dengan sebelumnya. */}
       <Heading catatan={
-        points.some(p => p.sumber === 'harian')
+        trend.points.some(p => p.sumber === 'harian')
           ? 'Bulan tertutup dibaca dari rangkuman bulanan; bulan berjalan dari setoran harian yang masih berlangsung.'
           : 'Dibaca dari rangkuman bulanan.'
       } />
@@ -55,6 +72,7 @@ export function SetoranTrendChart({ trend, highlightKey, fokus = 'semua' }: Prop
   }
 
   const maxY = niceCeil(trend.max)
+  const points = potongAwalKosong(trend.points)
   const visible = points.map((p, i) => ({ ...p, i })).filter(p => !p.isBeforeData)
 
   const x = (i: number) => PAD.left + (points.length <= 1 ? PLOT_W / 2 : (i / (points.length - 1)) * PLOT_W)

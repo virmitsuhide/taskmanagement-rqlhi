@@ -22,6 +22,7 @@ interface Props {
     joined_at?: string | null
     contract_start?: string | null
     contract_end?: string | null
+    gender?: 'L' | 'P' | null
   }
 }
 
@@ -51,6 +52,21 @@ export function TeacherForm({ mode, initial }: Props) {
           <Input id="nip" name="nip" defaultValue={initial?.nip ?? ''} disabled={isPending} />
         </div>
       </div>
+
+      {/* Dipakai rapor Qur'an untuk sapaan "ustadz"/"ustadzah" di deskripsi. */}
+      <fieldset className="space-y-1.5" disabled={isPending}>
+        <legend className="mb-1.5 text-sm font-medium leading-none">Jenis kelamin</legend>
+        <div className="grid max-w-xs grid-cols-2 gap-2">
+          {([['L', 'Ustadz (L)'], ['P', 'Ustadzah (P)']] as const).map(([v, label]) => (
+            <label key={v} className="relative cursor-pointer">
+              <input type="radio" name="gender" value={v} defaultChecked={initial?.gender === v} className="peer sr-only" />
+              <span className="flex h-10 items-center justify-center rounded-lg border border-input text-sm font-medium text-muted-foreground transition-colors hover:bg-muted/60 peer-checked:border-primary peer-checked:bg-primary/10 peer-checked:text-primary peer-focus-visible:ring-3 peer-focus-visible:ring-ring/50 md:h-9 dark:bg-input/30 dark:peer-checked:bg-primary/20">
+                {label}
+              </span>
+            </label>
+          ))}
+        </div>
+      </fieldset>
 
       {mode === 'create' ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

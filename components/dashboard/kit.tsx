@@ -27,21 +27,29 @@ export function DashTop({ eyebrow, title, context, filters, serif = false }: {
   serif?: boolean
 }) {
   return (
-    <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-      <div className="min-w-0 lg:shrink-0">
-        <p className="text-[11px] uppercase tracking-[1.8px] text-muted-foreground">{eyebrow}</p>
-        <h1
-          className={cn('text-2xl leading-tight lg:whitespace-nowrap', serif ? 'font-extrabold tracking-tight' : 'font-bold')}
-          style={serif ? { fontFamily: 'var(--font-playfair), Georgia, serif' } : undefined}
-        >
-          {title}
-        </h1>
-        <p className="mt-0.5 text-sm text-muted-foreground">{context}</p>
+    // Container query, bukan breakpoint layar: yang menentukan adalah lebar
+    // KONTEN setelah sidebar dikurangi. Dengan lg: (layar ≥1024px) judul dan
+    // tiga filter dipaksa sebaris di ruang ±960px, filter terlipat dua baris
+    // dan judul melayang di bawah baris pertamanya. Kini keduanya baru
+    // berdampingan bila wadahnya ≥80rem; di bawah itu filter jadi satu baris
+    // rapi di bawah judul.
+    <div className="@container">
+      <div className="flex flex-col gap-4 @[80rem]:flex-row @[80rem]:items-end @[80rem]:justify-between">
+        <div className="min-w-0 @[80rem]:shrink-0">
+          <p className="text-[11px] uppercase tracking-[1.8px] text-muted-foreground">{eyebrow}</p>
+          <h1
+            className={cn('text-2xl leading-tight', serif ? 'font-extrabold tracking-tight' : 'font-bold')}
+            style={serif ? { fontFamily: 'var(--font-playfair), Georgia, serif' } : undefined}
+          >
+            {title}
+          </h1>
+          <p className="mt-0.5 text-sm text-muted-foreground">{context}</p>
+        </div>
+        {/* min-w-0: tanpa ini lebar minimum item flex = lebar isinya, sehingga
+            slicer panjang (mis. 12 jenis rapat) melebarkan halaman alih-alih
+            digeser di dalam slicer-nya sendiri. */}
+        <div className="flex min-w-0 flex-wrap items-end gap-x-4 gap-y-3 @[80rem]:justify-end">{filters}</div>
       </div>
-      {/* min-w-0: tanpa ini lebar minimum item flex = lebar isinya, sehingga
-          slicer panjang (mis. 12 jenis rapat) melebarkan halaman alih-alih
-          digeser di dalam slicer-nya sendiri. */}
-      <div className="flex min-w-0 flex-wrap items-end gap-x-4 gap-y-3 lg:justify-end">{filters}</div>
     </div>
   )
 }
@@ -56,7 +64,7 @@ export function Panel({ title, icon, sub, action, children, className, id }: {
   id?: string
 }) {
   return (
-    <section id={id} className={cn('rounded-xl border bg-card p-5 scroll-mt-4', className)}>
+    <section id={id} className={cn('min-w-0 rounded-xl border bg-card p-5 scroll-mt-4', className)}>
       <div className="mb-4 flex items-start justify-between gap-3">
         <div className="min-w-0">
           <h2 className="flex items-center gap-2 text-sm font-semibold">{icon}{title}</h2>
@@ -169,7 +177,12 @@ export function persenUbah(dari: number, ke: number): number | null {
   return dari === 0 ? null : Math.round(((ke - dari) / dari) * 100)
 }
 
-export function KpiCard({ label, value, unit, icon, sub, delta, ratio }: {
+export type NadaKpi = 'destructive' | 'warning' | 'success'
+
+// Literal, bukan `text-${tone}`: Tailwind hanya membangkitkan kelas yang tertulis utuh di sumber.
+const TEKS_NADA: Record<NadaKpi, string> = { destructive: 'text-destructive', warning: 'text-warning', success: 'text-success' }
+
+export function KpiCard({ label, value, unit, icon, sub, delta, ratio, href, tone, ratioTone }: {
   label: string
   value: string | number
   /** Satuan kecil di belakang angka, mis. "/ 120". */
@@ -181,28 +194,45 @@ export function KpiCard({ label, value, unit, icon, sub, delta, ratio }: {
   delta?: { pct: number | null; vs: string }
   /** 0..1 — digambar sebagai bar tipis; untuk KPI yang berupa bagian dari keseluruhan. */
   ratio?: number
+  /** Kartu menjadi tautan ke tempat angka itu diurus. */
+  href?: string
+  /**
+   * Warna STATUS angka — hanya bila angkanya memang menuntut tindakan
+   * (mis. tugas terlambat > 0). Angka biasa tetap warna teks.
+   */
+  tone?: NadaKpi
+  /** Warna isi bar rasio bila ambangnya bermakna (kelengkapan < 60% dst.). */
+  ratioTone?: NadaKpi
 }) {
-  return (
-    <div className="flex flex-col rounded-xl border bg-card p-4">
+  const isi = (
+    <>
       <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-        {icon && <span className="text-primary">{icon}</span>}
-        <span className="truncate">{label}</span>
+        {icon && <span className={tone ? TEKS_NADA[tone] : 'text-primary'}>{icon}</span>}
+        <span className="line-clamp-2 leading-snug">{label}</span>
+        {href && <ChevronRight className="ml-auto h-3.5 w-3.5 shrink-0 opacity-0 transition-opacity group-hover:opacity-100" />}
       </div>
-      <p className="mt-2 text-2xl font-bold leading-none tabular-nums">
+      <p className={cn('mt-2 text-2xl font-bold leading-none tabular-nums', tone && TEKS_NADA[tone])}>
         {typeof value === 'number' ? value.toLocaleString('id-ID') : value}
         {unit && <span className="ml-1 text-sm font-normal text-muted-foreground">{unit}</span>}
       </p>
       {ratio !== undefined && (
         <div className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-muted">
-          <div className="h-full rounded-full" style={{ width: `${Math.min(100, Math.max(0, ratio * 100))}%`, background: 'var(--primary)' }} />
+          <div className="h-full rounded-full" style={{
+            width: `${Math.min(100, Math.max(0, ratio * 100))}%`,
+            background: ratioTone ? `var(--${ratioTone})` : 'var(--primary)',
+          }} />
         </div>
       )}
       <div className="mt-auto pt-2 space-y-0.5">
         {delta && <Delta pct={delta.pct} vs={delta.vs} />}
         {sub && <p className="text-[11px] leading-snug text-muted-foreground">{sub}</p>}
       </div>
-    </div>
+    </>
   )
+  const kelas = 'group flex flex-col rounded-xl border bg-card p-4'
+  return href
+    ? <Link href={href} className={cn(kelas, 'transition-colors hover:border-primary/40 hover:bg-muted/30')}>{isi}</Link>
+    : <div className={kelas}>{isi}</div>
 }
 
 export function Delta({ pct, vs }: { pct: number | null; vs: string }) {

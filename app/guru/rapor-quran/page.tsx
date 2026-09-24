@@ -4,14 +4,14 @@ import { Check, Printer } from 'lucide-react'
 import { getTeacherSession } from '@/lib/auth/teacher-session'
 import { getHalaqohSesiGuru, pilihHalaqoh } from '@/lib/data/setoran-sesi'
 import { getBahanRaporSesi, type Semester } from '@/lib/data/rapor-quran'
-import { getRaporTemplates } from '@/lib/data/rapor-template'
+import { getRaporTemplates, bacaJenisRapor, LABEL_JENIS_RAPOR, type JenisRapor } from '@/lib/data/rapor-template'
 import { getTerms } from '@/lib/data/terms'
 import { Slicer, hrefDengan } from '@/components/dashboard/kit'
 import { cn } from '@/lib/utils'
 import type { AcademicTerm } from '@/types'
 
 interface PageProps {
-  searchParams: Promise<{ sesi?: string; term?: string }>
+  searchParams: Promise<{ sesi?: string; term?: string; jenis?: string }>
 }
 
 const PATH = '/guru/rapor-quran'
@@ -35,18 +35,22 @@ export default async function RaporQuranPage({ searchParams }: PageProps) {
   const sesi = pilihHalaqoh(semuaSesi, sp.sesi)
   const term = (terms.find(t => t.id === sp.term) ?? terms.find(t => t.is_current) ?? terms[0]) as AcademicTerm | undefined
 
-  const params = { sesi: sesi?.id, term: term?.id }
+  const jenis = bacaJenisRapor(sp.jenis)
+  const params = { sesi: sesi?.id, term: term?.id, jenis: jenis === 'semester' ? undefined : jenis }
   const href = (g: Record<string, string | undefined>) => hrefDengan(PATH, params, g)
 
   const { tabelAda, daftar: templates } = await getRaporTemplates()
-  const bahan = sesi && term ? await getBahanRaporSesi(sesi, term as Semester, templates) : []
+  const bahan = sesi && term ? await getBahanRaporSesi(sesi, term as Semester, templates, jenis) : []
+  // Jenis yang punya template aktif di unit mana pun — ATS baru ditawarkan
+  // begitu koordinator mengunggah formatnya.
+  const adaJenis = (j: JenisRapor) => templates.some(t => t.aktif && t.jenis === j)
 
   // Satu halaqoh nyaris selalu satu rentang kelas, jadi template anak pertama
   // mewakili sesinya; anak yang kelasnya di luar rentang tetap memakai
   // templatenya sendiri, dan yang tak punya template ditandai di daftar.
   const template = bahan.find(b => b.template)?.template ?? null
   const tanpaTemplate = bahan.filter(b => !b.template).length
-  const terisi = bahan.filter(b => b.deskripsi.trim()).length
+  const terisi = bahan.filter(b => b.selesai).length
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--secondary)' }}>
@@ -75,6 +79,11 @@ export default async function RaporQuranPage({ searchParams }: PageProps) {
                   href: href({ sesi: h.id }), active: h.id === sesi.id,
                 }))} />
               )}
+              {(adaJenis('ats') || jenis === 'ats') && (
+                <Slicer label="Laporan" options={(['ats', 'semester'] as JenisRapor[]).map(j => ({
+                  label: LABEL_JENIS_RAPOR[j], href: href({ jenis: j === 'semester' ? undefined : j }), active: j === jenis,
+                }))} />
+              )}
               {terms.length > 1 && (
                 <Slicer label="Semester" options={terms.slice(0, 4).map(t => ({
                   label: LABEL_SEMESTER(t), href: href({ term: t.id }), active: t.id === term.id,
@@ -88,17 +97,17 @@ export default async function RaporQuranPage({ searchParams }: PageProps) {
               </div>
             ) : !template ? (
               <div className="rounded-xl border border-dashed bg-card p-5 text-sm text-muted-foreground">
-                Belum ada template rapor untuk kelas ini. Koordinator unit mengunggahnya di menu{' '}
+                Belum ada template {LABEL_JENIS_RAPOR[jenis]} untuk kelas ini. Koordinator unit mengunggahnya di menu{' '}
                 <b>Template Rapor</b>; sampai itu ada, rapor belum bisa dicetak.
               </div>
             ) : (
               <>
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <p className="text-sm text-muted-foreground">
-                    {terisi} dari {bahan.length} sudah berdeskripsi · format <b>{template.nama}</b>
+                    {terisi} dari {bahan.length} selesai diisi · format <b>{template.nama}</b>
                   </p>
                   <Link
-                    href={`${PATH}/cetak?sesi=${sesi.id}&term=${term.id}`}
+                    href={`${PATH}/cetak?sesi=${sesi.id}&term=${term.id}&jenis=${jenis}`}
                     className="inline-flex items-center gap-1.5 rounded-lg border bg-card px-3 py-1.5 text-sm hover:bg-accent"
                   >
                     <Printer className="h-4 w-4" /> Cetak satu sesi
@@ -109,7 +118,7 @@ export default async function RaporQuranPage({ searchParams }: PageProps) {
                   {bahan.map((b, i) => (
                     <li key={b.student.id}>
                       <Link
-                        href={`${PATH}/${b.student.id}?term=${term.id}`}
+                        href={`${PATH}/${b.student.id}?term=${term.id}&jenis=${jenis}`}
                         className="flex items-center justify-between gap-3 rounded-xl border bg-card p-3 hover:bg-accent"
                       >
                         <div className="min-w-0">
@@ -126,9 +135,9 @@ export default async function RaporQuranPage({ searchParams }: PageProps) {
                         </div>
                         <span className={cn(
                           'shrink-0 rounded-full px-2 py-0.5 text-[11px]',
-                          b.deskripsi.trim() ? 'bg-primary-wash text-primary' : 'border text-muted-foreground',
+                          b.selesai ? 'bg-primary-wash text-primary' : 'border text-muted-foreground',
                         )}>
-                          {b.deskripsi.trim() ? <Check className="h-3.5 w-3.5" /> : 'belum'}
+                          {b.selesai ? <Check className="h-3.5 w-3.5" /> : 'belum'}
                         </span>
                       </Link>
                     </li>

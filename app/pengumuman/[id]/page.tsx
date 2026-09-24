@@ -9,6 +9,7 @@ import { PAPER_SURFACE, PaperRules } from '@/components/home/paper'
 import { Markdown } from '@/components/ui/markdown'
 import { stripMarkdown } from '@/lib/markdown'
 import { cn } from '@/lib/utils'
+import { labelTanggalPost, lewatTenggatPost } from '@/lib/home/post-tanggal'
 import type { PublicPost } from '@/types'
 import type { Metadata } from 'next'
 
@@ -53,7 +54,7 @@ export default async function PengumumanDetailPage({ params }: { params: Promise
 
   const isTugas = post.type === 'tugas_guru'
   const unit = post.target === 'sd' ? 'SDIT LHI' : post.target === 'smp' ? 'SMPIT LHI' : 'Umum'
-  const overdue = post.due_date ? new Date(post.due_date) < new Date() : false
+  const overdue = lewatTenggatPost(post)
 
   return (
     <div
@@ -109,7 +110,7 @@ export default async function PengumumanDetailPage({ params }: { params: Promise
             {post.due_date && (
               <p className={cn('mt-3 inline-flex items-center gap-1.5 text-sm', overdue && 'text-destructive font-medium')}>
                 <Calendar className="h-4 w-4" />
-                Tenggat: {formatDate(post.due_date)}
+                {labelTanggalPost(post.type)}: {formatDate(post.due_date)}
               </p>
             )}
 

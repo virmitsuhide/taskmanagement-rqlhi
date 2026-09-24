@@ -761,4 +761,10 @@
   .rapor-table {
     font-size: 10pt !important;
   }
+
+  /* Pergantian halaman yang ditulis di template Word (lihat BlokHalaman). */
+  .rapor-halaman {
+    break-before: page;
+    height: 0;
+  }
 }

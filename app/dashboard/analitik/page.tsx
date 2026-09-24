@@ -242,11 +242,13 @@ export default async function AnalitikPage({ searchParams }: PageProps) {
             </Suspense>
           </div>
 
-          {/* Z · garis bawah: perbandingan unit ► peringkat */}
-          <div className="grid items-start gap-5 lg:grid-cols-12">
+          {/* Z · garis bawah: perbandingan unit, lalu peringkat — masing-masing
+              selebar penuh. Berdampingan, tabel unit yang hanya dua baris
+              berdiri di samping daftar sepuluh nama dan menyisakan lubang
+              kosong setinggi setengah layar di bawahnya. */}
+          <div className="grid grid-cols-1 items-start gap-5">
             {unitBoleh.length > 1 && (
             <Panel
-              className="lg:col-span-7"
               title="Perbandingan Unit"
               icon={<Layers className="h-4 w-4" />}
               sub="Klik nama unit untuk menyaring seluruh halaman."
@@ -263,7 +265,6 @@ export default async function AnalitikPage({ searchParams }: PageProps) {
             )}
 
             <Panel
-              className={unitBoleh.length > 1 ? 'lg:col-span-5' : 'lg:col-span-12'}
               title="10 Besar Hafalan"
               icon={<Trophy className="h-4 w-4" />}
               sub={`${cakupan} · juz dari setoran atau ujian, yang terjauh`}
@@ -271,7 +272,7 @@ export default async function AnalitikPage({ searchParams }: PageProps) {
               {top.length === 0 ? (
                 <p className="text-sm text-muted-foreground">Belum ada data hafalan di {cakupan}.</p>
               ) : (
-                <ol className="divide-y">
+                <ol className="divide-y lg:columns-2 lg:gap-x-8 [&>li]:break-inside-avoid">
                   {top.map((s, i) => (
                     <li key={s.id}>
                       <Link href={`/siswa/${s.id}`} className="flex items-center gap-3 py-1.5 hover:bg-muted/40"
@@ -396,6 +397,11 @@ function PerbandinganUnit({ boards, ujian, drill, aktifUnit, hrefUnit, fokus }: 
   if (boards.every(b => b.studentCount === 0)) {
     return <p className="text-sm text-muted-foreground">Belum ada data siswa.</p>
   }
+  // Unit tanpa siswa aktif tidak diberi baris: "0 · — · — · 0" tiga kali
+  // hanya menenggelamkan dua unit yang benar-benar berjalan. Namanya tetap
+  // disebut di catatan kaki — "belum ada siswa" berbeda dari "terlupa".
+  const kosong = boards.filter(b => b.studentCount === 0 && b.jenjang !== aktifUnit)
+  boards = boards.filter(b => b.studentCount > 0 || b.jenjang === aktifUnit)
   return (
     <div className="-mx-5 overflow-x-auto px-5">
       <table className="w-full min-w-[480px] text-sm">
@@ -466,6 +472,11 @@ function PerbandinganUnit({ boards, ujian, drill, aktifUnit, hrefUnit, fokus }: 
       {fokus !== 'tahsin' && (
         <p className="mt-2 text-[11px] text-muted-foreground">
           Di bawah target = persen dari siswa yang terukur; &ldquo;—&rdquo; berarti unit itu belum punya rencana target.
+        </p>
+      )}
+      {kosong.length > 0 && (
+        <p className="mt-1 text-[11px] text-muted-foreground">
+          Belum ada siswa aktif: {kosong.map(b => b.label).join(', ')}.
         </p>
       )}
     </div>

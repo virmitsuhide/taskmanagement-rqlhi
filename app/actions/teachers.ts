@@ -44,6 +44,24 @@ function readEmployment(formData: FormData) {
   }
 }
 
+/**
+ * Jenis kelamin guru (0086) — dipakai rapor untuk "ustadz"/"ustadzah".
+ * Tidak dipilih = NULL: rapor lalu menulis keduanya, bukan menebak.
+ */
+function readGender(formData: FormData): { gender: 'L' | 'P' | null } {
+  const g = formData.get('gender')
+  return { gender: g === 'L' || g === 'P' ? g : null }
+}
+
+/**
+ * Sebelum 0086 kolom gender belum ada dan Postgres menolak seluruh baris
+ * (42703 / pesan menyebut kolomnya). Simpan tetap berjalan tanpa gender:
+ * menahan pembaruan nama atau kontrak karena satu kolom baru tidak sepadan.
+ */
+function tanpaKolomGender(error: { code?: string; message?: string } | null): boolean {
+  return !!error && (error.code === '42703' || error.code === 'PGRST204' || /gender/i.test(error.message ?? ''))
+}
+
 /** Nama kolom dari pesan 23502 Postgres, untuk ditunjukkan ke admin. */
 function kolomKosong(pesan: string | undefined): string {
   return pesan?.match(/null value in column "([^"]+)"/)?.[1] ?? '(tidak diketahui)'
@@ -77,11 +95,15 @@ export async function createTeacherAction(_: unknown, formData: FormData) {
   const password_hash = await bcrypt.hash(password, 10)
 
   const supabase = createServerClient()
-  const { data, error } = await supabase
+  const barisBaru = { username, password_hash, full_name, nip, email, phone, ...readEmployment(formData) }
+  let { data, error } = await supabase
     .from('teachers')
-    .insert({ username, password_hash, full_name, nip, email, phone, ...readEmployment(formData) })
+    .insert({ ...barisBaru, ...readGender(formData) })
     .select('id')
     .single()
+  if (tanpaKolomGender(error)) {
+    ({ data, error } = await supabase.from('teachers').insert(barisBaru).select('id').single())
+  }
 
   if (error || !data) {
     if (error?.code === '23505') {
@@ -137,10 +159,9 @@ export async function updateTeacherAction(_: unknown, formData: FormData) {
   if (!id || !full_name) return { error: 'Data tidak lengkap.' }
 
   const supabase = createServerClient()
-  const { error } = await supabase
-    .from('teachers')
-    .update({ full_name, nip, email, phone, is_active, ...readEmployment(formData) })
-    .eq('id', id)
+  const ubahan = { full_name, nip, email, phone, is_active, ...readEmployment(formData) }
+  let { error } = await supabase.from('teachers').update({ ...ubahan, ...readGender(formData) }).eq('id', id)
+  if (tanpaKolomGender(error)) ({ error } = await supabase.from('teachers').update(ubahan).eq('id', id))
   if (error) return { error: 'Gagal memperbarui guru.' }
 
   revalidatePath('/ustadz')

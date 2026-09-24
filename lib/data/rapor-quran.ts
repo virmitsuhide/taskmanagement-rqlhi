@@ -9,11 +9,11 @@ import { getKalender, tmPerSiswa } from '@/lib/data/kalender-quran'
 import { REKAP_KOSONG, type RekapAbsensi } from '@/lib/rq/absensi'
 import { persenTM } from '@/lib/rq/kalender-quran'
 import { JENJANG_LABELS } from '@/lib/auth/permissions'
-import { formatTanggal } from '@/lib/rq/ujian'
+import { formatTanggal, tanggalWIB } from '@/lib/rq/ujian'
 import { ttdSrc } from '@/lib/kpi/ttd-berkas'
 import type { HalaqohSesi } from '@/lib/data/setoran-sesi'
-import type { KodeMedan } from '@/lib/rapor/medan'
-import { templateUntuk, type RaporTemplate } from '@/lib/data/rapor-template'
+import { isiAwalIsian, slotIsianGuru, type KodeMedan } from '@/lib/rapor/medan'
+import { templateUntuk, type JenisRapor, type RaporTemplate } from '@/lib/data/rapor-template'
 import type { Jenjang } from '@/types'
 
 /**
@@ -71,6 +71,19 @@ export interface BahanRapor {
   asli: Record<KodeMedan, string>
   deskripsi: string
   timpaan: Record<string, string>
+  /** Isian merah siap cetak (id slot → teks): tulisan guru, atau isi awalnya. */
+  isian: Record<string, string>
+  /** Isian merah yang benar-benar pernah disimpan guru. */
+  isianTersimpan: Record<string, string>
+  /**
+   * Guru sudah menyelesaikan bagiannya: seluruh isian merah tersimpan dan
+   * berisi — atau, untuk template tanpa isian merah, deskripsinya berisi.
+   */
+  selesai: boolean
+  /** Isian merah yang masih kosong di lembar cetak. */
+  isianKosong: number
+  /** Peserta Riyadhoh — halaman khususnya ikut tercetak (tahap berikutnya). */
+  riyadhoh: boolean
   absensi: RekapAbsensi
   /** true = anak ini belum punya satu pun setoran di semester ini. */
   sepi: boolean
@@ -78,6 +91,48 @@ export interface BahanRapor {
   template: RaporTemplate | null
   /** Url bertanda tangan untuk gambar ttd; null = ruang ttd dibiarkan kosong. */
   ttd: { pengampu: string | null; koordinator: string | null }
+}
+
+interface BarisIsian {
+  student_id: string
+  deskripsi: string
+  timpaan: Record<string, string>
+  isian: Record<string, string>
+}
+
+/**
+ * Tulisan guru untuk satu jenis laporan. Sebelum migrasi 0086 kolom jenis &
+ * isian belum ada: rapor semester tetap terbaca dari baris lama, sedangkan
+ * ATS belum punya isian apa pun — dan memang belum pernah bisa diisi.
+ */
+async function ambilIsian(ids: string[], termId: string, jenis: JenisRapor): Promise<BarisIsian[]> {
+  const supabase = createServerClient()
+  const baru = await supabase.from('rapor_isian')
+    .select('student_id, deskripsi, timpaan, isian')
+    .in('student_id', ids).eq('term_id', termId).eq('jenis', jenis)
+  if (!baru.error) return (baru.data ?? []) as BarisIsian[]
+  if (jenis === 'ats') return []
+  const lama = await supabase.from('rapor_isian')
+    .select('student_id, deskripsi, timpaan').in('student_id', ids).eq('term_id', termId)
+  return ((lama.data ?? []) as Omit<BarisIsian, 'isian'>[]).map(r => ({ ...r, isian: {} }))
+}
+
+interface Pengampu {
+  full_name: string
+  nip: string | null
+  signature_path: string | null
+  gender: 'L' | 'P' | null
+}
+
+/** Wali halaqoh; jenis kelaminnya baru ada setelah migrasi 0086. */
+async function ambilPengampu(halaqohId: string): Promise<Pengampu | null> {
+  const supabase = createServerClient()
+  const kueri = (kolom: string) => supabase.from('halaqoh')
+    .select(`wali_teacher:teachers!halaqoh_wali_teacher_id_fkey(${kolom})`).eq('id', halaqohId).maybeSingle()
+  let res = await kueri('full_name, nip, signature_path, gender')
+  if (res.error) res = await kueri('full_name, nip, signature_path')
+  const guru = (res.data as unknown as { wali_teacher: Omit<Pengampu, 'gender'> & { gender?: 'L' | 'P' | null } | null } | null)?.wali_teacher
+  return guru ? { ...guru, gender: guru.gender ?? null } : null
 }
 
 function kosongkan(): Record<KodeMedan, string> {
@@ -93,14 +148,24 @@ function kosongkan(): Record<KodeMedan, string> {
  */
 export async function getBahanRaporSesi(
   halaqoh: HalaqohSesi,
-  term: Semester,
+  termPenuh: Semester,
   templates: RaporTemplate[],
+  jenis: JenisRapor = 'semester',
 ): Promise<BahanRapor[]> {
   const supabase = createServerClient()
 
+  // ATS dibagikan di tengah semester: kehadiran, nilai, dan TM dihitung
+  // sampai hari ini, bukan sampai akhir semester. Tanpa ini "Total
+  // Pertemuan" menghitung Sabtu-Sabtu yang belum terjadi, dan anak yang tak
+  // pernah absen terlihat hadir 50%.
+  const hariIniISO = tanggalWIB(new Date())
+  const term: Semester = jenis === 'ats' && hariIniISO < termPenuh.end_date
+    ? { ...termPenuh, end_date: hariIniISO < termPenuh.start_date ? termPenuh.start_date : hariIniISO }
+    : termPenuh
+
   const { data: siswaRows } = await supabase
     .from('students')
-    .select('id, full_name, nis, kelas, jenjang, program, current_jilid_page, current_quran_halaman,' +
+    .select('id, full_name, nis, kelas, jenjang, program, gender, current_jilid_page, current_quran_halaman,' +
       ' jilid:jilid_levels!students_current_jilid_id_fkey(label, total_pages, is_terminal),' +
       ' metode:tahsin_methods!students_current_method_id_fkey(name)')
     .eq('halaqoh_id', halaqoh.id)
@@ -109,6 +174,7 @@ export async function getBahanRaporSesi(
 
   const siswa = (siswaRows ?? []) as unknown as {
     id: string; full_name: string; nis: string | null; kelas: string | null; jenjang: Jenjang; program: string | null
+    gender: 'L' | 'P' | null
     current_jilid_page: number | null; current_quran_halaman: number | null
     jilid: { label: string; total_pages: number | null; is_terminal: boolean } | null
     metode: { name: string } | null
@@ -143,13 +209,11 @@ export async function getBahanRaporSesi(
       getKalender(term.id, [...new Set(siswa.map(x => x.jenjang))], term.start_date, term.end_date),
       getPetaHalaman(),
       getInfoSurat(),
-      supabase.from('rapor_isian').select('student_id, deskripsi, timpaan').in('student_id', ids).eq('term_id', term.id),
-      supabase.from('halaqoh').select('wali_teacher:teachers!halaqoh_wali_teacher_id_fkey(full_name, nip, signature_path)').eq('id', halaqoh.id).maybeSingle(),
+      ambilIsian(ids, term.id, jenis),
+      ambilPengampu(halaqoh.id),
     ])
 
-  const pengampu = (pengampuRes.data as unknown as {
-    wali_teacher: { full_name: string; nip: string | null; signature_path: string | null } | null
-  } | null)?.wali_teacher ?? null
+  const pengampu = pengampuRes
 
   // Url ttd dibuat sekali untuk seluruh sesi: pengampunya satu orang, dan
   // koordinatornya satu per template. Membuatnya per anak berarti puluhan
@@ -159,10 +223,10 @@ export async function getBahanRaporSesi(
   for (const tpl of templates) {
     if (tpl.ttd_koordinator_path) ttdKoordinator.set(tpl.id, await ttdSrc(tpl.ttd_koordinator_path))
   }
-  const isianPer = new Map(
-    ((isianRes.data ?? []) as { student_id: string; deskripsi: string; timpaan: Record<string, string> }[])
-      .map(r => [r.student_id, r]),
-  )
+  const isianPer = new Map(isianRes.map(r => [r.student_id, r]))
+  // Slot isian per template dihitung sekali, bukan per anak: cariSlot
+  // menelusuri seluruh blok templatenya.
+  const slotPerTemplate = new Map(templates.map(t => [t.id, slotIsianGuru(t.blok, t.pemetaan)]))
   // TM dihitung per anak: satu halaqoh bisa berisi anak reguler dan anak
   // QULS sekaligus, dan yang QULS punya satu hari sesi lebih banyak.
   const tm = tmPerSiswa(siswa, kalender, term.start_date, term.end_date)
@@ -182,7 +246,7 @@ export async function getBahanRaporSesi(
     const sedang = juzTerjauh(progres.filter(p => p.student_id === s.id && p.ayat_hafal > 0).map(p => p.juz_number))
     const totalHalaman = halamanHafalan(peta, juz.total, ziyadahSemua.filter(z => z.student_id === s.id))
     const isian = isianPer.get(s.id)
-    const template = templateUntuk(templates, s.jenjang, s.kelas)
+    const template = templateUntuk(templates, s.jenjang, s.kelas, jenis)
 
     // Adab digabung dari kedua jenis setoran: itu satu sifat anak, bukan dua.
     const karakter = rerata([...ts.map(l => l.nilai_sikap), ...tf.map(l => l.nilai_sikap)])
@@ -236,7 +300,14 @@ export async function getBahanRaporSesi(
       // terbit ia menyusut jadi tanggal saja — bukan ", 26 Juni 2026".
       tempat_tanggal: template?.tempat_terbit ? `${template.tempat_terbit}, ${hariIni}` : hariIni,
 
+      // Tanpa jenis kelamin tercatat, keduanya ditulis — lebih baik terbaca
+      // janggal daripada menyapa ustadzah dengan "ustadz".
+      sapaan_pengampu: pengampu?.gender === 'P' ? 'ustadzah' : pengampu?.gender === 'L' ? 'ustadz' : 'ustadz/ustadzah',
+      sapaan_siswa: s.gender === 'P' ? 'sholihah' : s.gender === 'L' ? 'sholih' : 'sholih/sholihah',
+
       deskripsi: isian?.deskripsi ?? '',
+      isian_guru: '',
+      halaman_riyadhoh: '',
       tetap: '',
       kosongkan: '',
     }
@@ -248,12 +319,28 @@ export async function getBahanRaporSesi(
     }
     nilai.deskripsi = isian?.deskripsi ?? ''
 
+    const slotIsian = template ? (slotPerTemplate.get(template.id) ?? []) : []
+    const isianTersimpan = isian?.isian ?? {}
+    const isianCetak = Object.fromEntries(slotIsian.map(sl => [
+      sl.id,
+      isianTersimpan[sl.id] ?? isiAwalIsian(sl, template?.awal_isian[sl.id], nilai),
+    ]))
+    const isianKosong = slotIsian.filter(sl => !isianCetak[sl.id]?.trim()).length
+    const selesai = slotIsian.length > 0
+      ? slotIsian.every(sl => isianTersimpan[sl.id]?.trim())
+      : Boolean(isian?.deskripsi?.trim())
+
     return {
       student: { id: s.id, nama: s.full_name, kelas: s.kelas },
       nilai,
       asli,
       deskripsi: isian?.deskripsi ?? '',
       timpaan,
+      isian: isianCetak,
+      isianTersimpan,
+      selesai,
+      isianKosong,
+      riyadhoh: false,
       absensi: rekap,
       sepi: ts.length === 0 && tf.length === 0,
       template,

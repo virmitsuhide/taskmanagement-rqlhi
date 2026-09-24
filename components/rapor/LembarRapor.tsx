@@ -1,5 +1,5 @@
-import { cariSlot, tebakDariLabel, type KodeMedan } from '@/lib/rapor/medan'
-import type { Blok } from '@/lib/rapor/docx'
+import { cariSlot, idIsian, ikutHuruf, tebakDariLabel, type KodeMedan, type Slot } from '@/lib/rapor/medan'
+import type { Blok, Potongan } from '@/lib/rapor/docx'
 import { cn } from '@/lib/utils'
 
 /**
@@ -24,6 +24,13 @@ interface Props {
   tandai?: boolean
   /** Url gambar tanda tangan; null = ruangnya dibiarkan kosong untuk ttd basah. */
   ttd?: { pengampu: string | null; koordinator: string | null }
+  /** Tulisan guru per isian merah (id slot → teks), sudah termasuk isi awalnya. */
+  isian?: Record<string, string>
+  /**
+   * Cetak halaman bertanda "hanya peserta Riyadhoh". Pratinjau koordinator
+   * (tanpa `nilai`) selalu menampilkan semua halaman, berikut labelnya.
+   */
+  riyadhoh?: boolean
   className?: string
 }
 
@@ -69,15 +76,68 @@ function isiSlot(
   return { teks: prefiks + (nilai[kode] ?? ''), terisi: true }
 }
 
-export function LembarRapor({ blok, pemetaan, nilai, tandai, ttd, className }: Props) {
+/**
+ * Isi satu potongan merah. Hitam dicetak apa adanya; merah diganti menurut
+ * pemetaannya — data sistem, tulisan guru, atau contoh template (pratinjau).
+ * Warna merahnya sendiri tidak pernah ikut tercetak: di Word ia penanda
+ * "boleh diganti", bukan bagian rapor.
+ */
+function isiPotongan(
+  s: Slot | undefined,
+  pemetaan: Record<string, KodeMedan>,
+  nilai: Record<KodeMedan, string> | undefined,
+  isian: Record<string, string> | undefined,
+): string {
+  if (!s) return ''
+  const kode = pemetaan[s.id] ?? (s.pasti ? s.tebakan : null)
+  if (!kode || kode === 'tetap') return s.contoh
+  if (kode === 'kosongkan') return ''
+  if (kode === 'isian_guru') return isian?.[s.id] ?? (nilai ? '' : s.contoh)
+  if (!nilai) return s.contoh
+  const v = nilai[kode] ?? ''
+  return kode === 'sapaan_pengampu' || kode === 'sapaan_siswa' ? ikutHuruf(s.contoh, v) : v
+}
+
+export function LembarRapor({ blok, pemetaan, nilai, tandai, ttd, isian, riyadhoh, className }: Props) {
   // Slot dihitung ulang dari blok yang sama dengan yang dipakai saat memetakan,
   // jadi id-nya pasti cocok — tidak ada daftar slot kedua yang bisa basi.
   const slot = new Map(cariSlot(blok).map(s => [s.id, s]))
   const sorot = (terisi: boolean) => (tandai && terisi ? 'rounded bg-[color:var(--chart-4)]/20 px-0.5' : undefined)
 
+  // Halaman "hanya peserta Riyadhoh" dilewati seluruhnya — sampai penanda
+  // halaman berikutnya — bila anak ini tidak ikut. Pratinjau menampilkannya.
+  const pratinjau = !nilai
+  const disembunyikan = new Set<number>()
+  let sembunyi = false
+  blok.forEach((b, i) => {
+    if (b.jenis === 'halaman') sembunyi = !pratinjau && !riyadhoh && pemetaan[`h${i}`] === 'halaman_riyadhoh'
+    if (sembunyi) disembunyikan.add(i)
+  })
+
+  const kalimat = (potongan: Potongan[], id: (m: number) => string) => {
+    let m = 0
+    return potongan.map((p, j) => {
+      if (!p.merah) return <span key={j}>{p.teks}</span>
+      const teks = isiPotongan(slot.get(id(m++)), pemetaan, nilai, isian)
+      return <span key={j} className={sorot(true)}>{teks}</span>
+    })
+  }
+
   return (
     <div className={cn('rapor-sheet space-y-2 bg-white p-8 text-[11pt] leading-relaxed text-black', className)}>
       {blok.map((b, i) => {
+        if (disembunyikan.has(i)) return null
+
+        if (b.jenis === 'halaman') {
+          const khusus = pemetaan[`h${i}`] === 'halaman_riyadhoh'
+          return (
+            <div key={i} className="rapor-halaman relative my-6 border-t-2 border-dashed border-neutral-300 print:my-0 print:border-0">
+              <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-white px-2 text-[9pt] text-neutral-500 print:hidden">
+                halaman baru{khusus && pratinjau ? ' · hanya dicetak untuk peserta Riyadhoh' : ''}
+              </span>
+            </div>
+          )
+        }
         // Jeda: ruang kosong yang memang ditulis di template. Tingginya
         // dipertahankan supaya jarak antarbagian sama dengan berkas Word —
         // dan bila ia dipetakan sebagai ruang tanda tangan, gambarnya
@@ -96,6 +156,26 @@ export function LembarRapor({ blok, pemetaan, nilai, tandai, ttd, className }: P
                     : <span className={sorot(true)} />}
                 </span>
               ))}
+            </div>
+          )
+        }
+
+        if (b.jenis === 'kotak' && b.potongan?.some(Boolean)) {
+          return (
+            <div key={i} className="my-3 border border-black p-4">
+              {b.paragraf.map((teks, pk) => {
+                const pot = b.potongan?.[pk]
+                // Paragraf pertama tanpa isian yang berbunyi seperti judul
+                // ("DESKRIPSI PERKEMBANGAN AL-QUR'AN") dicetak sebagai judul kotak.
+                if (!pot && pk === 0 && teks.length <= 60 && teks === teks.toUpperCase()) {
+                  return <p key={pk} className="mb-2 text-center font-bold">{teks}</p>
+                }
+                return (
+                  <p key={pk} className="text-justify">
+                    {pot ? kalimat(pot, m => idIsian(i, pk, m)) : teks}
+                  </p>
+                )
+              })}
             </div>
           )
         }
@@ -161,6 +241,15 @@ export function LembarRapor({ blok, pemetaan, nilai, tandai, ttd, className }: P
         const rataKelas =
           b.rata === 'tengah' ? 'text-center' : b.rata === 'kanan' ? 'text-right' : b.rata === 'rata' ? 'text-justify' : ''
 
+        // Kalimat berisian merah — dipetakan per potongan oleh cariSlot.
+        if (b.potongan && slot.has(idIsian(i, null, 0))) {
+          return (
+            <p key={i} className={cn(rataKelas, b.tebal && 'font-bold')}>
+              {kalimat(b.potongan, m => idIsian(i, null, m))}
+            </p>
+          )
+        }
+
         // Baris identitas ("Nilai Tahsin" ⇥ ": 91,5"): label berkolom tetap
         // supaya seluruh titik duanya lurus, persis seperti tab-stop Word.
         const barisIdentitas = b.segmen.some(s => s.startsWith(':'))
@@ -179,7 +268,11 @@ export function LembarRapor({ blok, pemetaan, nilai, tandai, ttd, className }: P
         // Satu segmen: paragraf biasa (judul, salam, isi surat).
         if (berisi.length === 1) {
           const s = b.segmen.findIndex(Boolean)
-          const { teks, terisi } = isiSlot(`p${i}.${s}`, b.segmen[s], slot.get(`p${i}.${s}`)?.prefiks ?? '', pemetaan, nilai)
+          // Slot berawalan ("Dikeluarkan di : Bantul") menyimpan nilainya saja
+          // sebagai contoh. Memakai segmen utuh di sini mencetak labelnya dua
+          // kali di pratinjau: "Dikeluarkan di : Dikeluarkan di : Bantul".
+          const sl = slot.get(`p${i}.${s}`)
+          const { teks, terisi } = isiSlot(`p${i}.${s}`, sl?.prefiks ? sl.contoh : b.segmen[s], sl?.prefiks ?? '', pemetaan, nilai)
           return (
             <p key={i} className={cn(rataKelas, b.tebal && 'font-bold')}>
               <span className={sorot(terisi)}>{teks}</span>
@@ -192,7 +285,8 @@ export function LembarRapor({ blok, pemetaan, nilai, tandai, ttd, className }: P
           <div key={i} className={cn('flex justify-between gap-6', b.tebal && 'font-bold')}>
             {b.segmen.map((seg, s) => {
               if (!seg) return null
-              const { teks, terisi } = isiSlot(`p${i}.${s}`, seg, slot.get(`p${i}.${s}`)?.prefiks ?? '', pemetaan, nilai)
+              const sl = slot.get(`p${i}.${s}`)
+              const { teks, terisi } = isiSlot(`p${i}.${s}`, sl?.prefiks ? sl.contoh : seg, sl?.prefiks ?? '', pemetaan, nilai)
               return <span key={s} className={sorot(terisi)}>{teks}</span>
             })}
           </div>

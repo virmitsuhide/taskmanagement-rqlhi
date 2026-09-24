@@ -6,7 +6,8 @@ import { getSession } from '@/lib/auth/session'
 import { canManageRaporTemplate } from '@/lib/auth/permissions'
 import { bacaDocx } from '@/lib/rapor/docx'
 import { unggahTtd } from '@/lib/kpi/ttd-berkas'
-import { cariSlot, pemetaanAwal, KODE_MEDAN, type KodeMedan } from '@/lib/rapor/medan'
+import { cariSlot, pemetaanAwal, KODE_MEDAN, type AwalIsian, type KodeMedan } from '@/lib/rapor/medan'
+import { bacaJenisRapor } from '@/lib/rapor/jenis'
 import type { Jenjang } from '@/types'
 
 type Hasil = { error?: string; success?: true; id?: string }
@@ -62,27 +63,35 @@ export async function unggahTemplateAction(formData: FormData): Promise<Hasil> {
     return { error: 'Rentang kelas tidak masuk akal.' }
   }
 
+  const jenis = bacaJenisRapor(String(formData.get('jenis') ?? ''))
   const supabase = createServerClient()
   const path = await simpanBerkas(supabase, file, bytes)
 
-  const { data, error } = await supabase
-    .from('rapor_templates')
-    .insert({
-      nama: (String(formData.get('nama') ?? '').trim() || file.name.replace(/\.docx$/i, '')),
-      jenjang,
-      tingkat_min: tingkatMin,
-      tingkat_max: tingkatMax,
-      file_path: path,
-      file_nama: file.name,
-      blok,
-      pemetaan: pemetaanAwal(cariSlot(blok)),
-      dibuat_oleh: session.userId,
-    })
-    .select('id')
-    .single()
+  const baris = {
+    nama: (String(formData.get('nama') ?? '').trim() || file.name.replace(/\.docx$/i, '')),
+    jenjang,
+    tingkat_min: tingkatMin,
+    tingkat_max: tingkatMax,
+    file_path: path,
+    file_nama: file.name,
+    blok,
+    pemetaan: pemetaanAwal(cariSlot(blok)),
+    dibuat_oleh: session.userId,
+  }
+  let { data, error } = await supabase.from('rapor_templates').insert({ ...baris, jenis }).select('id').single()
+  // Sebelum 0086 kolom jenis belum ada. Template semester masih bisa
+  // disimpan dalam bentuk lama; template ATS tidak — ia akan tertukar
+  // dengan rapor semester di layar guru.
+  if (error && jenis === 'semester') {
+    ({ data, error } = await supabase.from('rapor_templates').insert(baris).select('id').single())
+  }
 
   if (error || !data) {
-    return { error: 'Gagal menyimpan template. Pastikan migrasi 0082 sudah dijalankan.' }
+    return {
+      error: jenis === 'ats'
+        ? 'Gagal menyimpan template ATS. Minta admin menjalankan migrasi 0086 lebih dulu.'
+        : 'Gagal menyimpan template. Pastikan migrasi 0082 sudah dijalankan.',
+    }
   }
 
   revalidatePath('/rapor-quran/template')
@@ -94,6 +103,7 @@ export async function simpanPemetaanAction(
   id: string,
   pemetaan: Record<string, string>,
   pengesahan: { tempat_terbit: string; nama_koordinator: string; nip_koordinator: string },
+  awalIsian: Record<string, string> = {},
 ): Promise<Hasil> {
   const session = await getSession()
   if (!session) return { error: 'Sesi tidak valid.' }
@@ -110,16 +120,25 @@ export async function simpanPemetaanAction(
     if ((KODE_MEDAN as readonly string[]).includes(kode)) bersih[slot] = kode as KodeMedan
   }
 
-  const { error } = await supabase
-    .from('rapor_templates')
-    .update({
-      pemetaan: bersih,
-      tempat_terbit: pengesahan.tempat_terbit.trim(),
-      nama_koordinator: pengesahan.nama_koordinator.trim(),
-      nip_koordinator: pengesahan.nip_koordinator.trim(),
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', id)
+  // Isi awal isian merah: contoh template, kosong, atau satu medan data.
+  const awalBersih: Record<string, AwalIsian> = {}
+  for (const [slot, awal] of Object.entries(awalIsian)) {
+    if (bersih[slot] !== 'isian_guru') continue
+    if (awal === 'contoh' || awal === 'kosong' || (KODE_MEDAN as readonly string[]).includes(awal)) {
+      awalBersih[slot] = awal as AwalIsian
+    }
+  }
+
+  const ubahan = {
+    pemetaan: bersih,
+    tempat_terbit: pengesahan.tempat_terbit.trim(),
+    nama_koordinator: pengesahan.nama_koordinator.trim(),
+    nip_koordinator: pengesahan.nip_koordinator.trim(),
+    updated_at: new Date().toISOString(),
+  }
+  let { error } = await supabase.from('rapor_templates').update({ ...ubahan, awal_isian: awalBersih }).eq('id', id)
+  // Sebelum 0086: pemetaan tetap tersimpan, isi awal memakai aturan bawaan.
+  if (error) ({ error } = await supabase.from('rapor_templates').update(ubahan).eq('id', id))
   if (error) return { error: 'Gagal menyimpan pemetaan.' }
 
   revalidatePath('/rapor-quran/template')
@@ -129,7 +148,7 @@ export async function simpanPemetaanAction(
 
 export async function ubahTemplateAction(
   id: string,
-  ubahan: { nama?: string; tingkat_min?: number; tingkat_max?: number; aktif?: boolean },
+  ubahan: { nama?: string; tingkat_min?: number; tingkat_max?: number; aktif?: boolean; jenis?: string },
 ): Promise<Hasil> {
   const session = await getSession()
   if (!session) return { error: 'Sesi tidak valid.' }
@@ -143,11 +162,14 @@ export async function ubahTemplateAction(
     return { error: 'Rentang kelas tidak masuk akal.' }
   }
 
+  const bersih = { ...ubahan, ...(ubahan.jenis !== undefined ? { jenis: bacaJenisRapor(ubahan.jenis) } : {}) }
   const { error } = await supabase
     .from('rapor_templates')
-    .update({ ...ubahan, updated_at: new Date().toISOString() })
+    .update({ ...bersih, updated_at: new Date().toISOString() })
     .eq('id', id)
-  if (error) return { error: 'Gagal menyimpan perubahan.' }
+  if (error) {
+    return { error: ubahan.jenis !== undefined ? 'Gagal mengubah jenis. Migrasi 0086 perlu dijalankan lebih dulu.' : 'Gagal menyimpan perubahan.' }
+  }
 
   revalidatePath('/rapor-quran/template')
   return { success: true }
@@ -262,10 +284,16 @@ export async function bacaUlangTemplateAction(id: string): Promise<Hasil> {
   const blok = bacaDocx(Buffer.from(await berkas.arrayBuffer()))
   if (!blok || blok.length === 0) return { error: 'Berkas arsip tidak terbaca sebagai dokumen Word.' }
 
-  const { error } = await supabase
+  let { error } = await supabase
     .from('rapor_templates')
-    .update({ blok, pemetaan: pemetaanAwal(cariSlot(blok)), updated_at: new Date().toISOString() })
+    .update({ blok, pemetaan: pemetaanAwal(cariSlot(blok)), awal_isian: {}, updated_at: new Date().toISOString() })
     .eq('id', id)
+  if (error) {
+    ({ error } = await supabase
+      .from('rapor_templates')
+      .update({ blok, pemetaan: pemetaanAwal(cariSlot(blok)), updated_at: new Date().toISOString() })
+      .eq('id', id))
+  }
   if (error) return { error: 'Gagal menyimpan hasil baca ulang.' }
 
   revalidatePath(`/rapor-quran/template/${id}`)

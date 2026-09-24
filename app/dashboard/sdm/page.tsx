@@ -1,94 +1,17 @@
 import { redirect } from 'next/navigation'
-import Link from 'next/link'
 import { getSession } from '@/lib/auth/session'
-import { canViewDashboard, getAnalyticsJenjang } from '@/lib/auth/permissions'
-import { getDashboardStats, getMyActiveTasks, getRecentMeetings, getPendingVerifications } from '@/lib/data/dashboard'
-import { DashboardHeader } from '@/components/layout/DashboardHeader'
-import { RingkasanPembinaan } from '@/components/dashboard/RingkasanPembinaan'
-import { getRingkasanPembinaan } from '@/lib/data/ringkasan-pembinaan'
-import { DivisionStats } from '@/components/dashboard/DivisionStats'
-import { TaskCard } from '@/components/tasks/TaskCard'
-import { MeetingCard } from '@/components/rapat/MeetingCard'
-import { Button } from '@/components/ui/button'
-import { Plus, BookMarked } from 'lucide-react'
+import { canViewDashboard } from '@/lib/auth/permissions'
+import { DashboardPengurus } from '@/components/dashboard/DashboardPengurus'
 
-export default async function SdmDashboardPage() {
+interface PageProps {
+  searchParams: Promise<{ tugas?: string; unit?: string }>
+}
+
+/** Isi & tata letak: lihat KONFIG['sdm'] di components/dashboard/DashboardPengurus.tsx. */
+export default async function DashboardSdmPage({ searchParams }: PageProps) {
   const session = await getSession()
   if (!session) redirect('/login')
   if (!canViewDashboard(session.role, 'sdm')) redirect('/dashboard')
 
-  const [stats, myTasks, pendingVerif, recentMeetings, pembinaan] = await Promise.all([
-    getDashboardStats(session.userId),
-    getMyActiveTasks(session.userId),
-    getPendingVerifications(session.userId),
-    getRecentMeetings(['new_squad']),
-    getRingkasanPembinaan(getAnalyticsJenjang(session.role)),
-  ])
-
-  return (
-    <div>
-      <DashboardHeader displayName={session.displayName} role={session.role} title="Dashboard SDM" showBack />
-      <div className="p-4 md:p-6 space-y-6 max-w-4xl">
-        <DivisionStats {...stats} />
-
-        <RingkasanPembinaan data={pembinaan} />
-
-        {/* Pembinaan gukar adalah program SDM, jadi pintu masuk rekapnya
-            ditaruh di dashboard ini — pengampu lain cukup mengisi kelompoknya
-            sendiri lewat portal guru. */}
-        <Link
-          href="/dashboard/analitik/gukar"
-          className="flex items-center gap-3 rounded-lg border bg-card p-4 transition-colors hover:border-primary/50"
-        >
-          <BookMarked className="h-5 w-5 shrink-0 text-muted-foreground" />
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium">Analitik Halaqoh Qur&apos;an Guru &amp; Karyawan</p>
-            <p className="text-xs text-muted-foreground">
-              Capaian tahsin/tahfidz dan kehadiran seluruh kelompok
-            </p>
-          </div>
-        </Link>
-
-        {pendingVerif.length > 0 && (
-          <section>
-            <h2 className="text-sm font-semibold mb-3 text-warning">Perlu Verifikasi ({pendingVerif.length})</h2>
-            <div className="space-y-2">
-              {pendingVerif.map(task => <TaskCard key={task.id} task={task} showAssignee />)}
-            </div>
-          </section>
-        )}
-
-        <section>
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-sm font-semibold">Task Aktif Saya</h2>
-            <Button asChild size="sm" variant="outline">
-              <Link href="/tasks/baru"><Plus className="h-3 w-3 mr-1" />Tambah</Link>
-            </Button>
-          </div>
-          {myTasks.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-4">Tidak ada task aktif.</p>
-          ) : (
-            <div className="space-y-2">
-              {myTasks.map(task => <TaskCard key={task.id} task={task} showAssignee={false} showAssigner />)}
-            </div>
-          )}
-          <Link href="/tasks" className="text-xs text-primary hover:underline mt-2 inline-block">Lihat semua task →</Link>
-        </section>
-
-        <section>
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-sm font-semibold">Rapat New Squad Terbaru</h2>
-          </div>
-          {recentMeetings.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-4">Belum ada rapat.</p>
-          ) : (
-            <div className="space-y-2">
-              {recentMeetings.map(m => <MeetingCard key={m.id} meeting={m} />)}
-            </div>
-          )}
-          <Link href="/rapat" className="text-xs text-primary hover:underline mt-2 inline-block">Lihat semua rapat →</Link>
-        </section>
-      </div>
-    </div>
-  )
+  return <DashboardPengurus halaman="sdm" session={session} searchParams={await searchParams} />
 }

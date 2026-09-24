@@ -64,7 +64,12 @@ export function Seksi({ info, judul, pertanyaan, catatan, kunci, children }: {
 }) {
   return (
     <section id={info.id} className="scroll-mt-[140px] space-y-4 border-t pt-6 first:border-t-0 first:pt-0">
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+      {/* Container query, sama dengan DashTop: di ruang konten ±960px (layar
+          1280 dikurangi sidebar) empat angka kunci tidak muat di samping
+          judul — mereka terlipat dan menyeret judul turun. Berdampingan
+          hanya bila wadahnya memang cukup lebar. */}
+      <div className="@container">
+      <div className="flex flex-col gap-3 @[72rem]:flex-row @[72rem]:items-end @[72rem]:justify-between">
         <div className="flex min-w-0 items-start gap-3">
           <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-sm font-bold tabular-nums"
             style={{ background: 'var(--primary)', color: 'var(--primary-foreground)' }}>
@@ -78,7 +83,8 @@ export function Seksi({ info, judul, pertanyaan, catatan, kunci, children }: {
             </p>
           </div>
         </div>
-        {kunci && <div className="flex flex-wrap gap-2 lg:justify-end">{kunci}</div>}
+        {kunci && <div className="grid grid-cols-2 gap-2 @md:flex @md:flex-wrap @[72rem]:justify-end">{kunci}</div>}
+      </div>
       </div>
       {children}
     </section>

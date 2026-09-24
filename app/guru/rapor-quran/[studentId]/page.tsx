@@ -5,21 +5,23 @@ import { getTeacherSession } from '@/lib/auth/teacher-session'
 import { getTeacherHalaqohIds } from '@/lib/data/teacher'
 import { createServerClient } from '@/lib/supabase/server'
 import { getBahanRaporSesi, type Semester } from '@/lib/data/rapor-quran'
-import { getRaporTemplates } from '@/lib/data/rapor-template'
+import { getRaporTemplates, bacaJenisRapor, LABEL_JENIS_RAPOR } from '@/lib/data/rapor-template'
 import { getTerms } from '@/lib/data/terms'
 import { LembarRapor } from '@/components/rapor/LembarRapor'
 import { IsiRapor } from '@/components/guru/IsiRapor'
 import type { HalaqohSesi } from '@/lib/data/setoran-sesi'
-import type { KodeMedan } from '@/lib/rapor/medan'
+import { slotIsianGuru, type KodeMedan } from '@/lib/rapor/medan'
 import type { AcademicTerm } from '@/types'
 
 interface PageProps {
   params: Promise<{ studentId: string }>
-  searchParams: Promise<{ term?: string }>
+  searchParams: Promise<{ term?: string; jenis?: string }>
 }
 
 /** Medan yang boleh ditimpa guru: yang dihitung sistem, bukan tulisannya sendiri. */
-const TAK_BISA_DITIMPA: KodeMedan[] = ['deskripsi', 'tetap', 'kosongkan']
+const TAK_BISA_DITIMPA: KodeMedan[] = [
+  'deskripsi', 'isian_guru', 'halaman_riyadhoh', 'sapaan_pengampu', 'sapaan_siswa', 'tetap', 'kosongkan',
+]
 
 /**
  * Isi rapor seorang anak.
@@ -34,6 +36,7 @@ export default async function IsiRaporPage({ params, searchParams }: PageProps) 
 
   const { studentId } = await params
   const sp = await searchParams
+  const jenis = bacaJenisRapor(sp.jenis)
 
   const supabase = createServerClient()
   const { data: siswa } = await supabase
@@ -53,12 +56,12 @@ export default async function IsiRaporPage({ params, searchParams }: PageProps) 
   const term = (terms.find(t => t.id === sp.term) ?? terms.find(t => t.is_current) ?? terms[0]) as AcademicTerm | undefined
   if (!term) redirect('/guru/rapor-quran')
 
-  const bahan = await getBahanRaporSesi(halaqohRow as HalaqohSesi, term as Semester, templates)
+  const bahan = await getBahanRaporSesi(halaqohRow as HalaqohSesi, term as Semester, templates, jenis)
   const ke = bahan.findIndex(b => b.student.id === studentId)
   if (ke < 0) notFound()
   const anak = bahan[ke]
 
-  const kembali = `/guru/rapor-quran?sesi=${halaqohRow.id}&term=${term.id}`
+  const kembali = `/guru/rapor-quran?sesi=${halaqohRow.id}&term=${term.id}&jenis=${jenis}`
   const tetangga = (i: number) =>
     bahan[i] ? { id: bahan[i].student.id, nama: bahan[i].student.nama } : null
 
@@ -68,6 +71,21 @@ export default async function IsiRaporPage({ params, searchParams }: PageProps) 
   const bisaDitimpa = anak.template
     ? ([...new Set(Object.values(anak.template.pemetaan))] as KodeMedan[]).filter(k => !TAK_BISA_DITIMPA.includes(k))
     : []
+
+  // Isian merah: potongan yang diisi guru, dengan kalimat yang mengapitnya.
+  const isianSlot = anak.template
+    ? slotIsianGuru(anak.template.blok, anak.template.pemetaan).map(s => ({
+      id: s.id, sebelum: s.konteks?.sebelum ?? '', sesudah: s.konteks?.sesudah ?? '', contoh: s.contoh,
+    }))
+    : []
+  // Kotak deskripsi bebas hanya ditawarkan bila template memang memakainya —
+  // atau bila belum ada template sama sekali, supaya guru tetap bisa menulis.
+  const pakaiDeskripsi = !anak.template || Object.values(anak.template.pemetaan).includes('deskripsi')
+  const sisip = [
+    { label: 'Capaian tahfidz', nilai: anak.nilai.capaian_tahfidz },
+    { label: 'Juz tuntas', nilai: anak.nilai.juz_tuntas },
+    { label: 'Level tahsin', nilai: anak.nilai.level_tahsin },
+  ]
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--secondary)' }}>
@@ -80,7 +98,7 @@ export default async function IsiRaporPage({ params, searchParams }: PageProps) 
             {anak.student.nama}
           </h1>
           <p className="mt-0.5 text-sm text-muted-foreground">
-            {anak.student.kelas ?? 'tanpa kelas'} · semester {term.semester === 'ganjil' ? 'Ganjil' : 'Genap'} {term.year_label}
+            {LABEL_JENIS_RAPOR[jenis]} · {anak.student.kelas ?? 'tanpa kelas'} · semester {term.semester === 'ganjil' ? 'Ganjil' : 'Genap'} {term.year_label}
             {anak.sepi && ' · belum ada setoran semester ini'}
           </p>
         </div>
@@ -99,6 +117,11 @@ export default async function IsiRaporPage({ params, searchParams }: PageProps) 
               sebelum={tetangga(ke - 1)}
               sesudah={tetangga(ke + 1)}
               urutan={{ ke: ke + 1, dari: bahan.length }}
+              jenis={jenis}
+              pakaiDeskripsi={pakaiDeskripsi}
+              isianSlot={isianSlot}
+              isianAwal={anak.isian}
+              sisip={sisip}
             />
           </div>
 
@@ -106,11 +129,12 @@ export default async function IsiRaporPage({ params, searchParams }: PageProps) 
             <p className="text-sm text-muted-foreground print:hidden">Pratinjau lembar — inilah yang tercetak.</p>
             {anak.template ? (
               <div className="overflow-x-auto rounded-xl border print:overflow-visible print:rounded-none print:border-0">
-                <LembarRapor blok={anak.template.blok} pemetaan={anak.template.pemetaan} nilai={anak.nilai} ttd={anak.ttd} />
+                <LembarRapor blok={anak.template.blok} pemetaan={anak.template.pemetaan} nilai={anak.nilai} ttd={anak.ttd}
+                  isian={anak.isian} riyadhoh={anak.riyadhoh} />
               </div>
             ) : (
               <div className="rounded-xl border border-dashed bg-card p-5 text-sm text-muted-foreground print:hidden">
-                Belum ada template rapor untuk kelas {anak.student.kelas ?? '—'}. Deskripsi yang Anda tulis tetap
+                Belum ada template {LABEL_JENIS_RAPOR[jenis]} untuk kelas {anak.student.kelas ?? '—'}. Deskripsi yang Anda tulis tetap
                 tersimpan dan akan langsung terpakai begitu koordinator mengunggah formatnya.
               </div>
             )}

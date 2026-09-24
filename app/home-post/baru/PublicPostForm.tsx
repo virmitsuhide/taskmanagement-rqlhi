@@ -11,6 +11,8 @@ import { RichTextEditor } from '@/components/ui/rich-text-editor'
 import { Markdown } from '@/components/ui/markdown'
 import { Eye, EyeOff } from 'lucide-react'
 import { POST_ICONS, POST_ICON_ORDER, DEFAULT_POST_ICON } from '@/lib/home/post-icons'
+import { labelTanggalPost } from '@/lib/home/post-tanggal'
+import type { PublicPostType } from '@/types'
 
 const CONTENT_PLACEHOLDER =
   'Isi pengumuman atau tugas yang akan tampil di beranda publik...\n\nGunakan **tebal**, *miring*, ~~coret~~, daftar, dan emoji 😊'
@@ -19,6 +21,9 @@ export function PublicPostForm() {
   const [state, action, isPending] = useActionState(createPublicPostAction, null)
   const [content, setContent] = useState('')
   const [preview, setPreview] = useState(false)
+  // Dikendalikan agar label kolom tanggal ikut berganti: tenggat untuk tugas,
+  // waktu pelaksanaan untuk pengumuman.
+  const [jenis, setJenis] = useState<PublicPostType>('pengumuman')
 
   return (
     <form action={action} className="space-y-5">
@@ -32,7 +37,7 @@ export function PublicPostForm() {
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label htmlFor="type">Jenis Post</Label>
-              <Select name="type" defaultValue="pengumuman" required>
+              <Select name="type" value={jenis} onValueChange={v => setJenis(v as PublicPostType)} required>
                 <SelectTrigger id="type" className="w-full">
                   <SelectValue />
                 </SelectTrigger>
@@ -178,10 +183,12 @@ export function PublicPostForm() {
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="due_date">Deadline (opsional)</Label>
-              <Input id="due_date" name="due_date" type="date" />
+              <Label htmlFor="due_date">{labelTanggalPost(jenis)} (opsional)</Label>
+              <Input id="due_date" name="due_date" type="date" className="dark:[color-scheme:dark]" />
               <p className="text-xs text-muted-foreground">
-                Dipakai untuk menaruh post ini di kalender agenda.
+                {jenis === 'tugas_guru'
+                  ? 'Batas waktu tugas dikumpulkan. Ikut tampil di kalender agenda beranda.'
+                  : 'Hari kegiatan berlangsung. Ikut tampil di kalender agenda beranda.'}
               </p>
             </div>
           </div>

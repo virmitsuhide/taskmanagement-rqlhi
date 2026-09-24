@@ -1,11 +1,13 @@
 'use client'
 
-import { useActionState, useMemo, useState } from 'react'
+import { useActionState, useMemo, useState, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
+import { BookOpen, GraduationCap, Phone, UserRound, type LucideIcon } from 'lucide-react'
 import { createStudentAction, updateStudentAction } from '@/app/actions/students'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { cn } from '@/lib/utils'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { JENJANG_LABELS } from '@/lib/auth/permissions'
 import { methodsForJenjang } from '@/lib/tahsin'
@@ -15,6 +17,14 @@ import type { Jenjang, Halaqoh, TahsinMethod, JilidLevel } from '@/types'
 // Radix Select melarang SelectItem value="". Pakai sentinel ini untuk opsi "kosong".
 // Server action mengubah 'none' kembali menjadi null.
 const NONE = 'none'
+
+// Kontrol bawaan shadcn setinggi 32px — terlalu kecil untuk jempol. Di HP
+// dibuat 40px, di layar lebar 36px. SelectTrigger juga dipaksa selebar kolom
+// (bawaannya w-fit, sehingga dropdown menciut tak sejajar dengan input).
+const CONTROL = 'h-10 w-full md:h-9'
+// Tinggi SelectTrigger dikunci lewat data-[size=default]:h-8, yang lebih
+// spesifik daripada h-* biasa — jadi harus ditimpa dengan varian yang sama.
+const SELECT = 'w-full data-[size=default]:h-10 md:data-[size=default]:h-9'
 
 interface Props {
   mode: 'create' | 'edit'
@@ -118,127 +128,122 @@ export function StudentForm({
   }
 
   return (
-    <form action={formAction} className="space-y-5 max-w-2xl">
+    <form action={formAction} className="space-y-4 sm:space-y-5">
       {initial?.id && <input type="hidden" name="id" value={initial.id} />}
 
-      {/* Identitas */}
-      <fieldset className="space-y-3">
-        <legend className="text-sm font-semibold mb-2">Identitas</legend>
-
-        <div className="grid grid-cols-1 sm:grid-cols-[1fr_140px] gap-3">
-          <div className="space-y-1.5">
-            <Label htmlFor="full_name">Nama Lengkap *</Label>
-            <Input id="full_name" name="full_name" required defaultValue={initial?.full_name ?? ''} disabled={isPending} />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="nis">NIS</Label>
-            <Input id="nis" name="nis" defaultValue={initial?.nis ?? ''} disabled={isPending} />
-          </div>
+      <Section icon={UserRound} title="Identitas" description="Data diri siswa.">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-[1fr_160px]">
+          <Field label="Nama Lengkap" htmlFor="full_name" required>
+            <Input id="full_name" name="full_name" required autoComplete="off" placeholder="Nama sesuai akta" defaultValue={initial?.full_name ?? ''} disabled={isPending} className={CONTROL} />
+          </Field>
+          <Field label="NIS" htmlFor="nis">
+            <Input id="nis" name="nis" inputMode="numeric" autoComplete="off" placeholder="Opsional" defaultValue={initial?.nis ?? ''} disabled={isPending} className={cn(CONTROL, 'tabular-nums')} />
+          </Field>
         </div>
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <div className="space-y-1.5">
-            <Label htmlFor="gender">Jenis Kelamin</Label>
-            <Select name="gender" defaultValue={initial?.gender ?? NONE}>
-              <SelectTrigger id="gender"><SelectValue placeholder="—" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value={NONE}>—</SelectItem>
-                <SelectItem value="L">Laki-laki</SelectItem>
-                <SelectItem value="P">Perempuan</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="birth_date">Tanggal Lahir</Label>
-            <Input id="birth_date" name="birth_date" type="date" defaultValue={initial?.birth_date ?? ''} disabled={isPending} />
-          </div>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <fieldset className="min-w-0 space-y-1.5" disabled={isPending}>
+            <legend className="mb-1.5 text-sm font-medium leading-none">Jenis Kelamin</legend>
+            {/* Dua pilihan saja — tombol segmen lebih cepat disentuh di HP
+                daripada membuka dropdown. Tak dipilih = dikirim kosong (null). */}
+            <div className="grid grid-cols-2 gap-2">
+              {([['L', 'Laki-laki'], ['P', 'Perempuan']] as const).map(([v, label]) => (
+                <label key={v} className="relative cursor-pointer">
+                  <input type="radio" name="gender" value={v} defaultChecked={initial?.gender === v} className="peer sr-only" />
+                  <span className="flex h-10 items-center justify-center rounded-lg border border-input text-sm font-medium text-muted-foreground transition-colors hover:bg-muted/60 peer-checked:border-primary peer-checked:bg-primary/10 peer-checked:text-primary peer-focus-visible:ring-3 peer-focus-visible:ring-ring/50 md:h-9 dark:bg-input/30 dark:peer-checked:bg-primary/20">
+                    {label}
+                  </span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
+          <Field label="Tanggal Lahir" htmlFor="birth_date">
+            <Input id="birth_date" name="birth_date" type="date" defaultValue={initial?.birth_date ?? ''} disabled={isPending} className={cn(CONTROL, 'dark:[color-scheme:dark]')} />
+          </Field>
         </div>
-      </fieldset>
+      </Section>
 
-      {/* Akademik */}
-      <fieldset className="space-y-3 border-t pt-4">
-        <legend className="text-sm font-semibold mb-2">Akademik</legend>
-
+      <Section icon={GraduationCap} title="Akademik" description="Unit, kelas, program, dan halaqoh.">
         {mode === 'create' ? (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div className="space-y-1.5">
-              <Label htmlFor="jenjang">Jenjang *</Label>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Field label="Jenjang" htmlFor="jenjang" required>
               <Select name="jenjang" value={jenjang} onValueChange={v => onJenjangChange(v as Jenjang)}>
-                <SelectTrigger id="jenjang"><SelectValue /></SelectTrigger>
+                <SelectTrigger id="jenjang" className={SELECT}><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {allowedJenjang.map(j => (
                     <SelectItem key={j} value={j}>{JENJANG_LABELS[j]}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="kelas">Kelas</Label>
-              <Input id="kelas" name="kelas" placeholder="contoh: 4A" defaultValue={initial?.kelas ?? ''} disabled={isPending} />
-            </div>
+            </Field>
+            <Field label="Kelas" htmlFor="kelas">
+              <Input id="kelas" name="kelas" placeholder="contoh: 4A" defaultValue={initial?.kelas ?? ''} disabled={isPending} className={CONTROL} />
+            </Field>
           </div>
         ) : (
-          <div className="space-y-1.5">
-            <Label htmlFor="kelas">Kelas</Label>
-            <Input id="kelas" name="kelas" placeholder="contoh: 4A" defaultValue={initial?.kelas ?? ''} disabled={isPending} />
-            {/* Jenjang tetap disebut sebagai keterangan: pilihan program,
-                halaqoh, dan metode tahsin di bawah semuanya bergantung
-                padanya, jadi menghilangkannya sama sekali membuat daftar yang
-                menyempit terasa tanpa sebab. */}
-            <p className="text-[11px] text-muted-foreground">
-              Unit {JENJANG_LABELS[jenjang]} &middot; ikut kelas, tidak diubah dari sini.
-            </p>
-          </div>
+          // Jenjang tetap disebut sebagai keterangan: pilihan program,
+          // halaqoh, dan metode tahsin di bawah semuanya bergantung padanya,
+          // jadi menghilangkannya sama sekali membuat daftar yang menyempit
+          // terasa tanpa sebab.
+          <Field
+            label="Kelas"
+            htmlFor="kelas"
+            hint={<>Unit <span className="font-medium text-foreground">{JENJANG_LABELS[jenjang]}</span> &middot; ikut kelas, tidak diubah dari sini.</>}
+          >
+            <Input id="kelas" name="kelas" placeholder="contoh: 4A" defaultValue={initial?.kelas ?? ''} disabled={isPending} className={CONTROL} />
+          </Field>
         )}
 
-        {programOptions.length > 0 && (
-          <div className="space-y-1.5">
-            <Label htmlFor="program">Program{!bolehTanpaProgram && ' *'}</Label>
-            <Select name="program" value={program} onValueChange={onProgramChange}>
-              <SelectTrigger id="program"><SelectValue placeholder="— Belum ditandai —" /></SelectTrigger>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          {programOptions.length > 0 && (
+            <Field
+              label="Program"
+              htmlFor="program"
+              required={!bolehTanpaProgram}
+              hint={availableMethods.length === 1 ? `Program ini memakai metode ${availableMethods[0].name}.` : undefined}
+            >
+              <Select name="program" value={program} onValueChange={onProgramChange}>
+                <SelectTrigger id="program" className={SELECT}><SelectValue placeholder="— Belum ditandai —" /></SelectTrigger>
+                <SelectContent>
+                  {bolehTanpaProgram && <SelectItem value={NONE}>— Belum ditandai —</SelectItem>}
+                  {programOptions.map(p => (
+                    <SelectItem key={p.code} value={p.code}>{p.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+          )}
+
+          <Field
+            label="Halaqoh"
+            htmlFor="halaqoh_id"
+            className={programOptions.length > 0 ? undefined : 'sm:col-span-2'}
+            hint={halaqohOptions.length === 0 ? 'Belum ada halaqoh untuk unit/program ini.' : undefined}
+          >
+            <Select name="halaqoh_id" defaultValue={initial?.halaqoh_id ?? defaultHalaqohId ?? NONE}>
+              <SelectTrigger id="halaqoh_id" className={SELECT}>
+                <SelectValue placeholder="Pilih halaqoh" />
+              </SelectTrigger>
               <SelectContent>
-                {bolehTanpaProgram && <SelectItem value={NONE}>— Belum ditandai —</SelectItem>}
-                {programOptions.map(p => (
-                  <SelectItem key={p.code} value={p.code}>{p.label}</SelectItem>
+                <SelectItem value={NONE}>— Belum ditentukan —</SelectItem>
+                {halaqohOptions.map(h => (
+                  <SelectItem key={h.id} value={h.id}>{h.name}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
-            {availableMethods.length === 1 && (
-              <p className="text-[11px] text-muted-foreground">
-                Program ini memakai metode {availableMethods[0].name}.
-              </p>
-            )}
-          </div>
-        )}
-
-        <div className="space-y-1.5">
-          <Label htmlFor="halaqoh_id">Halaqoh</Label>
-          <Select name="halaqoh_id" defaultValue={initial?.halaqoh_id ?? defaultHalaqohId ?? NONE}>
-            <SelectTrigger id="halaqoh_id">
-              <SelectValue placeholder={halaqohOptions.length ? 'Pilih halaqoh' : 'Tidak ada halaqoh untuk jenjang ini'} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={NONE}>— Belum ditentukan —</SelectItem>
-              {halaqohOptions.map(h => (
-                <SelectItem key={h.id} value={h.id}>{h.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          </Field>
         </div>
-      </fieldset>
+      </Section>
 
-      {/* Tahsin awal */}
-      <fieldset className="space-y-3 border-t pt-4">
-        <legend className="text-sm font-semibold mb-2">Tahsin Awal</legend>
-        <p className="text-xs text-muted-foreground -mt-1 mb-2">
-          Posisi tahsin saat siswa masuk. Bisa dikosongkan, diisi lewat setoran nanti.
-        </p>
-
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <div className="space-y-1.5">
-            <Label htmlFor="current_method_id">Metode</Label>
+      <Section
+        icon={BookOpen}
+        title="Tahsin Awal"
+        description="Posisi tahsin saat siswa masuk. Boleh dikosongkan — nanti terisi lewat setoran."
+      >
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-[1fr_1fr_120px]">
+          <Field label="Metode" htmlFor="current_method_id" className="col-span-2 sm:col-span-1">
             <Select name="current_method_id" value={methodId} onValueChange={setMethodId}>
-              <SelectTrigger id="current_method_id"><SelectValue placeholder="—" /></SelectTrigger>
+              <SelectTrigger id="current_method_id" className={SELECT}><SelectValue placeholder="—" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value={NONE}>—</SelectItem>
                 {availableMethods.map(m => (
@@ -246,15 +251,14 @@ export function StudentForm({
                 ))}
               </SelectContent>
             </Select>
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="current_jilid_id">Jilid</Label>
+          </Field>
+          <Field label="Jilid" htmlFor="current_jilid_id">
             <Select
               name="current_jilid_id"
               defaultValue={initial?.current_jilid_id ?? NONE}
               disabled={methodId === NONE || jilidOptions.length === 0}
             >
-              <SelectTrigger id="current_jilid_id"><SelectValue placeholder="—" /></SelectTrigger>
+              <SelectTrigger id="current_jilid_id" className={SELECT}><SelectValue placeholder="—" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value={NONE}>—</SelectItem>
                 {jilidOptions.map(j => (
@@ -262,74 +266,113 @@ export function StudentForm({
                 ))}
               </SelectContent>
             </Select>
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="current_jilid_page">Halaman</Label>
+          </Field>
+          <Field label="Halaman" htmlFor="current_jilid_page">
             <Input
               id="current_jilid_page"
               name="current_jilid_page"
               type="number"
+              inputMode="numeric"
               min={1}
+              placeholder="—"
               defaultValue={initial?.current_jilid_page ?? ''}
               disabled={isPending}
+              className={cn(CONTROL, 'tabular-nums')}
             />
-          </div>
+          </Field>
         </div>
-      </fieldset>
+      </Section>
 
-      {/* Wali */}
-      <fieldset className="space-y-3 border-t pt-4">
-        <legend className="text-sm font-semibold mb-2">Wali Murid</legend>
-
-        <div className="space-y-1.5">
-          <Label htmlFor="wali_name">Nama Wali</Label>
-          <Input id="wali_name" name="wali_name" defaultValue={initial?.wali_name ?? ''} disabled={isPending} />
+      <Section icon={Phone} title="Wali Murid" description="Kontak untuk laporan perkembangan siswa.">
+        <Field label="Nama Wali" htmlFor="wali_name">
+          <Input id="wali_name" name="wali_name" autoComplete="off" defaultValue={initial?.wali_name ?? ''} disabled={isPending} className={CONTROL} />
+        </Field>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <Field label="No. HP / WA" htmlFor="wali_phone">
+            <Input id="wali_phone" name="wali_phone" type="tel" inputMode="tel" placeholder="08xx" defaultValue={initial?.wali_phone ?? ''} disabled={isPending} className={cn(CONTROL, 'tabular-nums')} />
+          </Field>
+          <Field label="Email" htmlFor="wali_email">
+            <Input id="wali_email" name="wali_email" type="email" inputMode="email" placeholder="Opsional" defaultValue={initial?.wali_email ?? ''} disabled={isPending} className={CONTROL} />
+          </Field>
         </div>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <div className="space-y-1.5">
-            <Label htmlFor="wali_phone">No. HP / WA</Label>
-            <Input id="wali_phone" name="wali_phone" placeholder="08xx" defaultValue={initial?.wali_phone ?? ''} disabled={isPending} />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="wali_email">Email</Label>
-            <Input id="wali_email" name="wali_email" type="email" defaultValue={initial?.wali_email ?? ''} disabled={isPending} />
-          </div>
-        </div>
-      </fieldset>
+      </Section>
 
       {mode === 'edit' && (
-        <div className="border-t pt-4">
-          <label className="flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors hover:bg-muted/40">
-            <input
-              type="checkbox"
-              name="is_active"
-              defaultChecked={initial?.is_active ?? true}
-              disabled={isPending}
-              className="mt-0.5 size-4 accent-primary"
-            />
-            <span className="space-y-0.5">
-              <span className="block text-sm font-medium">Siswa aktif</span>
-              <span className="block text-[11px] text-muted-foreground">
-                Siswa nonaktif hilang dari daftar kelas dan tidak bisa disetori,
-                tapi seluruh riwayat tahsin, tahfidz, dan rapornya tetap tersimpan.
-              </span>
+        <label className="flex cursor-pointer items-start gap-3 rounded-xl border bg-card p-4 transition-colors hover:bg-muted/40 has-[:checked]:border-primary/40 has-[:checked]:bg-primary/5 sm:p-5">
+          <input
+            type="checkbox"
+            name="is_active"
+            defaultChecked={initial?.is_active ?? true}
+            disabled={isPending}
+            className="mt-0.5 size-5 shrink-0 accent-primary"
+          />
+          <span className="space-y-1">
+            <span className="block text-sm font-semibold">Siswa aktif</span>
+            <span className="block text-xs leading-relaxed text-muted-foreground">
+              Siswa nonaktif hilang dari daftar kelas dan tidak bisa disetori,
+              tapi seluruh riwayat tahsin, tahfidz, dan rapornya tetap tersimpan.
             </span>
-          </label>
-        </div>
+          </span>
+        </label>
       )}
 
       {state?.error && (
-        <p className="text-sm text-destructive bg-destructive/10 px-3 py-2 rounded-md">{state.error}</p>
+        <p role="alert" className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2.5 text-sm text-destructive">
+          {state.error}
+        </p>
       )}
 
-      <div className="flex gap-2 pt-2">
-        <Button type="submit" disabled={isPending}>
+      {/* Di HP tombol ditumpuk selebar layar, aksi utama di atas agar dekat jempol. */}
+      <div className="flex flex-col gap-2 pt-1 sm:flex-row-reverse sm:justify-start">
+        <Button type="submit" disabled={isPending} className="h-11 w-full sm:h-9 sm:w-auto sm:px-5">
           {isPending ? 'Menyimpan...' : mode === 'create' ? 'Tambah Siswa' : 'Simpan Perubahan'}
         </Button>
-        <Button type="button" variant="outline" onClick={() => router.back()} disabled={isPending}>
+        <Button type="button" variant="outline" onClick={() => router.back()} disabled={isPending} className="h-11 w-full sm:h-9 sm:w-auto">
           Batal
         </Button>
       </div>
     </form>
+  )
+}
+
+function Section({ icon: Icon, title, description, children }: {
+  icon: LucideIcon
+  title: string
+  description?: string
+  children: ReactNode
+}) {
+  return (
+    <section className="overflow-hidden rounded-xl border bg-card text-card-foreground">
+      <header className="flex items-start gap-3 border-b bg-muted/30 px-4 py-3 sm:px-5">
+        <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary dark:bg-primary/20">
+          <Icon className="size-4" aria-hidden />
+        </span>
+        <div className="min-w-0 pt-1">
+          <h2 className="text-sm font-semibold leading-tight">{title}</h2>
+          {description && <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">{description}</p>}
+        </div>
+      </header>
+      <div className="space-y-4 p-4 sm:p-5">{children}</div>
+    </section>
+  )
+}
+
+function Field({ label, htmlFor, required, hint, className, children }: {
+  label: string
+  htmlFor: string
+  required?: boolean
+  hint?: ReactNode
+  className?: string
+  children: ReactNode
+}) {
+  return (
+    <div className={cn('min-w-0 space-y-1.5', className)}>
+      <Label htmlFor={htmlFor} className="gap-1">
+        {label}
+        {required && <span className="text-destructive" aria-hidden>*</span>}
+      </Label>
+      {children}
+      {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
+    </div>
   )
 }

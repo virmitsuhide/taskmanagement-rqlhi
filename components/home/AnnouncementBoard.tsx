@@ -2,8 +2,9 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { ArrowRight } from 'lucide-react'
+import { ArrowRight, CalendarDays, Clock } from 'lucide-react'
 import { POST_ICONS, postIconOf } from '@/lib/home/post-icons'
+import { adalahTugas, labelTanggalPost, lewatTenggatPost } from '@/lib/home/post-tanggal'
 import { stripMarkdown } from '@/lib/markdown'
 import type { PublicPost, PostPriority } from '@/types'
 
@@ -137,6 +138,21 @@ export function AnnouncementBoard({ posts, title = 'Pengumuman', limit = 6 }: Pr
                   <p className="text-[12px] text-muted-foreground line-clamp-2 leading-relaxed mt-1">
                     {stripMarkdown(post.content)}
                   </p>
+
+                  {post.due_date && (
+                    // Kotak tanggal di kanan tak bisa menjelaskan dirinya:
+                    // bagi tugas ia tenggat, bagi pengumuman hari kegiatan.
+                    <p
+                      className={`mt-1.5 inline-flex items-center gap-1 text-[11px] ${
+                        lewatTenggatPost(post) ? 'font-medium text-destructive' : 'text-muted-foreground'
+                      }`}
+                    >
+                      {adalahTugas(post) ? <Clock className="h-3 w-3" /> : <CalendarDays className="h-3 w-3" />}
+                      {lewatTenggatPost(post) ? 'Lewat tenggat' : labelTanggalPost(post.type)}
+                      {' · '}
+                      {`${day} ${mon} ${year}`}
+                    </p>
+                  )}
 
                   {post.creator && (
                     <p className="text-[11px] text-muted-foreground mt-1">
