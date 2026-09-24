@@ -41,6 +41,19 @@ export function pilihHalaqoh(daftar: HalaqohSesi[], diminta: string | undefined)
   return daftar.find(h => h.id === diminta) ?? daftar[0] ?? null
 }
 
+/**
+ * Siapa yang disetor dalam satu sesi: anggota sebuah halaqoh (id-nya), atau
+ * daftar siswa tertentu — peserta Riyadhoh Sabtu, yang bukan satu halaqoh.
+ */
+export type SasaranSesi = string | { siswa: string[] }
+
+/** Saringan PostgREST untuk .or(); daftar kosong tidak mencocokkan siapa pun. */
+function saringSasaran(sasaran: SasaranSesi): string {
+  if (typeof sasaran === 'string') return `halaqoh_id.eq.${sasaran}`
+  const ids = sasaran.siswa.filter(id => /^[0-9a-f-]{36}$/i.test(id))
+  return ids.length > 0 ? `id.in.(${ids.join(',')})` : 'id.is.null'
+}
+
 // ─── Tahsin ──────────────────────────────────────────────────────────────────
 
 export interface SiswaSesiTahsin {
@@ -63,26 +76,28 @@ export interface SiswaSesiTahsin {
   materi_hasil: Record<string, HasilMateri>
 }
 
-export async function getSiswaSesiTahsin(halaqohId: string): Promise<SiswaSesiTahsin[]> {
+export async function getSiswaSesiTahsin(sasaran: SasaranSesi): Promise<SiswaSesiTahsin[]> {
   const supabase = createServerClient()
   const { data } = await supabase
     .from('students')
     .select(
       'id, full_name, kelas, current_method_id, current_jilid_id, current_jilid_page, tahsin_drill_sejak,' +
       ' current_quran_halaman, current_quran_surat_id, current_quran_ayat,' +
-      ' jilid:jilid_levels!students_current_jilid_id_fkey(label, total_pages, baca_quran)',
+      ' jilid:jilid_levels!students_current_jilid_id_fkey(label, total_pages, baca_quran, is_terminal)',
     )
-    .eq('halaqoh_id', halaqohId)
+    .or(saringSasaran(sasaran))
     .eq('is_active', true)
     .order('full_name')
 
-  const rows = (data ?? []) as unknown as Array<{
+  const rows = ((data ?? []) as unknown as Array<{
     id: string; full_name: string; kelas: string | null
     current_method_id: string | null; current_jilid_id: string | null; current_jilid_page: number | null
     tahsin_drill_sejak: string | null
     current_quran_halaman: number | null; current_quran_surat_id: number | null; current_quran_ayat: number | null
-    jilid: { label: string; total_pages: number | null; baca_quran: boolean } | null
-  }>
+    jilid: { label: string; total_pages: number | null; baca_quran: boolean; is_terminal: boolean } | null
+  }>)
+    // Anak yang sudah Lulus Tahsin tidak punya progres tahsin lagi untuk disetor.
+    .filter(r => !r.jilid?.is_terminal)
 
   // Materi dan capaiannya diambil sekali untuk seluruh sesi, bukan per anak:
   // satu halaqoh umumnya berisi anak-anak pada tahap yang sama, sehingga
@@ -125,12 +140,12 @@ export interface SiswaSesiTahfidz {
   drill: JuzDrillSiswa[]
 }
 
-export async function getSiswaSesiTahfidz(halaqohId: string): Promise<SiswaSesiTahfidz[]> {
+export async function getSiswaSesiTahfidz(sasaran: SasaranSesi): Promise<SiswaSesiTahfidz[]> {
   const supabase = createServerClient()
   const { data: siswa } = await supabase
     .from('students')
     .select('id, full_name, kelas')
-    .eq('halaqoh_id', halaqohId)
+    .or(saringSasaran(sasaran))
     .eq('is_active', true)
     .order('full_name')
   const rows = (siswa ?? []) as { id: string; full_name: string; kelas: string | null }[]

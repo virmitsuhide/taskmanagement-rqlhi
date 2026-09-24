@@ -48,6 +48,8 @@ export interface TeacherStudentRow {
   halaqoh_name: string | null
   current_method_name: string | null
   current_jilid_label: string | null
+  /** Sudah Lulus Tahsin (tahap terakhir) — setorannya tinggal tahfidz. */
+  lulus_tahsin: boolean
   current_jilid_page: number | null
   /** Tanggal masuk drill tahsin (0064); null = tidak sedang drill. */
   tahsin_drill_sejak: string | null
@@ -80,7 +82,7 @@ export async function getTeacherStudents(teacherId: string): Promise<TeacherStud
       wali_name, wali_phone,
       halaqoh:halaqoh!students_halaqoh_id_fkey(name, sesi),
       current_method:tahsin_methods!students_current_method_id_fkey(name),
-      current_jilid:jilid_levels!students_current_jilid_id_fkey(label)
+      current_jilid:jilid_levels!students_current_jilid_id_fkey(label, is_terminal)
     `)
     .in('halaqoh_id', halaqohIds)
     .eq('is_active', true)
@@ -93,7 +95,7 @@ export async function getTeacherStudents(teacherId: string): Promise<TeacherStud
     wali_name: string | null; wali_phone: string | null
     halaqoh: { name: string; sesi: number | null } | null
     current_method: { name: string } | null
-    current_jilid: { label: string } | null
+    current_jilid: { label: string; is_terminal: boolean } | null
   }>
 
   if (rows.length === 0) return []
@@ -138,9 +140,13 @@ export async function getTeacherStudents(teacherId: string): Promise<TeacherStud
     halaqoh_name: r.halaqoh?.name ?? null,
     current_method_name: r.current_method?.name ?? null,
     current_jilid_label: r.current_jilid?.label ?? null,
+    lulus_tahsin: Boolean(r.current_jilid?.is_terminal),
     current_jilid_page: r.current_jilid_page,
     tahsin_drill_sejak: r.tahsin_drill_sejak,
-    last_setoran_date: lastMap.get(r.id) ?? null,
+    // Anak yang sudah Lulus Tahsin tidak setor tahsin lagi: setoran
+    // terakhirnya adalah tahfidz. Tanpa ini ia terus menumpuk di antrian
+    // sebagai "sekian hari belum setor".
+    last_setoran_date: (r.current_jilid?.is_terminal ? tahfidzMap.get(r.id)?.date : lastMap.get(r.id)) ?? null,
     sesi: r.halaqoh?.sesi ?? null,
     wali_phone: r.wali_phone,
     wali_name: r.wali_name,

@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createServerClient } from '@/lib/supabase/server'
 import { getTeacherSession } from '@/lib/auth/teacher-session'
-import { canTeacherAccessStudent } from '@/lib/data/teacher'
+import { aksesSetoran } from '@/lib/data/riyadhoh'
 import { catatDrillSetelahZiyadah } from '@/lib/data/drill-tahfidz'
 import { bolehLintasSurat, periksaRentang } from '@/lib/rq/rentang-surat'
 import { periksaBacaanQuran, posisiLanjut, type BacaanQuran } from '@/lib/rq/bacaan-quran'
@@ -125,9 +125,9 @@ type HasilSimpan = null | string | { ganda: SetoranGanda }
 async function simpanSetoranTahsin(teacherId: string, input: InputSetoranTahsin): Promise<HasilSimpan> {
   const { student_id: studentId, method_id: methodId, jilid_id: jilidId, halaman, status } = input
 
-  // Guru hanya boleh setor untuk siswa di halaqoh yang diampu
-  const allowed = await canTeacherAccessStudent(teacherId, studentId)
-  if (!allowed) return 'Anda tidak mengampu siswa ini.'
+  // Guru halaqoh siswa ini, atau pengampu Riyadhoh pada Sabtu kelompoknya.
+  const akses = await aksesSetoran(teacherId, studentId, input.setoran_date)
+  if (!akses) return 'Anda tidak mengampu siswa ini.'
 
   if (!jilidId) return 'Jilid wajib dipilih.'
 
@@ -140,6 +140,16 @@ async function simpanSetoranTahsin(teacherId: string, input: InputSetoranTahsin)
     .eq('id', studentId)
     .maybeSingle()
   if (!student) return 'Siswa tidak ditemukan.'
+
+  // Anak yang sudah Lulus Tahsin (tahap terakhir, is_terminal) tidak lagi
+  // punya progres tahsin untuk dicatat — laporan orang tuanya pun sudah
+  // menulis "Lulus Tahsin". Yang tersisa baginya setoran tahfidz.
+  if (student.current_jilid_id) {
+    const { data: kini } = await supabase.from('jilid_levels').select('is_terminal').eq('id', student.current_jilid_id).maybeSingle()
+    if ((kini as { is_terminal: boolean } | null)?.is_terminal) {
+      return 'Siswa ini sudah Lulus Tahsin — progres tahsinnya tidak dicatat lagi. Catat setoran tahfidznya.'
+    }
+  }
 
   /*
     DUA ATURAN JILID, DITEGAKKAN DI SINI — BUKAN DI FORMULIR.
@@ -288,6 +298,10 @@ async function simpanSetoranTahsin(teacherId: string, input: InputSetoranTahsin)
     teacher_id: teacherId,
     halaqoh_id: student.halaqoh_id,
     setoran_date: input.setoran_date,
+    // Setoran Sabtu tetap setoran biasa — posisi hafalan berjalan terus —
+    // hanya ditandai asalnya (0087). Tidak disebut bila bukan Riyadhoh,
+    // supaya setoran sekolah tetap tersimpan sebelum 0087 dijalankan.
+    ...(akses === 'riyadhoh' ? { riyadhoh: true } : {}),
     method_id: methodId,
     jilid_id: jilidId,
     halaman: halamanTersimpan,
@@ -399,6 +413,7 @@ function segarkanSetoran(studentIds: string[]) {
   revalidatePath('/guru/siswa')
   for (const id of studentIds) revalidatePath(`/guru/siswa/${id}`)
   revalidatePath('/guru')
+  revalidatePath('/guru/riyadhoh')
 }
 
 /** Jawaban formulir setor satu-satu; sukses tidak menjawab, melainkan redirect. */
@@ -517,8 +532,9 @@ const JENIS_SETORAN_TAHFIDZ: TahfidzKind[] = ['ziyadah', 'murojaah_baru', 'muroj
 async function simpanSetoranTahfidz(teacherId: string, input: InputSetoranTahfidz): Promise<HasilSimpan> {
   const { student_id: studentId, surat_id: suratId, ayat_dari: ayatDari, ayat_ke: ayatKe } = input
 
-  const allowed = await canTeacherAccessStudent(teacherId, studentId)
-  if (!allowed) return 'Anda tidak mengampu siswa ini.'
+  // Guru halaqoh siswa ini, atau pengampu Riyadhoh pada Sabtu kelompoknya.
+  const akses = await aksesSetoran(teacherId, studentId, input.setoran_date)
+  if (!akses) return 'Anda tidak mengampu siswa ini.'
 
   if (!JENIS_SETORAN_TAHFIDZ.includes(input.kind)) return 'Jenis setoran tidak dikenal.'
   if (!suratId) return 'Surat wajib dipilih.'
@@ -571,6 +587,10 @@ async function simpanSetoranTahfidz(teacherId: string, input: InputSetoranTahfid
     teacher_id: teacherId,
     halaqoh_id: student.halaqoh_id,
     setoran_date: input.setoran_date,
+    // Setoran Sabtu tetap setoran biasa — posisi hafalan berjalan terus —
+    // hanya ditandai asalnya (0087). Tidak disebut bila bukan Riyadhoh,
+    // supaya setoran sekolah tetap tersimpan sebelum 0087 dijalankan.
+    ...(akses === 'riyadhoh' ? { riyadhoh: true } : {}),
     kind: input.kind,
     surat_id: suratId,
     ayat_dari: ayatDari,

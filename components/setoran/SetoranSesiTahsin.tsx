@@ -126,19 +126,21 @@ function modus(xs: number[]): number | null {
  * baris per anggota yang hadir sebelum dikirim, jadi aturan server (jilid,
  * halaman terakhir, drill, setoran ganda) tetap berlaku per anak.
  */
-export function SetoranSesiTahsin({ siswa, surat, halaqohId, pengaturan }: {
+export function SetoranSesiTahsin({ siswa, surat, halaqohId, pengaturan, tanggalTetap }: {
   siswa: SiswaSesiTahsin[]
   surat: SuratPilihan[]
   halaqohId: string
   /** Kelompok yang diatur pengampu; null = tabel 0080 belum ada (pakai usulan otomatis). */
   pengaturan: KelompokKlasikal[] | null
+  /** Tanggal terkunci — Riyadhoh hanya boleh dicatat pada Sabtunya. */
+  tanggalTetap?: string
 }) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
   // Anak yang hari itu sudah punya setoran: menunggu keputusan guru.
   const [ganda, setGanda] = useState<SetoranGanda[]>([])
   const [tertunda, setTertunda] = useState<InputSetoranTahsin[]>([])
-  const [tanggal, setTanggal] = useState(() => new Date().toISOString().slice(0, 10))
+  const [tanggal, setTanggal] = useState(() => tanggalTetap ?? new Date().toISOString().slice(0, 10))
   const [isian, setIsian] = useState<Record<string, Isian>>(
     () => Object.fromEntries(siswa.map(s => [s.id, isianAwal(s)])),
   )
@@ -364,7 +366,7 @@ export function SetoranSesiTahsin({ siswa, surat, halaqohId, pengaturan }: {
       <div className="flex flex-wrap items-end gap-3 rounded-xl border bg-card p-3">
         <div className="space-y-1">
           <label htmlFor="tanggal_sesi" className="text-xs font-medium">Tanggal setor</label>
-          <Input id="tanggal_sesi" type="date" value={tanggal} onChange={e => setTanggal(e.target.value)} className="h-9 w-44" />
+          <Input id="tanggal_sesi" type="date" value={tanggal} onChange={e => setTanggal(e.target.value)} readOnly={Boolean(tanggalTetap)} className="h-9 w-44 read-only:bg-muted" />
         </div>
         <div className="ml-auto flex flex-wrap gap-2">
           <Button type="button" variant="outline" size="sm" onClick={() => pilihSemua(true)}>Centang semua</Button>

@@ -7,7 +7,7 @@ import {
   Menu, X, LayoutDashboard, CheckSquare, BookOpen,
   ImageIcon, Megaphone, FileText, User, LogOut, GraduationCap, Newspaper, LayoutGrid,
   Users, UserCog, BookMarked, BarChart3, LayoutTemplate, Info, Wallet, CalendarRange, CalendarDays,
-  ClipboardCheck, KeyRound, ScrollText, Repeat, IdCard, UsersRound, Briefcase, Stamp, Scale, ListChecks, Kanban,
+  ClipboardCheck, KeyRound, ScrollText, Repeat, IdCard, UsersRound, Briefcase, Stamp, Scale, ListChecks, Kanban, CalendarHeart,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
@@ -17,7 +17,7 @@ import {
   canViewStudents, canViewHalaqoh, canViewTeachers, canViewUnitAnalytics,
   canManageHomepage,
   canViewKpi, canManageAllAccounts, canManagePengurus, canManageEmployees, canViewUjian, canManageTeacherProfiles,
-  canAccessKpiPublikasi, canManageRaporTemplate, canManageKaldik, canViewKpiBanding, canViewTasks, canViewRoutineBoard } from '@/lib/auth/permissions'
+  canAccessKpiPublikasi, canManageRaporTemplate, canManageRiyadhoh, canManageKaldik, canViewKpiBanding, canViewTasks, canViewRoutineBoard } from '@/lib/auth/permissions'
 import type { UserRole } from '@/types'
 import { logoutAction } from '@/app/actions/auth'
 import { Logo } from '@/components/brand/Logo'
@@ -75,7 +75,7 @@ function DrawerLink({ href, icon, label, active, onNavigate, badge }: {
         {icon}
         {label}
         {badge ? (
-          <span className="ml-auto min-w-[18px] rounded-full bg-primary px-1.5 py-0.5 text-center text-[10px] font-semibold leading-none text-primary-foreground">
+          <span className="ml-auto min-w-[18px] rounded-full bg-accent-warm px-1.5 py-0.5 text-center text-[10px] font-bold leading-none text-white">
             {badge > 9 ? '9+' : badge}
           </span>
         ) : null}
@@ -159,11 +159,11 @@ export function MobileNav({ role, displayName, username, lencanaKpi }: Props) {
           open ? 'translate-x-0' : '-translate-x-full'
         )}
       >
-        <div className="flex items-center justify-between border-b px-4 py-4">
+        <div className="flex items-center justify-between border-b border-sidebar-border px-4 py-4">
           <div className="flex items-center gap-2">
             <Logo size={32} alt="" />
             <div>
-              <p className="text-sm font-semibold leading-none">RQ LHI</p>
+              <p className="font-heading text-[17px] font-semibold leading-none text-sidebar-accent-foreground">RQ LHI</p>
               <p className="text-xs text-sidebar-foreground/60 mt-0.5">Sistem Manajemen</p>
             </div>
           </div>
@@ -295,6 +295,9 @@ export function MobileNav({ role, displayName, username, lencanaKpi }: Props) {
                 {canManageRaporTemplate(role) && (
                   <DrawerLink href="/rapor-quran/template" icon={<LayoutTemplate className="h-4 w-4" />} label="Template Rapor" active={isActive('/rapor-quran')} onNavigate={close} />
                 )}
+                {canManageRiyadhoh(role) && (
+                  <DrawerLink href="/riyadhoh" icon={<CalendarHeart className="h-4 w-4" />} label="Riyadhoh Sabtu" active={isActive('/riyadhoh')} onNavigate={close} />
+                )}
                 {/* Menempel di bawah template rapor: keduanya menetapkan isi
                     rapor seluruh angkatan — yang satu bentuknya, yang satu
                     penyebut kehadirannya. */}
@@ -314,7 +317,7 @@ export function MobileNav({ role, displayName, username, lencanaKpi }: Props) {
           )}
         </nav>
 
-        <div className="border-t px-3 py-3 space-y-1">
+        <div className="border-t border-sidebar-border px-3 py-3 space-y-1">
           {canManagePengurus(role) && (
             <DrawerLink href="/pengurus" icon={<UsersRound className="h-4 w-4" />} label="Pengurus" active={isActive('/pengurus')} onNavigate={close} />
           )}
@@ -334,7 +337,7 @@ export function MobileNav({ role, displayName, username, lencanaKpi }: Props) {
             </div>
           </Link>
           <form action={logoutAction}>
-            <button type="submit" className="flex w-full items-center gap-2.5 rounded-md px-2 py-2 text-sm text-sidebar-foreground hover:bg-destructive/10 hover:text-destructive transition-colors">
+            <button type="submit" className="flex w-full items-center gap-2.5 rounded-md px-2 py-2 text-sm text-sidebar-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground transition-colors">
               <LogOut className="h-4 w-4" />
               Keluar
             </button>

@@ -2,7 +2,7 @@ import {
   LayoutDashboard, Users, BookOpen, Sparkles, CalendarCheck,
   BarChart3, ScrollText, GraduationCap, IdCard, ClipboardCheck, ListChecks,
   Table2, HeartHandshake, UserCheck,
-  FileText,
+  FileText, CalendarHeart,
 } from 'lucide-react'
 import { cookies } from 'next/headers'
 import { getTeacherSession } from '@/lib/auth/teacher-session'
@@ -14,6 +14,7 @@ import { PengumumanBell } from '@/components/guru/PengumumanBell'
 import { getKonteksPengumuman, getPengumumanGuru } from '@/lib/data/pengumuman-guru'
 import { hitungRaporBaruGuru } from '@/lib/data/kpi-pengesahan'
 import { getNotifUjianGuru } from '@/lib/data/ujian-notifikasi'
+import { kelompokPengampu } from '@/lib/data/riyadhoh'
 
 /**
  * Kerangka Portal Guru: navigasi tetap + wadah isi yang bisa digulung.
@@ -35,7 +36,7 @@ export async function TeacherShell({ children }: { children: React.ReactNode }) 
   // halaman masuk tidak perlu menu yang belum boleh ia pakai.
   if (!session) return <>{children}</>
 
-  const [bolehGukar, unitUjian, konteks, raporBaru, notifUjian, kue] = await Promise.all([
+  const [bolehGukar, unitUjian, konteks, raporBaru, notifUjian, kue, riyadhoh] = await Promise.all([
     bolehMengampuGukar(session.teacherId),
     getUnitUjianGuru(session.teacherId),
     getKonteksPengumuman(session.teacherId),
@@ -48,6 +49,8 @@ export async function TeacherShell({ children }: { children: React.ReactNode }) 
     // menu Pengajuan Ujian.
     getNotifUjianGuru(session.teacherId),
     cookies(),
+    // Pengampu Riyadhoh Sabtu (0087) — hanya guru yang ditetapkan koordinator SMP.
+    kelompokPengampu(session.teacherId),
   ])
 
   // Diambil di kerangka, bukan di tiap halaman: loncengnya ada di bilah atas
@@ -85,6 +88,7 @@ export async function TeacherShell({ children }: { children: React.ReactNode }) 
         { label: 'Laporan Orang Tua', href: '/guru/laporan-ortu', icon: <FileText /> },
         // Rapor semester memakai format yang ditetapkan koordinator (0082).
         { label: 'Rapor Qur’an', href: '/guru/rapor-quran', icon: <ScrollText /> },
+        ...(riyadhoh.length > 0 ? [{ label: 'Riyadhoh Sabtu', href: '/guru/riyadhoh', icon: <CalendarHeart /> }] : []),
         { label: 'Statistik', href: '/guru/statistik', icon: <BarChart3 /> },
       ],
     },

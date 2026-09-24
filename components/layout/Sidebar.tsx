@@ -8,7 +8,7 @@ import {
   FileText, User, Megaphone, LogOut, ChevronRight, GraduationCap, Newspaper, LayoutGrid,
   Users, UserCog, BookMarked, BarChart3, LayoutTemplate, Info, Wallet, CalendarRange, CalendarDays,
   ClipboardCheck, KeyRound, ScrollText, Repeat, IdCard, UsersRound, Briefcase, Stamp, Scale, ListChecks, Kanban,
-  PanelLeftClose, PanelLeftOpen,
+  PanelLeftClose, PanelLeftOpen, CalendarHeart,
 } from 'lucide-react'
 import { DASHBOARD_LABELS, getAccessibleDashboards, ROLE_LABELS , canManageTeacherProfiles } from '@/lib/auth/permissions'
 import {
@@ -16,7 +16,7 @@ import {
   canAccessProgramMenu, canEditAbout,
   canViewStudents, canViewHalaqoh, canViewTeachers, canViewUnitAnalytics,
   canManageHomepage, canViewKpi, canManageAllAccounts, canManagePengurus, canManageEmployees, canViewUjian,
-  canAccessKpiPublikasi, canManageRaporTemplate, canManageKaldik, canViewKpiBanding, canViewTasks, canViewRoutineBoard,
+  canAccessKpiPublikasi, canManageRaporTemplate, canManageRiyadhoh, canManageKaldik, canViewKpiBanding, canViewTasks, canViewRoutineBoard,
 } from '@/lib/auth/permissions'
 import type { UserRole } from '@/types'
 import { logoutAction } from '@/app/actions/auth'
@@ -65,13 +65,13 @@ export function Sidebar({ role, displayName, username, lencanaKpi, ciutAwal = fa
   return (
     <aside
       data-ciut={ciut}
-      className="group/sb flex h-full w-64 flex-col border-r bg-sidebar text-sidebar-foreground transition-[width] duration-200 data-[ciut=true]:w-16"
+      className="group/sb flex h-full w-64 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-[width] duration-200 data-[ciut=true]:w-16"
     >
       {/* Logo / Brand — saat ciut logo & tombolnya bertumpuk */}
-      <div className="flex items-center gap-2.5 border-b px-4 py-4 group-data-[ciut=true]/sb:flex-col group-data-[ciut=true]/sb:px-2">
+      <div className="flex items-center gap-2.5 border-b border-sidebar-border px-4 py-4 group-data-[ciut=true]/sb:flex-col group-data-[ciut=true]/sb:px-2">
         <Logo size={36} alt="" className="shadow-sm" />
         <div className={cn('min-w-0', SEMBUNYI_SAAT_CIUT)}>
-          <p className="text-sm font-semibold leading-none">RQ LHI</p>
+          <p className="font-heading text-[17px] font-semibold leading-none text-sidebar-accent-foreground">RQ LHI</p>
           <p className="text-[11px] text-sidebar-foreground/60 mt-1 truncate">{ROLE_LABELS[role]}</p>
         </div>
         <button
@@ -247,6 +247,9 @@ export function Sidebar({ role, displayName, username, lencanaKpi, ciutAwal = fa
               {canManageRaporTemplate(role) && (
                 <NavItem href="/rapor-quran/template" icon={<LayoutTemplate className="h-4 w-4" />} label="Template Rapor" active={isActive('/rapor-quran')} />
               )}
+              {canManageRiyadhoh(role) && (
+                <NavItem href="/riyadhoh" icon={<CalendarHeart className="h-4 w-4" />} label="Riyadhoh Sabtu" active={isActive('/riyadhoh')} />
+              )}
               {/* Menempel di bawah template rapor: keduanya menetapkan isi
                   rapor seluruh angkatan — yang satu bentuknya, yang satu
                   penyebut kehadirannya. */}
@@ -272,7 +275,7 @@ export function Sidebar({ role, displayName, username, lencanaKpi, ciutAwal = fa
       </nav>
 
       {/* User section */}
-      <div className="border-t px-3 py-3 space-y-1">
+      <div className="border-t border-sidebar-border px-3 py-3 space-y-1">
         {canManagePengurus(role) && (
           <NavItem href="/pengurus" icon={<UsersRound className="h-4 w-4" />} label="Pengurus" active={isActive('/pengurus')} />
         )}
@@ -300,7 +303,7 @@ export function Sidebar({ role, displayName, username, lencanaKpi, ciutAwal = fa
           <button
             type="submit"
             title="Keluar"
-            className={cn('flex w-full items-center gap-2.5 rounded-md px-2 py-2 text-sm text-sidebar-foreground hover:bg-destructive/10 hover:text-destructive transition-colors', TAUTAN_CIUT)}
+            className={cn('flex w-full items-center gap-2.5 rounded-md px-2 py-2 text-sm text-sidebar-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground transition-colors', TAUTAN_CIUT)}
           >
             <LogOut className="h-4 w-4" />
             <span className={SEMBUNYI_SAAT_CIUT}>Keluar</span>
@@ -337,7 +340,7 @@ function NavItem({
         {icon}
         <span className={cn('truncate', SEMBUNYI_SAAT_CIUT)}>{label}</span>
         {badge ? (
-          <span className={cn(LENCANA_CIUT, 'ml-auto min-w-[18px] rounded-full bg-primary px-1.5 py-0.5 text-center text-[10px] font-semibold leading-none text-primary-foreground')}>
+          <span className={cn(LENCANA_CIUT, 'ml-auto min-w-[18px] rounded-full bg-accent-warm px-1.5 py-0.5 text-center text-[10px] font-bold leading-none text-white')}>
             {badge > 9 ? '9+' : badge}
           </span>
         ) : active ? (

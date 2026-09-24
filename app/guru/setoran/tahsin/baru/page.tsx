@@ -26,7 +26,8 @@ export default async function NewTahsinSetoranPage({ searchParams }: PageProps) 
           .from('students')
           .select('id, full_name, jenjang, current_method_id, current_jilid_id, current_jilid_page, tahsin_drill_sejak,'
             + ' current_quran_halaman, current_quran_surat_id, current_quran_ayat,'
-            + ' halaqoh:halaqoh!students_halaqoh_id_fkey(name)')
+            + ' halaqoh:halaqoh!students_halaqoh_id_fkey(name),'
+            + ' jilid:jilid_levels!students_current_jilid_id_fkey(is_terminal)')
           .in('halaqoh_id', halaqohIds)
           .eq('is_active', true)
           .order('full_name')
@@ -42,7 +43,11 @@ export default async function NewTahsinSetoranPage({ searchParams }: PageProps) 
     tahsin_drill_sejak: string | null
     current_quran_halaman: number | null; current_quran_surat_id: number | null; current_quran_ayat: number | null
     halaqoh: { name: string } | null
-  }>).map(s => ({
+    jilid: { is_terminal: boolean } | null
+  }>)
+    // Anak yang sudah Lulus Tahsin tidak bisa dipilih — progres tahsinnya sudah selesai.
+    .filter(s => !s.jilid?.is_terminal)
+    .map(s => ({
     id: s.id,
     full_name: s.full_name,
     jenjang: s.jenjang,

@@ -142,14 +142,16 @@ export default async function TeacherHomePage() {
                       <div className="flex-1 min-w-0">
                         <p className="font-medium text-sm truncate">{s.full_name}</p>
                         <p className="text-xs text-muted-foreground truncate">
-                          {s.current_method_name && s.current_jilid_label
-                            ? `${s.current_method_name} ${s.current_jilid_label} · hal. ${s.current_jilid_page ?? '—'}`
-                            : 'Belum ada data tahsin'}
+                          {s.lulus_tahsin
+                            ? `🎓 Lulus Tahsin${s.last_tahfidz_surat ? ` · tahfidz ${s.last_tahfidz_surat}` : ''}`
+                            : s.current_method_name && s.current_jilid_label
+                              ? `${s.current_method_name} ${s.current_jilid_label} · hal. ${s.current_jilid_page ?? '—'}`
+                              : 'Belum ada data tahsin'}
                           {d !== null && d > 3 && <span style={{ color: 'var(--destructive)' }}> · {d} hari belum setor</span>}
                         </p>
                       </div>
                       <Link
-                        href={`/guru/setoran/tahsin/baru?student=${s.id}`}
+                        href={s.lulus_tahsin ? `/guru/setoran/tahfidz/baru?student=${s.id}` : `/guru/setoran/tahsin/baru?student=${s.id}`}
                         className="text-xs px-3 py-1.5 rounded-md text-white shrink-0"
                         style={{ background: 'var(--primary)' }}
                       >

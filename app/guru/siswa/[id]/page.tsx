@@ -391,12 +391,22 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
               </div>
             </div>
             <div className="flex flex-col gap-2 shrink-0">
-              <Button asChild style={{ background: 'var(--primary)', borderColor: 'var(--primary)' }}>
-                <Link href={setoranUrl}>+ Setor Tahsin</Link>
-              </Button>
-              <Button asChild variant="outline">
-                <Link href={tahfidzUrl}>+ Setor Tahfidz</Link>
-              </Button>
+              {/* Anak yang sudah Lulus Tahsin tidak punya progres tahsin lagi —
+                  tombol utamanya menjadi setor tahfidz. */}
+              {student.current_jilid?.is_terminal ? (
+                <Button asChild style={{ background: 'var(--primary)', borderColor: 'var(--primary)' }}>
+                  <Link href={tahfidzUrl}>+ Setor Tahfidz</Link>
+                </Button>
+              ) : (
+                <>
+                  <Button asChild style={{ background: 'var(--primary)', borderColor: 'var(--primary)' }}>
+                    <Link href={setoranUrl}>+ Setor Tahsin</Link>
+                  </Button>
+                  <Button asChild variant="outline">
+                    <Link href={tahfidzUrl}>+ Setor Tahfidz</Link>
+                  </Button>
+                </>
+              )}
               <Button asChild variant="outline">
                 <Link href={`/guru/siswa/${id}/rapor`}>📄 Rapor &amp; Share</Link>
               </Button>

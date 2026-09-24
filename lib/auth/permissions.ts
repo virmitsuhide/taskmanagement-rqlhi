@@ -1396,6 +1396,15 @@ export function canManageRaporTemplate(role: UserRole, jenjang?: Jenjang | null)
 }
 
 /**
+ * Riyadhoh Qur'an SMP (0087) — jadwal Sabtu putra/putri, pengampu, dan
+ * peserta. Milik koordinator SMP; Kepala RQ dan Kumik ikut mengelola seperti
+ * data siswa SMP lainnya.
+ */
+export function canManageRiyadhoh(role: UserRole): boolean {
+  return canManageStudents(role, 'smp')
+}
+
+/**
  * Kalender pendidikan (kaldik, 0085) — agenda sekolah yang tampil di beranda
  * dan menjadi usulan hari kosong di Kalender Qur'an.
  *

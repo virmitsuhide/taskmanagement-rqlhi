@@ -77,13 +77,18 @@ const SELECT_CLASS =
   'h-9 rounded-md border bg-transparent px-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50'
 
 /** Setoran tahfidz satu sesi dalam satu layar — pola yang sama dengan tahsin. */
-export function SetoranSesiTahfidz({ siswa, surat }: { siswa: SiswaSesiTahfidz[]; surat: SuratPilihan[] }) {
+export function SetoranSesiTahfidz({ siswa, surat, tanggalTetap }: {
+  siswa: SiswaSesiTahfidz[]
+  surat: SuratPilihan[]
+  /** Tanggal terkunci — Riyadhoh hanya boleh dicatat pada Sabtunya. */
+  tanggalTetap?: string
+}) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
   // Anak yang hari itu sudah punya setoran jenis yang sama: menunggu keputusan guru.
   const [ganda, setGanda] = useState<SetoranGanda[]>([])
   const [tertunda, setTertunda] = useState<InputSetoranTahfidz[]>([])
-  const [tanggal, setTanggal] = useState(() => new Date().toISOString().slice(0, 10))
+  const [tanggal, setTanggal] = useState(() => tanggalTetap ?? new Date().toISOString().slice(0, 10))
   const [isian, setIsian] = useState<Record<string, Isian>>(
     () => Object.fromEntries(siswa.map(s => [s.id, isianAwal(s, surat)])),
   )
@@ -177,7 +182,7 @@ export function SetoranSesiTahfidz({ siswa, surat }: { siswa: SiswaSesiTahfidz[]
       <div className="flex flex-wrap items-end gap-3 rounded-xl border bg-card p-3">
         <div className="space-y-1">
           <label htmlFor="tanggal_sesi_tf" className="text-xs font-medium">Tanggal setor</label>
-          <Input id="tanggal_sesi_tf" type="date" value={tanggal} onChange={e => setTanggal(e.target.value)} className="h-9 w-44" />
+          <Input id="tanggal_sesi_tf" type="date" value={tanggal} onChange={e => setTanggal(e.target.value)} readOnly={Boolean(tanggalTetap)} className="h-9 w-44 read-only:bg-muted" />
         </div>
         <div className="ml-auto flex gap-2">
           <Button type="button" variant="outline" size="sm" onClick={() => pilihSemua(true)}>Centang semua</Button>
