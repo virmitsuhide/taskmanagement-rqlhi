@@ -6,6 +6,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { UnitLearning, ProgramAnalytics } from '@/lib/data/analytics'
+import { angkaHalaman } from '@/lib/rq/murojaah'
 
 interface Props {
   units: UnitLearning[]
@@ -134,6 +135,15 @@ function TahsinTahfidzView({ unit }: { unit: UnitLearning }) {
   const tahfidzAll = [...tahfidz, ...tasmi]
   const tahfidzAvg = { n: avgOf(tahfidzAll.map(l => l.n)), s: avgOf(tahfidzAll.map(l => l.s)) }
 
+  // Muroja'ah dalam halaman — volume baca: tiap setoran dijumlah apa adanya.
+  const murojaah = tahfidz.filter(l => l.h !== undefined)
+  const halBaru = murojaah.filter(l => normKind(l.kind) === 'murojaah_baru').reduce((n, l) => n + (l.h ?? 0), 0)
+  const halLama = murojaah.filter(l => normKind(l.kind) === 'murojaah_lama').reduce((n, l) => n + (l.h ?? 0), 0)
+  // Rata-rata per anak yang muroja'ah bulan itu, bukan per seluruh siswa unit:
+  // anak yang belum punya setoran muroja'ah sama sekali akan menekan angkanya
+  // tanpa mengatakan apa pun tentang kerja muroja'ah yang benar-benar terjadi.
+  const anakMurojaah = new Set(murojaah.map(l => l.sid)).size
+
   const maxMethod = Math.max(1, ...unit.byMethod.map(m => m.count))
   const maxJuz = Math.max(1, ...unit.juzHistogram.map(j => j.students))
 
@@ -172,10 +182,16 @@ function TahsinTahfidzView({ unit }: { unit: UnitLearning }) {
           <h3 className="text-sm font-semibold flex items-center gap-2 mb-3"><Sparkles className="h-4 w-4" /> Tahfidz <span className="text-xs font-normal text-muted-foreground">({MONTHS[month - 1]} {year})</span></h3>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
             <Metric label="Ziyadah" value={tahfidz.filter(l => normKind(l.kind) === 'ziyadah').length} accent />
-            <Metric label="Muroj. Baru" value={tahfidz.filter(l => normKind(l.kind) === 'murojaah_baru').length} />
-            <Metric label="Muroj. Lama" value={tahfidz.filter(l => normKind(l.kind) === 'murojaah_lama').length} />
+            <Metric label="Muroj. Baru (hal.)" value={halBaru} teks={angkaHalaman(halBaru)} />
+            <Metric label="Muroj. Lama (hal.)" value={halLama} teks={angkaHalaman(halLama)} />
             <Metric label="Tasmi'" value={tasmi.length} />
           </div>
+          {anakMurojaah > 0 && (
+            <p className="mb-3 text-xs text-muted-foreground">
+              Rata-rata muroja&apos;ah <b className="text-foreground">{angkaHalaman((halBaru + halLama) / anakMurojaah)} halaman</b> per anak
+              {' '}· dari {anakMurojaah} anak yang muroja&apos;ah · {murojaah.length}× setor
+            </p>
+          )}
           <ScoreRows avg={tahfidzAvg} label="Tahfidz" />
         </section>
       </div>
@@ -402,10 +418,11 @@ function Kpi({ icon, label, value }: { icon: React.ReactNode; label: string; val
   )
 }
 
-function Metric({ label, value, accent }: { label: string; value: number; accent?: boolean }) {
+/** `teks` = tampilan angka bila bukan bilangan bulat (mis. halaman "6,5"). */
+function Metric({ label, value, teks, accent }: { label: string; value: number; teks?: string; accent?: boolean }) {
   return (
     <div className="rounded-lg p-2.5" style={accent && value > 0 ? { background: 'var(--success-wash)' } : { background: 'var(--muted)' }}>
-      <p className="text-xl font-bold leading-none" style={{ color: accent && value > 0 ? 'var(--success)' : undefined }}>{value}</p>
+      <p className="text-xl font-bold leading-none" style={{ color: accent && value > 0 ? 'var(--success)' : undefined }}>{teks ?? value}</p>
       <p className="text-[11px] text-muted-foreground mt-1">{label}</p>
     </div>
   )

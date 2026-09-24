@@ -112,6 +112,39 @@ periksa(kertasTata?.latar.length === 1 && kertasTata.latar[0]?.src === 'rId7' &&
 periksa(!cariSlot(bt).some(s => s.id === `p${bt.length - 1}.0`), 'blok kertas tidak menghasilkan slot')
 periksa(kertasDari(blok)?.latar.length === 2, 'dokumen dua halaman → dua entri latar')
 
+console.log('\n## Hiasan huruf & garis')
+// Dari template ATS: isian merah tebal-miring, "Barakallah" tebal-miring di
+// tengah kalimat hitam, nama koordinator bergaris bawah, salam miring, dan
+// garis gambar di bawah "     Dikeluarkan di:" (lima spasi di depannya).
+const runH = (teks: string, rPr: string) => `<w:r><w:rPr>${rPr}</w:rPr><w:t xml:space="preserve">${teks}</w:t></w:r>`
+const kalimatHias = p(
+  runH('Alhamdulillah', '<w:i/>'), run(', capaian Ananda '),
+  runH('Surat Al-', '<w:b/><w:i/><w:color w:val="EE0000"/>'), runH('Qiyamah', '<w:b/><w:i/><w:color w:val="EE0000"/>'),
+  run('. '), runH('Barakallah', '<w:b/><w:i/>'), run(' ya.'),
+)
+const potH = potonganParagraf(kalimatHias)!
+periksa(potH.filter(x => x.merah).length === 1 && potH.find(x => x.merah)?.teks === 'Surat Al-Qiyamah',
+  'hiasan tidak memecah isian merah (tetap satu slot)')
+periksa(!!potH.find(x => x.merah)?.hias?.b && !!potH.find(x => x.merah)?.hias?.i, 'isian merah membawa hiasannya (tebal-miring)')
+periksa(potH[0].bagian?.[0]?.teks === 'Alhamdulillah' && !!potH[0].bagian?.[0]?.i && !potH[0].bagian?.[1]?.i,
+  'potongan hitam berhias campur dirinci per bagian')
+periksa(potH[2].bagian?.some(g => g.teks.startsWith('Barakallah') && g.b && g.i) === true, 'kata tebal-miring di tengah kalimat hitam')
+
+const xmlHias = `<w:document><w:body>
+  ${p(runH('Assalamu’alaikum', '<w:i/>'), runH(' warahmatullahi', '<w:i/>'))}
+  <w:p><w:r><w:drawing><wp:anchor behindDoc="0"><wp:positionH relativeFrom="column"><wp:posOffset>3685157</wp:posOffset></wp:positionH><wp:positionV relativeFrom="paragraph"><wp:posOffset>174781</wp:posOffset></wp:positionV><wp:extent cx="1846052" cy="8626"/><a:prstGeom prst="line"/><wps:style><a:lnRef idx="1"/></wps:style></wp:anchor></w:drawing></w:r>${run('     Dikeluarkan di: Bantul')}</w:p>
+  ${p(runH('Maulana Achmad, M.Ag', '<w:u w:val="single"/>'))}
+  <w:sectPr><w:pgSz w:w="11920" w:h="18720"/><w:pgMar w:top="1640" w:right="900" w:bottom="280" w:left="1220"/></w:sectPr>
+</w:body></w:document>`
+const bh = bacaDocument(xmlHias)
+const [salam, dikeluarkan, nama] = bh
+periksa(salam.jenis === 'paragraf' && !!salam.hias?.[0]?.i, 'salam miring')
+periksa(nama.jenis === 'paragraf' && !!nama.hias?.[0]?.u, 'nama koordinator bergaris bawah')
+periksa(dikeluarkan.jenis === 'paragraf' && dikeluarkan.garis?.length === 1 && Math.abs(dikeluarkan.garis[0].lebar - 145.36) < 0.01
+  && dikeluarkan.garis[0].tebal === 0.5 && Math.abs(dikeluarkan.garis[0].kiri - 290.17) < 0.01, 'garis gambar terbaca: lebar, tebal tema, letak dari margin')
+periksa(dikeluarkan.jenis === 'paragraf' && dikeluarkan.segmen[0] === 'Dikeluarkan di: Bantul' && dikeluarkan.tata?.awal === 5 * 0.25 * 11,
+  'spasi di awal baris menjadi inden, bukan teks')
+
 console.log('\n## Isi awal')
 periksa(awalIsianBawaan({ contoh: 'Sangat baik' }) === 'contoh', 'frasa umum → contoh template')
 periksa(awalIsianBawaan({ contoh: 'Surat Al-Qiyamah ayat 34' }) === 'kosong', 'contoh berangka (data anak lain) → kosong')

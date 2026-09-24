@@ -1,8 +1,9 @@
-import type { CSSProperties, ReactNode } from 'react'
+import type { CSSProperties, ReactElement, ReactNode } from 'react'
 import { cariSlot, idIsian, ikutHuruf, tebakDariLabel, type KodeMedan, type Slot } from '@/lib/rapor/medan'
-import { kertasDari, type Blok, type BlokKertas, type Potongan } from '@/lib/rapor/docx'
-import { TUNGGAL, type Tata } from '@/lib/rapor/tata'
+import { kertasDari, type Blok, type BlokKertas, type Hias, type Potongan } from '@/lib/rapor/docx'
+import { TUNGGAL, type Garis, type Tata } from '@/lib/rapor/tata'
 import { cn } from '@/lib/utils'
+import { SkalaMuat } from '@/components/rapor/SkalaMuat'
 
 /**
  * Lembar rapor — hasil terjemahan template Word koordinator.
@@ -38,6 +39,11 @@ interface Props {
   riyadhoh?: boolean
   /** Url kop surat per path penyimpanan (lihat urlLatar). Kosong = tanpa kop. */
   latar?: Record<string, string | null>
+  /**
+   * Perkecil tiap halaman supaya muat utuh di layar (pratinjau koordinator).
+   * Hanya berlaku di layar dan hanya untuk lembar ber-tata-letak Word.
+   */
+  muat?: boolean
   className?: string
 }
 
@@ -75,6 +81,36 @@ function gayaTata(t: Tata | undefined, opsi: { flex?: boolean } = {}): CSSProper
         ? `max(${TUNGGAL}em, ${t.barisMin}pt)`
         : String(+(TUNGGAL * (t.baris ?? 1)).toFixed(3)),
   }
+}
+
+/** Tebal / miring / garis bawah dari template Word → kelas CSS. */
+function kelasHias(h: Hias | null | undefined): string | undefined {
+  return h ? cn(h.b && 'font-bold', h.i && 'italic', h.u && 'underline decoration-1 underline-offset-2') || undefined : undefined
+}
+
+/**
+ * Garis gambar Word (Insert → Shapes → Line) di atas paragraf jangkarnya.
+ * Pembungkusnya harus `relative` dan selebar bidang tulis: `kiri` diukur
+ * dari margin kiri, `atas` dari atas paragraf.
+ */
+function gambarGaris(garis: Garis[] | undefined): ReactNode {
+  return garis?.map((g, k) => {
+    const tegak = g.tinggi > g.lebar
+    return (
+      <span
+        key={k}
+        aria-hidden
+        className="pointer-events-none absolute"
+        style={{
+          left: `${g.kiri}pt`,
+          top: `${g.atas}pt`,
+          width: tegak ? 0 : `${g.lebar}pt`,
+          height: tegak ? `${g.tinggi}pt` : 0,
+          [tegak ? 'borderLeft' : 'borderTop']: `${g.tebal}pt solid ${g.warna}`,
+        }}
+      />
+    )
+  })
 }
 
 /**
@@ -134,7 +170,7 @@ function isiPotongan(
   return kode === 'sapaan_pengampu' || kode === 'sapaan_siswa' ? ikutHuruf(s.contoh, v) : v
 }
 
-export function LembarRapor({ blok, pemetaan, nilai, tandai, ttd, isian, riyadhoh, latar, className }: Props) {
+export function LembarRapor({ blok, pemetaan, nilai, tandai, ttd, isian, riyadhoh, latar, muat, className }: Props) {
   // Slot dihitung ulang dari blok yang sama dengan yang dipakai saat memetakan,
   // jadi id-nya pasti cocok — tidak ada daftar slot kedua yang bisa basi.
   const slot = new Map(cariSlot(blok).map(s => [s.id, s]))
@@ -154,9 +190,13 @@ export function LembarRapor({ blok, pemetaan, nilai, tandai, ttd, isian, riyadho
   const kalimat = (potongan: Potongan[], id: (m: number) => string) => {
     let m = 0
     return potongan.map((p, j) => {
-      if (!p.merah) return <span key={j}>{p.teks}</span>
+      if (!p.merah) {
+        if (p.bagian) return <span key={j}>{p.bagian.map((g, k) => <span key={k} className={kelasHias(g)}>{g.teks}</span>)}</span>
+        return <span key={j} className={kelasHias(p.hias)}>{p.teks}</span>
+      }
+      // Data pengganti tercetak dengan hiasan isian merah yang digantikannya.
       const teks = isiPotongan(slot.get(id(m++)), pemetaan, nilai, isian)
-      return <span key={j} className={sorot(true)}>{teks}</span>
+      return <span key={j} className={cn(sorot(true), kelasHias(p.hias))}>{teks}</span>
     })
   }
 
@@ -180,9 +220,12 @@ export function LembarRapor({ blok, pemetaan, nilai, tandai, ttd, isian, riyadho
     if (b.jenis === 'jeda') {
       const kode = pemetaan[`j${i}`]
       const tinggi = b.tinggi !== undefined ? `${b.tinggi.toFixed(1)}pt` : `${(b.baris * 1.6).toFixed(1)}em`
-      if (!adalahTtd(kode)) return <div key={i} aria-hidden style={{ height: tinggi }} />
+      if (!adalahTtd(kode)) {
+        return <div key={i} aria-hidden className={cn(b.garis && 'relative')} style={{ height: tinggi }}>{gambarGaris(b.garis)}</div>
+      }
       return (
-        <div key={i} className="flex items-end justify-between gap-6" style={{ minHeight: tinggi }}>
+        <div key={i} className="relative flex items-end justify-between gap-6" style={{ minHeight: tinggi }}>
+          {gambarGaris(b.garis)}
           {gambarTtd(kode, ttd).map((g, j) => (
             <span key={j} className={cn('flex-1', g.posisi === 'kanan' && 'text-right', g.posisi === 'tengah' && 'text-center')}>
               {g.src
@@ -292,7 +335,7 @@ export function LembarRapor({ blok, pemetaan, nilai, tandai, ttd, isian, riyadho
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           {src ? <img src={src} alt="" className="max-h-[3.4em] max-w-[160px] object-contain" /> : null}
                         </span>
-                        <span className={sorot(true)}>{sel || ' '}</span>
+                        <span className={cn(sorot(true), kelasHias(t?.hiasSel?.[r]?.[c]?.find(Boolean)))}>{sel || ' '}</span>
                       </td>
                     )
                   }
@@ -303,14 +346,17 @@ export function LembarRapor({ blok, pemetaan, nilai, tandai, ttd, isian, riyadho
                   // selnya: "nama" dan "NIY" dua baris, Enter kosong tetap ruang.
                   const paragraf = t?.paragrafSel?.[r]?.[c]
                   const jarak = pt(t?.jarakSel?.[r]?.[c])
+                  const hiasP = t?.hiasSel?.[r]?.[c]
+                  // Satu baris (atau diganti data): hiasan paragraf pertama yang berhias.
+                  const hiasSatu = hiasP?.find(Boolean) ?? null
                   return (
                     <td key={c} className={kelasSel} style={gayaSel} data-latar={warna ? '' : undefined}>
                       {teks === sel && paragraf && paragraf.length > 1 ? (
                         <span className={cn('block', sorot(terisi))}>
-                          {paragraf.map((p, k) => <span key={k} className="block" style={{ paddingTop: jarak }}>{p || ' '}</span>)}
+                          {paragraf.map((p, k) => <span key={k} className={cn('block', kelasHias(hiasP?.[k]))} style={{ paddingTop: jarak }}>{p || ' '}</span>)}
                         </span>
                       ) : (
-                        <span className={cn(sorot(terisi), jarak && 'block')} style={jarak ? { paddingTop: jarak } : undefined}>{teks || ' '}</span>
+                        <span className={cn(sorot(terisi), jarak && 'block', kelasHias(hiasSatu))} style={jarak ? { paddingTop: jarak } : undefined}>{teks || ' '}</span>
                       )}
                     </td>
                   )
@@ -325,16 +371,21 @@ export function LembarRapor({ blok, pemetaan, nilai, tandai, ttd, isian, riyadho
     const berisi = b.segmen.filter(Boolean)
     if (berisi.length === 0) return <p key={i}>&nbsp;</p>
 
+    // Paragraf berjangkar garis gambar dibungkus supaya garisnya bisa
+    // diletakkan relatif terhadap paragraf itu.
+    const bungkus = (el: ReactElement) => (b.garis ? <div key={i} className="relative">{el}{gambarGaris(b.garis)}</div> : el)
+    const h = b.hias
+
     const rataKelas =
       b.rata === 'tengah' ? 'text-center' : b.rata === 'kanan' ? 'text-right' : b.rata === 'rata' ? 'text-justify' : ''
     const t = b.tata
 
     // Kalimat berisian merah — dipetakan per potongan oleh cariSlot.
     if (b.potongan && slot.has(idIsian(i, null, 0))) {
-      return (
+      return bungkus(
         <p key={i} className={cn(rataKelas, b.tebal && 'font-bold')} style={gayaTata(t)}>
           {kalimat(b.potongan, m => idIsian(i, null, m))}
-        </p>
+        </p>,
       )
     }
 
@@ -343,17 +394,22 @@ export function LembarRapor({ blok, pemetaan, nilai, tandai, ttd, isian, riyadho
     // tab-stopnya terbaca, lebar label = jarak tab-stop dari inden kiri.
     const barisIdentitas = b.segmen.some(s => s.startsWith(':'))
     if (barisIdentitas) {
-      const label = b.segmen.find(Boolean) ?? ''
+      const iLabel = b.segmen.findIndex(Boolean)
+      const label = b.segmen[iLabel] ?? ''
       const iNilai = b.segmen.findIndex(s => s.startsWith(':'))
       const { teks, terisi } = isiSlot(`p${i}.${iNilai}`, b.segmen[iNilai].replace(/^:\s*/, ''), ': ', pemetaan, nilai)
       const lebarLabel = t?.tab !== undefined ? t.tab - (t.kiri ?? 0) - (t.awal ?? 0) : undefined
-      return (
+      return bungkus(
         <div key={i} className={cn('flex', !t && 'gap-1', b.tebal && 'font-bold')} style={gayaTata(t, { flex: true })}>
-          <span className={cn('shrink-0', lebarLabel === undefined && 'w-[42%]')} style={lebarLabel ? { minWidth: pt(lebarLabel) } : undefined}>
+          <span className={cn('shrink-0', lebarLabel === undefined && 'w-[42%]', kelasHias(h?.[iLabel]))} 
+            // Padding di DALAM min-width (border-box): label yang muat tetap
+            // berhenti tepat di tab-stop; label yang kelebihan — Word lalu
+            // melompat ke tab-stop berikutnya — tidak menempel ke titik dua.
+            style={lebarLabel ? { minWidth: pt(lebarLabel), paddingRight: '0.5em' } : undefined}>
             {label}
           </span>
-          <span className={sorot(terisi)}>{teks}</span>
-        </div>
+          <span className={cn(sorot(terisi), kelasHias(h?.[iNilai]))}>{teks}</span>
+        </div>,
       )
     }
 
@@ -365,23 +421,23 @@ export function LembarRapor({ blok, pemetaan, nilai, tandai, ttd, isian, riyadho
       // kali di pratinjau: "Dikeluarkan di : Dikeluarkan di : Bantul".
       const sl = slot.get(`p${i}.${s}`)
       const { teks, terisi } = isiSlot(`p${i}.${s}`, sl?.prefiks ? sl.contoh : b.segmen[s], sl?.prefiks ?? '', pemetaan, nilai)
-      return (
+      return bungkus(
         <p key={i} className={cn(rataKelas, b.tebal && 'font-bold')} style={gayaTata(t)}>
-          <span className={sorot(terisi)}>{teks}</span>
-        </p>
+          <span className={cn(sorot(terisi), kelasHias(h?.[s]))}>{teks}</span>
+        </p>,
       )
     }
 
     // Beberapa segmen tanpa titik dua: blok berkolom — tanda tangan.
-    return (
+    return bungkus(
       <div key={i} className={cn('flex justify-between gap-6', b.tebal && 'font-bold')} style={gayaTata(t, { flex: true })}>
         {b.segmen.map((seg, s) => {
           if (!seg) return null
           const sl = slot.get(`p${i}.${s}`)
           const { teks, terisi } = isiSlot(`p${i}.${s}`, sl?.prefiks ? sl.contoh : seg, sl?.prefiks ?? '', pemetaan, nilai)
-          return <span key={s} className={sorot(terisi)}>{teks}</span>
+          return <span key={s} className={cn(sorot(terisi), kelasHias(h?.[s]))}>{teks}</span>
         })}
-      </div>
+      </div>,
     )
   }
 
@@ -395,6 +451,7 @@ export function LembarRapor({ blok, pemetaan, nilai, tandai, ttd, isian, riyadho
         label={i => (pratinjau && pemetaan[`h${i}`] === 'halaman_riyadhoh' ? 'Halaman berikut hanya dicetak untuk peserta Riyadhoh' : null)}
         gambarBlok={gambarBlok}
         pemetaan={pemetaan}
+        muat={muat}
         className={className}
       />
     )
@@ -416,7 +473,7 @@ export function LembarRapor({ blok, pemetaan, nilai, tandai, ttd, isian, riyadho
  * kertas berikutnya saat dicetak — terlihat, bukan diam-diam terpotong.
  */
 function LembarKertas({
-  blok, kertas, latar, disembunyikan, label, gambarBlok, pemetaan, className,
+  blok, kertas, latar, disembunyikan, label, gambarBlok, pemetaan, muat, className,
 }: {
   blok: Blok[]
   kertas: BlokKertas
@@ -425,6 +482,7 @@ function LembarKertas({
   label: (iHalaman: number) => string | null
   gambarBlok: (b: Blok, i: number) => ReactNode
   pemetaan: Record<string, KodeMedan>
+  muat?: boolean
   className?: string
 }) {
   const { lebar, tinggi, margin, huruf } = kertas.kertas
@@ -458,9 +516,7 @@ function LembarKertas({
         const l = kertas.latar[k]
         const src = l ? latar?.[l.src] : null
         const teksLabel = h.mulai >= 0 ? label(h.mulai) : null
-        return (
-          <div key={k} className="overflow-x-auto print:overflow-visible">
-            {teksLabel && <p className="mb-1 text-center text-xs text-muted-foreground print:hidden">{teksLabel}</p>}
+        const lembar = (
             <section
               className="rapor-kertas relative mx-auto overflow-hidden bg-white text-black shadow-sm ring-1 ring-black/5 print:shadow-none print:ring-0"
               style={{
@@ -485,6 +541,11 @@ function LembarKertas({
               )}
               <div className="relative">{h.isi.map(i => gambarBlok(blok[i], i))}</div>
             </section>
+        )
+        return (
+          <div key={k} className={cn(!muat && 'overflow-x-auto', 'print:overflow-visible')}>
+            {teksLabel && <p className="mb-1 text-center text-xs text-muted-foreground print:hidden">{teksLabel}</p>}
+            {muat ? <SkalaMuat>{lembar}</SkalaMuat> : lembar}
           </div>
         )
       })}

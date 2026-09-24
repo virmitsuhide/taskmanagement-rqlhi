@@ -8,6 +8,7 @@ import {
   FileText, User, Megaphone, LogOut, ChevronRight, GraduationCap, Newspaper, LayoutGrid,
   Users, UserCog, BookMarked, BarChart3, LayoutTemplate, Info, Wallet, CalendarRange, CalendarDays,
   ClipboardCheck, KeyRound, ScrollText, Repeat, IdCard, UsersRound, Briefcase, Stamp, Scale, ListChecks, Kanban,
+  PanelLeftClose, PanelLeftOpen,
 } from 'lucide-react'
 import { DASHBOARD_LABELS, getAccessibleDashboards, ROLE_LABELS , canManageTeacherProfiles } from '@/lib/auth/permissions'
 import {
@@ -20,6 +21,9 @@ import {
 import type { UserRole } from '@/types'
 import { logoutAction } from '@/app/actions/auth'
 import { Logo } from '@/components/brand/Logo'
+import {
+  useSidebarCiut, SEMBUNYI_SAAT_CIUT, HILANG_SAAT_CIUT, TAUTAN_CIUT, LENCANA_CIUT,
+} from './sidebar-ciut'
 
 interface Props {
   role: UserRole
@@ -32,6 +36,8 @@ interface Props {
    * menembak database dari peramban tiap kali menunya digambar.
    */
   lencanaKpi?: { publikasi: number; banding: number }
+  /** Sidebar diciutkan jadi deretan ikon — dibaca AppShell dari cookie. */
+  ciutAwal?: boolean
 }
 
 const DASHBOARD_ICONS: Record<string, React.ReactNode> = {
@@ -47,8 +53,9 @@ const DASHBOARD_ICONS: Record<string, React.ReactNode> = {
   pribadi: <LayoutDashboard className="h-4 w-4" />,
 }
 
-export function Sidebar({ role, displayName, username, lencanaKpi }: Props) {
+export function Sidebar({ role, displayName, username, lencanaKpi, ciutAwal = false }: Props) {
   const pathname = usePathname()
+  const [ciut, gantiCiut] = useSidebarCiut(ciutAwal)
   const dashboards = getAccessibleDashboards(role)
 
   function isActive(href: string) {
@@ -56,21 +63,34 @@ export function Sidebar({ role, displayName, username, lencanaKpi }: Props) {
   }
 
   return (
-    <aside className="flex h-full w-64 flex-col border-r bg-sidebar text-sidebar-foreground">
-      {/* Logo / Brand */}
-      <div className="flex items-center gap-2.5 border-b px-4 py-4">
+    <aside
+      data-ciut={ciut}
+      className="group/sb flex h-full w-64 flex-col border-r bg-sidebar text-sidebar-foreground transition-[width] duration-200 data-[ciut=true]:w-16"
+    >
+      {/* Logo / Brand — saat ciut logo & tombolnya bertumpuk */}
+      <div className="flex items-center gap-2.5 border-b px-4 py-4 group-data-[ciut=true]/sb:flex-col group-data-[ciut=true]/sb:px-2">
         <Logo size={36} alt="" className="shadow-sm" />
-        <div className="min-w-0">
+        <div className={cn('min-w-0', SEMBUNYI_SAAT_CIUT)}>
           <p className="text-sm font-semibold leading-none">RQ LHI</p>
           <p className="text-[11px] text-sidebar-foreground/60 mt-1 truncate">{ROLE_LABELS[role]}</p>
         </div>
+        <button
+          type="button"
+          onClick={gantiCiut}
+          aria-label={ciut ? 'Lebarkan menu' : 'Ciutkan menu'}
+          aria-expanded={!ciut}
+          title={ciut ? 'Lebarkan menu' : 'Ciutkan menu'}
+          className="ml-auto rounded-md p-1.5 text-sidebar-foreground/60 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground group-data-[ciut=true]/sb:ml-0"
+        >
+          {ciut ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+        </button>
       </div>
 
       {/* Navigation */}
-      <nav aria-label="Navigasi utama" className="flex-1 overflow-y-auto px-3 py-4 space-y-6">
+      <nav aria-label="Navigasi utama" className="flex-1 overflow-y-auto overflow-x-hidden px-3 py-4 space-y-6 group-data-[ciut=true]/sb:px-2 group-data-[ciut=true]/sb:[scrollbar-width:none]">
         {/* Dashboard section */}
         <div>
-          <p className="px-2 mb-2 text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/50">
+          <p className={cn('px-2 mb-2 text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/50', SEMBUNYI_SAAT_CIUT)}>
             Dashboard
           </p>
           <ul className="space-y-1">
@@ -78,18 +98,19 @@ export function Sidebar({ role, displayName, username, lencanaKpi }: Props) {
               <li key={slug}>
                 <Link
                   href={`/dashboard/${slug}`}
+                  title={DASHBOARD_LABELS[slug]}
                   aria-current={isActive(`/dashboard/${slug}`) ? 'page' : undefined}
                   className={cn(
-                    'flex items-center gap-2.5 rounded-md px-2 py-2 text-sm transition-colors',
+                    'flex items-center gap-2.5 rounded-md px-2 py-2 text-sm transition-colors', TAUTAN_CIUT,
                     isActive(`/dashboard/${slug}`)
                       ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium'
                       : 'text-sidebar-foreground hover:bg-sidebar-accent/50'
                   )}
                 >
                   {DASHBOARD_ICONS[slug]}
-                  {DASHBOARD_LABELS[slug]}
+                  <span className={cn('truncate', SEMBUNYI_SAAT_CIUT)}>{DASHBOARD_LABELS[slug]}</span>
                   {isActive(`/dashboard/${slug}`) && (
-                    <ChevronRight className="ml-auto h-3 w-3" />
+                    <ChevronRight className={cn('ml-auto h-3 w-3', HILANG_SAAT_CIUT)} />
                   )}
                 </Link>
               </li>
@@ -144,7 +165,7 @@ export function Sidebar({ role, displayName, username, lencanaKpi }: Props) {
 
         {/* Fitur section */}
         <div>
-          <p className="px-2 mb-2 text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/50">
+          <p className={cn('px-2 mb-2 text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/50', SEMBUNYI_SAAT_CIUT)}>
             Fitur
           </p>
           <ul className="space-y-1">
@@ -193,7 +214,7 @@ export function Sidebar({ role, displayName, username, lencanaKpi }: Props) {
         {/* Tahsin & Tahfidz section */}
         {(canViewStudents(role) || canViewHalaqoh(role) || canViewTeachers(role) || canViewTerms(role) || canViewUjian(role)) && (
           <div>
-            <p className="px-2 mb-2 text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/50">
+            <p className={cn('px-2 mb-2 text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/50', SEMBUNYI_SAAT_CIUT)}>
               Tahsin &amp; Tahfidz
             </p>
             <ul className="space-y-1">
@@ -260,16 +281,17 @@ export function Sidebar({ role, displayName, username, lencanaKpi }: Props) {
         )}
         <Link
           href="/profil"
+          title={`${displayName} — profil`}
           aria-current={isActive('/profil') ? 'page' : undefined}
           className={cn(
-            'flex items-center gap-2.5 rounded-md px-2 py-2 text-sm transition-colors',
+            'flex items-center gap-2.5 rounded-md px-2 py-2 text-sm transition-colors', TAUTAN_CIUT,
             isActive('/profil')
               ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium'
               : 'text-sidebar-foreground hover:bg-sidebar-accent/50'
           )}
         >
           <User className="h-4 w-4" />
-          <div className="flex-1 min-w-0">
+          <div className={cn('flex-1 min-w-0', SEMBUNYI_SAAT_CIUT)}>
             <p className="truncate font-medium">{displayName}</p>
             <p className="truncate text-xs text-sidebar-foreground/60">@{username}</p>
           </div>
@@ -277,10 +299,11 @@ export function Sidebar({ role, displayName, username, lencanaKpi }: Props) {
         <form action={logoutAction}>
           <button
             type="submit"
-            className="flex w-full items-center gap-2.5 rounded-md px-2 py-2 text-sm text-sidebar-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+            title="Keluar"
+            className={cn('flex w-full items-center gap-2.5 rounded-md px-2 py-2 text-sm text-sidebar-foreground hover:bg-destructive/10 hover:text-destructive transition-colors', TAUTAN_CIUT)}
           >
             <LogOut className="h-4 w-4" />
-            Keluar
+            <span className={SEMBUNYI_SAAT_CIUT}>Keluar</span>
           </button>
         </form>
       </div>
@@ -302,22 +325,23 @@ function NavItem({
     <li>
       <Link
         href={href}
+        title={label}
         aria-current={active ? 'page' : undefined}
         className={cn(
-          'flex items-center gap-2.5 rounded-md px-2 py-2 text-sm transition-colors',
+          'flex items-center gap-2.5 rounded-md px-2 py-2 text-sm transition-colors', TAUTAN_CIUT,
           active
             ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium'
             : 'text-sidebar-foreground hover:bg-sidebar-accent/50'
         )}
       >
         {icon}
-        {label}
+        <span className={cn('truncate', SEMBUNYI_SAAT_CIUT)}>{label}</span>
         {badge ? (
-          <span className="ml-auto min-w-[18px] rounded-full bg-primary px-1.5 py-0.5 text-center text-[10px] font-semibold leading-none text-primary-foreground">
+          <span className={cn(LENCANA_CIUT, 'ml-auto min-w-[18px] rounded-full bg-primary px-1.5 py-0.5 text-center text-[10px] font-semibold leading-none text-primary-foreground')}>
             {badge > 9 ? '9+' : badge}
           </span>
         ) : active ? (
-          <ChevronRight className="ml-auto h-3 w-3" />
+          <ChevronRight className={cn('ml-auto h-3 w-3', HILANG_SAAT_CIUT)} />
         ) : null}
       </Link>
     </li>

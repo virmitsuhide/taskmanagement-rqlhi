@@ -17,8 +17,10 @@ import { AWAL_JUZ_MUSHAF, halamanPerJuz } from '../lib/rq/halaman'
 import {
   RENCANA, URUTAN_RENCANA, buatKurva, buatPetaHalaman, capaianSiswa, formatPosisi, kalenderBawaan,
   pilihRencana, posisiPada, progresKalender, semesterKurva, statusTerhadapTarget, targetHalaman, tingkatMelampaui,
-  tindakLanjutMurojaah, type PetaHalaman,
+  tindakLanjutMurojaah, rincianHafalan, type PetaHalaman,
 } from '../lib/rq/target-tahfidz'
+import { formatCapaian } from '../lib/rq/halaman'
+import { halamanRentang, rekapMurojaah } from '../lib/rq/murojaah'
 
 config({ path: '.env.local', quiet: true })
 
@@ -165,6 +167,52 @@ async function main() {
   periksa(tingkatMelampaui(1) === null && tingkatMelampaui(1.1) === 'melampaui' && tingkatMelampaui(20) === 'melampaui', 'melampaui: > 1 halaman s/d 1 juz')
   periksa(tingkatMelampaui(20.5) === 'sangat_melampaui' && tingkatMelampaui(40) === 'sangat_melampaui', 'sangat melampaui: > 1 s/d 2 juz')
   periksa(tingkatMelampaui(40.5) === 'sangat_jauh_melampaui', 'sangat jauh melampaui: > 2 juz')
+
+  console.log('\n## Total hafalan menurut urutan jenjang')
+  // PAUD & SD menghafal juz 30 dari An-Nas mundur; SMP & SMA dari An-Naba maju.
+  // Anak yang setoran tercatatnya baru 'Abasa 1–10 (surah sebelumnya disetor
+  // sebelum sistem dipakai) tetap dianggap sudah melewati materi sebelumnya.
+  const abasa = [{ surat_id: 80, ayat_dari: 1, ayat_ke: 10 }]
+  const sd = rincianHafalan(peta, 0, abasa, 'sd')
+  const smp = rincianHafalan(peta, 0, abasa, 'smp')
+  const sisaSd = halamanPerJuz(30) - sd.halaman
+  console.log(`  SD sampai 'Abasa 10: ${f(sd.halaman)} hlm (${formatCapaian(sd.capaian)}), sisa juz 30 ${f(sisaSd)} hlm`)
+  console.log(`  SMP sampai 'Abasa 10: ${f(smp.halaman)} hlm (${formatCapaian(smp.capaian)})`)
+  periksa(sisaSd > 2.5 && sisaSd < 4.5, "SD di 'Abasa: juz 30 tinggal ±4 halaman (An-Naba, An-Nazi'at, sisa 'Abasa)")
+  periksa(smp.halaman > 2 && smp.halaman < 4.5, "SMP di 'Abasa: baru An-Naba, An-Nazi'at & awal 'Abasa")
+  periksa(rincianHafalan(peta, 0, abasa, 'paud').halaman === sd.halaman && rincianHafalan(peta, 0, abasa, 'sma').halaman === smp.halaman,
+    'PAUD searah SD, SMA searah SMP')
+  const anNas = rincianHafalan(peta, 0, [{ surat_id: 114, ayat_dari: 1, ayat_ke: 6 }], 'sd')
+  periksa(anNas.halaman < 1, 'SD yang baru An-Nas tidak dianggap hafal juz 30')
+  const naba = rincianHafalan(peta, 0, [{ surat_id: 78, ayat_dari: 1, ayat_ke: 40 }], 'sd')
+  periksa(naba.capaian.juz === 1 && naba.capaian.halaman === 0, 'SD tuntas An-Naba → 1 juz utuh')
+  const mulk = rincianHafalan(peta, 0, [{ surat_id: 67, ayat_dari: 1, ayat_ke: 30 }], 'smp')
+  periksa(mulk.capaian.juz === 1 && mulk.capaian.halaman >= 2, 'SMP di akhir Al-Mulk → juz 30 utuh + Al-Mulk')
+  const baqarah = rincianHafalan(peta, 1, [{ surat_id: 2, ayat_dari: 1, ayat_ke: 5 }], 'sd')
+  periksa(baqarah.capaian.juz >= 5, 'setoran Al-Baqarah = juz 30–26 sudah dilewati (urutan RQ)')
+  periksa(rincianHafalan(peta, 0, [], 'sd').halaman === 0, 'tanpa setoran & ujian → 0')
+
+  console.log("\n## Halaman muroja'ah (volume baca)")
+  const mulkUtuh = halamanRentang(peta, { surat_id: 67, ayat_dari: 1, surat_ke_id: null, ayat_ke: 30 })
+  const qalamUtuh = halamanRentang(peta, { surat_id: 68, ayat_dari: 1, surat_ke_id: null, ayat_ke: 52 })
+  const mulkQalam = halamanRentang(peta, { surat_id: 67, ayat_dari: 1, surat_ke_id: 68, ayat_ke: 52 })
+  console.log(`  Al-Mulk ${f(mulkUtuh)} hlm · Al-Qalam ${f(qalamUtuh)} hlm · Al-Mulk 1 – Al-Qalam 52 ${f(mulkQalam)} hlm`)
+  periksa(mulkUtuh > 2 && mulkUtuh < 3.2, 'Al-Mulk utuh ±2½ halaman')
+  periksa(dekat(mulkQalam, mulkUtuh + qalamUtuh, 1e-9), 'lintas surat = jumlah surat-suratnya')
+  periksa(dekat(halamanRentang(peta, { surat_id: 114, ayat_dari: 1, surat_ke_id: 112, ayat_ke: 4 }),
+    halamanRentang(peta, { surat_id: 112, ayat_dari: 1, surat_ke_id: 114, ayat_ke: 6 }), 1e-9), 'lintas surat mundur (An-Nas → Al-Ikhlas) = maju')
+  periksa(dekat(halamanRentang(peta, { surat_id: 67, ayat_dari: null, surat_ke_id: null, ayat_ke: null }), mulkUtuh, 1e-9), 'ayat kosong = surat utuh')
+  const rekap = rekapMurojaah(peta, [
+    { kind: 'murojaah_baru', surat_id: 67, ayat_dari: 1, surat_ke_id: null, ayat_ke: 30 },
+    { kind: 'murojaah_baru', surat_id: 67, ayat_dari: 1, surat_ke_id: null, ayat_ke: 30 },
+    { kind: 'murojaah', surat_id: 67, ayat_dari: 1, surat_ke_id: null, ayat_ke: 30 },
+    { kind: 'murojaah_lama', surat_id: 78, ayat_dari: 1, surat_ke_id: 79, ayat_ke: 46 },
+    { kind: 'ziyadah', surat_id: 68, ayat_dari: 1, surat_ke_id: null, ayat_ke: 5 },
+    { kind: 'tasmi', surat_id: 78, ayat_dari: 1, surat_ke_id: null, ayat_ke: 40 },
+  ])
+  periksa(dekat(rekap.baru, 3 * mulkUtuh, 1e-9) && rekap.kaliBaru === 3, "volume baca: Al-Mulk 3× = 3 × halamannya ('murojaah' lama ikut muroja'ah baru)")
+  periksa(rekap.kaliLama === 1 && rekap.lama > 2, "muroja'ah lama terpisah dari baru")
+  periksa(rekap.kaliBaru + rekap.kaliLama === 4, "ziyadah & tasmi' bukan muroja'ah")
 
   console.log(`\n${gagal === 0 ? '✓ SEMUA LOLOS' : `✗ ${gagal} pemeriksaan GAGAL`}`)
   process.exitCode = gagal === 0 ? 0 : 1

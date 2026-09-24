@@ -304,7 +304,7 @@ export async function getTargetTahfidz(jenjangBoleh: Jenjang[], tanggal = tangga
     // Rencana sudah tuntas → hafalan sesudahnya (di luar rencana) ikut dihitung.
     const tuntasRencana = capaian.halaman >= kurva.total - 1e-6
     const diLuarRencana = tuntasRencana
-      ? Math.max(0, halamanHafalan(peta, juzTuntas.get(r.id) ?? 0, ziyadahPerSiswa.get(r.id) ?? []) - kurva.total)
+      ? Math.max(0, halamanHafalan(peta, juzTuntas.get(r.id) ?? 0, ziyadahPerSiswa.get(r.id) ?? [], r.jenjang) - kurva.total)
       : 0
     const selisihHal = capaian.halaman + diLuarRencana - target.halaman
     const selisih = selisihPekan(capaian.halaman + diLuarRencana, target.halaman, target.semester.laju)

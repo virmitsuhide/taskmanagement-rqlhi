@@ -1,6 +1,7 @@
 import { createServerClient } from '@/lib/supabase/server'
 import { getPetaHalaman } from '@/lib/data/target-tahfidz'
-import { halamanHafalan } from '@/lib/rq/target-tahfidz'
+import { rincianHafalan } from '@/lib/rq/target-tahfidz'
+import { formatCapaian } from '@/lib/rq/halaman'
 import { getInfoSurat } from '@/lib/data/nama-surat'
 import { getJuzTerujiPerSiswa, gabungJuz, juzSetoranPerSiswa, type BarisJuzProgress } from '@/lib/data/hafalan'
 import { juzTerjauh, posisiJuz } from '@/lib/rq/hafalan'
@@ -248,7 +249,7 @@ export async function getBahanRaporSesi(
     const terakhir = ziyadahSemua.find(z => z.student_id === s.id)
     const juz = gabungJuz(setoranTuntas.get(s.id) ?? 0, (juzTeruji.get(s.id) ?? []).length)
     const sedang = juzTerjauh(progres.filter(p => p.student_id === s.id && p.ayat_hafal > 0).map(p => p.juz_number))
-    const totalHalaman = halamanHafalan(peta, juz.total, ziyadahSemua.filter(z => z.student_id === s.id))
+    const hafalan = rincianHafalan(peta, juz.total, ziyadahSemua.filter(z => z.student_id === s.id), s.jenjang)
     const isian = isianPer.get(s.id)
     const template = templateUntuk(templates, s.jenjang, s.kelas, jenis)
 
@@ -273,7 +274,9 @@ export async function getBahanRaporSesi(
         : '',
       juz_tuntas: juz.total > 0 ? `${juz.total} juz` : '',
       juz_berjalan: sedang !== null && (posisiJuz(sedang) ?? 0) > juz.total ? `Juz ${sedang}` : '',
-      total_hafalan: totalHalaman > 0 ? `${juz.total} juz ${Math.round(totalHalaman % 20)} halaman` : '',
+      // Dibulatkan ke bawah per aturan RQ, dengan panjang juz sebenarnya
+      // (juz 30 = 23 halaman) — bukan sisa bagi 20.
+      total_hafalan: hafalan.halaman > 0 ? formatCapaian(hafalan.capaian) : '',
 
       nilai_tahsin: angka(rerata(ts.map(l => l.nilai_tahsin))),
       nilai_tahfidz: angka(rerata(tf.map(l => l.nilai_tahfidz))),

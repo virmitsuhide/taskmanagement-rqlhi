@@ -4,10 +4,12 @@ import {
   Table2, HeartHandshake, UserCheck,
   FileText,
 } from 'lucide-react'
+import { cookies } from 'next/headers'
 import { getTeacherSession } from '@/lib/auth/teacher-session'
 import { bolehMengampuGukar } from '@/lib/data/gukar'
 import { getUnitUjianGuru } from '@/lib/data/ujian'
 import { TeacherNav, type TeacherNavGroup } from './TeacherNav'
+import { COOKIE_SIDEBAR_CIUT } from './sidebar-ciut-cookie'
 import { PengumumanBell } from '@/components/guru/PengumumanBell'
 import { getKonteksPengumuman, getPengumumanGuru } from '@/lib/data/pengumuman-guru'
 import { hitungRaporBaruGuru } from '@/lib/data/kpi-pengesahan'
@@ -33,7 +35,7 @@ export async function TeacherShell({ children }: { children: React.ReactNode }) 
   // halaman masuk tidak perlu menu yang belum boleh ia pakai.
   if (!session) return <>{children}</>
 
-  const [bolehGukar, unitUjian, konteks, raporBaru, notifUjian] = await Promise.all([
+  const [bolehGukar, unitUjian, konteks, raporBaru, notifUjian, kue] = await Promise.all([
     bolehMengampuGukar(session.teacherId),
     getUnitUjianGuru(session.teacherId),
     getKonteksPengumuman(session.teacherId),
@@ -45,6 +47,7 @@ export async function TeacherShell({ children }: { children: React.ReactNode }) 
     // Kabar pengajuan ujian (dijadwalkan/selesai) — ikut lonceng dan lencana
     // menu Pengajuan Ujian.
     getNotifUjianGuru(session.teacherId),
+    cookies(),
   ])
 
   // Diambil di kerangka, bukan di tiap halaman: loncengnya ada di bilah atas
@@ -107,6 +110,7 @@ export async function TeacherShell({ children }: { children: React.ReactNode }) 
     <TeacherNav
       fullName={session.fullName}
       groups={groups}
+      ciutAwal={kue.get(COOKIE_SIDEBAR_CIUT)?.value === '1'}
       bell={
         <PengumumanBell
           items={pengumuman.items}

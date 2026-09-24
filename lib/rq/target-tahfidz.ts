@@ -1,7 +1,6 @@
 import { TOTAL_HALAMAN, halamanDariAyat } from '@/lib/rq/batas-halaman'
-import { juzMushafDariAyat } from '@/lib/rq/halaman'
+import { AWAL_JUZ_MUSHAF, capaian, juzMushafDariAyat, type CapaianHafalan } from '@/lib/rq/halaman'
 import { URUTAN_JUZ, posisiJuz } from '@/lib/rq/hafalan'
-import { batasJuz, juzDariAyat } from '@/lib/rq/batas-juz'
 import { SURAH } from '@/lib/rq/quran'
 import type { Jenjang } from '@/types'
 
@@ -583,6 +582,49 @@ export function tindakLanjutMurojaah(
 }
 
 /**
+ * Jenjang yang menghafal juz 30 dari An-Nas MUNDUR ke An-Naba. SMP dan SMA
+ * sebaliknya: maju dari An-Naba ke An-Nas. Sama dengan rencana di atas —
+ * SDIT & QuLS memakai mundur(114, …), SMPIT memakai maju(78, 114).
+ */
+export function juz30Mundur(jenjang: Jenjang | null | undefined): boolean {
+  return jenjang === 'paud' || jenjang === 'sd' || jenjang === 'sd_juara'
+}
+
+/**
+ * Satu juz mushaf RQ, urut mushaf, sebagai rentang per surah. Memakai batas
+ * juz mushaf RQ (AWAL_JUZ_MUSHAF: juz 27 mulai Az-Zariyat 1), bukan batas
+ * standar — rencana QuLS menghafal Az-Zariyat utuh bersama juz 27.
+ */
+function rentangJuz(juz: number, peta: PetaHalaman): Segmen[] {
+  const [s0, a0] = AWAL_JUZ_MUSHAF[juz - 1]
+  const berikut = AWAL_JUZ_MUSHAF[juz]
+  let [s1, a1] = berikut ? berikut : [114, peta.panjang(114) + 1]
+  if (a1 > 1) a1 -= 1
+  else { s1 -= 1; a1 = peta.panjang(s1) }
+  const hasil: Segmen[] = []
+  for (let s = s0; s <= s1; s++) hasil.push({ surat: s, dari: s === s0 ? a0 : 1, ke: s === s1 ? a1 : peta.panjang(s) })
+  return hasil
+}
+
+/**
+ * Urutan hafalan seorang anak, dari ayat pertama yang ia hafal: juz 30 lebih
+ * dulu — mundur (PAUD, SD) atau maju (SMP, SMA) per surah, tiap surah dari
+ * ayat 1 — lalu juz berikutnya menurut URUTAN_JUZ, masing-masing urut mushaf.
+ */
+export function urutanHafalanJenjang(jenjang: Jenjang | null | undefined, peta: PetaHalaman): Segmen[] {
+  const juz30 = rentangJuz(30, peta)
+  const hasil = juz30Mundur(jenjang) ? [...juz30].reverse() : juz30
+  for (const juz of URUTAN_JUZ) if (juz !== 30) hasil.push(...rentangJuz(juz, peta))
+  return hasil
+}
+
+/** Rincian total hafalan: halaman seluruhnya, dan capaian dalam juz utuh + halaman. */
+export interface RincianHafalan {
+  halaman: number
+  capaian: CapaianHafalan
+}
+
+/**
  * Total hafalan dalam halaman mushaf menurut URUTAN HAFALAN RQ — tanpa
  * dibatasi rencana program siswa.
  *
@@ -592,35 +634,79 @@ export function tindakLanjutMurojaah(
  * tidak ada di kurvanya. Untuk peringkat "hafalan terbanyak" yang ditanyakan
  * adalah hafalannya, bukan posisinya terhadap rencana.
  *
- *   • juz yang tuntas (ujian/setoran, mana yang terjauh) → halaman juz itu penuh
- *   • juz lain → hanya ayat ziyadah yang pernah disetor, tiap ayat sekali
+ * Gabungan tiga sumber, tiap ayat dihitung sekali:
+ *   • juz yang tuntas (ujian/setoran, mana yang terjauh) → juz itu penuh;
+ *   • ayat ziyadah yang pernah disetor;
+ *   • SELURUH materi sebelum setoran ziyadah terjauh dalam urutan hafalan
+ *     jenjangnya (urutanHafalanJenjang). Kesepakatan lib/rq/hafalan.ts: anak
+ *     tidak melompati materi. Anak SD yang sampai 'Abasa sudah melewati
+ *     An-Nas s/d At-Takwir — juz 30-nya tinggal ±4 halaman — walau setoran
+ *     surah-surah itu tidak tercatat (terjadi sebelum sistem dipakai).
+ *     Tanpa sumber ini ia terbaca hanya hafal ayat yang tercatat saja.
  */
+export function rincianHafalan(
+  peta: PetaHalaman,
+  juzTuntas: number,
+  ziyadah: { surat_id: number; ayat_dari: number | null; ayat_ke: number | null }[],
+  jenjang: Jenjang | null | undefined,
+): RincianHafalan {
+  const hafal = new Map<number, Uint8Array>()
+  const tandai = (surat: number, dari: number, ke: number) => {
+    const n = peta.panjang(surat)
+    if (!n) return
+    let a = hafal.get(surat)
+    if (!a) hafal.set(surat, (a = new Uint8Array(n + 1)))
+    for (let i = Math.max(1, dari); i <= Math.min(n, ke); i++) a[i] = 1
+  }
+
+  for (const juz of URUTAN_JUZ.slice(0, Math.max(0, juzTuntas))) {
+    for (const r of rentangJuz(juz, peta)) tandai(r.surat, r.dari, r.ke!)
+  }
+
+  const urutan = urutanHafalanJenjang(jenjang, peta)
+  let terjauh: { i: number; ayat: number } | null = null
+  for (const z of ziyadah) {
+    if (z.ayat_dari === null || z.ayat_ke === null) continue
+    tandai(z.surat_id, z.ayat_dari, z.ayat_ke)
+    const i = urutan.findIndex(r => r.surat === z.surat_id && r.dari <= z.ayat_ke! && z.ayat_ke! <= r.ke!)
+    if (i >= 0 && (!terjauh || i > terjauh.i || (i === terjauh.i && z.ayat_ke > terjauh.ayat))) terjauh = { i, ayat: z.ayat_ke }
+  }
+  if (terjauh) {
+    for (let i = 0; i < terjauh.i; i++) tandai(urutan[i].surat, urutan[i].dari, urutan[i].ke!)
+    const r = urutan[terjauh.i]
+    tandai(r.surat, r.dari, terjauh.ayat)
+  }
+
+  // Halaman per juz mushaf RQ; juz yang seluruh ayatnya tertandai = juz utuh.
+  let halaman = 0
+  let juzUtuh = 0
+  let sisa = 0
+  for (let juz = 1; juz <= 30; juz++) {
+    let hJuz = 0
+    let penuh = true
+    for (const r of rentangJuz(juz, peta)) {
+      const a = hafal.get(r.surat)
+      let mulai: number | null = null
+      for (let i = r.dari; i <= r.ke! + 1; i++) {
+        const ya = i <= r.ke! && a?.[i] === 1
+        if (ya && mulai === null) mulai = i
+        if (!ya && i <= r.ke!) penuh = false
+        if (!ya && mulai !== null) { hJuz += peta.bobot(r.surat, mulai, i - 1); mulai = null }
+      }
+    }
+    halaman += hJuz
+    if (penuh) juzUtuh++
+    else sisa += hJuz
+  }
+  return { halaman, capaian: capaian(juzUtuh, sisa) }
+}
+
+/** Total hafalan dalam halaman — lihat rincianHafalan. */
 export function halamanHafalan(
   peta: PetaHalaman,
   juzTuntas: number,
   ziyadah: { surat_id: number; ayat_dari: number | null; ayat_ke: number | null }[],
+  jenjang: Jenjang | null | undefined,
 ): number {
-  const tuntas = new Set(URUTAN_JUZ.slice(0, Math.max(0, juzTuntas)))
-  let total = 0
-  for (const juz of tuntas) {
-    const b = batasJuz(juz)
-    if (!b) continue
-    for (let s = b.mulai.surat; s <= b.selesai.surat; s++) {
-      const dari = s === b.mulai.surat ? b.mulai.ayat : 1
-      const ke = s === b.selesai.surat ? b.selesai.ayat : peta.panjang(s)
-      total += peta.bobot(s, dari, ke)
-    }
-  }
-  const sudah = new Set<string>()
-  for (const z of ziyadah) {
-    if (z.ayat_dari === null || z.ayat_ke === null) continue
-    for (let a = z.ayat_dari; a <= z.ayat_ke; a++) {
-      const kunci = `${z.surat_id}:${a}`
-      if (sudah.has(kunci)) continue
-      sudah.add(kunci)
-      const juz = juzDariAyat(z.surat_id, a)
-      if (juz !== null && !tuntas.has(juz)) total += peta.bobot(z.surat_id, a, a)
-    }
-  }
-  return total
+  return rincianHafalan(peta, juzTuntas, ziyadah, jenjang).halaman
 }

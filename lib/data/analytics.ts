@@ -2,7 +2,8 @@ import { createServerClient } from '@/lib/supabase/server'
 import { UNIT_ORDER, UNIT_LABELS, PROGRAMS_BY_JENJANG, programLabel } from '@/lib/rq/programs'
 import { juzTerjauh, totalJuzHafalan } from '@/lib/rq/hafalan'
 import { getJuzUjianPerSiswa, juzGabunganPerSiswa } from '@/lib/data/hafalan'
-import { getTargetTahfidzSemua } from '@/lib/data/target-tahfidz'
+import { getPetaHalaman, getTargetTahfidzSemua } from '@/lib/data/target-tahfidz'
+import { halamanRentang, jenisMurojaah } from '@/lib/rq/murojaah'
 import { getPredikatLabel, tanggalWIB } from '@/lib/rq/ujian'
 import type { Jenjang, UjianPredikat } from '@/types'
 
@@ -442,7 +443,8 @@ export interface UnitLearning {
   juzByKelas: { kelas: string; total: number; avgJuz: number; distribution: { juzCount: number; students: number }[] }[]
   logs: {
     tahsin: { date: string; status: string; n: number | null; s: number | null }[]
-    tahfidz: { date: string; kind: string; n: number | null; s: number | null }[]
+    /** `h` = halaman muroja'ah setoran ini (hanya baris muroja'ah); `sid` = siswa. */
+    tahfidz: { date: string; kind: string; n: number | null; s: number | null; sid: string; h?: number }[]
     tasmi: { date: string; n: number | null; s: number | null }[]
   }
 }
@@ -450,7 +452,7 @@ export interface UnitLearning {
 export async function getUnitLearning(): Promise<UnitLearning[]> {
   const supabase = createServerClient()
 
-  const [studentsRes, methodsRes, levelsRes, juzProgressRes, juzPromRes, tasmiRes, tahsinRes, tahfidzRes, halaqohRes, htRes, ujianTahfidzRes] = await Promise.all([
+  const [studentsRes, methodsRes, levelsRes, juzProgressRes, juzPromRes, tasmiRes, tahsinRes, tahfidzRes, halaqohRes, htRes, ujianTahfidzRes, peta] = await Promise.all([
     supabase.from('students').select('id, full_name, jenjang, kelas, program, current_method_id, current_jilid_id').eq('is_active', true),
     supabase.from('tahsin_methods').select('id, name').eq('is_active', true),
     supabase.from('jilid_levels').select('id, method_id, label, order_num, is_terminal, is_quran'),
@@ -458,7 +460,7 @@ export async function getUnitLearning(): Promise<UnitLearning[]> {
     supabase.from('juz_promotions').select('student_id, juz_number, exam_score, promotion_date'),
     supabase.from('tasmi_logs').select('student_id, scope_juz, juz_from, juz_to, status, setoran_date, nilai_tahfidz, nilai_sikap'),
     supabase.from('tahsin_logs').select('student_id, setoran_date, status, nilai_tahsin, nilai_sikap'),
-    supabase.from('tahfidz_logs').select('student_id, setoran_date, kind, nilai_tahfidz, nilai_sikap'),
+    supabase.from('tahfidz_logs').select('student_id, setoran_date, kind, nilai_tahfidz, nilai_sikap, surat_id, ayat_dari, surat_ke_id, ayat_ke'),
     supabase.from('halaqoh').select('id, jenjang, wali_teacher_id').eq('is_active', true),
     supabase.from('halaqoh_teachers').select('halaqoh_id, teacher_id'),
     supabase
@@ -466,6 +468,7 @@ export async function getUnitLearning(): Promise<UnitLearning[]> {
       .select('student_id, tipe, juz, predikat, jadwal, updated_at')
       .not('student_id', 'is', null)
       .eq('status', 'selesai'),
+    getPetaHalaman(),
   ])
 
   interface S { id: string; full_name: string; jenjang: Jenjang; kelas: string | null; program: string | null; method: string | null; jilid: string | null }
@@ -665,9 +668,16 @@ export async function getUnitLearning(): Promise<UnitLearning[]> {
     const tahsinLogs = ((tahsinRes.data ?? []) as { student_id: string; setoran_date: string; status: string; nilai_tahsin: number | string | null; nilai_sikap: number | string | null }[])
       .filter(r => unitIds.has(r.student_id))
       .map(r => ({ date: r.setoran_date, status: r.status, n: numOrNull(r.nilai_tahsin), s: numOrNull(r.nilai_sikap) }))
-    const tahfidzLogs = ((tahfidzRes.data ?? []) as { student_id: string; setoran_date: string; kind: string; nilai_tahfidz: number | string | null; nilai_sikap: number | string | null }[])
+    const tahfidzLogs = ((tahfidzRes.data ?? []) as {
+      student_id: string; setoran_date: string; kind: string; nilai_tahfidz: number | string | null; nilai_sikap: number | string | null
+      surat_id: number; ayat_dari: number | null; surat_ke_id: number | null; ayat_ke: number | null
+    }[])
       .filter(r => unitIds.has(r.student_id))
-      .map(r => ({ date: r.setoran_date, kind: r.kind, n: numOrNull(r.nilai_tahfidz), s: numOrNull(r.nilai_sikap) }))
+      .map(r => ({
+        date: r.setoran_date, kind: r.kind, n: numOrNull(r.nilai_tahfidz), s: numOrNull(r.nilai_sikap), sid: r.student_id,
+        // Halaman muroja'ah dihitung di server: peta halaman mushaf tidak ikut ke peramban.
+        ...(jenisMurojaah(r.kind) ? { h: halamanRentang(peta, r) } : {}),
+      }))
     const tasmiLogs = ((tasmiRes.data ?? []) as { student_id: string; setoran_date: string; nilai_tahfidz: number | string | null; nilai_sikap: number | string | null }[])
       .filter(r => unitIds.has(r.student_id))
       .map(r => ({ date: r.setoran_date, n: numOrNull(r.nilai_tahfidz), s: numOrNull(r.nilai_sikap) }))

@@ -4,6 +4,8 @@ import { createServerClient } from '@/lib/supabase/server'
 import { getTeacherHalaqohIds } from '@/lib/data/teacher'
 import { StudentMonthBoard } from '@/components/setoran/StudentMonthBoard'
 import { currentPeriod, isValidPeriod, shiftPeriod, toPeriodDate } from '@/lib/finance/period'
+import { getPetaHalaman } from '@/lib/data/target-tahfidz'
+import { KIND_MUROJAAH, rekapMurojaahPerSiswa, type RekapMurojaah } from '@/lib/rq/murojaah'
 import type { StudentMonthly } from '@/types'
 
 interface PageProps {
@@ -53,6 +55,24 @@ export default async function CapaianBulananPage({ searchParams }: PageProps) {
         .eq('period', toPeriodDate(period))
     : { data: [] }
 
+  // Muroja'ah bulan ini dalam halaman (volume baca), langsung dari setoran —
+  // bukan dari rangkuman bulanan, yang hanya memuat titik awal & akhir.
+  const [{ data: murojaahRows }, peta] = students.length
+    ? await Promise.all([
+        supabase
+          .from('tahfidz_logs')
+          .select('student_id, kind, surat_id, ayat_dari, surat_ke_id, ayat_ke')
+          .in('student_id', students.map(s => s.id))
+          .in('kind', [...KIND_MUROJAAH])
+          .gte('setoran_date', toPeriodDate(period))
+          .lt('setoran_date', toPeriodDate(shiftPeriod(period, 1))),
+        getPetaHalaman(),
+      ])
+    : [{ data: [] }, null]
+  const murojaah: Record<string, RekapMurojaah> = peta
+    ? Object.fromEntries(rekapMurojaahPerSiswa(peta, (murojaahRows ?? []) as Parameters<typeof rekapMurojaahPerSiswa>[1]))
+    : {}
+
   const monthly = Object.fromEntries(
     ((monthlyRows ?? []) as StudentMonthly[]).map(row => [row.student_id, row]),
   )
@@ -82,6 +102,7 @@ export default async function CapaianBulananPage({ searchParams }: PageProps) {
             activeHalaqohId={activeHalaqoh?.id ?? ''}
             students={students}
             monthly={monthly}
+            murojaah={murojaah}
           />
         )}
       </div>

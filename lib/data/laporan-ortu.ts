@@ -2,6 +2,7 @@ import { createServerClient } from '@/lib/supabase/server'
 import { getHalaqohSesiGuru, type HalaqohSesi } from '@/lib/data/setoran-sesi'
 import { getPetaHalaman } from '@/lib/data/target-tahfidz'
 import { halamanHafalan } from '@/lib/rq/target-tahfidz'
+import { rekapMurojaah } from '@/lib/rq/murojaah'
 import { getInfoSurat } from '@/lib/data/nama-surat'
 import { getJuzTerujiPerSiswa, gabungJuz, juzSetoranPerSiswa, type BarisJuzProgress } from '@/lib/data/hafalan'
 import { ttdSrc } from '@/lib/kpi/ttd-berkas'
@@ -9,7 +10,7 @@ import { sapaanName } from '@/lib/auth/permissions'
 import { juzTerjauh, posisiJuz } from '@/lib/rq/hafalan'
 import { getPredikatLabel, getTahfidzLabel, tanggalWIB } from '@/lib/rq/ujian'
 import type { AnakLaporan, LaporanOrtu, PeriodeLaporan } from '@/lib/rq/laporan-ortu'
-import type { TahfidzTipe, UjianPredikat, UjianSiswa } from '@/types'
+import type { Jenjang, TahfidzTipe, UjianPredikat, UjianSiswa } from '@/types'
 
 /**
  * Data laporan orang tua satu sesi (halaqoh) dalam satu periode.
@@ -51,13 +52,13 @@ export async function getLaporanOrtu(
   const supabase = createServerClient()
   const { data: siswaRows } = await supabase
     .from('students')
-    .select('id, full_name, kelas, current_jilid_page, current_quran_halaman,' +
+    .select('id, full_name, kelas, jenjang, current_jilid_page, current_quran_halaman,' +
       ' jilid:jilid_levels!students_current_jilid_id_fkey(label, total_pages, is_terminal)')
     .eq('halaqoh_id', halaqoh.id)
     .eq('is_active', true)
     .order('full_name')
   const siswa = (siswaRows ?? []) as unknown as {
-    id: string; full_name: string; kelas: string | null
+    id: string; full_name: string; kelas: string | null; jenjang: Jenjang
     current_jilid_page: number | null; current_quran_halaman: number | null
     jilid: { label: string; total_pages: number | null; is_terminal: boolean } | null
   }[]
@@ -67,7 +68,7 @@ export async function getLaporanOrtu(
   const waktuSampai = `${besok(periode.sampai)}T00:00:00+07:00`
   const kosong = <T,>() => Promise.resolve([] as T[])
   type LogTahsin = { student_id: string; setoran_date: string; status: string; drill: boolean | null }
-  type LogTahfidz = { student_id: string; setoran_date: string; kind: string; surat_id: number; ayat_dari: number | null; ayat_ke: number | null }
+  type LogTahfidz = { student_id: string; setoran_date: string; kind: string; surat_id: number; ayat_dari: number | null; surat_ke_id: number | null; ayat_ke: number | null }
   type Ziyadah = { student_id: string; surat_id: number; ayat_dari: number | null; ayat_ke: number | null; setoran_date: string; created_at: string }
 
   const [guruRes, tahsin, tahfidz, ziyadahSemua, progres, juzTeruji, ujianTf, ujianTs, peta, surat] = await Promise.all([
@@ -76,7 +77,7 @@ export async function getLaporanOrtu(
       supabase.from('tahsin_logs').select('student_id, setoran_date, status, drill')
         .in('student_id', ids).gte('setoran_date', periode.dari).lte('setoran_date', periode.sampai).range(a, b)) : kosong<LogTahsin>(),
     ids.length ? ambilSemua<LogTahfidz>((a, b) =>
-      supabase.from('tahfidz_logs').select('student_id, setoran_date, kind, surat_id, ayat_dari, ayat_ke')
+      supabase.from('tahfidz_logs').select('student_id, setoran_date, kind, surat_id, ayat_dari, surat_ke_id, ayat_ke')
         .in('student_id', ids).gte('setoran_date', periode.dari).lte('setoran_date', periode.sampai).range(a, b)) : kosong<LogTahfidz>(),
     // Setoran ziyadah terakhir sepanjang masa — posisi hafalan hari ini.
     ids.length ? ambilSemua<Ziyadah>((a, b) =>
@@ -167,8 +168,13 @@ export async function getLaporanOrtu(
         ziyadahHalaman: halaman,
         ziyadahAyat: sudah.size,
         ziyadahSetoran: tf.filter(l => ZIYADAH.includes(l.kind)).length,
-        totalHalaman: halamanHafalan(peta, juz.total, ziyadahSemua.filter(z => z.student_id === s.id)),
-        murojaah: tf.filter(l => !ZIYADAH.includes(l.kind)).length,
+        totalHalaman: halamanHafalan(peta, juz.total, ziyadahSemua.filter(z => z.student_id === s.id), s.jenjang),
+        // Muroja'ah dalam halaman — volume baca: tiap setoran dijumlah.
+        // Tasmi' bukan muroja'ah dan tidak ikut dihitung.
+        ...(() => {
+          const m = rekapMurojaah(peta, tf)
+          return { murojaah: m.kaliBaru + m.kaliLama, murojaahBaruHalaman: m.baru, murojaahLamaHalaman: m.lama }
+        })(),
       },
       ujian: ujianPer.get(s.id) ?? [],
     }
@@ -189,6 +195,7 @@ export async function getLaporanOrtu(
       tahsinLulus: anak.reduce((n, a) => n + a.tahsin.lulus, 0),
       ziyadahHalaman: anak.reduce((n, a) => n + a.tahfidz.ziyadahHalaman, 0),
       murojaah: anak.reduce((n, a) => n + a.tahfidz.murojaah, 0),
+      murojaahHalaman: anak.reduce((n, a) => n + a.tahfidz.murojaahBaruHalaman + a.tahfidz.murojaahLamaHalaman, 0),
       ujian: anak.reduce((n, a) => n + a.ujian.length, 0),
     },
     dicetak: tanggalWIB(new Date()),

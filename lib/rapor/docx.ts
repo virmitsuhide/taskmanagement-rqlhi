@@ -1,7 +1,7 @@
 import { inflateRawSync } from 'node:zlib'
 import {
-  bacaBingkai, bacaGaya, bacaKertas, bacaLatar, tataParagraf, tataTabel, tinggiKosong,
-  type Bingkai, type Kertas, type Latar, type Tata, type TataTabel,
+  bacaBingkai, bacaGaris, bacaGaya, bacaKertas, bacaLatar, tataParagraf, tataTabel, tinggiKosong,
+  type Bingkai, type Garis, type Kertas, type Latar, type Tata, type TataTabel,
 } from '@/lib/rapor/tata'
 
 /**
@@ -96,12 +96,20 @@ export interface BlokParagraf {
   potongan?: Potongan[]
   /** Jarak, inden, tab-stop, ukuran huruf. Tidak ada di template lama. */
   tata?: Tata
+  /** Tebal/miring/garis bawah tiap segmen (sejajar dengan `segmen`). */
+  hias?: (Hias | null)[]
+  /** Garis gambar yang berjangkar di paragraf ini. */
+  garis?: Garis[]
 }
 
 /** Satu rentang teks berwarna seragam. merah = bagian yang boleh diganti. */
 export interface Potongan {
   teks: string
   merah?: true
+  /** Hiasan seragam potongan ini. Isian merah: juga hiasan data penggantinya. */
+  hias?: Hias
+  /** Potongan hitam berhias campur ("… Ananda. *Barakallah* sholih …"), berurutan. */
+  bagian?: ({ teks: string } & Hias)[]
 }
 
 /**
@@ -153,6 +161,8 @@ export interface BlokJeda {
   baris: number
   /** Tinggi sebenarnya (pt) menurut jarak & spasi tiap paragrafnya. */
   tinggi?: number
+  /** Garis gambar yang berjangkar di paragraf kosong ini. */
+  garis?: Garis[]
 }
 
 /**
@@ -203,6 +213,97 @@ function segmenParagraf(p: string): string[] {
   return segmen.map(s => s.replace(/\s+/g, ' ').trim()).filter((s, i, a) => s !== '' || (i > 0 && i < a.length - 1))
 }
 
+// ─── Hiasan huruf ────────────────────────────────────────────────────────────
+
+/** Tebal / miring / garis bawah sebuah rentang teks. */
+export interface Hias {
+  b?: true
+  i?: true
+  u?: true
+}
+
+const POLA_RUN = /<w:r\b[^>]*>[\s\S]*?<\/w:r>/g
+const POLA_TOKEN = /<w:t(?:\s[^>]*)?>([\s\S]*?)<\/w:t>|<w:tab\s*\/>|<w:br\s*\/>/g
+
+/** Kunci hiasan satu run: "", "b", "i", "u", "bi", … — mudah dibandingkan. */
+function kunciRun(run: string): string {
+  const rPr = run.match(/<w:rPr>[\s\S]*?<\/w:rPr>/)?.[0] ?? ''
+  const nyala = (tag: string) => new RegExp(`<w:${tag}\\s*/>|<w:${tag} w:val="(?:1|true|on)"\\s*/>`).test(rPr)
+  const u = rPr.match(/<w:u w:val="(\w+)"/)?.[1]
+  return (nyala('b') ? 'b' : '') + (nyala('i') ? 'i' : '') + (u && u !== 'none' ? 'u' : '')
+}
+
+function hiasDari(kunci: string): Hias | undefined {
+  if (!kunci) return undefined
+  const h: Hias = {}
+  if (kunci.includes('b')) h.b = true
+  if (kunci.includes('i')) h.i = true
+  if (kunci.includes('u')) h.u = true
+  return h
+}
+
+/** Kunci hiasan yang dipakai SEMUA huruf (bukan spasi) sebuah rentang, atau undefined. */
+function kunciSeragam(kunci: string[]): string | undefined {
+  const s = new Set(kunci)
+  return s.size === 1 ? [...s][0] : undefined
+}
+
+/**
+ * Hiasan tiap segmen paragraf (sejajar dengan segmenParagraf), hanya bila
+ * segmen itu seragam: nama koordinator bergaris bawah, salam miring.
+ * Undefined bila tidak ada segmen berhias sama sekali, atau bila susunannya
+ * tidak bisa disejajarkan dengan segmen — lebih baik tanpa hiasan daripada
+ * hiasan di kata yang salah.
+ */
+export function hiasSegmen(p: string, segmen: string[]): (Hias | null)[] | undefined {
+  const mentah: { teks: string; kunci: string[] }[] = [{ teks: '', kunci: [] }]
+  for (const run of p.match(POLA_RUN) ?? []) {
+    const k = kunciRun(run)
+    for (const m of run.matchAll(POLA_TOKEN)) {
+      if (m[0].startsWith('<w:tab')) { mentah.push({ teks: '', kunci: [] }); continue }
+      const teks = m[1] !== undefined ? nyata(m[1]) : ' '
+      const akhir = mentah[mentah.length - 1]
+      akhir.teks += teks
+      for (const c of teks) if (c.trim()) akhir.kunci.push(k)
+    }
+  }
+  const rapi = mentah
+    .map(s => ({ ...s, teks: s.teks.replace(/\s+/g, ' ').trim() }))
+    .filter((s, i, a) => s.teks !== '' || (i > 0 && i < a.length - 1))
+  if (rapi.length !== segmen.length || rapi.some((s, i) => s.teks !== segmen[i])) return undefined
+  const hias = rapi.map(s => hiasDari(kunciSeragam(s.kunci) ?? '') ?? null)
+  return hias.some(Boolean) ? hias : undefined
+}
+
+/** Lebar satu spasi, dalam em — Times New Roman tepat 0,25 em. */
+const LEBAR_SPASI = 0.25
+
+/** Jumlah spasi yang diketik di awal paragraf, sebelum huruf atau tab pertama. */
+function spasiDepan(p: string): number {
+  let n = 0
+  for (const m of p.matchAll(POLA_TOKEN)) {
+    // Spasi sebelum tab tidak menggeser apa pun: tab melompat ke tab-stop.
+    if (m[1] === undefined) return m[0].startsWith('<w:tab') ? 0 : n
+    for (const c of nyata(m[1])) {
+      if (c === ' ' || c === ' ') n++
+      else return n
+    }
+  }
+  return 0
+}
+
+/** Hiasan seragam seluruh paragraf — untuk isi sel tabel. */
+function hiasParagraf(p: string): Hias | null {
+  const kunci: string[] = []
+  for (const run of p.match(POLA_RUN) ?? []) {
+    const k = kunciRun(run)
+    for (const m of run.matchAll(POLA_TOKEN)) {
+      if (m[1] !== undefined) for (const c of nyata(m[1])) if (c.trim()) kunci.push(k)
+    }
+  }
+  return hiasDari(kunciSeragam(kunci) ?? '') ?? null
+}
+
 /**
  * Merah = kanal merah kuat, hijau & biru lemah. Bukan hanya FF0000: Word
  * menyimpan "merah" dari palet tema sebagai C00000, EE0000, dan sejenisnya,
@@ -215,6 +316,8 @@ export function warnaMerah(hex: string | undefined): boolean {
   return r >= 0xb0 && g <= 0x60 && b <= 0x60
 }
 
+type Huruf = { c: string; merah: boolean; k: string }
+
 /**
  * Paragraf → potongan hitam/merah, atau undefined bila warnanya seragam.
  *
@@ -222,46 +325,83 @@ export function warnaMerah(hex: string | undefined): boolean {
  * 34"), jadi run bersebelahan yang sewarna digabung. Spasi di tepi potongan
  * merah dipindah ke potongan hitam di sebelahnya: mengganti isian tidak boleh
  * ikut memakan spasi pemisah kata di kalimat yang terkunci.
+ *
+ * Dikerjakan per huruf supaya hiasan tiap huruf (tebal, miring, garis bawah)
+ * ikut terbawa. Batas potongan tetap ditentukan warna saja — hiasan tidak
+ * boleh memecah satu isian merah menjadi dua slot. Isian merah menyimpan
+ * hiasannya ("Surat Al-Qiyamah" tebal-miring), dan data penggantinya
+ * tercetak dengan hiasan yang sama. Potongan hitam berhias campur menyimpan
+ * rinciannya di `bagian`.
  */
 export function potonganParagraf(p: string): Potongan[] | undefined {
-  const mentah: Potongan[] = []
-  for (const run of p.match(/<w:r\b[^>]*>[\s\S]*?<\/w:r>/g) ?? []) {
-    const teks = [...run.matchAll(/<w:t(?:\s[^>]*)?>([\s\S]*?)<\/w:t>|<w:tab\s*\/>|<w:br\s*\/>/g)]
-      .map(m => (m[1] !== undefined ? nyata(m[1]) : ' '))
-      .join('')
+  const huruf: Huruf[] = []
+  let warnaAkhir: boolean | null = null
+  for (const run of p.match(POLA_RUN) ?? []) {
+    const teks = [...run.matchAll(POLA_TOKEN)].map(m => (m[1] !== undefined ? nyata(m[1]) : ' ')).join('')
     if (!teks) continue
-    const merah = warnaMerah(run.match(/<w:color w:val="([0-9A-Fa-f]{6})"/)?.[1])
+    let merah = warnaMerah(run.match(/<w:color w:val="([0-9A-Fa-f]{6})"/)?.[1])
     // Spasi saja tidak punya warna yang berarti — ikut potongan sebelumnya.
-    const akhir = mentah[mentah.length - 1]
-    if (akhir && (Boolean(akhir.merah) === merah || !teks.trim())) akhir.teks += teks
-    else mentah.push(merah ? { teks, merah: true } : { teks })
+    if (!teks.trim() && warnaAkhir !== null) merah = warnaAkhir
+    warnaAkhir = merah
+    const k = kunciRun(run)
+    for (const c of teks) huruf.push({ c, merah, k })
   }
 
-  const hasil: Potongan[] = []
-  const tambahHitam = (teks: string) => {
-    if (!teks) return
-    const akhir = hasil[hasil.length - 1]
-    if (akhir && !akhir.merah) akhir.teks += teks
-    else hasil.push({ teks })
-  }
-  for (const pot of mentah) {
-    if (!pot.merah) { tambahHitam(pot.teks); continue }
-    const [, depan, inti, belakang] = pot.teks.match(/^(\s*)([\s\S]*?)(\s*)$/)!
-    tambahHitam(depan)
-    if (inti) hasil.push({ teks: inti, merah: true })
-    tambahHitam(belakang)
+  // Spasi di tepi rentang merah menjadi hitam.
+  for (let i = 0; i < huruf.length; i++) {
+    if (!huruf[i].merah) continue
+    let j = i
+    while (j < huruf.length && huruf[j].merah) j++
+    for (let a = i; a < j && !huruf[a].c.trim(); a++) huruf[a].merah = false
+    for (let a = j - 1; a >= i && !huruf[a].c.trim(); a--) huruf[a].merah = false
+    i = j - 1
   }
 
-  const rapi = hasil
-    .map(x => ({ ...x, teks: x.teks.replace(/\s+/g, ' ') }))
-    .filter(x => x.teks !== '')
-  if (rapi.length > 0) {
-    rapi[0].teks = rapi[0].teks.trimStart()
-    rapi[rapi.length - 1].teks = rapi[rapi.length - 1].teks.trimEnd()
+  // Kelompokkan per warna, lalu rapatkan spasi berderet di dalam tiap kelompok.
+  const kelompok: Huruf[][] = []
+  for (const h of huruf) {
+    const akhir = kelompok[kelompok.length - 1]
+    if (akhir && akhir[0].merah === h.merah) akhir.push(h)
+    else kelompok.push([h])
   }
+  const rapat = kelompok
+    .map(g => g
+      .filter((h, i) => h.c.trim() || i === 0 || g[i - 1].c.trim())
+      .map(h => (h.c.trim() ? h : { ...h, c: ' ' })))
+    .filter(g => g.length > 0)
+  if (rapat.length > 0) {
+    const awal = rapat[0]
+    while (awal.length > 0 && !awal[0].c.trim()) awal.shift()
+    const akhir = rapat[rapat.length - 1]
+    while (akhir.length > 0 && !akhir[akhir.length - 1].c.trim()) akhir.pop()
+  }
+
+  const rapi = rapat.map(susunPotongan)
   const adaMerah = rapi.some(x => x.merah)
   const adaHitam = rapi.some(x => !x.merah && x.teks.trim())
   return adaMerah && adaHitam ? rapi : undefined
+}
+
+function susunPotongan(g: Huruf[]): Potongan {
+  const pot: Potongan = { teks: g.map(h => h.c).join('') }
+  if (g[0]?.merah) pot.merah = true
+  const isi = g.filter(h => h.c.trim())
+  const seragam = kunciSeragam(isi.map(h => h.k))
+  if (seragam !== undefined || pot.merah) {
+    // Isian merah berhias campur memakai hiasan huruf pertamanya.
+    const hias = hiasDari(seragam ?? isi[0]?.k ?? '')
+    if (hias) pot.hias = hias
+    return pot
+  }
+  const bagian: { teks: string; k: string }[] = []
+  for (const h of g) {
+    const akhir = bagian[bagian.length - 1]
+    // Spasi ikut bagian sebelumnya: spasi miring dan tegak tampak sama.
+    if (akhir && (akhir.k === h.k || !h.c.trim())) akhir.teks += h.c
+    else bagian.push({ teks: h.c, k: h.k })
+  }
+  pot.bagian = bagian.map(({ teks, k }) => ({ teks, ...hiasDari(k) }))
+  return pot
 }
 
 /** Posisi pergantian halaman di paragraf ini: sebelum isinya, sesudahnya, atau tidak ada. */
@@ -311,6 +451,7 @@ export function bacaDocument(xml: string, stylesXml?: string | null): Blok[] {
   // menjadi paragraf lepas yang kehilangan bingkainya.
   const kotak: { isi: { teks: string; potongan: Potongan[] | null; tata: Tata }[]; bingkai?: Bingkai }[] = []
   const latarDitemukan: (Omit<Latar, 'src'> & { rId: string })[] = []
+  const garisDitemukan: Garis[] = []
   const body = badan.replace(
     /<w:drawing>[\s\S]*?<\/w:drawing>|<w:pict>[\s\S]*?<\/w:pict>/g,
     gambar => {
@@ -318,6 +459,11 @@ export function bacaDocument(xml: string, stylesXml?: string | null): Blok[] {
       if (latar) {
         latarDitemukan.push(latar)
         return `<rq:latar n="${latarDitemukan.length - 1}"/>`
+      }
+      const garis = bacaGaris(gambar, kertas)
+      if (garis) {
+        garisDitemukan.push(garis)
+        return `<rq:garis n="${garisDitemukan.length - 1}"/>`
       }
       const isi = gambar.match(/<w:txbxContent>([\s\S]*?)<\/w:txbxContent>/)
       if (!isi) return ''
@@ -343,15 +489,16 @@ export function bacaDocument(xml: string, stylesXml?: string | null): Blok[] {
 
   for (const potong of body.match(/<w:tbl>[\s\S]*?<\/w:tbl>|<w:p\b[^>]*\/>|<w:p\b[^>]*>[\s\S]*?<\/w:p>/g) ?? []) {
     if (potong.startsWith('<w:tbl')) {
-      const paragrafSel = (potong.match(/<w:tr\b[\s\S]*?<\/w:tr>/g) ?? []).map(tr =>
-        (tr.match(/<w:tc>[\s\S]*?<\/w:tc>/g) ?? []).map(tc =>
-          (tc.match(POLA_PARAGRAF) ?? []).map(p => segmenParagraf(buangPPr(p)).join(' ')),
-        ),
+      const selXml = (potong.match(/<w:tr\b[\s\S]*?<\/w:tr>/g) ?? []).map(tr =>
+        (tr.match(/<w:tc>[\s\S]*?<\/w:tc>/g) ?? []).map(tc => (tc.match(POLA_PARAGRAF) ?? []).map(buangPPr)),
       )
+      const paragrafSel = selXml.map(r => r.map(ps => ps.map(p => segmenParagraf(p).join(' '))))
+      const hiasSel = selXml.map(r => r.map(ps => ps.map(hiasParagraf)))
       const baris = paragrafSel.map(r => r.map(ps => ps.filter(Boolean).join(' ')))
       if (baris.length > 0) {
         const tata = tataTabel(potong, gaya)
         if (paragrafSel.some(r => r.some(ps => ps.length > 1))) tata.paragrafSel = paragrafSel
+        if (hiasSel.some(r => r.some(ps => ps.some(Boolean)))) tata.hiasSel = hiasSel
         blok.push({ jenis: 'tabel', baris, tata })
       }
       continue
@@ -359,6 +506,11 @@ export function bacaDocument(xml: string, stylesXml?: string | null): Blok[] {
 
     const pPr = potong.match(/<w:pPr>[\s\S]*?<\/w:pPr>/)?.[0] ?? ''
     const { tata, tebalGaya } = tataParagraf(pPr, buangPPr(potong), gaya)
+    // Spasi yang diketik di awal baris ("     Dikeluarkan di:") dibuang saat
+    // teksnya dirapikan; tanpa digantikan inden, teksnya bergeser ke kiri
+    // dari garis dan kolom yang di Word sejajar dengannya.
+    const spasi = spasiDepan(buangPPr(potong))
+    if (spasi > 0) tata.awal = (tata.awal ?? 0) + spasi * LEBAR_SPASI * (tata.ukuran ?? 11)
     const halaman = letakHalaman(potong, pPr)
     if (halaman === 'sebelum') tambahHalaman(blok)
 
@@ -386,6 +538,7 @@ export function bacaDocument(xml: string, stylesXml?: string | null): Blok[] {
     }
 
     const segmen = segmenParagraf(buangPPr(potong))
+    const garis = [...potong.matchAll(/<rq:garis n="(\d+)"\/>/g)].map(m => garisDitemukan[Number(m[1])])
 
     // Paragraf kosong berturut-turut digabung jadi satu jeda. Tingginya
     // dijumlah dari jarak & spasi tiap paragraf — kecuali paragraf jangkar
@@ -394,14 +547,18 @@ export function bacaDocument(xml: string, stylesXml?: string | null): Blok[] {
       const tinggi = adaKotak ? 0 : tinggiKosong(tata)
       const akhir = blok[blok.length - 1]
       if (akhir?.jenis === 'jeda') {
+        // Garis di paragraf kosong berikutnya: turun sejauh paragraf-paragraf
+        // kosong sebelumnya.
+        for (const g of garis) (akhir.garis ??= []).push({ ...g, atas: g.atas + (akhir.tinggi ?? 0) })
         akhir.baris += 1
         akhir.tinggi = (akhir.tinggi ?? 0) + tinggi
-      } else blok.push({ jenis: 'jeda', baris: 1, tinggi })
+      } else blok.push({ jenis: 'jeda', baris: 1, tinggi, ...(garis.length ? { garis } : {}) })
       if (halaman === 'sesudah') tambahHalaman(blok)
       continue
     }
 
     const potongan = potonganParagraf(buangPPr(potong))
+    const hias = hiasSegmen(buangPPr(potong), segmen)
     const tanpaPPr = potong.replace(pPr, '')
     blok.push({
       jenis: 'paragraf',
@@ -412,6 +569,8 @@ export function bacaDocument(xml: string, stylesXml?: string | null): Blok[] {
       tebal: /<w:b\s*\/>|<w:b w:val="(?:1|true)"/.test(tanpaPPr) || (tebalGaya && !/<w:b w:val="(?:0|false|off)"/.test(tanpaPPr)),
       ...(potongan ? { potongan } : {}),
       tata,
+      ...(hias ? { hias } : {}),
+      ...(garis.length ? { garis } : {}),
     })
     if (halaman === 'sesudah') tambahHalaman(blok)
   }

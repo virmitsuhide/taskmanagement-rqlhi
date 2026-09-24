@@ -267,8 +267,8 @@ export function PemetaanTemplate({ id, blok, pemetaan, awalIsian, pengesahan, tt
             {[...dipakai].map(k => MEDAN_PER_KODE.get(k)?.label).filter(Boolean).length} medan terpakai
           </span>
         </p>
-        <div className="overflow-x-auto rounded-xl border">
-          <LembarRapor blok={blok} pemetaan={peta} tandai ttd={{ koordinator: ttdKoordinator, pengampu: null }} latar={latar} />
+        <div className="overflow-x-auto rounded-xl border bg-muted/40 p-2 sm:p-4">
+          <LembarRapor blok={blok} pemetaan={peta} tandai ttd={{ koordinator: ttdKoordinator, pengampu: null }} latar={latar} muat />
         </div>
       </div>
     </div>

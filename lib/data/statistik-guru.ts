@@ -405,7 +405,7 @@ export async function getStatistikGuru(
   for (const z of ziyadahSemua) ziyadahPer.set(z.student_id, [...(ziyadahPer.get(z.student_id) ?? []), z])
   const tahfidzTertinggi = teratas(siswa.flatMap(s => {
     const juz = gabungJuz(setoranTuntas.get(s.id) ?? 0, (juzTeruji.get(s.id) ?? []).length)
-    const halaman = halamanHafalan(peta, juz.total, ziyadahPer.get(s.id) ?? [])
+    const halaman = halamanHafalan(peta, juz.total, ziyadahPer.get(s.id) ?? [], s.jenjang)
     if (halaman <= 0) return []
     const juzBerjalan = juzTerjauh(progresJuz.filter(p => p.student_id === s.id && p.ayat_hafal > 0).map(p => p.juz_number))
     return [{

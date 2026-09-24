@@ -1,6 +1,6 @@
 import { cn } from '@/lib/utils'
 import {
-  angka1, labelTotalHafalan, tambahHafalan,
+  angka1, labelTotalHafalan, tambahHafalan, teksMurojaah,
   type AnakLaporan, type LaporanOrtu,
 } from '@/lib/rq/laporan-ortu'
 
@@ -52,7 +52,7 @@ export function LembarLaporanOrtu({ l }: { l: LaporanOrtu }) {
             <Kotak label="Pertemuan" nilai={`${l.hariPertemuan} hari`} ket="hari yang ada setoran" />
             <Kotak label="Ananda setor" nilai={`${r.anakSetor} / ${r.jumlahAnak}`} ket="anak" />
             {adaTahsin && <Kotak label="Tahsin" nilai={`${r.tahsinLulus} hal.`} ket="halaman lulus" />}
-            {adaTahfidz && <Kotak label="Tahfidz" nilai={`${angka1(r.ziyadahHalaman)} hal.`} ket={`hafalan baru · ${r.murojaah}× muroja'ah`} />}
+            {adaTahfidz && <Kotak label="Tahfidz" nilai={`${angka1(r.ziyadahHalaman)} hal.`} ket={`hafalan baru · ${angka1(r.murojaahHalaman)} hal. muroja'ah`} />}
           </div>
 
           {l.hariPertemuan === 0 && (
@@ -151,7 +151,10 @@ function BarisAnak({ a, no, pertemuan, tahsin, tahfidz }: { a: AnakLaporan; no: 
           </p>
         )}
         {t.murojaah > 0 && (
-          <p className="text-[10px]"><span className="text-muted-foreground">Muroja&apos;ah:</span> {t.murojaah}×</p>
+          <p className="text-[10px]">
+            <span className="text-muted-foreground">Muroja&apos;ah:</span> {teksMurojaah(t)}
+            <span className="text-muted-foreground"> · {t.murojaah}× setor</span>
+          </p>
         )}
         {t.totalHalaman > 0 && (
           <p className="text-[10px]">

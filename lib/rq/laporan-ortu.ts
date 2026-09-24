@@ -43,7 +43,11 @@ export interface AnakLaporan {
     ziyadahAyat: number
     /** Berapa kali setor ziyadah dalam periode. */
     ziyadahSetoran: number
+    /** Berapa kali setor muroja'ah (baru + lama) dalam periode. */
     murojaah: number
+    /** Halaman muroja'ah dalam periode — volume baca, tiap setoran dijumlah. */
+    murojaahBaruHalaman: number
+    murojaahLamaHalaman: number
     /** Total hafalan saat ini dalam halaman mushaf menurut urutan hafalan RQ. */
     totalHalaman: number
   }
@@ -64,6 +68,8 @@ export interface LaporanOrtu {
     tahsinLulus: number
     ziyadahHalaman: number
     murojaah: number
+    /** Halaman muroja'ah baru + lama seluruh anak. */
+    murojaahHalaman: number
     ujian: number
   }
   dicetak: string
@@ -124,6 +130,14 @@ export function rentangLaporan(
 
 // ─── Angka ───────────────────────────────────────────────────────────────────
 
+/** "baru 6,5 hal. · lama 4 hal." — jenis yang nol tidak ditulis. */
+export function teksMurojaah(t: { murojaahBaruHalaman: number; murojaahLamaHalaman: number }): string {
+  return [
+    t.murojaahBaruHalaman > 0 ? `baru ${angka1(t.murojaahBaruHalaman)} hal.` : null,
+    t.murojaahLamaHalaman > 0 ? `lama ${angka1(t.murojaahLamaHalaman)} hal.` : null,
+  ].filter(Boolean).join(' · ')
+}
+
 export function angka1(n: number): string {
   return n.toLocaleString('id-ID', { maximumFractionDigits: 1 })
 }
@@ -177,7 +191,7 @@ export function teksWaLaporanOrtu(l: LaporanOrtu, opsi: OpsiPesan): string {
   if (r.ziyadahHalaman > 0 || r.murojaah > 0) {
     baris.push(`• Tahfidz: ${[
       r.ziyadahHalaman > 0 ? `${angka1(r.ziyadahHalaman)} halaman hafalan baru` : null,
-      r.murojaah > 0 ? `${r.murojaah}× muroja'ah` : null,
+      r.murojaah > 0 ? `${angka1(r.murojaahHalaman)} halaman muroja'ah` : null,
     ].filter(Boolean).join(' · ')}`)
   }
   if (r.ujian > 0) baris.push(`• Ujian selesai: ${r.ujian}`)
@@ -197,7 +211,7 @@ export function teksWaLaporanOrtu(l: LaporanOrtu, opsi: OpsiPesan): string {
       if (t.terakhir) baris.push(`   Tahfidz: ${t.terakhir}`)
       const rincianTf = [
         t.ziyadahAyat > 0 ? `ziyadah ${tambahHafalan(t.ziyadahHalaman, t.ziyadahAyat)}` : null,
-        t.murojaah > 0 ? `muroja'ah ${t.murojaah}×` : null,
+        t.murojaah > 0 ? `muroja'ah ${teksMurojaah(t)}` : null,
         t.totalHalaman > 0 ? `total hafalan ${labelTotalHafalan(t)}` : null,
       ].filter(Boolean)
       if (rincianTf.length > 0) baris.push(`   ${t.terakhir ? '' : 'Tahfidz: '}${rincianTf.join(' · ')}`)

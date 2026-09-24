@@ -17,6 +17,8 @@
  * karakter, tema, dan kolom tidak dibaca.
  */
 
+import type { Hias } from '@/lib/rapor/docx'
+
 /** Tata satu paragraf. */
 export interface Tata {
   /** Jarak sebelum & sesudah paragraf. */
@@ -348,6 +350,48 @@ export function bacaBingkai(gambar: string, kertas: Kertas): Bingkai | undefined
   }
 }
 
+/**
+ * Garis yang digambar (Insert → Shapes → Line), mis. garis di bawah
+ * "Dikeluarkan di" pada halaman Riyadhoh. Letaknya relatif terhadap paragraf
+ * jangkarnya: `kiri` dari margin kiri, `atas` dari atas paragraf.
+ */
+export interface Garis {
+  kiri: number
+  atas: number
+  lebar: number
+  tinggi: number
+  tebal: number
+  warna: string
+}
+
+/** Tebal garis tema Office menurut lnRef idx (1 = tipis 0,5 pt). */
+const TEBAL_TEMA = [0.5, 1, 1.5]
+
+export function bacaGaris(gambar: string, kertas: Kertas): Garis | null {
+  const bentukGaris = /<a:prstGeom prst="(?:line|straightConnector1)"/.test(gambar) || /<wps:cNvCnPr\b/.test(gambar)
+  if (!bentukGaris || !/<wp:anchor\b/.test(gambar)) return null
+  const ext = gambar.match(/<wp:extent cx="(\d+)" cy="(\d+)"/)
+  const lebar = emu(ext?.[1]) ?? 0
+  const tinggi = emu(ext?.[2]) ?? 0
+  if (lebar < 1 && tinggi < 1) return null
+
+  const v = gambar.match(/<wp:positionV relativeFrom="(\w+)">\s*<wp:posOffset>(-?\d+)/)
+  const offsetV = emu(v?.[2]) ?? 0
+  const atas = v?.[1] === 'page' ? offsetV - kertas.margin[0] : offsetV
+
+  const ln = gambar.match(/<a:ln\b([^>]*)(?:\/>|>([\s\S]*?)<\/a:ln>)/)
+  if (ln && /<a:noFill\/>/.test(ln[2] ?? '')) return null
+  const idx = Number(gambar.match(/<a:lnRef idx="(\d)"/)?.[1] ?? 1)
+  const tebal = emu(ln?.[1].match(/\bw="(\d+)"/)?.[1]) ?? TEBAL_TEMA[Math.min(Math.max(idx, 1), 3) - 1]
+  const warna = ln?.[2]?.match(/<a:srgbClr val="([0-9A-Fa-f]{6})"/)?.[1]
+
+  return {
+    kiri: posisiX(gambar, lebar, kertas) - kertas.margin[3],
+    atas, lebar, tinggi, tebal,
+    warna: warna ? `#${warna}` : '#000000',
+  }
+}
+
 // ─── Tabel ───────────────────────────────────────────────────────────────────
 
 export interface TataTabel {
@@ -367,6 +411,8 @@ export interface TataTabel {
   paragrafSel?: string[][][]
   /** Jarak "sebelum" paragraf tiap sel. */
   jarakSel?: number[][]
+  /** Hiasan tiap paragraf sel (sejajar dengan paragraf selnya) — nama bergaris bawah. */
+  hiasSel?: (Hias | null)[][][]
 }
 
 /** Warna isi sel (w:shd fill), atau null untuk sel tanpa warna. */

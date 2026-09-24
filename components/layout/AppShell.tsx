@@ -1,9 +1,11 @@
 import { redirect } from 'next/navigation'
+import { cookies } from 'next/headers'
 import { getSession } from '@/lib/auth/session'
 import { Sidebar } from './Sidebar'
 import { MobileNav } from './MobileNav'
 import { hitungMenungguKoordinator } from '@/lib/data/kpi-pengesahan'
 import { hitungBandingMenunggu } from '@/lib/data/kpi-banding'
+import { COOKIE_SIDEBAR_CIUT } from './sidebar-ciut-cookie'
 
 interface Props {
   children: React.ReactNode
@@ -17,9 +19,10 @@ export async function AppShell({ children }: Props) {
   // menempel di navigasi yang ikut ke mana pun, dan pemberitahuan yang hanya
   // muncul di halaman KPI hanya akan sampai kepada orang yang memang sudah
   // membuka halaman KPI.
-  const [menungguKoor, bandingMenunggu] = await Promise.all([
+  const [menungguKoor, bandingMenunggu, kue] = await Promise.all([
     hitungMenungguKoordinator(session.role),
     hitungBandingMenunggu(session.role),
+    cookies(),
   ])
   const lencanaKpi = { publikasi: menungguKoor, banding: bandingMenunggu }
 
@@ -40,6 +43,7 @@ export async function AppShell({ children }: Props) {
           displayName={session.displayName}
           username={session.username}
           lencanaKpi={lencanaKpi}
+          ciutAwal={kue.get(COOKIE_SIDEBAR_CIUT)?.value === '1'}
         />
       </div>
       <MobileNav

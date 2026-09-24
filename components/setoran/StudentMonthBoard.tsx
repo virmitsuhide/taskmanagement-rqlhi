@@ -13,6 +13,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { useConfirm } from '@/components/ui/confirm-dialog'
 import { formatPeriod, shiftPeriod } from '@/lib/finance/period'
+import { angkaHalaman, type RekapMurojaah } from '@/lib/rq/murojaah'
 import type { StudentMonthly } from '@/types'
 
 interface Student {
@@ -29,10 +30,12 @@ interface Props {
   activeHalaqohId: string
   students: Student[]
   monthly: Record<string, StudentMonthly>
+  /** Halaman muroja'ah bulan ini per siswa (volume baca), dihitung dari setoran. */
+  murojaah?: Record<string, RekapMurojaah>
 }
 
 export function StudentMonthBoard({
-  period, previousPeriod, halaqohList, activeHalaqohId, students, monthly,
+  period, previousPeriod, halaqohList, activeHalaqohId, students, monthly, murojaah = {},
 }: Props) {
   const router = useRouter()
   const confirm = useConfirm()
@@ -151,6 +154,7 @@ export function StudentMonthBoard({
               <th className="py-2 px-2 font-medium">Tahfidz awal → akhir</th>
               <th className="py-2 px-2 text-right font-medium">Hal.</th>
               <th className="py-2 px-2 font-medium">Total hafalan</th>
+              <th className="py-2 px-2 font-medium" title="Halaman yang dibaca ulang bulan ini — tiap setoran dijumlah">Muroja&apos;ah</th>
               <th className="py-2 px-2 font-medium">Ujian</th>
               <th className="py-2 px-2 w-10" />
             </tr>
@@ -185,6 +189,9 @@ export function StudentMonthBoard({
                       </span>
                     )}
                   </td>
+                  <td className="py-2 px-2 whitespace-nowrap text-xs">
+                    <SelMurojaah r={murojaah[student.id]} />
+                  </td>
                   <td className="py-2 px-2 text-muted-foreground">{row?.ujian_tercatat || '—'}</td>
                   <td className="py-2 px-2 text-right">
                     <Button size="sm" variant="ghost" className="h-7 w-7 p-0"
@@ -196,12 +203,34 @@ export function StudentMonthBoard({
               )
             })}
             {students.length === 0 && (
-              <tr><td colSpan={8} className="py-6 text-center text-muted-foreground">Belum ada siswa di halaqoh ini.</td></tr>
+              <tr><td colSpan={9} className="py-6 text-center text-muted-foreground">Belum ada siswa di halaqoh ini.</td></tr>
             )}
           </tbody>
         </table>
       </div>
     </div>
+  )
+}
+
+/**
+ * Halaman muroja'ah baru & lama bulan ini. Jenis yang nol tidak ditulis —
+ * anak yang belum punya juz teruji memang tidak punya muroja'ah lama.
+ */
+function SelMurojaah({ r }: { r?: RekapMurojaah }) {
+  if (!r || (r.kaliBaru === 0 && r.kaliLama === 0)) return <span className="text-muted-foreground">—</span>
+  return (
+    <span className="space-y-0.5">
+      {r.kaliBaru > 0 && (
+        <span className="block" title={`${r.kaliBaru}× setor`}>
+          baru <strong className="tabular-nums">{angkaHalaman(r.baru)}</strong> hal.
+        </span>
+      )}
+      {r.kaliLama > 0 && (
+        <span className="block" title={`${r.kaliLama}× setor`}>
+          lama <strong className="tabular-nums">{angkaHalaman(r.lama)}</strong> hal.
+        </span>
+      )}
+    </span>
   )
 }
 

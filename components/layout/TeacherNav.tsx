@@ -3,12 +3,15 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Menu, X, LogOut, Home } from 'lucide-react'
+import { Menu, X, LogOut, Home, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
 import { logoutTeacherAction } from '@/app/actions/teacher-auth'
 import { Button } from '@/components/ui/button'
 import { Logo } from '@/components/brand/Logo'
 import { ThemeToggle } from './ThemeToggle'
 import { cn } from '@/lib/utils'
+import {
+  useSidebarCiut, SEMBUNYI_SAAT_CIUT, HILANG_SAAT_CIUT, TAUTAN_CIUT, LENCANA_CIUT,
+} from './sidebar-ciut'
 
 /**
  * Navigasi Portal Guru — sidebar di layar lebar, laci di layar sempit.
@@ -71,6 +74,8 @@ interface Props {
   fullName: string
   groups: TeacherNavGroup[]
   children: React.ReactNode
+  /** Sidebar diciutkan jadi deretan ikon — dibaca TeacherShell dari cookie. */
+  ciutAwal?: boolean
 }
 
 /**
@@ -96,8 +101,9 @@ function hrefAktif(pathname: string, groups: TeacherNavGroup[]): string | null {
   return terbaik
 }
 
-export function TeacherNav({ fullName, groups, bell, children }: Props) {
+export function TeacherNav({ fullName, groups, bell, children, ciutAwal = false }: Props) {
   const pathname = usePathname()
+  const [ciut, gantiCiut] = useSidebarCiut(ciutAwal)
   const [drawerOpen, setDrawerOpen] = useState(false)
   const aktif = hrefAktif(pathname, groups)
   const judulAktif = groups.flatMap(g => g.items).find(i => i.href === aktif)?.label ?? null
@@ -112,28 +118,40 @@ export function TeacherNav({ fullName, groups, bell, children }: Props) {
 
   const isiNav = (
     <>
-      <div className="px-3 py-4">
+      <div className="relative px-3 py-4 group-data-[ciut=true]/sb:flex group-data-[ciut=true]/sb:flex-col group-data-[ciut=true]/sb:items-center group-data-[ciut=true]/sb:gap-2 group-data-[ciut=true]/sb:px-2">
         <Link
           href="/guru"
+          title="Beranda Portal Guru"
           className="flex items-center gap-2 text-base font-extrabold tracking-tight"
           style={{ fontFamily: 'var(--font-playfair), Georgia, serif' }}
         >
           <Logo size={30} alt="" />
-          <span>RQ <span style={{ color: 'var(--primary)' }}>LHI</span></span>
+          <span className={SEMBUNYI_SAAT_CIUT}>RQ <span style={{ color: 'var(--primary)' }}>LHI</span></span>
         </Link>
+        {/* Hanya di sidebar layar lebar; laci mobile punya tombol tutupnya sendiri. */}
+        <button
+          type="button"
+          onClick={gantiCiut}
+          aria-label={ciut ? 'Lebarkan menu' : 'Ciutkan menu'}
+          aria-expanded={!ciut}
+          title={ciut ? 'Lebarkan menu' : 'Ciutkan menu'}
+          className="absolute right-2 top-4 hidden rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground md:inline-flex group-data-[ciut=true]/sb:static"
+        >
+          {ciut ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+        </button>
         <span
-          className="mt-2 inline-block rounded-full border px-2 py-0.5 text-[11px]"
+          className={cn('mt-2 inline-block rounded-full border px-2 py-0.5 text-[11px]', HILANG_SAAT_CIUT)}
           style={{ borderColor: 'var(--border)', background: 'var(--primary-wash)', color: 'var(--primary)' }}
         >
           Portal Guru
         </span>
       </div>
 
-      <nav className="flex-1 space-y-5 overflow-y-auto px-2 pb-4">
+      <nav className="flex-1 space-y-5 overflow-y-auto overflow-x-hidden px-2 pb-4 group-data-[ciut=true]/sb:[scrollbar-width:none]">
         {groups.map((g, gi) => (
           <div key={g.title ?? `g${gi}`}>
             {g.title && (
-              <p className="mb-1.5 px-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60">
+              <p className={cn('mb-1.5 px-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60', SEMBUNYI_SAAT_CIUT)}>
                 {g.title}
               </p>
             )}
@@ -147,17 +165,18 @@ export function TeacherNav({ fullName, groups, bell, children }: Props) {
                     // sebenarnya, dan tidak memicu render ulang berantai.
                     onClick={() => setDrawerOpen(false)}
                     aria-current={aktif === item.href ? 'page' : undefined}
+                    title={item.label}
                     className={cn(
-                      'flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm transition-colors',
+                      'flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm transition-colors', TAUTAN_CIUT,
                       aktif === item.href
                         ? 'bg-accent font-medium text-foreground'
                         : 'text-muted-foreground hover:text-foreground',
                     )}
                                       >
                     <span className="shrink-0 [&>svg]:h-4 [&>svg]:w-4">{item.icon}</span>
-                    {item.label}
+                    <span className={cn('truncate', SEMBUNYI_SAAT_CIUT)}>{item.label}</span>
                     {item.badge ? (
-                      <span className="ml-auto min-w-[18px] rounded-full bg-primary px-1.5 py-0.5 text-center text-[10px] font-semibold leading-none text-primary-foreground">
+                      <span className={cn(LENCANA_CIUT, 'ml-auto min-w-[18px] rounded-full bg-primary px-1.5 py-0.5 text-center text-[10px] font-semibold leading-none text-primary-foreground')}>
                         {item.badge > 9 ? '9+' : item.badge}
                       </span>
                     ) : null}
@@ -169,11 +188,12 @@ export function TeacherNav({ fullName, groups, bell, children }: Props) {
         ))}
       </nav>
 
-      <div className="border-t px-3 py-3" style={{ borderColor: 'var(--border)' }}>
-        <p className="mb-2 truncate text-sm font-medium" title={fullName}>{fullName}</p>
+      <div className="border-t px-3 py-3 group-data-[ciut=true]/sb:px-2" style={{ borderColor: 'var(--border)' }}>
+        <p className={cn('mb-2 truncate text-sm font-medium', SEMBUNYI_SAAT_CIUT)} title={fullName}>{fullName}</p>
         <form action={logoutTeacherAction}>
-          <Button type="submit" variant="outline" size="sm" className="w-full justify-start">
-            <LogOut className="mr-2 h-4 w-4" />Keluar
+          <Button type="submit" variant="outline" size="sm" title="Keluar" className="w-full justify-start group-data-[ciut=true]/sb:justify-center group-data-[ciut=true]/sb:px-0">
+            <LogOut className="mr-2 h-4 w-4 group-data-[ciut=true]/sb:mr-0" />
+            <span className={SEMBUNYI_SAAT_CIUT}>Keluar</span>
           </Button>
         </form>
       </div>
@@ -192,7 +212,10 @@ export function TeacherNav({ fullName, groups, bell, children }: Props) {
       </a>
 
       {/* Sidebar tetap — layar lebar */}
-      <aside className="hidden w-64 shrink-0 flex-col border-r bg-sidebar text-sidebar-foreground md:flex print:hidden">
+      <aside
+        data-ciut={ciut}
+        className="group/sb hidden w-64 shrink-0 flex-col border-r bg-sidebar text-sidebar-foreground transition-[width] duration-200 data-[ciut=true]:w-16 md:flex print:hidden"
+      >
         {isiNav}
       </aside>
 
