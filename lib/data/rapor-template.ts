@@ -1,5 +1,5 @@
 import { createServerClient } from '@/lib/supabase/server'
-import type { Blok } from '@/lib/rapor/docx'
+import { kertasDari, type Blok } from '@/lib/rapor/docx'
 import type { AwalIsian, KodeMedan } from '@/lib/rapor/medan'
 import type { JenisRapor } from '@/lib/rapor/jenis'
 import { tingkatOf } from '@/lib/rq/sesi'
@@ -73,6 +73,24 @@ export async function getRaporTemplate(id: string): Promise<RaporTemplate | null
   let { data, error } = await supabase.from('rapor_templates').select(KOLOM).eq('id', id).maybeSingle()
   if (error) ({ data, error } = await supabase.from('rapor_templates').select(KOLOM_LAMA).eq('id', id).maybeSingle())
   return data ? lengkapi(data as unknown as Record<string, unknown>) : null
+}
+
+/**
+ * Url kop surat sebuah template: path penyimpanan → url bertanda tangan.
+ *
+ * Bucket rapor-templates tertutup, jadi url dibuat di server tiap kali
+ * halaman dirender — sama seperti tanda tangan. Gagal membuat url tidak
+ * menjatuhkan halaman: lembarnya tercetak tanpa kop.
+ */
+export async function urlLatar(blok: Blok[]): Promise<Record<string, string | null>> {
+  const path = [...new Set((kertasDari(blok)?.latar ?? []).flatMap(l => (l ? [l.src] : [])))]
+  if (path.length === 0) return {}
+  try {
+    const { data } = await createServerClient().storage.from('rapor-templates').createSignedUrls(path, 60 * 30)
+    return Object.fromEntries(path.map(p => [p, data?.find(d => d.path === p)?.signedUrl ?? null]))
+  } catch {
+    return {}
+  }
 }
 
 /**

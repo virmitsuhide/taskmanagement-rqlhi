@@ -1,4 +1,8 @@
 import { inflateRawSync } from 'node:zlib'
+import {
+  bacaBingkai, bacaGaya, bacaKertas, bacaLatar, tataParagraf, tataTabel, tinggiKosong,
+  type Bingkai, type Kertas, type Latar, type Tata, type TataTabel,
+} from '@/lib/rapor/tata'
 
 /**
  * Pembaca .docx — cukup untuk menerjemahkan template rapor menjadi blok.
@@ -8,9 +12,9 @@ import { inflateRawSync } from 'node:zlib'
  * deflate biasa. Menambah pustaka docx penuh berarti menyeret seluruh model
  * OOXML ke dalam bundel demi dua puluh baris yang benar-benar dipakai.
  *
- * Yang SENGAJA tidak dibaca: font, ukuran huruf, posisi kotak, margin.
- * Template dicetak lewat lembar A4 sistem (lihat components/rapor/LembarRapor),
- * jadi yang diambil dari Word adalah ISI dan URUTANNYA — bukan tipografinya.
+ * Selain isi dan urutan, tata letaknya ikut dibaca (lib/rapor/tata.ts):
+ * jarak, inden, tab-stop, ukuran huruf, ukuran kertas, dan kop surat di
+ * belakang teks — supaya rapor tercetak menyerupai berkas Word-nya.
  *
  * Satu pengecualian untuk warna: huruf MERAH. Sekolah menandai bagian yang
  * boleh diganti dengan merah (template ATS SMP 2026/2027), termasuk potongan
@@ -90,6 +94,8 @@ export interface BlokParagraf {
    * Template yang diunggah sebelum fitur ini tidak memilikinya.
    */
   potongan?: Potongan[]
+  /** Jarak, inden, tab-stop, ukuran huruf. Tidak ada di template lama. */
+  tata?: Tata
 }
 
 /** Satu rentang teks berwarna seragam. merah = bagian yang boleh diganti. */
@@ -113,6 +119,8 @@ export interface BlokHalaman {
 export interface BlokTabel {
   jenis: 'tabel'
   baris: string[][]
+  /** Lebar kolom, warna sel, garis. Tidak ada di template lama. */
+  tata?: TataTabel
 }
 
 /** Kotak teks Word — di kedua template rapor, inilah kotak DESKRIPSI. */
@@ -125,6 +133,10 @@ export interface BlokKotak {
    * kotak teks, dengan isian merah di tengah kalimatnya.
    */
   potongan?: (Potongan[] | null)[]
+  /** Ukuran & letak kotak di halaman. Tidak ada di template lama. */
+  bingkai?: Bingkai
+  /** Tata tiap paragraf di dalam kotak, sejajar dengan `paragraf`. */
+  tataParagraf?: Tata[]
 }
 
 /**
@@ -139,9 +151,29 @@ export interface BlokJeda {
   jenis: 'jeda'
   /** Berapa paragraf kosong berturut-turut. */
   baris: number
+  /** Tinggi sebenarnya (pt) menurut jarak & spasi tiap paragrafnya. */
+  tinggi?: number
 }
 
-export type Blok = BlokParagraf | BlokTabel | BlokKotak | BlokJeda | BlokHalaman
+/**
+ * Kertas & kop surat — selalu blok TERAKHIR, dan hanya ada pada template
+ * yang dibaca dengan tata letak. Ditaruh di akhir supaya id slot blok lain
+ * (p12.1, h20, …) tidak bergeser dari hasil baca sebelumnya.
+ */
+export interface BlokKertas {
+  jenis: 'kertas'
+  kertas: Kertas
+  /** Latar per halaman: indeks 0 = halaman pertama. null = tanpa latar. */
+  latar: (Latar | null)[]
+}
+
+export type Blok = BlokParagraf | BlokTabel | BlokKotak | BlokJeda | BlokHalaman | BlokKertas
+
+/** Blok kertas sebuah template, bila template itu dibaca dengan tata letak. */
+export function kertasDari(blok: Blok[]): BlokKertas | null {
+  const akhir = blok[blok.length - 1]
+  return akhir?.jenis === 'kertas' ? akhir : null
+}
 
 // ─── Penerjemah ──────────────────────────────────────────────────────────────
 
@@ -249,85 +281,137 @@ function rataDari(pPr: string): Rata {
 }
 
 /**
+ * Satu paragraf. Paragraf kosong bertutup sendiri (<w:p …/>) dicocokkan
+ * LEBIH DULU: pola paragraf biasa akan mulai darinya dan menelan paragraf
+ * sesudahnya — teksnya ikut, tetapi jaraknya salah, dan satu Enter hilang.
+ */
+const POLA_PARAGRAF = /<w:p\b[^>]*\/>|<w:p\b[^>]*>[\s\S]*?<\/w:p>/g
+
+/**
  * document.xml → daftar blok.
  *
  * mc:Fallback dibuang lebih dulu: Word menyimpan isi kotak teks DUA KALI —
  * sekali untuk pembaca modern (mc:Choice) dan sekali sebagai cadangan — dan
  * tanpa ini setiap kotak deskripsi muncul dobel di lembar rapor.
+ *
+ * `stylesXml` (word/styles.xml) dibutuhkan untuk tata letak yang diwarisi
+ * dari gaya paragraf; tanpanya hanya atribut langsung yang terbaca. Latar
+ * yang ditemukan menyimpan rId-nya di `src` — bacaDocx menggantinya dengan
+ * nama berkas gambarnya.
  */
-export function bacaDocument(xml: string): Blok[] {
+export function bacaDocument(xml: string, stylesXml?: string | null): Blok[] {
   const bersih = xml.replace(/<mc:Fallback>[\s\S]*?<\/mc:Fallback>/g, '')
+  const gaya = bacaGaya(stylesXml)
+  const badan = bersih.match(/<w:body>([\s\S]*)<\/w:body>/)?.[1] ?? bersih
+  const kertas = bacaKertas(badan, gaya)
 
   // Gambar (termasuk kotak teks) dikeluarkan LEBIH DULU dan diganti penanda.
   // Tanpa ini, <w:p> di dalam kotak tertangkap oleh pemindai badan dokumen
   // sebelum paragraf pembungkusnya selesai, dan kotak deskripsi terurai
   // menjadi paragraf lepas yang kehilangan bingkainya.
-  const kotak: { teks: string; potongan: Potongan[] | null }[][] = []
-  const body = (bersih.match(/<w:body>([\s\S]*)<\/w:body>/)?.[1] ?? bersih).replace(
+  const kotak: { isi: { teks: string; potongan: Potongan[] | null; tata: Tata }[]; bingkai?: Bingkai }[] = []
+  const latarDitemukan: (Omit<Latar, 'src'> & { rId: string })[] = []
+  const body = badan.replace(
     /<w:drawing>[\s\S]*?<\/w:drawing>|<w:pict>[\s\S]*?<\/w:pict>/g,
     gambar => {
+      const latar = bacaLatar(gambar, kertas)
+      if (latar) {
+        latarDitemukan.push(latar)
+        return `<rq:latar n="${latarDitemukan.length - 1}"/>`
+      }
       const isi = gambar.match(/<w:txbxContent>([\s\S]*?)<\/w:txbxContent>/)
       if (!isi) return ''
-      const isiP = (isi[1].match(/<w:p\b[\s\S]*?<\/w:p>/g) ?? [])
-        .map(p => ({ teks: segmenParagraf(buangPPr(p)).join(' '), potongan: potonganParagraf(buangPPr(p)) ?? null }))
+      const isiP = (isi[1].match(POLA_PARAGRAF) ?? [])
+        .map(p => {
+          const pPr = p.match(/<w:pPr>[\s\S]*?<\/w:pPr>/)?.[0] ?? ''
+          return {
+            teks: segmenParagraf(buangPPr(p)).join(' '),
+            potongan: potonganParagraf(buangPPr(p)) ?? null,
+            tata: tataParagraf(pPr, buangPPr(p), gaya).tata,
+          }
+        })
         .filter(p => p.teks)
       if (isiP.length === 0) return ''
-      kotak.push(isiP)
+      kotak.push({ isi: isiP, bingkai: bacaBingkai(gambar, kertas) })
       return `<rq:kotak n="${kotak.length - 1}"/>`
     },
   )
 
   const blok: Blok[] = []
+  const latar: (Latar | null)[] = []
+  const halamanKe = () => blok.filter(b => b.jenis === 'halaman').length
 
-  for (const potong of body.match(/<w:tbl>[\s\S]*?<\/w:tbl>|<w:p\b[\s\S]*?<\/w:p>|<w:p\b[^>]*\/>/g) ?? []) {
+  for (const potong of body.match(/<w:tbl>[\s\S]*?<\/w:tbl>|<w:p\b[^>]*\/>|<w:p\b[^>]*>[\s\S]*?<\/w:p>/g) ?? []) {
     if (potong.startsWith('<w:tbl')) {
-      const baris = (potong.match(/<w:tr\b[\s\S]*?<\/w:tr>/g) ?? []).map(tr =>
+      const paragrafSel = (potong.match(/<w:tr\b[\s\S]*?<\/w:tr>/g) ?? []).map(tr =>
         (tr.match(/<w:tc>[\s\S]*?<\/w:tc>/g) ?? []).map(tc =>
-          (tc.match(/<w:p\b[\s\S]*?<\/w:p>/g) ?? [])
-            .map(p => segmenParagraf(buangPPr(p)).join(' '))
-            .filter(Boolean)
-            .join(' '),
+          (tc.match(POLA_PARAGRAF) ?? []).map(p => segmenParagraf(buangPPr(p)).join(' ')),
         ),
       )
-      if (baris.length > 0) blok.push({ jenis: 'tabel', baris })
+      const baris = paragrafSel.map(r => r.map(ps => ps.filter(Boolean).join(' ')))
+      if (baris.length > 0) {
+        const tata = tataTabel(potong, gaya)
+        if (paragrafSel.some(r => r.some(ps => ps.length > 1))) tata.paragrafSel = paragrafSel
+        blok.push({ jenis: 'tabel', baris, tata })
+      }
       continue
+    }
+
+    const pPr = potong.match(/<w:pPr>[\s\S]*?<\/w:pPr>/)?.[0] ?? ''
+    const { tata, tebalGaya } = tataParagraf(pPr, buangPPr(potong), gaya)
+    const halaman = letakHalaman(potong, pPr)
+    if (halaman === 'sebelum') tambahHalaman(blok)
+
+    // Kop surat berlaku untuk halaman tempat jangkarnya berada.
+    for (const m of potong.matchAll(/<rq:latar n="(\d+)"\/>/g)) {
+      const { rId, ...letak } = latarDitemukan[Number(m[1])]
+      latar[halamanKe()] ??= { src: rId, ...letak }
     }
 
     // Paragraf pembungkus kotak teks: kotaknya ditulis sebagai blok sendiri.
     // Teks paragraf itu sendiri (kalau ada) tetap ditulis sesudahnya.
+    const adaKotak = /<rq:kotak n="\d+"\/>/.test(potong)
     for (const p of potong.matchAll(/<rq:kotak n="(\d+)"\/>/g)) {
-      const isi = kotak[Number(p[1])]
+      const { isi, bingkai } = kotak[Number(p[1])]
       const potongan = isi.map(x => x.potongan)
       blok.push({
         jenis: 'kotak',
         paragraf: isi.map(x => x.teks),
         ...(potongan.some(Boolean) ? { potongan } : {}),
+        // Kotak berjangkar diukur dari atas paragraf jangkarnya, yang
+        // sendiri didahului jarak "sebelum"-nya.
+        ...(bingkai ? { bingkai: { ...bingkai, atas: bingkai.atas + (tata.sebelum ?? 0) } } : {}),
+        tataParagraf: isi.map(x => x.tata),
       })
     }
 
-    const pPr = potong.match(/<w:pPr>[\s\S]*?<\/w:pPr>/)?.[0] ?? ''
     const segmen = segmenParagraf(buangPPr(potong))
-    const halaman = letakHalaman(potong, pPr)
-    if (halaman === 'sebelum') tambahHalaman(blok)
 
-    // Paragraf kosong berturut-turut digabung jadi satu jeda: yang penting
-    // tingginya, bukan berapa kali tombol Enter ditekan.
+    // Paragraf kosong berturut-turut digabung jadi satu jeda. Tingginya
+    // dijumlah dari jarak & spasi tiap paragraf — kecuali paragraf jangkar
+    // kotak teks, yang ruangnya sudah dihitung dalam jarak atas kotaknya.
     if (segmen.length === 0 || segmen.every(s => s === '')) {
+      const tinggi = adaKotak ? 0 : tinggiKosong(tata)
       const akhir = blok[blok.length - 1]
-      if (akhir?.jenis === 'jeda') akhir.baris += 1
-      else blok.push({ jenis: 'jeda', baris: 1 })
+      if (akhir?.jenis === 'jeda') {
+        akhir.baris += 1
+        akhir.tinggi = (akhir.tinggi ?? 0) + tinggi
+      } else blok.push({ jenis: 'jeda', baris: 1, tinggi })
       if (halaman === 'sesudah') tambahHalaman(blok)
       continue
     }
 
     const potongan = potonganParagraf(buangPPr(potong))
+    const tanpaPPr = potong.replace(pPr, '')
     blok.push({
       jenis: 'paragraf',
       segmen,
       rata: rataDari(pPr),
-      // Tebal bila seluruh paragrafnya tebal — bukan sekadar satu kata di dalamnya.
-      tebal: /<w:b\s*\/>|<w:b w:val="(?:1|true)"/.test(potong.replace(pPr, '')),
+      // Tebal bila seluruh paragrafnya tebal — bukan sekadar satu kata di
+      // dalamnya — atau bila gaya paragrafnya tebal (gaya Title Word).
+      tebal: /<w:b\s*\/>|<w:b w:val="(?:1|true)"/.test(tanpaPPr) || (tebalGaya && !/<w:b w:val="(?:0|false|off)"/.test(tanpaPPr)),
       ...(potongan ? { potongan } : {}),
+      tata,
     })
     if (halaman === 'sesudah') tambahHalaman(blok)
   }
@@ -337,8 +421,15 @@ export function bacaDocument(xml: string): Blok[] {
   // apa pun selain lembar kosong.
   while (blok.length > 0 && blok[blok.length - 1].jenis === 'halaman') blok.pop()
 
+  const jumlahHalaman = halamanKe() + 1
+  blok.push({
+    jenis: 'kertas',
+    kertas,
+    latar: Array.from({ length: jumlahHalaman }, (_, i) => latar[i] ?? null),
+  })
   return blok
 }
+
 
 /** Satu penanda halaman saja, dan tidak pernah di awal dokumen. */
 function tambahHalaman(blok: Blok[]) {
@@ -352,7 +443,56 @@ function buangPPr(p: string): string {
 
 /** Berkas .docx utuh → blok. Mengembalikan null bila bukan .docx yang sah. */
 export function bacaDocx(buf: Buffer): Blok[] | null {
+  return bacaDocxLengkap(buf)?.blok ?? null
+}
+
+/** Gambar latar yang diambil dari dalam .docx, siap diunggah. */
+export interface GambarLatar {
+  /** Nama berkas di dalam .docx — sama dengan `Latar.src` sebelum diunggah. */
+  nama: string
+  data: Buffer
+  mime: string
+}
+
+const MIME_GAMBAR: Record<string, string> = {
+  jpeg: 'image/jpeg', jpg: 'image/jpeg', png: 'image/png', gif: 'image/gif', bmp: 'image/bmp', webp: 'image/webp',
+}
+
+/**
+ * Berkas .docx utuh → blok, berikut gambar kop surat yang ditemukan.
+ * `Latar.src` di blok kertas berisi nama berkas gambarnya di dalam .docx;
+ * pemanggil mengunggahnya lalu menggantinya dengan path penyimpanan.
+ * Latar yang gambarnya tidak bisa diambil (format tak dikenal, tautan
+ * eksternal) dibuang — lembarnya tetap tercetak, hanya tanpa latar.
+ */
+export function bacaDocxLengkap(buf: Buffer): { blok: Blok[]; gambar: GambarLatar[] } | null {
   const xml = ambilDariZip(buf, 'word/document.xml')
   if (!xml) return null
-  return bacaDocument(xml.toString('utf8'))
+  const blok = bacaDocument(xml.toString('utf8'), ambilDariZip(buf, 'word/styles.xml')?.toString('utf8'))
+
+  const rels = ambilDariZip(buf, 'word/_rels/document.xml.rels')?.toString('utf8') ?? ''
+  const target = new Map<string, string>()
+  for (const m of rels.matchAll(/<Relationship\b[^>]*>/g)) {
+    const id = m[0].match(/\bId="([^"]+)"/)?.[1]
+    const t = m[0].match(/\bTarget="([^"]+)"/)?.[1]
+    if (id && t && !/TargetMode="External"/.test(m[0])) target.set(id, t.startsWith('/') ? t.slice(1) : `word/${t}`)
+  }
+
+  const gambar = new Map<string, GambarLatar>()
+  const kertas = kertasDari(blok)
+  if (kertas) {
+    kertas.latar = kertas.latar.map(l => {
+      if (!l) return null
+      const nama = target.get(l.src)
+      const mime = MIME_GAMBAR[nama?.split('.').pop()?.toLowerCase() ?? '']
+      if (!nama || !mime) return null
+      if (!gambar.has(nama)) {
+        const data = ambilDariZip(buf, nama)
+        if (!data) return null
+        gambar.set(nama, { nama, data, mime })
+      }
+      return { ...l, src: nama }
+    })
+  }
+  return { blok, gambar: [...gambar.values()] }
 }

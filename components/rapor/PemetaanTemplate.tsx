@@ -23,6 +23,8 @@ interface Props {
   pengesahan: { tempat_terbit: string; nama_koordinator: string; nip_koordinator: string }
   /** Url bertanda tangan gambar ttd koordinator; null = belum diunggah. */
   ttdKoordinator: string | null
+  /** Url kop surat (path → url) untuk pratinjau. */
+  latar?: Record<string, string | null>
 }
 
 const GRUP = [...new Set(MEDAN.map(m => m.grup))]
@@ -40,7 +42,7 @@ const GRUP = [...new Set(MEDAN.map(m => m.grup))]
 /** Medan data yang masuk akal sebagai isi awal isian merah. */
 const AWAL_DATA: KodeMedan[] = ['capaian_tahfidz', 'juz_tuntas', 'juz_berjalan', 'total_hafalan', 'level_tahsin', 'jilid']
 
-export function PemetaanTemplate({ id, blok, pemetaan, awalIsian, pengesahan, ttdKoordinator }: Props) {
+export function PemetaanTemplate({ id, blok, pemetaan, awalIsian, pengesahan, ttdKoordinator, latar }: Props) {
   const router = useRouter()
   const [pending, mulai] = useTransition()
   // Slot yang belum pernah dipetakan (isian merah pada template lama yang
@@ -266,7 +268,7 @@ export function PemetaanTemplate({ id, blok, pemetaan, awalIsian, pengesahan, tt
           </span>
         </p>
         <div className="overflow-x-auto rounded-xl border">
-          <LembarRapor blok={blok} pemetaan={peta} tandai ttd={{ koordinator: ttdKoordinator, pengampu: null }} />
+          <LembarRapor blok={blok} pemetaan={peta} tandai ttd={{ koordinator: ttdKoordinator, pengampu: null }} latar={latar} />
         </div>
       </div>
     </div>

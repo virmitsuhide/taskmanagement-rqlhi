@@ -6,7 +6,7 @@
  * luar repo): deskripsi di kotak teks, isian merah EE0000 di tengah kalimat,
  * hitam lembut 1F1F1F, dan satu Ctrl+Enter sebelum halaman Riyadhoh.
  */
-import { bacaDocument, potonganParagraf, warnaMerah } from '../lib/rapor/docx'
+import { bacaDocument, kertasDari, potonganParagraf, warnaMerah } from '../lib/rapor/docx'
 import { awalIsianBawaan, cariSlot, ikutHuruf, isiAwalIsian, pemetaanAwal, slotIsianGuru } from '../lib/rapor/medan'
 
 let gagal = 0
@@ -57,7 +57,7 @@ periksa(kotak?.jenis === 'kotak' && !kotak.potongan?.[0] && !!kotak.potongan?.[1
 const slot = cariSlot(blok)
 const peta = pemetaanAwal(slot)
 const isian = slot.filter(s => s.konteks)
-periksa(isian.map(s => s.id).join(',') === `k${blok.indexOf(kotak!)}.1.m0,k${blok.indexOf(kotak!)}.1.m1,k${blok.indexOf(kotak!)}.1.m2,p${blok.length - 1}.m0`,
+periksa(isian.map(s => s.id).join(',') === `k${blok.indexOf(kotak!)}.1.m0,k${blok.indexOf(kotak!)}.1.m1,k${blok.indexOf(kotak!)}.1.m2,p${blok.findLastIndex(b => b.jenis === 'paragraf')}.m0`,
   'id isian merah per posisi: kotak.paragraf.m-ke, paragraf.m-ke')
 periksa(!slot.some(s => s.id === `k${blok.indexOf(kotak!)}`), 'kotak berisian merah tidak lagi menjadi satu slot deskripsi utuh')
 periksa(peta[isian[1].id] === 'sapaan_pengampu' && peta[isian[3].id] === 'sapaan_siswa', '"ustadz" & "sholih" dikenali sebagai sapaan')
@@ -66,6 +66,51 @@ periksa(peta[`h${iHal}`] === 'halaman_riyadhoh', 'halaman berjudul Riyadhoh otom
 periksa(slot.find(s => s.prefiks === ': ')?.tebakan === 'nama_siswa', 'baris identitas merah tetap lewat jalur label (nama siswa)')
 periksa(isian[0].konteks?.sebelum === 'Ananda' && isian[0].konteks?.sesudah === 'dalam mendengarkan', 'konteks = kalimat hitam yang mengapit')
 periksa(slotIsianGuru(blok, peta).length === 2, 'slotIsianGuru hanya isian yang diisi guru')
+
+console.log('\n## Tata letak')
+// Diturunkan dari template ATS SMP: gaya Title (tebal 12pt, inden 311/1540)
+// yang ditimpa sebagian oleh atribut langsung, tab-stop 3600 untuk baris
+// identitas, sel kepala biru, kertas F4, dan kop surat di belakang teks.
+const gaya = `<w:styles>
+  <w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:rPr><w:rFonts w:ascii="Times New Roman"/><w:sz w:val="22"/></w:rPr></w:style>
+  <w:style w:type="paragraph" w:styleId="Title"><w:basedOn w:val="Normal"/><w:pPr><w:spacing w:before="68"/><w:ind w:left="311" w:firstLine="1540"/></w:pPr><w:rPr><w:b/><w:sz w:val="24"/></w:rPr></w:style>
+</w:styles>`
+const xmlTata = `<w:document><w:body>
+  <w:p><w:pPr><w:pStyle w:val="Title"/><w:spacing w:line="302" w:lineRule="auto"/><w:ind w:right="1879" w:firstLine="409"/></w:pPr>
+    <w:r><w:drawing><wp:anchor behindDoc="1"><wp:positionH relativeFrom="page"><wp:align>left</wp:align></wp:positionH><wp:positionV relativeFrom="page"><wp:posOffset>0</wp:posOffset></wp:positionV><wp:extent cx="7569200" cy="11887200"/><a:blip r:embed="rId7"/></wp:anchor></w:drawing></w:r>
+    <w:r><w:t>TAHUN PELAJARAN 2026/2027</w:t></w:r></w:p>
+  <w:p><w:pPr><w:tabs><w:tab w:val="left" w:pos="3600"/></w:tabs><w:spacing w:before="139"/><w:ind w:left="441"/></w:pPr><w:r><w:t>Kelas</w:t></w:r><w:r><w:tab/></w:r><w:r><w:t>: IX A</w:t></w:r></w:p>
+  <w:p/><w:p><w:pPr><w:spacing w:before="144"/></w:pPr></w:p>
+  <w:tbl><w:tblPr><w:tblInd w:w="952" w:type="dxa"/><w:tblBorders><w:top w:val="single"/></w:tblBorders></w:tblPr><w:tblGrid><w:gridCol w:w="1906"/><w:gridCol w:w="1906"/></w:tblGrid>
+    <w:tr><w:tc><w:tcPr><w:shd w:val="clear" w:fill="4F81BD"/></w:tcPr><w:p><w:r><w:t>Hadir</w:t></w:r></w:p></w:tc><w:tc><w:p><w:r><w:t>Izin</w:t></w:r></w:p></w:tc></w:tr>
+  </w:tbl>
+  <w:sectPr><w:pgSz w:w="11920" w:h="18720"/><w:pgMar w:top="1640" w:right="900" w:bottom="280" w:left="1220"/></w:sectPr>
+</w:body></w:document>`
+const bt = bacaDocument(xmlTata, gaya)
+const judul = bt[0]
+periksa(judul.jenis === 'paragraf' && judul.tebal && judul.tata?.ukuran === 12, 'gaya Title terwarisi: tebal, 12pt')
+periksa(judul.jenis === 'paragraf' && judul.tata?.kiri === 15.55 && judul.tata?.awal === 20.45 && judul.tata?.kanan === 93.95,
+  'inden gaya ditimpa per atribut (kiri dari gaya, baris pertama & kanan langsung)')
+periksa(judul.jenis === 'paragraf' && Math.abs((judul.tata?.baris ?? 0) - 302 / 240) < 1e-9 && judul.tata?.sebelum === 3.4,
+  'spasi baris kelipatan & jarak sebelum dari gaya')
+const kelas = bt[1]
+periksa(kelas.jenis === 'paragraf' && kelas.tata?.tab === 180 && kelas.tata?.kiri === 22.05, 'tab-stop baris identitas (pt dari margin)')
+const jeda = bt[2]
+periksa(jeda.jenis === 'jeda' && jeda.baris === 2 && Math.abs((jeda.tinggi ?? 0) - (2 * 11 * 1.15 + 7.2)) < 1e-6,
+  'tinggi jeda = jumlah tinggi tiap paragraf kosong')
+const tabel = bt[3]
+periksa(tabel.jenis === 'tabel' && tabel.tata?.latar?.[0]?.[0] === '#4F81BD' && tabel.tata?.latar?.[0]?.[1] === null,
+  'warna sel kepala terbaca')
+periksa(tabel.jenis === 'tabel' && tabel.tata?.kolom?.join() === '95.3,95.3' && tabel.tata?.geser === 47.6 && !tabel.tata?.tanpaGaris,
+  'lebar kolom, geser tabel, dan garis')
+const kertasTata = kertasDari(bt)
+periksa(bt[bt.length - 1] === kertasTata && kertasTata?.kertas.lebar === 596 && kertasTata?.kertas.tinggi === 936 && kertasTata?.kertas.margin.join() === '82,45,14,61',
+  'blok kertas di akhir: F4 & margin')
+periksa(kertasTata?.kertas.huruf === 'Times New Roman', 'huruf dokumen dari gaya Normal')
+periksa(kertasTata?.latar.length === 1 && kertasTata.latar[0]?.src === 'rId7' && kertasTata.latar[0]?.x === 0,
+  'kop surat di belakang teks menjadi latar halaman 1')
+periksa(!cariSlot(bt).some(s => s.id === `p${bt.length - 1}.0`), 'blok kertas tidak menghasilkan slot')
+periksa(kertasDari(blok)?.latar.length === 2, 'dokumen dua halaman → dua entri latar')
 
 console.log('\n## Isi awal')
 periksa(awalIsianBawaan({ contoh: 'Sangat baik' }) === 'contoh', 'frasa umum → contoh template')

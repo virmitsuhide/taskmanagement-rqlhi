@@ -129,7 +129,7 @@ export default async function IsiRaporPage({ params, searchParams }: PageProps) 
             <p className="text-sm text-muted-foreground print:hidden">Pratinjau lembar — inilah yang tercetak.</p>
             {anak.template ? (
               <div className="overflow-x-auto rounded-xl border print:overflow-visible print:rounded-none print:border-0">
-                <LembarRapor blok={anak.template.blok} pemetaan={anak.template.pemetaan} nilai={anak.nilai} ttd={anak.ttd}
+                <LembarRapor blok={anak.template.blok} pemetaan={anak.template.pemetaan} nilai={anak.nilai} ttd={anak.ttd} latar={anak.latar}
                   isian={anak.isian} riyadhoh={anak.riyadhoh} />
               </div>
             ) : (

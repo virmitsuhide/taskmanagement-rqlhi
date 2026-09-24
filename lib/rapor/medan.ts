@@ -342,6 +342,9 @@ export function cariSlot(blok: Blok[]): Slot[] {
   const slot: Slot[] = []
 
   blok.forEach((b, i) => {
+    // Kertas & kop surat hanya tata letak — tidak ada yang bisa diisi.
+    if (b.jenis === 'kertas') return
+
     if (b.jenis === 'halaman') {
       const riyadhoh = halamanRiyadhoh(blok, i)
       slot.push({

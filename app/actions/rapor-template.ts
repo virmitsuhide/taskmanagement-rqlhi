@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { createServerClient } from '@/lib/supabase/server'
 import { getSession } from '@/lib/auth/session'
 import { canManageRaporTemplate } from '@/lib/auth/permissions'
-import { bacaDocx } from '@/lib/rapor/docx'
+import { bacaDocxLengkap, kertasDari, type Blok, type GambarLatar } from '@/lib/rapor/docx'
 import { unggahTtd } from '@/lib/kpi/ttd-berkas'
 import { cariSlot, pemetaanAwal, KODE_MEDAN, type AwalIsian, type KodeMedan } from '@/lib/rapor/medan'
 import { bacaJenisRapor } from '@/lib/rapor/jenis'
@@ -33,6 +33,40 @@ async function simpanBerkas(
 }
 
 /**
+ * Unggah gambar kop surat ke bucket yang sama dengan .docx-nya, lalu ganti
+ * `src` tiap latar dari nama berkas di dalam .docx menjadi path penyimpanan.
+ * Gambar yang dipakai beberapa halaman diunggah sekali. Gagal unggah hanya
+ * membuang latarnya — template tetap tersimpan dan tercetak tanpa kop.
+ */
+async function simpanLatar(
+  supabase: ReturnType<typeof createServerClient>,
+  blok: Blok[],
+  gambar: GambarLatar[],
+): Promise<Blok[]> {
+  const kertas = kertasDari(blok)
+  if (!kertas || gambar.length === 0) return blok
+
+  const dasar = `latar/${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+  const path = new Map<string, string>()
+  for (const [n, g] of gambar.entries()) {
+    try {
+      const tujuan = `${dasar}-${n + 1}.${g.nama.split('.').pop()}`
+      const { data, error } = await supabase.storage.from(BUCKET).upload(tujuan, g.data, { contentType: g.mime, upsert: false })
+      if (!error && data) path.set(g.nama, data.path)
+    } catch { /* latar ini dilewati */ }
+  }
+  kertas.latar = kertas.latar.map(l => (l && path.has(l.src) ? { ...l, src: path.get(l.src)! } : null))
+  return blok
+}
+
+/** Path kop surat yang tersimpan untuk sebuah blok — untuk dibersihkan. */
+function pathLatar(blok: unknown): string[] {
+  if (!Array.isArray(blok)) return []
+  const kertas = kertasDari(blok as Blok[])
+  return [...new Set((kertas?.latar ?? []).flatMap(l => (l?.src.startsWith('latar/') ? [l.src] : [])))]
+}
+
+/**
  * Unggah template .docx: diterjemahkan jadi blok, tempat isiannya ditebak,
  * lalu disimpan. Koordinator membetulkan tebakannya di layar pemetaan.
  */
@@ -52,8 +86,8 @@ export async function unggahTemplateAction(formData: FormData): Promise<Hasil> {
   if (file.size > 5 * 1024 * 1024) return { error: 'Berkas terlalu besar (maksimal 5 MB).' }
 
   const bytes = await file.arrayBuffer()
-  const blok = bacaDocx(Buffer.from(bytes))
-  if (!blok || blok.length === 0) {
+  const hasil = bacaDocxLengkap(Buffer.from(bytes))
+  if (!hasil || hasil.blok.length <= 1) {
     return { error: 'Berkas tidak terbaca sebagai dokumen Word. Pastikan berkasnya .docx dan tidak rusak.' }
   }
 
@@ -66,6 +100,7 @@ export async function unggahTemplateAction(formData: FormData): Promise<Hasil> {
   const jenis = bacaJenisRapor(String(formData.get('jenis') ?? ''))
   const supabase = createServerClient()
   const path = await simpanBerkas(supabase, file, bytes)
+  const blok = await simpanLatar(supabase, hasil.blok, hasil.gambar)
 
   const baris = {
     nama: (String(formData.get('nama') ?? '').trim() || file.name.replace(/\.docx$/i, '')),
@@ -184,13 +219,14 @@ export async function hapusTemplateAction(id: string): Promise<Hasil> {
   if (!session) return { error: 'Sesi tidak valid.' }
 
   const supabase = createServerClient()
-  const { data: tpl } = await supabase.from('rapor_templates').select('jenjang, file_path').eq('id', id).maybeSingle()
+  const { data: tpl } = await supabase.from('rapor_templates').select('jenjang, file_path, blok').eq('id', id).maybeSingle()
   if (!tpl) return { error: 'Template tidak ditemukan.' }
   if (!canManageRaporTemplate(session.role, tpl.jenjang as Jenjang)) return { error: 'Tidak memiliki izin.' }
 
   const { error } = await supabase.from('rapor_templates').delete().eq('id', id)
   if (error) return { error: 'Gagal menghapus template.' }
-  if (tpl.file_path) await supabase.storage.from(BUCKET).remove([tpl.file_path as string])
+  const sisa = [...(tpl.file_path ? [tpl.file_path as string] : []), ...pathLatar(tpl.blok)]
+  if (sisa.length > 0) await supabase.storage.from(BUCKET).remove(sisa)
 
   revalidatePath('/rapor-quran/template')
   return { success: true }
@@ -260,18 +296,19 @@ export async function hapusTtdKoordinatorAction(id: string): Promise<Hasil> {
  * jalan adalah mengunggah ulang berkasnya, dan berkas itu bisa saja sudah
  * tidak ada di komputer koordinator.
  *
- * Pemetaannya ikut disusun ulang dari tebakan baru, BUKAN dipertahankan:
- * blok yang berubah menggeser id slotnya, dan pemetaan lama yang dipaksa
- * tetap akan menempel pada baris yang keliru. Koordinator memeriksanya lagi
- * di layar pemetaan — yang memang sudah ada di hadapannya.
+ * Pemetaannya dipertahankan bila slot hasil baca ulang SAMA dengan yang lama
+ * (id dan contohnya) — misalnya bila yang berubah hanya tata letaknya. Bila
+ * ada yang bergeser, pemetaan disusun ulang dari tebakan baru: pemetaan lama
+ * yang dipaksa tetap akan menempel pada baris yang keliru. Koordinator
+ * memeriksanya lagi di layar pemetaan — yang memang sudah ada di hadapannya.
  */
 export async function bacaUlangTemplateAction(id: string): Promise<Hasil> {
   const session = await getSession()
   if (!session) return { error: 'Sesi tidak valid.' }
 
   const supabase = createServerClient()
-  const { data: tpl } = await supabase
-    .from('rapor_templates').select('jenjang, file_path').eq('id', id).maybeSingle()
+  // select('*'): awal_isian baru ada sesudah 0086.
+  const { data: tpl } = await supabase.from('rapor_templates').select('*').eq('id', id).maybeSingle()
   if (!tpl) return { error: 'Template tidak ditemukan.' }
   if (!canManageRaporTemplate(session.role, tpl.jenjang as Jenjang)) return { error: 'Tidak memiliki izin.' }
   if (!tpl.file_path) {
@@ -281,20 +318,35 @@ export async function bacaUlangTemplateAction(id: string): Promise<Hasil> {
   const { data: berkas, error: galatUnduh } = await supabase.storage.from(BUCKET).download(tpl.file_path as string)
   if (galatUnduh || !berkas) return { error: 'Berkas arsip tidak bisa dibuka. Unggah ulang .docx-nya.' }
 
-  const blok = bacaDocx(Buffer.from(await berkas.arrayBuffer()))
-  if (!blok || blok.length === 0) return { error: 'Berkas arsip tidak terbaca sebagai dokumen Word.' }
+  const hasil = bacaDocxLengkap(Buffer.from(await berkas.arrayBuffer()))
+  if (!hasil || hasil.blok.length <= 1) return { error: 'Berkas arsip tidak terbaca sebagai dokumen Word.' }
+  const blok = await simpanLatar(supabase, hasil.blok, hasil.gambar)
+
+  const sidik = (b: Blok[]) => cariSlot(b).map(s => `${s.id}\u0000${s.contoh}`).join('\u0001')
+  const blokLama = Array.isArray(tpl.blok) ? (tpl.blok as Blok[]) : []
+  const sama = blokLama.length > 0 && sidik(blokLama) === sidik(blok)
+  const pemetaan = sama ? (tpl.pemetaan ?? {}) : pemetaanAwal(cariSlot(blok))
+  const awalIsian = sama ? (tpl.awal_isian ?? {}) : {}
 
   let { error } = await supabase
     .from('rapor_templates')
-    .update({ blok, pemetaan: pemetaanAwal(cariSlot(blok)), awal_isian: {}, updated_at: new Date().toISOString() })
+    .update({ blok, pemetaan, awal_isian: awalIsian, updated_at: new Date().toISOString() })
     .eq('id', id)
   if (error) {
     ({ error } = await supabase
       .from('rapor_templates')
-      .update({ blok, pemetaan: pemetaanAwal(cariSlot(blok)), updated_at: new Date().toISOString() })
+      .update({ blok, pemetaan, updated_at: new Date().toISOString() })
       .eq('id', id))
   }
-  if (error) return { error: 'Gagal menyimpan hasil baca ulang.' }
+  if (error) {
+    const baru = pathLatar(blok)
+    if (baru.length > 0) await supabase.storage.from(BUCKET).remove(baru)
+    return { error: 'Gagal menyimpan hasil baca ulang.' }
+  }
+
+  // Kop surat hasil baca sebelumnya sudah tidak dirujuk siapa pun.
+  const lama = pathLatar(blokLama)
+  if (lama.length > 0) await supabase.storage.from(BUCKET).remove(lama)
 
   revalidatePath(`/rapor-quran/template/${id}`)
   return { success: true }

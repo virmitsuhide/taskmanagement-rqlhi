@@ -734,8 +734,10 @@
  * satu sesi sekaligus menghasilkan setumpuk rapor yang sudah terpisah.
  */
 @media print {
-  .dark .rapor-sheet,
-  .dark .rapor-sheet * {
+  /* Lembar ber-tata-letak Word sudah menulis warnanya sendiri (sel biru,
+     kertas putih) — mengembalikannya ke bawaan justru menghapus warna itu. */
+  .dark .rapor-sheet:not(.rapor-sheet-word),
+  .dark .rapor-sheet:not(.rapor-sheet-word) * {
     color: revert !important;
     background-color: revert !important;
     border-color: revert !important;
@@ -760,6 +762,41 @@
 
   .rapor-table {
     font-size: 10pt !important;
+  }
+
+  /* Lembar ber-tata-letak Word: tiap halaman template satu kertas — juga
+     antar-anak, yang lembarnya dibungkus sendiri-sendiri sehingga aturan
+     .rapor-sheet + .rapor-sheet tidak berlaku. Pemisah di awal dokumen
+     diabaikan peramban. Tinggi minimumnya dikurangi sedikit supaya
+     pembulatan tidak menumpahkan lembar kosong sesudahnya. */
+  .rapor-sheet-word > div {
+    break-before: page;
+  }
+
+  .rapor-kertas {
+    min-height: calc(var(--tinggi-kertas) - 2pt) !important;
+  }
+
+  /* Aturan cetak umum di atas dibuat untuk laporan bertabel, bukan lembar
+     Word: tabel dipaksa selebar halaman, overflow dilepas (kop surat yang
+     sedikit lebih besar dari kertas tumpah ke halaman berikutnya), dan mode
+     gelap mengosongkan semua latar. Lembar Word memulihkan ketiganya. */
+  .rapor-sheet-word table {
+    width: var(--lebar-tabel, auto) !important;
+  }
+
+  .rapor-sheet-word .rapor-kertas {
+    overflow: hidden !important;
+    background-color: #fff !important;
+  }
+
+  .rapor-sheet-word [data-latar] {
+    background-color: var(--latar-sel) !important;
+  }
+
+  .dark .rapor-sheet-word * {
+    color: #000 !important;
+    border-color: #000 !important;
   }
 
   /* Pergantian halaman yang ditulis di template Word (lihat BlokHalaman). */

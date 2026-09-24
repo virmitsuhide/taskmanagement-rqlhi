@@ -41,7 +41,7 @@ export function AturTemplate({ id, nama, tingkatMin, tingkatMax, aktif, jenis }:
   }
 
   function bacaUlang() {
-    if (!confirm('Baca ulang berkas .docx-nya? Pemetaan medan akan disusun ulang dari tebakan baru dan perlu Anda periksa lagi.')) return
+    if (!confirm('Baca ulang berkas .docx-nya? Tata letak dan kop surat ikut dibaca. Pemetaan medan dipertahankan bila isi template tidak berubah; bila berubah, pemetaan disusun ulang dan perlu Anda periksa lagi.')) return
     mulai(async () => {
       const hasil = await bacaUlangTemplateAction(id)
       if (hasil.error) {

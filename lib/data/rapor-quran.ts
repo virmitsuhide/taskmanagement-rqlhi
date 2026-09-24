@@ -13,7 +13,7 @@ import { formatTanggal, tanggalWIB } from '@/lib/rq/ujian'
 import { ttdSrc } from '@/lib/kpi/ttd-berkas'
 import type { HalaqohSesi } from '@/lib/data/setoran-sesi'
 import { isiAwalIsian, slotIsianGuru, type KodeMedan } from '@/lib/rapor/medan'
-import { templateUntuk, type JenisRapor, type RaporTemplate } from '@/lib/data/rapor-template'
+import { templateUntuk, urlLatar, type JenisRapor, type RaporTemplate } from '@/lib/data/rapor-template'
 import type { Jenjang } from '@/types'
 
 /**
@@ -91,6 +91,8 @@ export interface BahanRapor {
   template: RaporTemplate | null
   /** Url bertanda tangan untuk gambar ttd; null = ruang ttd dibiarkan kosong. */
   ttd: { pengampu: string | null; koordinator: string | null }
+  /** Url kop surat template ini (path → url); kosong = tanpa kop. */
+  latar: Record<string, string | null>
 }
 
 interface BarisIsian {
@@ -220,8 +222,10 @@ export async function getBahanRaporSesi(
   // url bertanda tangan untuk gambar yang sama persis.
   const ttdPengampu = await ttdSrc(pengampu?.signature_path)
   const ttdKoordinator = new Map<string, string | null>()
+  const latarPer = new Map<string, Record<string, string | null>>()
   for (const tpl of templates) {
     if (tpl.ttd_koordinator_path) ttdKoordinator.set(tpl.id, await ttdSrc(tpl.ttd_koordinator_path))
+    latarPer.set(tpl.id, await urlLatar(tpl.blok))
   }
   const isianPer = new Map(isianRes.map(r => [r.student_id, r]))
   // Slot isian per template dihitung sekali, bukan per anak: cariSlot
@@ -348,6 +352,7 @@ export async function getBahanRaporSesi(
         pengampu: ttdPengampu,
         koordinator: template ? (ttdKoordinator.get(template.id) ?? null) : null,
       },
+      latar: template ? (latarPer.get(template.id) ?? {}) : {},
     }
   })
 }

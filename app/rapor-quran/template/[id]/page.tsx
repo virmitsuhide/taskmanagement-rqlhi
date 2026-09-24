@@ -1,7 +1,7 @@
 import { notFound, redirect } from 'next/navigation'
 import { getSession } from '@/lib/auth/session'
 import { canManageRaporTemplate, JENJANG_LABELS } from '@/lib/auth/permissions'
-import { getRaporTemplate } from '@/lib/data/rapor-template'
+import { getRaporTemplate, urlLatar } from '@/lib/data/rapor-template'
 import { LABEL_JENIS_RAPOR } from '@/lib/rapor/jenis'
 import { ttdSrc } from '@/lib/kpi/ttd-berkas'
 import { FileText } from 'lucide-react'
@@ -23,7 +23,7 @@ export default async function PemetaanTemplatePage({ params }: PageProps) {
   if (!template) notFound()
   if (!canManageRaporTemplate(session.role, template.jenjang)) redirect('/dashboard')
 
-  const ttdKoordinator = await ttdSrc(template.ttd_koordinator_path)
+  const [ttdKoordinator, latar] = await Promise.all([ttdSrc(template.ttd_koordinator_path), urlLatar(template.blok)])
 
   return (
     <div>
@@ -62,6 +62,7 @@ export default async function PemetaanTemplatePage({ params }: PageProps) {
             nip_koordinator: template.nip_koordinator,
           }}
           ttdKoordinator={ttdKoordinator}
+          latar={latar}
         />
       </div>
     </div>
