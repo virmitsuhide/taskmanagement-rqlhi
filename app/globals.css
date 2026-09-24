@@ -5,7 +5,7 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-    --font-heading: var(--font-sans);
+    --font-heading: var(--font-display);
     --font-sans: var(--font-sans);
     --color-sidebar-ring: var(--sidebar-ring);
     --color-sidebar-border: var(--sidebar-border);
@@ -58,58 +58,65 @@
     --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+/*
+ * Palet "Teduh" (reimagine 2026) — kertas hangat sebagai dasar, teal daun-kitab
+ * dari logo sebagai tinta, oranye tunas HANYA untuk yang menunggu tindakan.
+ * Nama token tidak berubah; hanya nilainya, supaya seluruh komponen ikut
+ * berganti rupa tanpa menyentuh logika.
+ */
 :root {
-    --background: oklch(1 0 0);
-    --foreground: oklch(0.18 0.01 160);
-    --card: oklch(1 0 0);
-    --card-foreground: oklch(0.18 0.01 160);
-    --popover: oklch(1 0 0);
-    --popover-foreground: oklch(0.18 0.01 160);
-    --primary: oklch(0.48 0.13 163);
-    --primary-foreground: oklch(0.985 0 0);
-    --secondary: oklch(0.97 0.01 160);
-    --secondary-foreground: oklch(0.32 0.06 163);
-    --muted: oklch(0.97 0.01 160);
-    --muted-foreground: oklch(0.50 0.02 160);
-    --accent: oklch(0.95 0.04 160);
-    --accent-foreground: oklch(0.32 0.10 163);
-    --destructive: oklch(0.577 0.245 27.325);
-    --destructive-foreground: oklch(0.985 0 0);
-    --destructive-wash: oklch(0.95 0.05 27);
-    --success: oklch(0.52 0.13 152);
-    --success-foreground: oklch(0.985 0 0);
-    --success-wash: oklch(0.95 0.04 152);
-    --warning: oklch(0.55 0.12 70);
-    --warning-foreground: oklch(0.99 0 0);
-    --warning-wash: oklch(0.95 0.06 85);
-    --info: oklch(0.52 0.13 248);
-    --info-foreground: oklch(0.985 0 0);
-    --info-wash: oklch(0.95 0.04 248);
-    --border: oklch(0.91 0.01 160);
-    --input: oklch(0.91 0.01 160);
-    --ring: oklch(0.62 0.14 163);
-    --chart-1: oklch(0.55 0.14 163);
-    --chart-2: oklch(0.70 0.12 158);
-    --chart-3: oklch(0.45 0.13 168);
-    --chart-4: oklch(0.78 0.10 150);
-    --chart-5: oklch(0.35 0.10 170);
-    --radius: 0.625rem;
-    --primary-wash: oklch(0.96 0.04 162);
-    --accent-warm: oklch(0.72 0.15 60);
-    --accent-warm-wash: oklch(0.96 0.05 80);
-    /* Seri grafik — dari palet brand "Teduh": teal daun-kitab + oranye tunas
-       pada logo. Ditulis hex, bukan oklch, supaya persis nilai brand yang
-       rasio kontrasnya sudah diuji WCAG — konversi ke oklch menggeser sedikit. */
+    --background: #F5F2EA;
+    --foreground: #17211F;
+    --card: #FFFFFF;
+    --card-foreground: #17211F;
+    --popover: #FFFFFF;
+    --popover-foreground: #17211F;
+    --primary: #1E5A51;
+    --primary-foreground: #FFFFFF;
+    --secondary: #EEEAE0;
+    --secondary-foreground: #154640;
+    --muted: #EEEAE0;
+    --muted-foreground: #56625F;
+    --accent: #E2EEEA;
+    --accent-foreground: #154640;
+    --destructive: #A8261D;
+    --destructive-foreground: #FFFFFF;
+    --destructive-wash: #FAE6E3;
+    --success: #1E6B4E;
+    --success-foreground: #FFFFFF;
+    --success-wash: #E1F0E8;
+    --warning: #9A4A09;
+    --warning-foreground: #FFFFFF;
+    --warning-wash: #FBEBDC;
+    --info: #2E5A8F;
+    --info-foreground: #FFFFFF;
+    --info-wash: #E5EDF7;
+    --border: #E4DFD3;
+    --input: #DDD7C9;
+    --ring: #256B60;
+    --chart-1: #256B60;
+    --chart-2: #6FA89C;
+    --chart-3: #154640;
+    --chart-4: #B7D3CB;
+    --chart-5: #0E3531;
+    --radius: 0.75rem;
+    --primary-wash: #E2EEEA;
+    --accent-warm: #BC5A0B;
+    --accent-warm-wash: #FBEBDC;
+    /* Seri grafik — teal daun-kitab + oranye tunas pada logo. Hex, bukan
+       oklch, supaya persis nilai brand yang rasio kontrasnya sudah diuji. */
     --seri-1: #256B60; /* teal 600 · 6.27:1 di putih */
     --seri-2: #BC5A0B; /* oranye 600 · 4.56:1 di putih */
-    --sidebar: oklch(0.985 0.01 160);
-    --sidebar-foreground: oklch(0.20 0.02 160);
-    --sidebar-primary: oklch(0.42 0.13 163);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.95 0.04 160);
-    --sidebar-accent-foreground: oklch(0.32 0.10 163);
-    --sidebar-border: oklch(0.91 0.01 160);
-    --sidebar-ring: oklch(0.62 0.14 163);
+    /* Sidebar pengurus: teal gelap, tinta pucat. Portal guru menimpa ini
+       dengan versi kertas lewat .portal-guru di bawah. */
+    --sidebar: #0E3531;
+    --sidebar-foreground: #E6EFEC;
+    --sidebar-primary: #FFFFFF;
+    --sidebar-primary-foreground: #0E3531;
+    --sidebar-accent: #21504A;
+    --sidebar-accent-foreground: #FFFFFF;
+    --sidebar-border: rgb(255 255 255 / 0.10);
+    --sidebar-ring: #6FA89C;
 }
 
 .dark {
@@ -154,7 +161,7 @@
        saturasinya ke emas — sesuai arah "Tilawah Malam" pada palet brand. */
     --seri-1: #5FBFAE; /* mint · 7.26:1 di kartu gelap */
     --seri-2: #E3A93C; /* emas · 8.51:1 di kartu gelap */
-    --sidebar: oklch(0.20 0.02 162);
+    --sidebar: #0B2A27;
     --sidebar-foreground: oklch(0.985 0 0);
     --sidebar-primary: oklch(0.78 0.16 162);
     --sidebar-primary-foreground: oklch(0.18 0.04 160);
@@ -172,40 +179,74 @@
  * the subtree keeps text and surfaces in sync regardless of the global theme.
  */
 .theme-light {
-    --background: oklch(1 0 0);
-    --foreground: oklch(0.18 0.01 160);
-    --card: oklch(1 0 0);
-    --card-foreground: oklch(0.18 0.01 160);
-    --popover: oklch(1 0 0);
-    --popover-foreground: oklch(0.18 0.01 160);
-    --primary: oklch(0.48 0.13 163);
-    --primary-foreground: oklch(0.985 0 0);
-    --secondary: oklch(0.97 0.01 160);
-    --secondary-foreground: oklch(0.32 0.06 163);
-    --muted: oklch(0.97 0.01 160);
-    --muted-foreground: oklch(0.50 0.02 160);
-    --accent: oklch(0.95 0.04 160);
-    --accent-foreground: oklch(0.32 0.10 163);
-    --destructive: oklch(0.577 0.245 27.325);
-    --destructive-foreground: oklch(0.985 0 0);
-    --destructive-wash: oklch(0.95 0.05 27);
-    --success: oklch(0.52 0.13 152);
-    --warning: oklch(0.55 0.12 70);
-    --info: oklch(0.52 0.13 248);
-    --success-wash: oklch(0.95 0.04 152);
-    --warning-wash: oklch(0.95 0.06 85);
-    --info-wash: oklch(0.95 0.04 248);
-    --border: oklch(0.91 0.01 160);
-    --input: oklch(0.91 0.01 160);
-    --ring: oklch(0.62 0.14 163);
-    --primary-wash: oklch(0.96 0.04 162);
-    --accent-warm: oklch(0.72 0.15 60);
-    --accent-warm-wash: oklch(0.96 0.05 80);
-    /* Seri grafik — dari palet brand "Teduh": teal daun-kitab + oranye tunas
-       pada logo. Ditulis hex, bukan oklch, supaya persis nilai brand yang
-       rasio kontrasnya sudah diuji WCAG — konversi ke oklch menggeser sedikit. */
+    --background: #FFFFFF;
+    --foreground: #17211F;
+    --card: #FFFFFF;
+    --card-foreground: #17211F;
+    --popover: #FFFFFF;
+    --popover-foreground: #17211F;
+    --primary: #1E5A51;
+    --primary-foreground: #FFFFFF;
+    --secondary: #EEEAE0;
+    --secondary-foreground: #154640;
+    --muted: #EEEAE0;
+    --muted-foreground: #56625F;
+    --accent: #E2EEEA;
+    --accent-foreground: #154640;
+    --destructive: #A8261D;
+    --destructive-foreground: #FFFFFF;
+    --destructive-wash: #FAE6E3;
+    --success: #1E6B4E;
+    --success-foreground: #FFFFFF;
+    --success-wash: #E1F0E8;
+    --warning: #9A4A09;
+    --warning-foreground: #FFFFFF;
+    --warning-wash: #FBEBDC;
+    --info: #2E5A8F;
+    --info-foreground: #FFFFFF;
+    --info-wash: #E5EDF7;
+    --border: #E4DFD3;
+    --input: #DDD7C9;
+    --ring: #256B60;
+    --chart-1: #256B60;
+    --chart-2: #6FA89C;
+    --chart-3: #154640;
+    --chart-4: #B7D3CB;
+    --chart-5: #0E3531;
+    --radius: 0.75rem;
+    --primary-wash: #E2EEEA;
+    --accent-warm: #BC5A0B;
+    --accent-warm-wash: #FBEBDC;
+    /* Seri grafik — teal daun-kitab + oranye tunas pada logo. Hex, bukan
+       oklch, supaya persis nilai brand yang rasio kontrasnya sudah diuji. */
     --seri-1: #256B60; /* teal 600 · 6.27:1 di putih */
     --seri-2: #BC5A0B; /* oranye 600 · 4.56:1 di putih */
+    /* Sidebar pengurus: teal gelap, tinta pucat. Portal guru menimpa ini
+       dengan versi kertas lewat .portal-guru di bawah. */
+    --sidebar: #0E3531;
+    --sidebar-foreground: #E6EFEC;
+    --sidebar-primary: #FFFFFF;
+    --sidebar-primary-foreground: #0E3531;
+    --sidebar-accent: #21504A;
+    --sidebar-accent-foreground: #FFFFFF;
+    --sidebar-border: rgb(255 255 255 / 0.10);
+    --sidebar-ring: #6FA89C;
+}
+
+/* Portal guru memakai sidebar kertas (terang), berbeda dari ruang pengurus. */
+.portal-guru {
+    --sidebar: #FFFDF8;
+    --sidebar-foreground: #17211F;
+    --sidebar-accent: #E2EEEA;
+    --sidebar-accent-foreground: #0E3531;
+    --sidebar-border: #E4DFD3;
+}
+.dark .portal-guru {
+    --sidebar: #0B2A27;
+    --sidebar-foreground: oklch(0.985 0 0);
+    --sidebar-accent: oklch(0.30 0.05 162);
+    --sidebar-accent-foreground: oklch(0.985 0 0);
+    --sidebar-border: oklch(1 0 0 / 10%);
 }
 
 @layer base {

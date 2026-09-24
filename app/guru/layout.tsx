@@ -1,9 +1,10 @@
 import type { ReactNode } from 'react'
-import { Lora, Playfair_Display } from 'next/font/google'
+import { Newsreader } from 'next/font/google'
 import { TeacherShell } from '@/components/layout/TeacherShell'
 
-const lora = Lora({ subsets: ['latin'], variable: '--font-lora', display: 'swap' })
-const playfair = Playfair_Display({ subsets: ['latin'], variable: '--font-playfair', display: 'swap' })
+// Nama variabel --font-playfair dipertahankan supaya semua halaman guru yang
+// memakainya tidak perlu disentuh; isinya kini Newsreader (huruf judul Teduh).
+const playfair = Newsreader({ subsets: ['latin'], variable: '--font-playfair', display: 'swap', style: ['normal', 'italic'] })
 
 // Auth guard untuk /guru/* dilakukan oleh proxy.ts.
 // /guru/login dikecualikan dari guard.
@@ -13,8 +14,7 @@ export default function TeacherLayout({ children }: { children: ReactNode }) {
     // terang. Dilepas: ThemeProvider di layout akar sudah melayani seluruh
     // aplikasi, jadi satu kelas itulah satu-satunya alasan portal ini tertinggal.
     <div
-      className={`${lora.variable} ${playfair.variable} bg-background text-foreground`}
-      style={{ fontFamily: 'var(--font-lora), Georgia, serif' }}
+      className={`${playfair.variable} portal-guru bg-background font-sans text-foreground`}
     >
       <TeacherShell>{children}</TeacherShell>
     </div>

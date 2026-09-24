@@ -36,14 +36,14 @@ export function DashTop({ eyebrow, title, context, filters, serif = false }: {
     <div className="@container">
       <div className="flex flex-col gap-4 @[80rem]:flex-row @[80rem]:items-end @[80rem]:justify-between">
         <div className="min-w-0 @[80rem]:shrink-0">
-          <p className="text-[11px] uppercase tracking-[1.8px] text-muted-foreground">{eyebrow}</p>
+          <p className="text-xs font-bold uppercase tracking-[0.1em] text-warning">{eyebrow}</p>
           <h1
-            className={cn('text-2xl leading-tight', serif ? 'font-extrabold tracking-tight' : 'font-bold')}
+            className={cn('text-2xl leading-tight md:text-3xl', serif ? 'font-extrabold tracking-tight' : 'font-heading font-medium tracking-[-0.01em]')}
             style={serif ? { fontFamily: 'var(--font-playfair), Georgia, serif' } : undefined}
           >
             {title}
           </h1>
-          <p className="mt-0.5 text-sm text-muted-foreground">{context}</p>
+          <p className="mt-1.5 text-sm text-muted-foreground">{context}</p>
         </div>
         {/* min-w-0: tanpa ini lebar minimum item flex = lebar isinya, sehingga
             slicer panjang (mis. 12 jenis rapat) melebarkan halaman alih-alih
@@ -64,14 +64,17 @@ export function Panel({ title, icon, sub, action, children, className, id }: {
   id?: string
 }) {
   return (
-    <section id={id} className={cn('min-w-0 rounded-xl border bg-card p-5 scroll-mt-4', className)}>
+    <section id={id} className={cn('min-w-0 rounded-2xl border bg-card p-5 scroll-mt-4 md:p-6', className)}>
       <div className="mb-4 flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h2 className="flex items-center gap-2 text-sm font-semibold">{icon}{title}</h2>
-          {sub && <p className="mt-0.5 text-xs text-muted-foreground">{sub}</p>}
+          <h2 className="flex items-center gap-2.5 font-heading text-lg font-medium leading-tight tracking-[-0.005em] md:text-xl">
+            {icon && <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary-wash text-primary [&>svg]:h-4 [&>svg]:w-4">{icon}</span>}
+            {title}
+          </h2>
+          {sub && <p className="mt-1 text-[13px] leading-snug text-muted-foreground">{sub}</p>}
         </div>
         {action && (
-          <Link href={action.href} className="shrink-0 text-xs font-medium text-primary hover:underline">
+          <Link href={action.href} className="inline-flex h-8 shrink-0 items-center text-[13px] font-semibold text-primary hover:underline">
             {action.label} →
           </Link>
         )}
@@ -108,9 +111,9 @@ export interface SlicerOption {
 export function Slicer({ label, options }: { label: string; options: SlicerOption[] }) {
   return (
     <div className="min-w-0 max-w-full">
-      <p className="mb-1 text-[10px] font-semibold uppercase tracking-[1.2px] text-muted-foreground">{label}</p>
+      <p className="mb-1.5 text-[11px] font-bold uppercase tracking-[0.08em] text-muted-foreground">{label}</p>
       <div className="-mx-1 overflow-x-auto px-1 pb-0.5">
-        <div role="group" aria-label={label} className="inline-flex gap-0.5 rounded-lg border bg-muted p-0.5">
+        <div role="group" aria-label={label} className="inline-flex gap-0.5 rounded-[10px] bg-muted p-[3px]">
           {options.map(o => (
             <Link
               key={o.href}
@@ -118,9 +121,9 @@ export function Slicer({ label, options }: { label: string; options: SlicerOptio
               scroll={false}
               aria-current={o.active ? 'true' : undefined}
               className={cn(
-                'whitespace-nowrap rounded-md px-2.5 py-1 text-xs transition-colors',
+                'whitespace-nowrap rounded-[7px] px-3 py-1.5 text-[13px] font-semibold transition-colors',
                 o.active
-                  ? 'bg-card font-semibold text-foreground shadow-sm'
+                  ? 'bg-card text-foreground shadow-sm'
                   : 'text-muted-foreground hover:text-foreground',
               )}
             >
@@ -141,15 +144,15 @@ export function MonthStepper({ label, current, prevHref, nextHref }: {
   prevHref: string | null
   nextHref: string | null
 }) {
-  const tombol = 'flex h-7 w-7 items-center justify-center rounded-md transition-colors'
+  const tombol = 'flex h-8 w-8 items-center justify-center rounded-[7px] transition-colors'
   return (
     <div>
-      <p className="mb-1 text-[10px] font-semibold uppercase tracking-[1.2px] text-muted-foreground">{label}</p>
-      <div className="inline-flex items-center gap-0.5 rounded-lg border bg-muted p-0.5">
+      <p className="mb-1.5 text-[11px] font-bold uppercase tracking-[0.08em] text-muted-foreground">{label}</p>
+      <div className="inline-flex items-center gap-0.5 rounded-[10px] bg-muted p-[3px]">
         {prevHref
           ? <Link href={prevHref} scroll={false} aria-label="Bulan sebelumnya" className={cn(tombol, 'hover:bg-card')}><ChevronLeft className="h-4 w-4" /></Link>
           : <span aria-hidden className={cn(tombol, 'opacity-30')}><ChevronLeft className="h-4 w-4" /></span>}
-        <span className="min-w-[8.5rem] rounded-md bg-card px-2 py-1 text-center text-xs font-semibold shadow-sm">{current}</span>
+        <span className="min-w-[9rem] rounded-[7px] bg-card px-3 py-1.5 text-center text-[13px] font-semibold shadow-sm">{current}</span>
         {nextHref
           ? <Link href={nextHref} scroll={false} aria-label="Bulan berikutnya" className={cn(tombol, 'hover:bg-card')}><ChevronRight className="h-4 w-4" /></Link>
           : <span aria-hidden className={cn(tombol, 'opacity-30')}><ChevronRight className="h-4 w-4" /></span>}
@@ -206,32 +209,32 @@ export function KpiCard({ label, value, unit, icon, sub, delta, ratio, href, ton
 }) {
   const isi = (
     <>
-      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+      <div className="flex items-center gap-2 text-[13px] font-medium text-muted-foreground">
         {icon && <span className={tone ? TEKS_NADA[tone] : 'text-primary'}>{icon}</span>}
         <span className="line-clamp-2 leading-snug">{label}</span>
         {href && <ChevronRight className="ml-auto h-3.5 w-3.5 shrink-0 opacity-0 transition-opacity group-hover:opacity-100" />}
       </div>
-      <p className={cn('mt-2 text-2xl font-bold leading-none tabular-nums', tone && TEKS_NADA[tone])}>
+      <p className={cn('mt-3 font-heading text-[2.5rem] font-medium leading-none [font-variant-numeric:lining-nums_tabular-nums]', tone && TEKS_NADA[tone])}>
         {typeof value === 'number' ? value.toLocaleString('id-ID') : value}
-        {unit && <span className="ml-1 text-sm font-normal text-muted-foreground">{unit}</span>}
+        {unit && <span className="ml-1 font-sans text-sm font-normal text-muted-foreground">{unit}</span>}
       </p>
       {ratio !== undefined && (
-        <div className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-muted">
+        <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
           <div className="h-full rounded-full" style={{
             width: `${Math.min(100, Math.max(0, ratio * 100))}%`,
             background: ratioTone ? `var(--${ratioTone})` : 'var(--primary)',
           }} />
         </div>
       )}
-      <div className="mt-auto pt-2 space-y-0.5">
+      <div className="mt-auto pt-2.5 space-y-0.5">
         {delta && <Delta pct={delta.pct} vs={delta.vs} />}
-        {sub && <p className="text-[11px] leading-snug text-muted-foreground">{sub}</p>}
+        {sub && <p className="text-xs leading-snug text-muted-foreground">{sub}</p>}
       </div>
     </>
   )
-  const kelas = 'group flex flex-col rounded-xl border bg-card p-4'
+  const kelas = 'group flex flex-col rounded-2xl border bg-card p-5'
   return href
-    ? <Link href={href} className={cn(kelas, 'transition-colors hover:border-primary/40 hover:bg-muted/30')}>{isi}</Link>
+    ? <Link href={href} className={cn(kelas, 'transition-[border-color,box-shadow] hover:border-primary/40 hover:shadow-sm')}>{isi}</Link>
     : <div className={kelas}>{isi}</div>
 }
 

@@ -43,13 +43,13 @@ export function DashboardHeader({ role, title, showBack, breadcrumbs, ownH1 }: P
   const crumbs: Crumb[] | null = breadcrumbs ?? (title ? [{ label: title }] : null)
 
   return (
-    <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/70 print:hidden">
+    <header className="sticky top-0 z-40 border-b bg-background/90 backdrop-blur supports-[backdrop-filter]:bg-background/75 print:hidden">
       {/* Main row */}
-      <div className="flex h-14 items-center gap-2 px-4 md:px-6">
+      <div className="flex h-14 items-center gap-2 px-4 md:px-8">
         <div className="flex items-center gap-1 shrink-0">
           <Link
             href={dashboardHref}
-            className="flex items-center gap-1.5 rounded-md px-2 py-1 text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+            className="flex h-9 items-center gap-1.5 rounded-lg px-2.5 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
           >
             <LayoutDashboard className="h-4 w-4 shrink-0" />
             <span className="hidden sm:inline">Dashboard</span>
@@ -59,8 +59,8 @@ export function DashboardHeader({ role, title, showBack, breadcrumbs, ownH1 }: P
         <div className="flex-1 min-w-0 px-1">
           {title && (
             ownH1
-              ? <p className="text-base font-semibold truncate">{title}</p>
-              : <h1 className="text-base font-semibold truncate">{title}</h1>
+              ? <p className="font-heading text-lg font-medium truncate">{title}</p>
+              : <h1 className="font-heading text-lg font-medium truncate">{title}</h1>
           )}
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
@@ -71,7 +71,7 @@ export function DashboardHeader({ role, title, showBack, breadcrumbs, ownH1 }: P
           <Link
             href="/"
             title="Buka halaman beranda"
-            className="inline-flex items-center gap-1.5 rounded-md border px-2.5 h-8 text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+            className="inline-flex items-center gap-1.5 rounded-lg border bg-card px-3 h-9 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
           >
             <Home className="h-4 w-4 shrink-0" />
             <span className="hidden sm:inline">Beranda</span>
@@ -81,7 +81,7 @@ export function DashboardHeader({ role, title, showBack, breadcrumbs, ownH1 }: P
 
       {/* Breadcrumb row */}
       {crumbs && (
-        <nav aria-label="Breadcrumb" className="flex items-center gap-0.5 px-4 md:px-6 py-1.5 bg-muted/30 text-xs text-muted-foreground overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <nav aria-label="Breadcrumb" className="flex items-center gap-0.5 bg-muted/40 px-4 md:px-8 py-1.5 text-xs text-muted-foreground overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <Link
             href={dashboardHref}
             className="flex items-center gap-1 hover:text-foreground transition-colors shrink-0"
@@ -103,7 +103,7 @@ export function DashboardHeader({ role, title, showBack, breadcrumbs, ownH1 }: P
                   {crumb.label}
                 </Link>
               ) : (
-                <span aria-current="page" className="text-foreground font-medium truncate max-w-[240px] shrink-0">
+                <span aria-current="page" className="text-foreground font-semibold truncate max-w-[240px] shrink-0">
                   {crumb.label}
                 </span>
               )}

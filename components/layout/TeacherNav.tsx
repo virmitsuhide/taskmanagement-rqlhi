@@ -176,7 +176,7 @@ export function TeacherNav({ fullName, groups, bell, children, ciutAwal = false 
                     <span className="shrink-0 [&>svg]:h-4 [&>svg]:w-4">{item.icon}</span>
                     <span className={cn('truncate', SEMBUNYI_SAAT_CIUT)}>{item.label}</span>
                     {item.badge ? (
-                      <span className={cn(LENCANA_CIUT, 'ml-auto min-w-[18px] rounded-full bg-primary px-1.5 py-0.5 text-center text-[10px] font-semibold leading-none text-primary-foreground')}>
+                      <span className={cn(LENCANA_CIUT, 'ml-auto min-w-[18px] rounded-full bg-accent-warm px-1.5 py-0.5 text-center text-[10px] font-bold leading-none text-white')}>
                         {item.badge > 9 ? '9+' : item.badge}
                       </span>
                     ) : null}

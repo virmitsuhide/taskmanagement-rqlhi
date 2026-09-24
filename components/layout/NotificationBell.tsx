@@ -131,13 +131,13 @@ export function NotificationBell({ items, unseenCount, ujian = [], ujianBaru = 0
         aria-expanded={open}
         aria-haspopup="menu"
         title="Notifikasi"
-        className="relative inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground transition"
+        className="relative inline-flex h-9 w-9 items-center justify-center rounded-lg border bg-card text-muted-foreground hover:bg-accent hover:text-foreground transition"
       >
         <Bell className="h-4 w-4" />
         {badge > 0 && (
           <span
             aria-hidden
-            className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold leading-4 text-center"
+            className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-accent-warm text-white text-[10px] font-bold leading-[18px] text-center ring-2 ring-background"
           >
             {badge > 9 ? '9+' : badge}
           </span>
@@ -151,7 +151,7 @@ export function NotificationBell({ items, unseenCount, ujian = [], ujianBaru = 0
           className="absolute right-0 top-full mt-2 w-[330px] max-w-[calc(100vw-1.5rem)] rounded-xl border bg-popover text-popover-foreground shadow-lg z-50 overflow-hidden"
         >
           <div className="flex items-center justify-between gap-2 px-3 py-2.5 border-b">
-            <p className="text-sm font-semibold">Notifikasi</p>
+            <p className="font-heading text-base font-medium">Notifikasi</p>
             {unreadShown > 0 && (
               <button
                 type="button"
