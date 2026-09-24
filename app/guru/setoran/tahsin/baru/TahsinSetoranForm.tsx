@@ -173,7 +173,7 @@ export function TahsinSetoranForm({
       </div>
 
       {/* Materi */}
-      <fieldset className="rounded-2xl border bg-card p-4 md:p-5 [&>legend]:float-left [&>legend]:w-full [&>legend+*]:clear-both space-y-3">
+      <fieldset className="min-w-0 rounded-2xl border bg-card p-4 md:p-5 [&>legend]:float-left [&>legend]:w-full [&>legend+*]:clear-both space-y-3">
         <legend className="font-heading text-lg font-medium mb-3">Materi Setoran</legend>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div className="space-y-1.5">
@@ -252,7 +252,7 @@ export function TahsinSetoranForm({
           diturunkan dari materi di server.
         */}
         {materiTahap.length > 0 && (
-          <fieldset className="rounded-2xl border bg-card p-4 md:p-5 [&>legend]:float-left [&>legend]:w-full [&>legend+*]:clear-both">
+          <fieldset className="min-w-0 rounded-2xl border bg-card p-4 md:p-5 [&>legend]:float-left [&>legend]:w-full [&>legend+*]:clear-both">
             <legend className="font-heading text-lg font-medium mb-3">Hafalan {jilidAktif?.label}</legend>
             {Object.entries(materiDipilih).map(([id, hasil]) => (
               <input key={id} type="hidden" name={`materi_${hasil}`} value={id} />
@@ -313,7 +313,7 @@ export function TahsinSetoranForm({
       </fieldset>
 
       {/* Penilaian */}
-      <fieldset className="rounded-2xl border bg-card p-4 md:p-5 [&>legend]:float-left [&>legend]:w-full [&>legend+*]:clear-both">
+      <fieldset className="min-w-0 rounded-2xl border bg-card p-4 md:p-5 [&>legend]:float-left [&>legend]:w-full [&>legend+*]:clear-both">
         <legend className="font-heading text-lg font-medium mb-3">Penilaian</legend>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
           <div>
@@ -340,7 +340,7 @@ export function TahsinSetoranForm({
         bisa bertentangan dengannya — server menurunkannya dari materi.
       */}
       {materiTahap.length === 0 && (
-      <fieldset className="rounded-2xl border bg-card p-4 md:p-5 [&>legend]:float-left [&>legend]:w-full [&>legend+*]:clear-both">
+      <fieldset className="min-w-0 rounded-2xl border bg-card p-4 md:p-5 [&>legend]:float-left [&>legend]:w-full [&>legend+*]:clear-both">
         <legend className="font-heading text-lg font-medium mb-3">Status Halaman</legend>
         <input type="hidden" name="status" value={status} />
         <div className="grid grid-cols-2 gap-3 max-w-md">

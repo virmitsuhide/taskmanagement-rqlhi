@@ -175,7 +175,7 @@ function DailySubForm({
       )}
 
       {/* Surat + ayat */}
-      <fieldset className="rounded-2xl border bg-card p-4 md:p-5 [&>legend]:float-left [&>legend]:w-full [&>legend+*]:clear-both space-y-3">
+      <fieldset className="min-w-0 rounded-2xl border bg-card p-4 md:p-5 [&>legend]:float-left [&>legend]:w-full [&>legend+*]:clear-both space-y-3">
         <legend className="font-heading text-lg font-medium mb-3">Materi</legend>
         <input type="hidden" name="surat_ke_id" value={suratKeId ?? ''} />
 
@@ -318,7 +318,7 @@ function DailySubForm({
 // ─── Penilaian (dipakai bersama) ────────────────────────────────────
 function ScoreFields() {
   return (
-    <fieldset className="rounded-2xl border bg-card p-4 md:p-5 [&>legend]:float-left [&>legend]:w-full [&>legend+*]:clear-both">
+    <fieldset className="min-w-0 rounded-2xl border bg-card p-4 md:p-5 [&>legend]:float-left [&>legend]:w-full [&>legend+*]:clear-both">
       <legend className="font-heading text-lg font-medium mb-3">Penilaian</legend>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-muted/30 rounded-lg p-4">
         <div>

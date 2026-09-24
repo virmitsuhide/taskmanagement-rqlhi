@@ -41,7 +41,7 @@ export type PilihanMateri = Record<string, HasilMateri>
  */
 const HASIL: { nilai: HasilMateri; label: string; aktif: string }[] = [
   { nilai: 'ulang',  label: 'Ulang',  aktif: 'border-warning text-warning' },
-  { nilai: 'lanjut', label: '➡️ Lanjut', aktif: 'border-primary text-primary' },
+  { nilai: 'lanjut', label: 'Lanjut', aktif: 'border-primary text-primary' },
   { nilai: 'lulus',  label: 'Lulus',  aktif: 'border-success text-success' },
 ]
 
@@ -126,7 +126,7 @@ export function PilihMateri({ materi, hasilTerakhir, value, onChange, disabled }
               <li
                 key={m.id}
                 className={cn(
-                  'flex flex-wrap items-center gap-2 rounded-md border px-2 py-1.5',
+                  'flex flex-wrap items-center gap-2 rounded-xl border px-2.5 py-2',
                   dipilih === 'lulus' && 'border-success bg-success-wash',
                   dipilih === 'ulang' && 'border-warning bg-warning-wash',
                   dipilih === 'lanjut' && 'border-primary bg-primary-wash',
@@ -148,7 +148,7 @@ export function PilihMateri({ materi, hasilTerakhir, value, onChange, disabled }
                     {lalu === 'lanjut' ? ' · terakhir: belum selesai' : ''}
                   </span>
                 </span>
-                <span className="flex shrink-0 gap-1">
+                <span className="flex w-full shrink-0 justify-end gap-1.5 sm:w-auto">
                   {HASIL.map(h => (
                     <button
                       key={h.nilai}
@@ -157,7 +157,7 @@ export function PilihMateri({ materi, hasilTerakhir, value, onChange, disabled }
                       onClick={() => setel(m.id, h.nilai)}
                       aria-pressed={dipilih === h.nilai}
                       className={cn(
-                        'rounded border px-2 py-1 text-[11px]',
+                        'h-9 min-w-[4.25rem] rounded-lg border px-3 text-xs font-semibold',
                         dipilih === h.nilai ? h.aktif : 'bg-card text-muted-foreground',
                       )}
                     >

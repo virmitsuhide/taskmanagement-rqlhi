@@ -694,7 +694,7 @@ function TombolStatus({ value, onChange }: { value: Status; onChange: (s: Status
           onClick={() => onChange(st)}
           aria-pressed={value === st}
           className={cn(
-            'h-11 rounded-md border px-3 text-sm',
+            'h-11 min-w-[4.5rem] rounded-xl border px-4 text-sm font-semibold',
             value === st
               ? st === 'lulus' ? 'border-success bg-success-wash text-success' : 'border-warning bg-warning-wash text-warning'
               : 'bg-card',

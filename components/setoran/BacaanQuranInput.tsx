@@ -96,7 +96,7 @@ export function BacaanQuranInput({ value, onChange, surat, petunjuk, disabled, c
           disabled={disabled}
         />
 
-        <div className="min-w-0 flex-1 space-y-1">
+        <div className="min-w-40 flex-1 basis-40 space-y-1">
           <label className="text-xs font-medium" htmlFor={`${uid}-surat`}>Surat</label>
           {/*
             <select> biasa, bukan komponen Select berbasis Radix seperti di
@@ -109,7 +109,7 @@ export function BacaanQuranInput({ value, onChange, surat, petunjuk, disabled, c
             id={`${uid}-surat`}
             value={value.surat_id} disabled={disabled}
             onChange={e => ubahPosisi({ ...value, surat_id: e.target.value, ayat_ke: '' })}
-            className="h-9 w-full min-w-40 rounded-md border bg-card px-2 text-sm"
+            className="h-11 w-full rounded-xl border bg-card px-3 text-sm"
           >
             <option value="">— pilih surat —</option>
             {surat.map(s => <option key={s.id} value={s.id}>{s.id}. {s.name_latin}</option>)}
