@@ -20,15 +20,15 @@ export function TeacherStrip({ title, teachers }: Props) {
   if (teachers.length === 0) return null
 
   return (
-    <section id="profil-guru" className="max-w-5xl mx-auto px-6 pb-9">
-      <div className="flex items-baseline justify-between gap-3 mb-4">
+    <section id="profil-guru" className="max-w-6xl mx-auto px-4 sm:px-6 pb-16">
+      <div className="flex items-end justify-between gap-3 mb-6">
         <h2
-          className="m-0 text-lg font-bold tracking-tight text-foreground"
-          style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
+          className="m-0 text-[30px] font-normal leading-tight tracking-[-0.015em] text-foreground md:text-[40px]"
+          style={{ fontFamily: 'var(--font-display), Georgia, serif' }}
         >
           {title}
         </h2>
-        <Link href="/profil-guru" className="text-xs text-primary hover:underline shrink-0">
+        <Link href="/profil-guru" className="text-sm font-semibold text-primary hover:underline shrink-0">
           Lihat semua →
         </Link>
       </div>

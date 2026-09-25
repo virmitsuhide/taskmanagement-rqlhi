@@ -118,7 +118,7 @@ export default async function ProgramDetailPage({ params }: PageProps) {
                 <ProgramIcon icon={program.icon} className={`h-8 w-8 ${accent.iconColor}`} />
               </div>
               <div>
-                <h1 className="text-xl font-bold leading-tight">{program.title}</h1>
+                <h1 className="font-heading text-3xl font-normal leading-tight md:text-4xl">{program.title}</h1>
                 <p className="text-sm text-muted-foreground mt-1.5 leading-relaxed">
                   {program.description}
                 </p>

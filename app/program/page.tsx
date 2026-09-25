@@ -25,7 +25,7 @@ export default async function ProgramPage() {
             >
               <ArrowLeft className="h-3 w-3" /> Kembali ke Beranda
             </Link>
-            <h1 className="text-2xl font-bold leading-tight">Program RQ</h1>
+            <h1 className="font-heading text-4xl font-normal leading-[1.05] tracking-[-0.02em] md:text-[56px]">Program RQ</h1>
             <p className="text-sm text-muted-foreground mt-0.5">
               {programs.length} program · Rumah Qur&apos;an LHI
             </p>
@@ -71,7 +71,7 @@ export default async function ProgramPage() {
 
                   <div className="p-5 flex flex-col flex-1">
                     <div className={`h-1 w-10 rounded-full mb-3 ${accent.bar}`} />
-                    <h2 className="font-semibold text-base leading-snug mb-1.5">{program.title}</h2>
+                    <h2 className="font-heading text-2xl font-normal leading-tight mb-2">{program.title}</h2>
                     <p className="text-sm text-muted-foreground leading-relaxed line-clamp-3 flex-1">
                       {program.description}
                     </p>

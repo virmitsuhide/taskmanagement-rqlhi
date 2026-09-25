@@ -126,6 +126,8 @@ export const meetings = pgTable('meetings', {
   mc: text('mc'),
   notulis: text('notulis'),
   participants: text('participants').array(),
+  /** Nama peserta yang izin (0089); participants = yang hadir. */
+  peserta_izin: text('peserta_izin').array().notNull().default([]),
   created_by: uuid('created_by').references(() => users.id),
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),

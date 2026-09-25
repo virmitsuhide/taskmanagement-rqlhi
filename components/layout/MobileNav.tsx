@@ -193,10 +193,19 @@ export function MobileNav({ role, displayName, username, lencanaKpi }: Props) {
                   ulang tiap ganti perangkat. */}
               {canViewKpi(role) && (
                 <DrawerLink
+                  href="/kpi/analisis"
+                  icon={<BarChart3 className="h-4 w-4" />}
+                  label="Analisis KPI Guru"
+                  active={pathname.startsWith('/kpi/analisis')}
+                  onNavigate={close}
+                />
+              )}
+              {canViewKpi(role) && (
+                <DrawerLink
                   href="/kpi"
                   icon={<ClipboardCheck className="h-4 w-4" />}
-                  label="KPI Guru"
-                  active={isActive('/kpi') && !pathname.startsWith('/kpi/publikasi') && !pathname.startsWith('/kpi/banding')}
+                  label="Buat KPI"
+                  active={isActive('/kpi') && !pathname.startsWith('/kpi/publikasi') && !pathname.startsWith('/kpi/banding') && !pathname.startsWith('/kpi/analisis')}
                   onNavigate={close}
                 />
               )}

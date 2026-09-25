@@ -28,14 +28,14 @@ export function SeksiNav({ seksi }: { seksi: InfoSeksi[] }) {
   return (
     <nav
       aria-label="Seksi analitik"
-      className={cn('sticky z-30 -mx-4 border-b bg-background/95 px-4 backdrop-blur md:-mx-6 md:px-6 print:hidden', HEADER_STICKY_TOP)}
+      className={cn('sticky z-30 -mx-4 border-b bg-background/95 px-4 py-2.5 backdrop-blur md:-mx-8 md:px-8 print:hidden', HEADER_STICKY_TOP)}
     >
-      <ol className="-mb-px flex gap-1 overflow-x-auto">
+      <ol className="flex gap-2 overflow-x-auto [scrollbar-width:none]">
         {seksi.map(s => (
           <li key={s.id} className="shrink-0">
             <a
               href={`#${s.id}`}
-              className="flex items-center gap-2 border-b-2 border-transparent px-3 py-2.5 text-[13px] font-semibold text-muted-foreground transition-colors hover:border-primary hover:text-foreground"
+              className="flex h-9 items-center gap-2 rounded-full border bg-card px-3.5 text-[13px] font-semibold text-foreground transition-colors hover:border-primary/40 hover:bg-primary-wash"
             >
               <span className="font-heading text-[15px] font-medium leading-none tabular-nums text-warning">
                 {s.nomor}

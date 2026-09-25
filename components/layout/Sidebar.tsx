@@ -128,12 +128,20 @@ export function Sidebar({ role, displayName, username, lencanaKpi, ciutAwal = fa
                 menu Tahsin & Tahfidz yang isinya pekerjaan harian. */}
             {canViewKpi(role) && (
               <NavItem
+                href="/kpi/analisis"
+                icon={<BarChart3 className="h-4 w-4" />}
+                label="Analisis KPI Guru"
+                active={pathname.startsWith('/kpi/analisis')}
+              />
+            )}
+            {canViewKpi(role) && (
+              <NavItem
                 href="/kpi"
                 icon={<ClipboardCheck className="h-4 w-4" />}
-                label="KPI Guru"
+                label="Buat KPI"
                 // Dikecualikan dari dua anaknya yang punya menu sendiri —
                 // idiom yang sama dengan /tasks terhadap /tasks/board.
-                active={isActive('/kpi') && !pathname.startsWith('/kpi/publikasi') && !pathname.startsWith('/kpi/banding')}
+                active={isActive('/kpi') && !pathname.startsWith('/kpi/publikasi') && !pathname.startsWith('/kpi/banding') && !pathname.startsWith('/kpi/analisis')}
               />
             )}
             {/*

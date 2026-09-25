@@ -22,6 +22,31 @@ export interface PoinPapan {
   tugas: TugasTautan[]
 }
 
+/**
+ * Tugas yang dibuat dari tiap poin notulen ("Jadikan tugas"), belum dihapus.
+ * Dipakai Papan Rapat dan halaman detail rapat supaya keduanya membaca
+ * status tindak lanjut dari sumber yang sama.
+ */
+export async function getTugasPerPoin(agendaIds: string[]): Promise<Map<string, TugasTautan[]>> {
+  const tugasPer = new Map<string, TugasTautan[]>()
+  if (agendaIds.length === 0) return tugasPer
+  const supabase = createServerClient()
+  const { data } = await supabase
+    .from('tasks')
+    .select('id, title, status, due_date, source_agenda_id, assignee:users!assigned_to(display_name)')
+    .in('source_agenda_id', agendaIds)
+    .is('deleted_at', null)
+  for (const t of (data ?? []) as unknown as {
+    id: string; title: string; status: TugasTautan['status']; due_date: string | null
+    source_agenda_id: string; assignee: { display_name: string } | null
+  }[]) {
+    const daftar = tugasPer.get(t.source_agenda_id) ?? []
+    daftar.push({ id: t.id, title: t.title, status: t.status, due_date: t.due_date, pic: t.assignee?.display_name ?? null })
+    tugasPer.set(t.source_agenda_id, daftar)
+  }
+  return tugasPer
+}
+
 export interface PapanRapat {
   /** Approval, tindak lanjut, dan diskusi lanjut — aktif atau arsip menurut saringan. */
   poin: PoinPapan[]
@@ -99,23 +124,7 @@ export async function getPapanRapat(role: UserRole, saring: SaringanPapan): Prom
   const mentah = [poinRes, keputusanRes, disetujuiRes].map(r => (r.data ?? []) as unknown as BarisMentah[])
 
   // Tugas dari poin tindak lanjut, satu query untuk semuanya.
-  const idTL = mentah[0].filter(p => p.tag === 'tindak_lanjut').map(p => p.id)
-  const tugasPer = new Map<string, TugasTautan[]>()
-  if (idTL.length > 0) {
-    const { data } = await supabase
-      .from('tasks')
-      .select('id, title, status, due_date, source_agenda_id, assignee:users!assigned_to(display_name)')
-      .in('source_agenda_id', idTL)
-      .is('deleted_at', null)
-    for (const t of (data ?? []) as unknown as {
-      id: string; title: string; status: TugasTautan['status']; due_date: string | null
-      source_agenda_id: string; assignee: { display_name: string } | null
-    }[]) {
-      const daftar = tugasPer.get(t.source_agenda_id) ?? []
-      daftar.push({ id: t.id, title: t.title, status: t.status, due_date: t.due_date, pic: t.assignee?.display_name ?? null })
-      tugasPer.set(t.source_agenda_id, daftar)
-    }
-  }
+  const tugasPer = await getTugasPerPoin(mentah[0].filter(p => p.tag === 'tindak_lanjut').map(p => p.id))
 
   const rapikan = (b: BarisMentah): PoinPapan => ({
     id: b.id, tag: b.tag, discussion: b.discussion, follow_up: b.follow_up,

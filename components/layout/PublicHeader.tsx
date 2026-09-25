@@ -54,7 +54,7 @@ const NAV: NavItem[] = [
 ]
 
 const LINK_CLASS =
-  'px-3 py-1.5 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors'
+  'px-3 py-2 rounded-lg text-[14.5px] font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-colors'
 
 /**
  * Ambil bagian profil yang dipakai header. Dipisah dengan catch supaya beranda
@@ -125,14 +125,14 @@ export async function PublicHeader() {
     <header className="sticky top-0 z-50 border-b bg-background/85 backdrop-blur supports-[backdrop-filter]:bg-background/70">
       {/* Jarak & tepi dirapatkan di HP: logo, kartu akun, dan tombol menu harus
           muat berdampingan di layar 360px. */}
-      <div className="max-w-5xl mx-auto flex h-[58px] items-center gap-2.5 px-4 sm:gap-4 sm:px-6 md:gap-7">
+      <div className="max-w-6xl mx-auto flex h-16 items-center gap-2.5 px-4 sm:gap-4 sm:px-6 md:gap-7">
 
         {/* Logo */}
         <Link href="/" className="flex min-w-0 items-center gap-2.5 mr-auto">
-          <Logo size={38} alt="" priority className="shrink-0 shadow-sm" />
+          <Logo size={42} alt="" priority className="shrink-0 shadow-sm" />
           <div className="min-w-0 leading-tight">
-            <p className="truncate font-bold text-[15px] tracking-[-0.3px]">{settings.header_brand}</p>
-            <p className="truncate text-[9px] uppercase tracking-[0.8px] text-muted-foreground">
+            <p className="truncate font-heading text-[19px] font-semibold text-primary leading-none">{settings.header_brand}</p>
+            <p className="mt-1 truncate text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
               {settings.header_tagline}
             </p>
           </div>

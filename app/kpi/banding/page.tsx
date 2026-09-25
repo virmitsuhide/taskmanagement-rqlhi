@@ -46,7 +46,7 @@ export default async function BandingKpiPage({ searchParams }: PageProps) {
         title="Banding Rapor KPI"
         showBack
         ownH1
-        breadcrumbs={[{ label: 'KPI Guru', href: '/kpi' }, { label: 'Banding' }]}
+        breadcrumbs={[{ label: 'Buat KPI', href: '/kpi' }, { label: 'Banding' }]}
       />
 
       <div className="mx-auto max-w-[1000px] p-4 md:p-8">

@@ -3,7 +3,7 @@ import Image from 'next/image'
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { ArrowLeft, Calendar, User as UserIcon } from 'lucide-react'
-import { Lora, Playfair_Display } from 'next/font/google'
+import { Newsreader } from 'next/font/google'
 import { createServerClient } from '@/lib/supabase/server'
 import { getSession } from '@/lib/auth/session'
 import { canCreateNews } from '@/lib/auth/permissions'
@@ -14,8 +14,8 @@ import { ShareButton } from './ShareButton'
 import { DetailEditorBar } from './DetailEditorBar'
 import type { NewsArticle, NewsCategory, NewsType } from '@/types'
 
-const lora = Lora({ subsets: ['latin'], variable: '--font-lora', display: 'swap' })
-const playfair = Playfair_Display({ subsets: ['latin'], variable: '--font-playfair', display: 'swap' })
+// Huruf judul Teduh; nama variabel lama dipertahankan agar pemakainya tak perlu diubah.
+const playfair = Newsreader({ subsets: ['latin'], variable: '--font-playfair', display: 'swap', style: ['normal', 'italic'] })
 
 const DAY_ID   = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu']
 const MONTH_ID = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember']
@@ -140,8 +140,8 @@ export default async function NewsDetailPage({ params }: PageProps) {
 
   return (
     <div
-      className={`${lora.variable} ${playfair.variable} min-h-screen bg-background`}
-      style={{ fontFamily: "var(--font-lora), 'Georgia', serif", fontSize: 15, lineHeight: 1.65 }}
+      className={`${playfair.variable} min-h-screen bg-background`}
+      style={{ fontSize: 15, lineHeight: 1.65 }}
     >
       <PublicHeader />
 
@@ -179,7 +179,7 @@ export default async function NewsDetailPage({ params }: PageProps) {
 
         {/* Title */}
         <h1
-          className="font-bold leading-[1.15] tracking-tight text-[clamp(28px,5vw,42px)] mb-4"
+          className="font-normal leading-[1.08] tracking-[-0.02em] text-[clamp(32px,5.5vw,52px)] mb-4"
           style={{ fontFamily: "var(--font-playfair), Georgia, serif" }}
         >
           {article.title}
@@ -256,7 +256,7 @@ export default async function NewsDetailPage({ params }: PageProps) {
         <div className="max-w-5xl mx-auto px-6 pb-16">
           <div className="border-t pt-8">
             <h2
-              className="text-lg font-bold tracking-tight mb-5"
+              className="text-2xl font-normal mb-5"
               style={{ fontFamily: "var(--font-playfair), Georgia, serif" }}
             >
               Lihat Juga

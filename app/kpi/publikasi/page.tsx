@@ -106,7 +106,7 @@ export default async function PublikasiKpiPage({ searchParams }: PageProps) {
         title="Publikasi Rapor KPI"
         showBack
         ownH1
-        breadcrumbs={[{ label: 'KPI Guru', href: '/kpi' }, { label: 'Publikasi Rapor' }]}
+        breadcrumbs={[{ label: 'Buat KPI', href: '/kpi' }, { label: 'Publikasi Rapor' }]}
       />
 
       <div className="mx-auto max-w-[1200px] p-4 md:p-8">

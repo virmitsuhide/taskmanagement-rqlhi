@@ -13,6 +13,30 @@ import {
 import type { MeetingType, AgendaTag } from '@/types'
 
 /** Poin notulen dari form, dengan urutan mengikuti tampilan. Poin tanpa isi dilewati. */
+/** Satu nama per baris dari textarea formulir notulen. */
+function bacaNama(formData: FormData, field: string): string[] {
+  const raw = formData.get(field) as string | null
+  return raw ? raw.split('\n').map(p => p.trim()).filter(Boolean) : []
+}
+
+/**
+ * Kolom peserta_izin (0089) mungkin belum ada. Selama isiannya kosong, simpan
+ * tetap jalan tanpa kolom itu; kalau ada isinya, galat dibiarkan muncul supaya
+ * nama yang izin tidak hilang diam-diam.
+ */
+const IZIN_BELUM_AKTIF = 'Kolom "Peserta izin" belum aktif — jalankan migrasi 0089, atau kosongkan kolom itu dulu.'
+
+/** Salinan baris tanpa peserta_izin — untuk menyimpan sebelum migrasi 0089. */
+function tanpaKolomIzin<T extends { peserta_izin: string[] }>(baris: T): Omit<T, 'peserta_izin'> {
+  const salinan: Partial<T> = { ...baris }
+  delete salinan.peserta_izin
+  return salinan as Omit<T, 'peserta_izin'>
+}
+
+function kolomIzinBelumAda(error: { code?: string; message?: string } | null): boolean {
+  return Boolean(error && (error.code === 'PGRST204' || error.code === '42703') && error.message?.includes('peserta_izin'))
+}
+
 function bacaAgenda(formData: FormData) {
   const jumlah = parseInt(formData.get('agenda_count') as string) || 0
   const hasil: {
@@ -49,14 +73,10 @@ export async function createMeetingAction(_: unknown, formData: FormData) {
 
   const supabase = createServerClient()
 
-  const participantsRaw = formData.get('participants') as string
-  const participants = participantsRaw
-    ? participantsRaw.split('\n').map(p => p.trim()).filter(Boolean)
-    : []
+  const participants = bacaNama(formData, 'participants')
+  const pesertaIzin = bacaNama(formData, 'peserta_izin')
 
-  const { data: meeting, error } = await supabase
-    .from('meetings')
-    .insert({
+  const baris = {
       type,
       subject: formData.get('subject') as string,
       date: formData.get('date') as string,
@@ -66,11 +86,16 @@ export async function createMeetingAction(_: unknown, formData: FormData) {
       mc: (formData.get('mc') as string) || null,
       notulis: (formData.get('notulis') as string) || null,
       participants,
+      peserta_izin: pesertaIzin,
       created_by: session.userId,
-    })
-    .select('id')
-    .single()
+  }
+  let { data: meeting, error } = await supabase.from('meetings').insert(baris).select('id').single()
+  if (kolomIzinBelumAda(error) && pesertaIzin.length === 0) {
+    const tanpaIzin = tanpaKolomIzin(baris)
+    ;({ data: meeting, error } = await supabase.from('meetings').insert(tanpaIzin).select('id').single())
+  }
 
+  if (kolomIzinBelumAda(error)) return { error: IZIN_BELUM_AKTIF }
   if (error || !meeting) return { error: 'Gagal membuat rapat.' }
 
   // Rapat baru: id dari form (kalau ada) diabaikan, semua poin disisipkan.
@@ -109,10 +134,8 @@ export async function updateMeetingAction(_: unknown, formData: FormData) {
     return { error: 'Anda tidak memiliki izin untuk mengedit rapat ini.' }
   }
 
-  const participantsRaw = formData.get('participants') as string
-  const participants = participantsRaw
-    ? participantsRaw.split('\n').map(p => p.trim()).filter(Boolean)
-    : []
+  const participants = bacaNama(formData, 'participants')
+  const pesertaIzin = bacaNama(formData, 'peserta_izin')
 
   // Jenis rapat boleh dipindah saat edit — koordinator kerap salah pilih antara
   // rapat divisinya sendiri dan rapat kolaborasi. Syaratnya izin BUAT atas jenis
@@ -132,9 +155,7 @@ export async function updateMeetingAction(_: unknown, formData: FormData) {
     type = requestedType
   }
 
-  const { error } = await supabase
-    .from('meetings')
-    .update({
+  const ubahan = {
       type,
       subject: formData.get('subject') as string,
       date: formData.get('date') as string,
@@ -144,9 +165,15 @@ export async function updateMeetingAction(_: unknown, formData: FormData) {
       mc: (formData.get('mc') as string) || null,
       notulis: (formData.get('notulis') as string) || null,
       participants,
-    })
-    .eq('id', meetingId)
+      peserta_izin: pesertaIzin,
+  }
+  let { error } = await supabase.from('meetings').update(ubahan).eq('id', meetingId)
+  if (kolomIzinBelumAda(error) && pesertaIzin.length === 0) {
+    const tanpaIzin = tanpaKolomIzin(ubahan)
+    ;({ error } = await supabase.from('meetings').update(tanpaIzin).eq('id', meetingId))
+  }
 
+  if (kolomIzinBelumAda(error)) return { error: IZIN_BELUM_AKTIF }
   if (error) return { error: 'Gagal memperbarui rapat.' }
 
   /*

@@ -173,6 +173,51 @@ export async function getKpiRows(unit: Jenjang, year: number, month: number): Pr
   return [...rows.values()].sort((a, b) => a.fullName.localeCompare(b.fullName, 'id'))
 }
 
+/** Satu titik tren: rata-rata rapor satu unit pada satu bulan. */
+export interface TitikTrenKpi {
+  year: number
+  month: number
+  /** Jumlah guru yang dinilai bulan itu. */
+  n: number
+  /** Rata-rata rapot; null = belum ada yang dinilai. */
+  rata: number | null
+  /** Rata-rata tiap indikator, urutan KPI_INDIKATOR; kosong bila n = 0. */
+  indikator: number[]
+}
+
+/**
+ * Tren beberapa bulan terakhir sampai bulan terpilih, untuk satu unit.
+ *
+ * Satu kueri ke kpi_monthly saja — tren hanya butuh penilaian yang sudah ada,
+ * tidak butuh daftar guru yang belum dinilai seperti getKpiRows.
+ */
+export async function getKpiTren(unit: Jenjang, year: number, month: number, jumlahBulan = 6): Promise<TitikTrenKpi[]> {
+  const bulan: { year: number; month: number }[] = []
+  for (let i = jumlahBulan - 1; i >= 0; i--) {
+    const d = new Date(Date.UTC(year, month - 1 - i, 1))
+    bulan.push({ year: d.getUTCFullYear(), month: d.getUTCMonth() + 1 })
+  }
+
+  const supabase = createServerClient()
+  const { data } = await supabase
+    .from('kpi_monthly')
+    .select('*')
+    .eq('unit', unit)
+    .in('year', [...new Set(bulan.map(b => b.year))])
+
+  const entries = (data ?? []).map(normalize)
+  return bulan.map(b => {
+    const hasil = entries.filter(e => e.year === b.year && e.month === b.month).map(nilaiDari)
+    const n = hasil.length
+    return {
+      ...b,
+      n,
+      rata: n ? hasil.reduce((s, h) => s + h.rapot, 0) / n : null,
+      indikator: n ? hasil[0].nilai.map((_, i) => hasil.reduce((s, h) => s + h.nilai[i], 0) / n) : [],
+    }
+  })
+}
+
 export interface RaporSemesterRow {
   teacherId: string
   fullName: string

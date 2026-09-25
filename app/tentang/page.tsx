@@ -61,7 +61,7 @@ export default async function TentangPage({ searchParams }: PageProps) {
     <div>
       <PublicHeader />
 
-      <div className="p-4 md:p-8 max-w-5xl mx-auto">
+      <div className="p-4 md:p-8 max-w-6xl mx-auto">
         <Link
           href="/"
           className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground mb-3 transition-colors"
@@ -71,7 +71,7 @@ export default async function TentangPage({ searchParams }: PageProps) {
 
         <div className="flex items-start justify-between gap-4 mb-6 flex-wrap">
           <div>
-            <h1 className="text-2xl font-bold leading-tight">Tentang Rumah Qur&apos;an LHI</h1>
+            <h1 className="text-3xl leading-tight md:text-4xl">Tentang Rumah Qur&apos;an LHI</h1>
             <p className="text-sm text-muted-foreground mt-0.5">
               Profil, visi-misi, dan struktur organisasi RQ LHI
             </p>
@@ -251,10 +251,11 @@ function VisiMisiTab({ about }: { about: AboutRq | null }) {
       <ContentBlock
         title="Misi"
         icon={Network}
-        accent="bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-400"
+        accent="bg-warning-wash text-warning"
         content={about?.mission}
         placeholder="Misi Rumah Qur'an LHI belum diisi."
       />
+      <TigaPenjagaan />
       {!hasContent && (
         <p className="text-xs text-muted-foreground text-center pt-2">
           Konten ini dapat dilengkapi oleh Kepala RQ atau Humas melalui menu Edit.
@@ -312,5 +313,49 @@ function ContentBlock({
         <p className="text-sm text-muted-foreground italic">{placeholder}</p>
       )}
     </div>
+  )
+}
+
+/* ─── Tiga penjagaan ───────────────────────────────────────────────── */
+
+/**
+ * Tiga bentuk penjagaan Al-Qur'an yang menjadi arah pembinaan RQ LHI.
+ * Teks tetap (bukan dari database) karena ini identitas lembaga, bukan isi
+ * yang berganti tiap semester.
+ */
+const PENJAGAAN: { judul: string; isi: string }[] = [
+  {
+    judul: 'lafadznya',
+    isi: 'Bacaan pokok riwayat Hafs thariq Asy-Syathibiyyah, dikembangkan ke qiro’at ‘asyarah sughra dan kubra, riwayat Nafi’iyyah, hingga keilmuan bacaan para sahabat.',
+  },
+  {
+    judul: 'tulisannya',
+    isi: 'Ilmu rasm — mulai dari imla’i dan khat naskhi, hingga kaidah rasm Utsmani Abu ‘Amr Ad-Dani dan Abu Dawud bin Sulaiman, serta perkembangan rasm mushaf.',
+  },
+  {
+    judul: 'maknanya',
+    isi: 'Pembelajaran Bahasa Arab Al-Qur’an, agar yang dibaca dan dihafal juga dipahami dan diamalkan.',
+  },
+]
+
+function TigaPenjagaan() {
+  return (
+    <section className="rounded-[28px] bg-[#0E3531] p-6 text-white md:p-10">
+      <p className="text-xs font-bold uppercase tracking-[0.1em] text-[#9DBBB3]">Tiga penjagaan</p>
+      <h2 className="mt-2 font-heading text-3xl font-normal leading-tight md:text-[40px]">
+        Al-Qur&rsquo;an dijaga dalam lafadz, tulisan, <span className="italic text-[#F1C48E]">dan maknanya.</span>
+      </h2>
+      <div className="mt-7 grid gap-4 md:grid-cols-3">
+        {PENJAGAAN.map((p, i) => (
+          <div key={p.judul} className="rounded-2xl bg-white/[0.06] p-5 md:p-6">
+            <span className="font-heading text-5xl leading-none text-[#F1C48E]">{i + 1}</span>
+            <h3 className="mt-3 font-heading text-2xl font-normal">
+              Menjaga <span className="italic">{p.judul}</span>
+            </h3>
+            <p className="mt-2 text-[14.5px] leading-relaxed text-[#E6EFEC]">{p.isi}</p>
+          </div>
+        ))}
+      </div>
+    </section>
   )
 }

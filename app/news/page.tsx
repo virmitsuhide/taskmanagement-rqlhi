@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { ArrowLeft, Settings2 } from 'lucide-react'
-import { Lora, Playfair_Display } from 'next/font/google'
+import { Newsreader } from 'next/font/google'
 import { createServerClient } from '@/lib/supabase/server'
 import { getSession } from '@/lib/auth/session'
 import { canCreateNews } from '@/lib/auth/permissions'
@@ -13,8 +13,8 @@ import type { NewsArticle, NewsCategory, NewsType } from '@/types'
 
 const PAGE_SIZE = 12
 
-const lora = Lora({ subsets: ['latin'], variable: '--font-lora', display: 'swap' })
-const playfair = Playfair_Display({ subsets: ['latin'], variable: '--font-playfair', display: 'swap' })
+// Huruf judul Teduh; nama variabel lama dipertahankan agar pemakainya tak perlu diubah.
+const playfair = Newsreader({ subsets: ['latin'], variable: '--font-playfair', display: 'swap', style: ['normal', 'italic'] })
 
 const MONTH_ID = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des']
 
@@ -128,8 +128,8 @@ export default async function NewsPage({ searchParams }: PageProps) {
 
   return (
     <div
-      className={`${lora.variable} ${playfair.variable} min-h-screen bg-background`}
-      style={{ fontFamily: "var(--font-lora), 'Georgia', serif", fontSize: 14, lineHeight: 1.5 }}
+      className={`${playfair.variable} min-h-screen bg-background`}
+      style={{ fontSize: 14, lineHeight: 1.5 }}
     >
       <PublicHeader />
 
@@ -141,7 +141,7 @@ export default async function NewsPage({ searchParams }: PageProps) {
               <ArrowLeft className="h-3 w-3" /> Kembali ke Beranda
             </Link>
             <h1
-              className="text-[clamp(28px,4.5vw,42px)] font-bold leading-tight tracking-tight"
+              className="text-[clamp(34px,5.5vw,60px)] font-normal leading-[1.05] tracking-[-0.02em]"
               style={{ fontFamily: "var(--font-playfair), Georgia, serif" }}
             >
               Berita &amp; Kabar
@@ -231,7 +231,7 @@ export default async function NewsPage({ searchParams }: PageProps) {
                     </span>
                   </div>
                   <h2
-                    className="font-bold leading-snug text-2xl md:text-3xl mb-3"
+                    className="font-normal leading-tight text-3xl md:text-[40px] mb-3"
                     style={{ fontFamily: "var(--font-playfair), Georgia, serif" }}
                   >
                     {featured.title}

@@ -124,13 +124,13 @@ export function MonthAgenda({ posts, kaldiEvents = [], todayIso, title = "Agenda
   const selectedLabel = `${DAY_FULL[selected.getDay()]}, ${selected.getDate()} ${MONTH_SHORT[selected.getMonth()]} ${selected.getFullYear()}`
 
   return (
-    <div className="rounded-2xl border bg-card p-5">
+    <div className="rounded-[22px] border bg-card p-5 sm:p-6">
       <div className="flex items-start justify-between mb-4">
         <div>
-          <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+          <p className="text-xs font-bold uppercase tracking-[0.1em] text-warning">
             Kalender
           </p>
-          <h3 className="text-lg font-semibold mt-1.5">{title}</h3>
+          <h3 className="font-heading text-[26px] font-normal leading-tight mt-1">{title}</h3>
         </div>
         <Calendar className="h-5 w-5 text-primary" />
       </div>
@@ -141,12 +141,12 @@ export function MonthAgenda({ posts, kaldiEvents = [], todayIso, title = "Agenda
           type="button"
           onClick={() => shiftMonth(-1)}
           aria-label="Bulan sebelumnya"
-          className="inline-flex h-7 w-7 items-center justify-center rounded-md border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+          className="inline-flex h-9 w-9 items-center justify-center rounded-[10px] border bg-card text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
         >
           <ChevronLeft className="h-4 w-4" />
         </button>
         <div className="text-center">
-          <p className="text-sm font-semibold">
+          <p className="font-heading text-lg font-medium">
             {MONTH_FULL[cursor.month]} {cursor.year}
           </p>
           {!isCurrentMonth && (
@@ -163,7 +163,7 @@ export function MonthAgenda({ posts, kaldiEvents = [], todayIso, title = "Agenda
           type="button"
           onClick={() => shiftMonth(1)}
           aria-label="Bulan berikutnya"
-          className="inline-flex h-7 w-7 items-center justify-center rounded-md border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+          className="inline-flex h-9 w-9 items-center justify-center rounded-[10px] border bg-card text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
         >
           <ChevronRight className="h-4 w-4" />
         </button>
@@ -185,11 +185,11 @@ export function MonthAgenda({ posts, kaldiEvents = [], todayIso, title = "Agenda
               type="button"
               key={d.toISOString()}
               onClick={() => setSelectedIso(d.toISOString())}
-              className={`relative aspect-square rounded-lg flex items-center justify-center text-[13px] font-medium border transition-colors cursor-pointer ${
+              className={`relative aspect-square rounded-xl flex items-center justify-center text-[13.5px] font-medium border transition-colors cursor-pointer ${
                 isSelected
                   ? 'bg-primary text-primary-foreground border-primary'
                   : isToday
-                  ? 'bg-accent-warm-wash text-foreground border-accent-warm/40 hover:bg-accent-warm/15'
+                  ? 'bg-primary-wash text-primary font-bold border-primary/40 hover:bg-primary-wash/70'
                   : !inMonth
                   ? 'border-transparent text-muted-foreground/35 hover:bg-muted/30'
                   : dots.length > 0

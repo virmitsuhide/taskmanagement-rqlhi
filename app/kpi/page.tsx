@@ -90,12 +90,12 @@ export default async function KpiPage({ searchParams }: PageProps) {
 
   return (
     <div>
-      <DashboardHeader displayName={session.displayName} role={session.role} title="KPI Bulanan Guru" showBack ownH1 />
+      <DashboardHeader displayName={session.displayName} role={session.role} title="Buat KPI" showBack ownH1 />
       <div className="p-4 md:p-8 max-w-[1400px] mx-auto">
         <div className="flex items-end justify-between gap-3 flex-wrap mb-7">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.1em] text-warning">Kinerja guru</p>
-            <h1 className="mt-2 text-3xl leading-tight md:text-4xl">KPI Bulanan Guru</h1>
+            <h1 className="mt-2 text-3xl leading-tight md:text-4xl">Buat KPI</h1>
             <p className="text-sm text-muted-foreground mt-1.5">
               {MONTH_NAMES[month - 1]} {year} · {KPI_UNITS.find(u => u.key === unit)?.label}
             </p>

@@ -205,7 +205,7 @@ const PINTASAN: Record<KunciPintasan, Pintasan & { boleh: (r: UserRole) => boole
   berita: { href: '/humas/berita', label: 'Berita', ket: 'Tulis & terbitkan', ikon: <Newspaper className="h-4 w-4" />, boleh: canCreateNews },
   catatanKeuangan: { href: '/notes', label: 'Catatan Keuangan', ket: 'Pemasukan & pengeluaran', ikon: <FileText className="h-4 w-4" />, boleh: canViewFinanceNotes },
   keuangan: { href: '/keuangan', label: 'Keuangan', ket: 'Anggaran & laporan', ikon: <Wallet className="h-4 w-4" />, boleh: canViewFinance },
-  kpi: { href: '/kpi', label: 'KPI Guru', ket: 'Rapor kinerja bulanan', ikon: <Gauge className="h-4 w-4" />, boleh: canViewKpi },
+  kpi: { href: '/kpi/analisis', label: 'Analisis KPI', ket: 'Kinerja guru bulan ini', ikon: <Gauge className="h-4 w-4" />, boleh: canViewKpi },
   imporSiswa: { href: '/siswa/impor', label: 'Impor Siswa', ket: 'Dari berkas Excel', ikon: <Upload className="h-4 w-4" />, boleh: r => getManageableJenjang(r).length > 0 },
   imporHalaqoh: { href: '/halaqoh/impor', label: 'Impor Pembagian', ket: 'Pembagian kelompok', ikon: <Upload className="h-4 w-4" />, boleh: r => getManageableJenjang(r).length > 0 },
 }

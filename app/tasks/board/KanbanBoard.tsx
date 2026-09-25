@@ -3,7 +3,7 @@
 import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { Trash2 } from 'lucide-react'
+import { ListChecks, MessageSquare, Trash2 } from 'lucide-react'
 import { updateTaskStatusAction, updateTaskProblemAction, deleteTaskFromBoardAction } from '@/app/actions/tasks'
 import {
   ROLE_LABELS, TASK_PRIORITY_LABELS, TASK_WEIGHT_LABELS, TASK_PROBLEM_LABELS,
@@ -14,6 +14,7 @@ import { useConfirm } from '@/components/ui/confirm-dialog'
 import type { Task, TaskStatus, TaskProblemType, UserRole } from '@/types'
 import type { BoardColumn, BoardColumnKey } from '@/lib/data/board'
 import type { RingkasDependensi } from '@/lib/data/dependensi'
+import type { RingkasKartu } from '@/lib/data/ringkas-kartu'
 
 const COLUMN_ACCENT: Record<BoardColumnKey, string> = {
   todo: 'var(--muted-foreground)',
@@ -75,9 +76,11 @@ interface Props {
   currentRole: UserRole
   /** Ringkasan relasi "menunggu" per tugas — lihat lib/data/dependensi.ts. */
   dependensi?: Record<string, RingkasDependensi>
+  /** Progres rincian & jumlah komentar per tugas — lihat lib/data/ringkas-kartu.ts. */
+  ringkas?: Record<string, RingkasKartu>
 }
 
-export function KanbanBoard({ columns: initialColumns, currentUserId, currentRole, dependensi = {} }: Props) {
+export function KanbanBoard({ columns: initialColumns, currentUserId, currentRole, dependensi = {}, ringkas = {} }: Props) {
   const router = useRouter()
   const [columns, setColumns] = useState(initialColumns)
   const confirm = useConfirm()
@@ -252,6 +255,7 @@ export function KanbanBoard({ columns: initialColumns, currentUserId, currentRol
                 col.key === 'submitted' &&
                 (task.assigned_by === currentUserId || currentRole === 'kepala_rq')
               const overdue = task.due_date && task.status !== 'done' && new Date(task.due_date) < new Date(new Date().toDateString())
+              const rk = ringkas[task.id]
 
               return (
                 <div
@@ -345,11 +349,43 @@ export function KanbanBoard({ columns: initialColumns, currentUserId, currentRol
                     </div>
                   )}
 
-                  <div className="flex items-center justify-between mt-2 text-[11px] text-muted-foreground">
-                    <span className={overdue ? 'text-destructive font-medium' : ''}>
-                      {task.due_date
-                        ? (overdue ? '⚠ ' : '') + new Date(task.due_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })
-                        : ''}
+                  {/* Progres rincian — batang tipis, hanya bila tugasnya punya rincian. */}
+                  {rk && rk.subTotal > 0 && (
+                    <div
+                      className="mt-2.5 h-1 overflow-hidden rounded-full bg-muted"
+                      role="progressbar"
+                      aria-label="Progres rincian"
+                      aria-valuemin={0}
+                      aria-valuemax={rk.subTotal}
+                      aria-valuenow={rk.subSelesai}
+                    >
+                      <div
+                        className="h-full rounded-full transition-[width]"
+                        style={{
+                          width: `${Math.round((rk.subSelesai / rk.subTotal) * 100)}%`,
+                          background: rk.subSelesai === rk.subTotal ? 'var(--success)' : 'var(--primary)',
+                        }}
+                      />
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-between gap-2 mt-2 text-[11px] text-muted-foreground">
+                    <span className="flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-0.5">
+                      {task.due_date && (
+                        <span className={overdue ? 'text-destructive font-medium' : ''}>
+                          {(overdue ? '⚠ ' : '') + new Date(task.due_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
+                        </span>
+                      )}
+                      {rk && rk.subTotal > 0 && (
+                        <span className="inline-flex items-center gap-1 tabular-nums" title={`${rk.subSelesai} dari ${rk.subTotal} rincian selesai`}>
+                          <ListChecks className="h-3 w-3" aria-hidden />{rk.subSelesai}/{rk.subTotal}
+                        </span>
+                      )}
+                      {rk && rk.komentar > 0 && (
+                        <span className="inline-flex items-center gap-1 tabular-nums" title={`${rk.komentar} komentar`}>
+                          <MessageSquare className="h-3 w-3" aria-hidden />{rk.komentar}
+                        </span>
+                      )}
                     </span>
                     {task.assignee && (
                       canRemove(task) ? (

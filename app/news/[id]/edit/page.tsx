@@ -1,6 +1,6 @@
 import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
-import { Playfair_Display } from 'next/font/google'
+import { Newsreader } from 'next/font/google'
 import { getSession } from '@/lib/auth/session'
 import { canCreateNews } from '@/lib/auth/permissions'
 import { createServerClient } from '@/lib/supabase/server'
@@ -11,7 +11,8 @@ import { Button } from '@/components/ui/button'
 import { ArrowLeft } from 'lucide-react'
 import type { NewsArticle } from '@/types'
 
-const playfair = Playfair_Display({ subsets: ['latin'], variable: '--font-playfair', display: 'swap' })
+// Huruf judul Teduh; nama variabel lama dipertahankan agar pemakainya tak perlu diubah.
+const playfair = Newsreader({ subsets: ['latin'], variable: '--font-playfair', display: 'swap', style: ['normal', 'italic'] })
 
 interface PageProps {
   params: Promise<{ id: string }>

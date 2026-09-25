@@ -6,14 +6,14 @@ import { getBoardTasks, type BoardScope } from '@/lib/data/board'
 import { getGanttPeople } from '@/lib/data/gantt'
 import { getPetaDependensi, ringkasDependensi } from '@/lib/data/dependensi'
 import { getTugasSprint } from '@/lib/data/sprint'
+import { getRingkasKartu } from '@/lib/data/ringkas-kartu'
 import { labelPeriode, periodeDari } from '@/lib/tasks/sprint'
 import { today } from '@/lib/tasks/gantt'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { NewTaskMenu } from '@/components/tasks/NewTaskMenu'
 import { GanttNavMenu } from '@/components/tasks/GanttNavMenu'
 import { KanbanBoard } from './KanbanBoard'
-import { List, Target } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { LayoutGrid, List, Target } from 'lucide-react'
 import type { UserRole } from '@/types'
 
 interface PageProps {
@@ -50,9 +50,12 @@ export default async function TaskBoardPage({ searchParams }: PageProps) {
   const columns = hanyaSprint
     ? semuaKolom.map(c => ({ ...c, tasks: c.tasks.filter(t => tugasSprint.has(t.id)) }))
     : semuaKolom
-  const dependensi = ringkasDependensi(
-    await getPetaDependensi(columns.flatMap(c => c.tasks.map(t => t.id)), session),
-  )
+  const idKartu = columns.flatMap(c => c.tasks.map(t => t.id))
+  const [petaDependensi, ringkasKartu] = await Promise.all([
+    getPetaDependensi(idKartu, session),
+    getRingkasKartu(idKartu),
+  ])
+  const dependensi = ringkasDependensi(petaDependensi)
 
   function scopeHref(s: BoardScope): string {
     const p = new URLSearchParams()
@@ -79,23 +82,33 @@ export default async function TaskBoardPage({ searchParams }: PageProps) {
 
   return (
     <div>
-      <DashboardHeader displayName={session.displayName} role={session.role} title="Papan Task" showBack ownH1 />
+      <DashboardHeader displayName={session.displayName} role={session.role} title="Papan Tugas" showBack ownH1 />
       <div className="p-4 md:p-8 max-w-[1400px] mx-auto">
-        <div className="flex items-end justify-between gap-3 flex-wrap mb-4">
-          <div>
-            <h1 className="text-3xl leading-tight">Papan Kanban</h1>
-            <p className="text-sm text-muted-foreground mt-0.5">
-              Tarik kartu antar kolom untuk ubah status. Hanya pelaksana, pemberi tugas,
+        <div className="flex items-end justify-between gap-4 flex-wrap mb-5">
+          <div className="min-w-0">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-accent-warm">
+              Tugas · {scope === 'divisi' ? (divisiFilter ? ROLE_LABELS[divisiFilter] : 'Seluruh divisi') : 'Pribadi'}
+            </p>
+            <h1 className="text-3xl leading-tight mt-1">
+              {scope === 'divisi' ? 'Papan tugas seluruh divisi' : 'Papan tugas saya'}
+            </h1>
+            <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
+              Tarik kartu antar kolom untuk mengubah status. Hanya pelaksana, pemberi tugas,
               dan Kepala RQ yang bisa memindahkan kartu.
             </p>
           </div>
-          <div className="flex items-center gap-2">
-            <Button asChild size="sm" variant="outline">
-              <Link href="/tasks"><List className="h-4 w-4 mr-1" />Tampilan List</Link>
-            </Button>
-            <Button asChild size="sm" variant="outline">
-              <Link href="/tasks/sprint"><Target className="h-4 w-4 mr-1" />Sprint</Link>
-            </Button>
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="inline-flex items-center p-1 rounded-full border bg-card">
+              <Link href="/tasks" className="inline-flex items-center gap-1.5 h-8 px-3 rounded-full text-xs font-medium text-muted-foreground hover:text-foreground">
+                <List className="h-3.5 w-3.5" />Daftar
+              </Link>
+              <span className="inline-flex items-center gap-1.5 h-8 px-3 rounded-full text-xs font-semibold bg-primary text-primary-foreground" aria-current="page">
+                <LayoutGrid className="h-3.5 w-3.5" />Papan
+              </span>
+              <Link href="/tasks/sprint" className="inline-flex items-center gap-1.5 h-8 px-3 rounded-full text-xs font-medium text-muted-foreground hover:text-foreground">
+                <Target className="h-3.5 w-3.5" />Sprint
+              </Link>
+            </div>
             <GanttNavMenu people={ganttPeople} selfLabel={ROLE_LABELS[session.role]} />
             {/*
               Menu yang sama dengan tampilan list. Tautan polos ke /tasks/baru
@@ -110,24 +123,24 @@ export default async function TaskBoardPage({ searchParams }: PageProps) {
 
         {/* Scope toggle */}
         <div className="flex flex-wrap items-center gap-2 mb-3">
-          <div className="inline-flex p-0.5 rounded-lg bg-muted">
+          <div className="inline-flex p-1 rounded-full bg-muted">
             <Link
               href={scopeHref('personal')}
-              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${scope === 'personal' ? 'bg-card shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+              className={`px-3.5 py-1.5 rounded-full text-xs font-medium transition-colors ${scope === 'personal' ? 'bg-card shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
             >
               Personal
             </Link>
             {canDivisi && (
               <Link
                 href={scopeHref('divisi')}
-                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${scope === 'divisi' ? 'bg-card shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                className={`px-3.5 py-1.5 rounded-full text-xs font-medium transition-colors ${scope === 'divisi' ? 'bg-card shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
               >
                 Divisi
               </Link>
             )}
           </div>
           <FilterChip href={sprintHref()} active={hanyaSprint}>
-            {hanyaSprint ? '✓ ' : ''}Sprint {labelPeriode(periodeSprint)}
+            Hanya sprint {labelPeriode(periodeSprint)}
           </FilterChip>
         </div>
 
@@ -143,9 +156,9 @@ export default async function TaskBoardPage({ searchParams }: PageProps) {
           </div>
         )}
 
-        <KanbanBoard columns={columns} currentUserId={session.userId} currentRole={session.role} dependensi={dependensi} />
+        <KanbanBoard columns={columns} currentUserId={session.userId} currentRole={session.role} dependensi={dependensi} ringkas={ringkasKartu} />
 
-        <p className="text-xs text-muted-foreground mt-4">
+        <p className="text-xs text-muted-foreground mt-4 md:hidden">
           Di HP, ketuk kartu untuk buka detail &amp; ubah status di sana. Tarik-lepas optimal di desktop.
         </p>
       </div>

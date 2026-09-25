@@ -33,11 +33,11 @@ export function ProgramCarousel({ items, canManage, title = 'Program Kami' }: Pr
   }
 
   return (
-    <section id="program" className="max-w-5xl mx-auto px-6 pb-9">
-      <div className="flex items-center justify-between mb-4 gap-3">
+    <section id="program" className="max-w-6xl mx-auto px-4 sm:px-6 pb-16">
+      <div className="flex items-end justify-between mb-6 gap-3">
         <h2
-          className="m-0 text-lg font-bold tracking-tight text-foreground"
-          style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
+          className="m-0 text-[30px] font-normal leading-tight tracking-[-0.015em] text-foreground md:text-[40px]"
+          style={{ fontFamily: 'var(--font-display), Georgia, serif' }}
         >
           {title}
         </h2>

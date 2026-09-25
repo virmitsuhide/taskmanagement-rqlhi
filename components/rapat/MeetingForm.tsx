@@ -150,16 +150,29 @@ export function MeetingForm({ allowedTypes, action, defaultValues, submitLabel =
                 <Input id="notulis" name="notulis" defaultValue={defaultValues?.notulis ?? ''} placeholder="Nama pencatat..." />
               </div>
             </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="participants">Peserta</Label>
-              <Textarea
-                id="participants"
-                name="participants"
-                rows={4}
-                defaultValue={defaultValues?.participants?.join('\n') ?? ''}
-                placeholder="Nama peserta&#10;Nama peserta lain..."
-              />
-              <p className="text-xs text-muted-foreground">Tulis satu nama per baris.</p>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="participants">Peserta hadir</Label>
+                <Textarea
+                  id="participants"
+                  name="participants"
+                  rows={4}
+                  defaultValue={defaultValues?.participants?.join('\n') ?? ''}
+                  placeholder="Nama peserta&#10;Nama peserta lain..."
+                />
+                <p className="text-xs text-muted-foreground">Tulis satu nama per baris.</p>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="peserta_izin">Peserta izin</Label>
+                <Textarea
+                  id="peserta_izin"
+                  name="peserta_izin"
+                  rows={4}
+                  defaultValue={defaultValues?.peserta_izin?.join('\n') ?? ''}
+                  placeholder="Nama yang izin (opsional)"
+                />
+                <p className="text-xs text-muted-foreground">Yang berhalangan hadir. Satu nama per baris.</p>
+              </div>
             </div>
           </FieldGroup>
         </CardContent>

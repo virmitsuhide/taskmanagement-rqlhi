@@ -1,4 +1,4 @@
-import { Lora, Playfair_Display } from 'next/font/google'
+import { Newsreader } from 'next/font/google'
 import { createServerClient } from '@/lib/supabase/server'
 import { getSession } from '@/lib/auth/session'
 import { canCreateNews, canEditProgram } from '@/lib/auth/permissions'
@@ -15,8 +15,8 @@ import { PublicFooter } from '@/components/home/PublicFooter'
 import type { PublicPost, NewsArticle, KaldiEvent } from '@/types'
 import { getKaldikEvents } from '@/lib/data/kaldik'
 
-const lora = Lora({ subsets: ['latin'], variable: '--font-lora', display: 'swap' })
-const playfair = Playfair_Display({ subsets: ['latin'], variable: '--font-playfair', display: 'swap' })
+// Huruf judul Teduh; nama variabel lama dipertahankan agar pemakainya tak perlu diubah.
+const playfair = Newsreader({ subsets: ['latin'], variable: '--font-playfair', display: 'swap', style: ['normal', 'italic'] })
 
 const MONTH_ID = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember']
 const DAY_ID   = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu']
@@ -142,16 +142,17 @@ export default async function HomePage() {
             // minmax(0,1fr), bukan 1fr/auto: kolom grid otomatis melebar mengikuti
             // isi terpanjangnya, dan di HP itu membuat seluruh beranda lebih lebar
             // dari layar (360px jadi 444px) sehingga halaman bisa digeser ke samping.
-            className={`max-w-5xl mx-auto px-4 sm:px-6 pb-6 grid grid-cols-[minmax(0,1fr)] gap-4 items-start ${
-              both ? 'md:grid-cols-[minmax(0,1fr)_370px]' : ''
+            className={`max-w-6xl mx-auto px-4 sm:px-6 pb-10 grid grid-cols-[minmax(0,1fr)] gap-5 items-start ${
+              both ? 'md:grid-cols-[minmax(0,1fr)_400px]' : ''
             }`}
           >
             {pengCfg.enabled && (
-              <div className="min-w-0 bg-card border rounded-2xl p-4 sm:p-5">
+              <div className="min-w-0 bg-card border rounded-[22px] p-4 sm:p-6">
                 <AnnouncementBoard
                   posts={announcements}
                   title={pengCfg.title}
-                  limit={pengCfg.limit || 6}
+                  // Beranda menampilkan paling banyak 5 pengumuman; sisanya lewat "Lihat semua".
+                  limit={Math.min(pengCfg.limit || 5, 5)}
                 />
               </div>
             )}
@@ -197,30 +198,30 @@ export default async function HomePage() {
 
   return (
     <div
-      className={`${lora.variable} ${playfair.variable} min-h-screen bg-background`}
-      style={{ fontFamily: "var(--font-lora), 'Georgia', serif", fontSize: 14, lineHeight: 1.5 }}
+      className={`${playfair.variable} min-h-screen bg-background`}
+      style={{ fontSize: 14, lineHeight: 1.5 }}
     >
       <PublicHeader />
 
       {/* ─── HERO ─────────────────────────────────────────────────── */}
-      <section className="max-w-5xl mx-auto px-6 pt-9 pb-6 flex justify-between items-end flex-wrap gap-5">
+      <section className="max-w-6xl mx-auto px-4 sm:px-6 pt-10 pb-7 md:pt-14 md:pb-9 flex justify-between items-end flex-wrap gap-6">
         <div>
-          <p className="text-[11px] tracking-[1.8px] text-muted-foreground mb-2.5 uppercase">
+          <p className="text-xs font-bold tracking-[0.1em] text-warning mb-3 uppercase">
             {dateLabel}
           </p>
           <h1
-            className="m-0 mb-2.5 font-bold leading-[1.12] tracking-tight"
-            style={{ ...headingFont, fontSize: 'clamp(26px, 5vw, 42px)' }}
+            className="m-0 mb-3 font-normal leading-[1.05] tracking-[-0.02em]"
+            style={{ ...headingFont, fontSize: 'clamp(34px, 6vw, 60px)' }}
           >
             Assalamu&apos;alaikum,{' '}
-            <span className="border-b-[3px] border-accent-warm pb-1">Ustadz/ah</span>
+            <span className="border-b-[3px] border-accent-warm pb-0.5 italic text-primary">Ustadz/ah</span>
           </h1>
-          <p className="text-sm text-muted-foreground m-0 max-w-md leading-relaxed">
+          <p className="text-[15px] md:text-[17px] text-muted-foreground m-0 max-w-xl leading-relaxed">
             Semoga hari ini penuh keberkahan dan kemudahan dalam mengajarkan Al-Qur&apos;an.
           </p>
         </div>
 
-        <div className="flex gap-3 shrink-0">
+        <div className="flex gap-2.5 shrink-0">
           <HeroStat value={stats.units} label="unit" font={headingFont} />
           <HeroStat value={stats.pengampu} label="pengampu" font={headingFont} />
           <HeroStat value={stats.siswa} label="siswa" font={headingFont} />
@@ -246,11 +247,11 @@ function HeroStat({
   font: React.CSSProperties
 }) {
   return (
-    <div className="bg-card border rounded-xl px-5 py-4 text-center min-w-[88px]">
-      <div className="text-[30px] font-bold leading-none text-foreground tabular-nums" style={font}>
+    <div className="bg-card border rounded-2xl px-5 py-4 text-center min-w-[92px] md:min-w-[112px] md:py-5">
+      <div className="text-[32px] md:text-[38px] font-normal leading-none text-primary tabular-nums" style={font}>
         {value}
       </div>
-      <div className="text-[11px] text-muted-foreground mt-1.5 tracking-[0.2px]">{label}</div>
+      <div className="text-xs font-semibold text-muted-foreground mt-1.5">{label}</div>
     </div>
   )
 }

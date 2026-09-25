@@ -228,7 +228,10 @@ export interface Meeting {
   location: string | null
   mc: string | null
   notulis: string | null
+  /** Peserta yang hadir. */
   participants: string[]
+  /** Peserta yang izin (0089). Opsional: belum ada sebelum migrasinya dijalankan. */
+  peserta_izin?: string[]
   created_by: string
   created_at: string
   updated_at: string

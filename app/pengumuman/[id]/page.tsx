@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { Lora, Playfair_Display } from 'next/font/google'
+import { Newsreader } from 'next/font/google'
 import { ArrowLeft, Calendar } from 'lucide-react'
 import { createServerClient } from '@/lib/supabase/server'
 import { PublicHeader } from '@/components/layout/PublicHeader'
@@ -13,8 +13,8 @@ import { labelTanggalPost, lewatTenggatPost } from '@/lib/home/post-tanggal'
 import type { PublicPost } from '@/types'
 import type { Metadata } from 'next'
 
-const lora = Lora({ subsets: ['latin'], variable: '--font-lora', display: 'swap' })
-const playfair = Playfair_Display({ subsets: ['latin'], variable: '--font-playfair', display: 'swap' })
+// Huruf judul Teduh; nama variabel lama dipertahankan agar pemakainya tak perlu diubah.
+const playfair = Newsreader({ subsets: ['latin'], variable: '--font-playfair', display: 'swap', style: ['normal', 'italic'] })
 
 async function getPost(id: string): Promise<PublicPost | null> {
   try {
@@ -60,8 +60,8 @@ export default async function PengumumanDetailPage({ params }: { params: Promise
 
   return (
     <div
-      className={`${lora.variable} ${playfair.variable} min-h-screen bg-background`}
-      style={{ fontFamily: "var(--font-lora), 'Georgia', serif", fontSize: 14, lineHeight: 1.5 }}
+      className={`${playfair.variable} min-h-screen bg-background`}
+      style={{ fontSize: 14, lineHeight: 1.5 }}
     >
       <PublicHeader />
 
