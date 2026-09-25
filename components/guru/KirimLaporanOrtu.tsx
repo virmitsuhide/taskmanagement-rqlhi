@@ -1,7 +1,8 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { Check, Copy, FileDown, Link2, MessageCircle } from 'lucide-react'
+import { toast } from 'sonner'
+import { Check, Copy, FileDown, ImageDown, Link2, Loader2, MessageCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { teksWaLaporanOrtu, type LaporanOrtu } from '@/lib/rq/laporan-ortu'
@@ -24,6 +25,53 @@ export function TombolUnduhPdf({ namaBerkas }: { namaBerkas: string }) {
   return (
     <Button type="button" onClick={cetak}>
       <FileDown className="mr-1.5 h-4 w-4" />Unduh PDF
+    </Button>
+  )
+}
+
+/**
+ * Unduh lembar laporan sebagai gambar PNG — lebih mudah dikirim ke grup
+ * WhatsApp daripada PDF, dan langsung terbaca tanpa membuka berkas.
+ *
+ * Gambarnya diambil dari lembar yang tampil di layar (.ortu-sheet), jadi isinya
+ * selalu sama dengan pratinjau. Selama pengambilan, lembar dipaksa ke tema
+ * terang supaya wali tidak menerima laporan berlatar gelap dari guru yang
+ * memakai mode gelap. pixelRatio 2 supaya teks tabel tetap tajam saat diperbesar di HP.
+ */
+export function TombolUnduhPng({ namaBerkas }: { namaBerkas: string }) {
+  const [proses, setProses] = useState(false)
+
+  async function unduh() {
+    const lembar = document.querySelector<HTMLElement>('.ortu-sheet')
+    if (!lembar) return
+    setProses(true)
+    // .theme-light hanya mengganti variabel warna; teks tanpa kelas warna
+    // mewarisi `color` halaman, yang di mode gelap nyaris putih. Warna teks
+    // lembar ikut dipasang supaya nama & angka tidak hilang di latar putih.
+    const warnaAsli = lembar.style.color
+    lembar.classList.add('theme-light')
+    lembar.style.color = 'var(--foreground)'
+    try {
+      const { toPng } = await import('html-to-image')
+      const dataUrl = await toPng(lembar, { pixelRatio: 2, backgroundColor: '#ffffff', cacheBust: true })
+      const a = document.createElement('a')
+      a.href = dataUrl
+      a.download = `${namaBerkas.replace(/[\\/:*?"<>|]+/g, '-')}.png`
+      a.click()
+    } catch {
+      toast.error('Gagal membuat gambar. Coba lagi, atau pakai Unduh PDF.')
+    } finally {
+      lembar.classList.remove('theme-light')
+      lembar.style.color = warnaAsli
+      setProses(false)
+    }
+  }
+
+  return (
+    <Button type="button" variant="outline" onClick={unduh} disabled={proses}>
+      {proses
+        ? <><Loader2 className="mr-1.5 h-4 w-4 animate-spin" />Membuat gambar…</>
+        : <><ImageDown className="mr-1.5 h-4 w-4" />Unduh PNG</>}
     </Button>
   )
 }

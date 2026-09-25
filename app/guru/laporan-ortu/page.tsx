@@ -6,7 +6,7 @@ import { rentangLaporan, type PresetPeriode } from '@/lib/rq/laporan-ortu'
 import { tanggalWIB } from '@/lib/rq/ujian'
 import { createLaporanToken } from '@/lib/rapor-token'
 import { Slicer, hrefDengan } from '@/components/dashboard/kit'
-import { PesanWaLaporanOrtu, TombolUnduhPdf } from '@/components/guru/KirimLaporanOrtu'
+import { PesanWaLaporanOrtu, TombolUnduhPdf, TombolUnduhPng } from '@/components/guru/KirimLaporanOrtu'
 import { LembarLaporanOrtu } from '@/components/rapor/LembarLaporanOrtu'
 
 interface PageProps {
@@ -24,7 +24,7 @@ const PRESET: { kode: PresetPeriode; label: string }[] = [
 /**
  * Laporan orang tua per sesi — lembar A4 berisi capaian seluruh anak satu
  * halaqoh pada periode pilihan guru, plus pesan WhatsApp untuk grup wali.
- * PDF-nya lewat cetak peramban; lihat components/guru/KirimLaporanOrtu.tsx.
+ * PDF-nya lewat cetak peramban, PNG lewat html-to-image; lihat components/guru/KirimLaporanOrtu.tsx.
  */
 export default async function LaporanOrtuPage({ searchParams }: PageProps) {
   const session = await getTeacherSession()
@@ -102,7 +102,10 @@ export default async function LaporanOrtuPage({ searchParams }: PageProps) {
               )}
               <div className="flex flex-wrap items-center justify-between gap-2 border-t pt-3">
                 <p className="text-sm"><span className="text-muted-foreground">Periode:</span> <b>{periode.label}</b></p>
-                <TombolUnduhPdf namaBerkas={`Laporan Ortu - ${sesi.name} - ${periode.label}`} />
+                <div className="flex flex-wrap gap-2">
+                  <TombolUnduhPng namaBerkas={`Laporan Ortu - ${sesi.name} - ${periode.label}`} />
+                  <TombolUnduhPdf namaBerkas={`Laporan Ortu - ${sesi.name} - ${periode.label}`} />
+                </div>
               </div>
             </div>
 

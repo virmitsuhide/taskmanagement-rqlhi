@@ -2,7 +2,7 @@ import {
   LayoutDashboard, Users, BookOpen, Sparkles, CalendarCheck,
   BarChart3, ScrollText, GraduationCap, IdCard, ClipboardCheck, ListChecks,
   Table2, HeartHandshake, UserCheck,
-  FileText, CalendarHeart, Play,
+  FileText, CalendarHeart, Play, PieChart,
 } from 'lucide-react'
 import { cookies } from 'next/headers'
 import { getTeacherSession } from '@/lib/auth/teacher-session'
@@ -86,6 +86,8 @@ export async function TeacherShell({ children }: { children: React.ReactNode }) 
         { label: 'Progres per Sesi', href: '/guru/progres', icon: <Table2 /> },
         { label: 'Catatan Adab', href: '/guru/adab', icon: <HeartHandshake /> },
         { label: 'Capaian Bulanan', href: '/guru/capaian', icon: <CalendarCheck /> },
+        // Sebaran capaian seluruh halaqoh di unit guru — jumlah saja, tanpa nama siswa.
+        { label: 'Capaian Unit', href: '/guru/capaian-unit', icon: <PieChart /> },
         // Laporan per SESI untuk grup wali; rapor per anak ada di halaman siswa.
         { label: 'Laporan Orang Tua', href: '/guru/laporan-ortu', icon: <FileText /> },
         // Rapor semester memakai format yang ditetapkan koordinator (0082).

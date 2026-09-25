@@ -352,3 +352,109 @@ export async function getCapaianKelas(jenjangBoleh: Jenjang[]): Promise<CapaianK
 
   return { kelompok, sdTanpaProgram, diambil }
 }
+
+// ─── Capaian unit untuk portal guru ─────────────────────────────────────────
+//
+// Posisi tiap siswa aktif satu unit, dengan aturan yang SAMA persis dengan
+// matriks di atas (kolomTahsin, juz terjauh setoran/ujian, cadangan rekap
+// bulanan) — supaya angka yang dilihat guru tidak pernah berbeda dengan
+// laporan pengurus. Hanya membaca; nama siswa tidak ikut dikembalikan.
+
+export interface PosisiSiswaUnit {
+  halaqoh_id: string | null
+  tingkat: number | null
+  metode_id: string | null
+  /** Label jilid_levels asli metodenya (mis. 'Jilid 4' KIBAR) — untuk tampilan per metode. */
+  level: string | null
+  tahsin: string
+  tahfidz: string
+}
+
+export interface PosisiUnit {
+  siswa: PosisiSiswaUnit[]
+  metode: { id: string; name: string }[]
+  /** Tangga level tiap metode, urut order_num — label asli, tidak digabung lintas metode. */
+  tangga: Record<string, string[]>
+  urutanTahsin: string[]
+  urutanTahfidz: string[]
+}
+
+async function ambilPerPotong<T>(
+  ids: string[],
+  buat: (potong: string[]) => PromiseLike<{ data: unknown; error: unknown }>,
+): Promise<T[]> {
+  const hasil: T[] = []
+  for (let i = 0; i < ids.length; i += 150) {
+    const { data, error } = await buat(ids.slice(i, i + 150))
+    if (error) { console.error('[capaian-unit] gagal mengambil data:', error); continue }
+    hasil.push(...((data ?? []) as T[]))
+  }
+  return hasil
+}
+
+export async function getPosisiUnit(jenjang: Jenjang): Promise<PosisiUnit> {
+  const supabase = createServerClient()
+  const [siswaRows, levelRes, methodRes, juzUjian] = await Promise.all([
+    ambilSemua<BarisSiswa & { halaqoh_id: string | null }>(() => supabase.from('students')
+      .select('id, jenjang, kelas, program, current_jilid_id, halaqoh_id')
+      .eq('is_active', true).eq('jenjang', jenjang).order('id')),
+    supabase.from('jilid_levels').select('id, method_id, label, order_num, is_quran, is_terminal'),
+    supabase.from('tahsin_methods').select('id, name'),
+    getJuzUjianPerSiswa(),
+  ])
+  const ids = siswaRows.map(s => s.id)
+  const [juzProgress, rekap] = await Promise.all([
+    ambilPerPotong<BarisJuzProgress>(ids, p => supabase.from('juz_progress')
+      .select('student_id, juz_number, ayat_hafal, mutqin').in('student_id', p)),
+    ambilPerPotong<BarisRekap>(ids, p => supabase.from('student_monthly')
+      .select('student_id, period, level, halaman_awal_tahsin, halaman_akhir_tahsin, tahfidz_awal, tahfidz_akhir')
+      .in('student_id', p).order('period', { ascending: false })),
+  ])
+  rekap.sort((a, b) => b.period.localeCompare(a.period))
+
+  const levelById = new Map(((levelRes.data ?? []) as BarisLevel[]).map(l => [l.id, l]))
+  const berjalan = juzBerjalanPerSiswa(juzProgress)
+  const tuntas = juzGabunganPerSiswa(juzProgress, juzUjian)
+  const rekapTahsin = new Map<string, string>()
+  const rekapJuz = new Map<string, number>()
+  for (const r of rekap) {
+    if (!rekapTahsin.has(r.student_id)) {
+      const lv = parseLevel(r.level, r.halaman_akhir_tahsin || r.halaman_awal_tahsin)
+      if (lv) rekapTahsin.set(r.student_id, lv === 'Tahfidz' ? 'Lulus' : lv)
+    }
+    if (!rekapJuz.has(r.student_id)) {
+      const pos = posisiJuzDariTeks(r.tahfidz_akhir || r.tahfidz_awal)
+      if (pos > 0) rekapJuz.set(r.student_id, pos)
+    }
+  }
+
+  const siswa: PosisiSiswaUnit[] = siswaRows.map(s => {
+    const lv = s.current_jilid_id ? levelById.get(s.current_jilid_id) : undefined
+    const tahsin = lv ? kolomTahsin(lv) : rekapTahsin.get(s.id) ?? BELUM_TERCATAT
+    const dariSetoran = berjalan.has(s.id) ? (posisiJuz(berjalan.get(s.id)!) ?? 0) : 0
+    const nTuntas = tuntas.get(s.id) ?? 0
+    const pos = Math.max(dariSetoran, nTuntas > 0 ? nTuntas + 1 : 0) || rekapJuz.get(s.id) || 0
+    const tahfidz = pos === 0 ? BELUM_TERCATAT : pos > URUTAN_JUZ.length ? 'Khatam 30 juz' : `Juz ${URUTAN_JUZ[pos - 1]}`
+    return { halaqoh_id: s.halaqoh_id, tingkat: tingkatOf(s.kelas), metode_id: lv?.method_id ?? null, level: lv?.label ?? null, tahsin, tahfidz }
+  })
+
+  const dipakai = new Set(siswa.map(s => s.metode_id).filter((x): x is string => Boolean(x)))
+  const metode = ((methodRes.data ?? []) as { id: string; name: string }[])
+    .filter(m => dipakai.has(m.id)).sort((a, b) => a.name.localeCompare(b.name))
+
+  const tangga: Record<string, string[]> = {}
+  for (const l of [...levelById.values()].sort((a, b) => a.order_num - b.order_num)) {
+    if (!dipakai.has(l.method_id)) continue
+    const t = tangga[l.method_id] ?? []
+    if (!t.includes(l.label)) t.push(l.label)
+    tangga[l.method_id] = t
+  }
+
+  return {
+    siswa,
+    metode,
+    tangga,
+    urutanTahsin: [...URUTAN_TAHSIN],
+    urutanTahfidz: [...URUTAN_JUZ.map(j => `Juz ${j}`), 'Khatam 30 juz'],
+  }
+}
