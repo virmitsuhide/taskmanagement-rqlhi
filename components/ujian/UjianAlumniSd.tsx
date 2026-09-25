@@ -77,7 +77,7 @@ export function UjianAlumniSd({ siswa }: { siswa: UjianAlumniSd[] }) {
       </div>
 
       {tampil.length === 0 ? (
-        <p className="rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">Semua alumni sudah punya catatan ujian.</p>
+        <p className="rounded-2xl border border-dashed p-6 text-center text-sm text-muted-foreground bg-muted/30">Semua alumni sudah punya catatan ujian.</p>
       ) : perKelas.map(([kelas, anggota]) => (
         <section key={kelas} className="rounded-2xl border bg-card">
           <h2 className="font-heading text-lg font-medium border-b px-4 py-2.5">Kelas {kelas} <span className="font-normal text-muted-foreground">· {anggota.length} siswa</span></h2>

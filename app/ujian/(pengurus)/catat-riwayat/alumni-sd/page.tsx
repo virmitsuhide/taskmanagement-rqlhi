@@ -39,11 +39,11 @@ export default async function UjianAlumniSdPage() {
         <UjianSubNav />
 
         {!kolomAda ? (
-          <p className="rounded-xl border border-dashed p-6 text-sm text-muted-foreground">
+          <p className="rounded-2xl border border-dashed p-6 text-sm text-muted-foreground bg-muted/30">
             Penanda lulusan SD LHI belum ada — jalankan migrasi 0070 di Supabase lebih dulu.
           </p>
         ) : siswa.length === 0 ? (
-          <p className="rounded-xl border border-dashed p-6 text-sm text-muted-foreground">
+          <p className="rounded-2xl border border-dashed p-6 text-sm text-muted-foreground bg-muted/30">
             Belum ada siswa SMP yang ditandai lulusan SD LHI.
             {tautanTandai && (
               <> <Link href="/dashboard/analitik/target-tahfidz/asal-siswa" className="text-primary hover:underline">Tandai sekarang →</Link></>

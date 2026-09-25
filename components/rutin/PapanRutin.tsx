@@ -157,7 +157,7 @@ export function PapanRutin({ board }: { board: RoutineBoard }) {
       </div>
 
       {board.total === 0 && (
-        <p className="rounded-xl border border-dashed bg-card px-5 py-10 text-center text-sm italic text-muted-foreground">
+        <p className="rounded-2xl border border-dashed bg-muted/30 px-5 py-10 text-center text-sm italic text-muted-foreground">
           Belum ada satu pun tugas rutin yang disusun pengurus.
         </p>
       )}

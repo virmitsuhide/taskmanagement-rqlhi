@@ -21,8 +21,8 @@ interface Peserta {
 
 const STATUS: { kode: StatusHadir; label: string; kelas: string }[] = [
   { kode: 'hadir', label: 'H', kelas: 'bg-success text-white' },
-  { kode: 'izin', label: 'I', kelas: 'bg-sky-600 text-white' },
-  { kode: 'sakit', label: 'S', kelas: 'bg-amber-500 text-white' },
+  { kode: 'izin', label: 'I', kelas: 'bg-info text-info-foreground' },
+  { kode: 'sakit', label: 'S', kelas: 'bg-warning text-warning-foreground' },
   { kode: 'alfa', label: 'A', kelas: 'bg-destructive text-white' },
 ]
 

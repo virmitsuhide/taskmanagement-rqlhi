@@ -180,7 +180,7 @@ export default async function TeacherDetailPage({ params, searchParams }: PagePr
                       (contractDaysLeft(teacher.contract_end) ?? 0) < 0
                         ? 'bg-destructive/10 text-destructive'
                         : (contractDaysLeft(teacher.contract_end) ?? 999) <= 60
-                          ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
+                          ? 'bg-warning-wash text-warning'
                           : 'bg-muted'
                     }`}
                   >

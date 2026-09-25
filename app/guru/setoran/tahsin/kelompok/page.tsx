@@ -43,7 +43,7 @@ export default async function AturKelompokPage({ searchParams }: PageProps) {
         </div>
 
         {!halaqoh ? (
-          <div className="rounded-xl border border-dashed bg-card py-10 text-center text-sm text-muted-foreground">
+          <div className="rounded-2xl border border-dashed bg-muted/30 py-10 text-center text-sm text-muted-foreground">
             Anda belum mengampu halaqoh.
           </div>
         ) : !kelompok.tabelAda ? (
@@ -54,7 +54,7 @@ export default async function AturKelompokPage({ searchParams }: PageProps) {
           <>
             <PilihSesi daftar={daftar} terpilih={halaqoh.id} basePath="/guru/setoran/tahsin/kelompok" />
             {siswa.length === 0 ? (
-              <div className="rounded-xl border border-dashed bg-card py-10 text-center text-sm text-muted-foreground">
+              <div className="rounded-2xl border border-dashed bg-muted/30 py-10 text-center text-sm text-muted-foreground">
                 Belum ada siswa di sesi ini.
               </div>
             ) : (

@@ -38,7 +38,7 @@ export default async function TemplateRaporPage() {
         </PageTitle>
 
         {!tabelAda ? (
-          <div className="rounded-xl border border-dashed bg-card p-5 text-sm text-muted-foreground">
+          <div className="rounded-2xl border border-dashed bg-muted/30 p-5 text-sm text-muted-foreground">
             Tabel template belum ada di basis data. Jalankan{' '}
             <code className="rounded bg-muted px-1 py-0.5 text-xs">drizzle/0082_rapor_quran_template_PASTE_TO_SUPABASE.sql</code>{' '}
             di Supabase SQL Editor lebih dulu (0081 juga, untuk kehadiran).
@@ -48,7 +48,7 @@ export default async function TemplateRaporPage() {
             <UnggahTemplate jenjang={jenjang} />
 
             {daftar.length === 0 ? (
-              <div className="rounded-xl border border-dashed bg-card py-12 text-center">
+              <div className="rounded-2xl border border-dashed bg-muted/30 py-12 text-center">
                 <FileText className="mx-auto h-8 w-8 text-muted-foreground" />
                 <p className="mt-2 text-sm text-muted-foreground">Belum ada template.</p>
               </div>

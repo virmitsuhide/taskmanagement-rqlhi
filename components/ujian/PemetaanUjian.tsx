@@ -55,7 +55,7 @@ export function PemetaanUjian({ baris }: { baris: BarisPemetaan[] }) {
           tidak terhitung di analitik hafalan.
         </p>
         {belum.length === 0 ? (
-          <p className="rounded-xl border border-dashed py-10 text-center text-sm text-muted-foreground">
+          <p className="rounded-2xl border border-dashed py-10 text-center text-sm text-muted-foreground bg-muted/30">
             Semua catatan sudah dipasangkan.
           </p>
         ) : (

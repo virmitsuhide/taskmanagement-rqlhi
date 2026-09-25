@@ -113,7 +113,7 @@ export function PindahSiswa({ siswa, tujuan, sesiSekarang, canManage }: Props) {
 
   if (siswa.length === 0) {
     return (
-      <div className="rounded-lg border border-dashed py-8 text-center text-sm text-muted-foreground">
+      <div className="rounded-2xl border border-dashed py-8 text-center text-sm text-muted-foreground bg-muted/30">
         Belum ada siswa di halaqoh ini.
       </div>
     )

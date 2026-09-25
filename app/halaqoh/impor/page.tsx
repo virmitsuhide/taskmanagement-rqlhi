@@ -31,7 +31,7 @@ export default async function ImporKelompokPage() {
   if (lingkup.halaqohList.length === 0) {
     return (
       <Kerangka session={session}>
-        <div className="rounded-lg border border-dashed py-12 text-center">
+        <div className="rounded-2xl border border-dashed py-12 text-center bg-muted/30">
           <Users className="mx-auto mb-3 h-8 w-8 text-muted-foreground/40" />
           <p className="text-sm font-medium">Belum ada halaqoh yang bisa Anda isi</p>
           <p className="mx-auto mt-1 max-w-lg text-xs leading-relaxed text-muted-foreground">

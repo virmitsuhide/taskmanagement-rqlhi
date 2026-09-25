@@ -152,7 +152,7 @@ export function PengujiManager(
       </div>
 
       {pengujis.length === 0 ? (
-        <div className="rounded-xl border border-dashed py-12 text-center">
+        <div className="rounded-2xl border border-dashed py-12 text-center bg-muted/30">
           <p className="text-sm font-medium">Belum ada penguji terdaftar</p>
           <p className="mt-1 text-xs text-muted-foreground">
             Pilih guru di atas agar bisa dipilih saat menjadwalkan ujian.

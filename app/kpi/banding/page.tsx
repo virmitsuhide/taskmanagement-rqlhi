@@ -110,7 +110,7 @@ export default async function BandingKpiPage({ searchParams }: PageProps) {
               const bolehPutus = b.status === 'diajukan' && canDecideKpiBanding(session.role, b.tingkat)
 
               return (
-                <li key={b.id} className="rounded-lg border bg-card p-4">
+                <li key={b.id} className="rounded-2xl border bg-card p-4">
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">

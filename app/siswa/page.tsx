@@ -388,7 +388,7 @@ export default async function SiswaListPage({ searchParams }: PageProps) {
         )}
 
         {baris.length === 0 ? (
-          <div className="rounded-lg border border-dashed py-12 text-center">
+          <div className="rounded-2xl border border-dashed py-12 text-center bg-muted/30">
             <Users className="h-8 w-8 mx-auto text-muted-foreground/40 mb-3" />
             <p className="font-medium text-sm">Tidak ada siswa</p>
             <p className="text-xs text-muted-foreground mt-1">

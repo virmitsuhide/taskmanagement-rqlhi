@@ -135,7 +135,7 @@ export function StudentBrowser({ students }: Props) {
       </div>
 
       {groups.length === 0 ? (
-        <div className="rounded-xl border border-dashed bg-card py-10 text-center">
+        <div className="rounded-2xl border border-dashed bg-muted/30 py-10 text-center">
           <p className="text-sm text-muted-foreground">Tidak ada siswa yang cocok.</p>
         </div>
       ) : (

@@ -90,7 +90,7 @@ export default async function RiwayatGuruPage({ searchParams }: PageProps) {
           </div>
 
           {riwayat.length === 0 ? (
-            <div className="rounded-xl border border-dashed bg-card py-12 text-center">
+            <div className="rounded-2xl border border-dashed bg-muted/30 py-12 text-center">
               <p className="text-sm font-medium">Belum ada penilaian KPI</p>
               <p className="mx-auto mt-1 max-w-sm text-xs text-muted-foreground">
                 Riwayat terbentuk sendirinya begitu SDM mengisi KPI bulanan guru ini
@@ -197,7 +197,7 @@ function TabCatatan({ riwayat }: { riwayat: RiwayatKpiBulan[] }) {
 
   if (berisi.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed bg-card py-12 text-center">
+      <div className="rounded-2xl border border-dashed bg-muted/30 py-12 text-center">
         <p className="text-sm font-medium">Belum ada catatan tertulis</p>
         <p className="mx-auto mt-1 max-w-md text-xs text-muted-foreground">
           Catatan diisi saat menilai KPI, di kartu <b>Catatan untuk Rapor Guru</b>.

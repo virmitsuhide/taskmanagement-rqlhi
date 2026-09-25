@@ -405,7 +405,7 @@ function Rincian({
 
 function Kosong() {
   return (
-    <p className="rounded-xl border border-dashed py-8 text-center text-sm text-muted-foreground">
+    <p className="rounded-2xl border border-dashed py-8 text-center text-sm text-muted-foreground bg-muted/30">
       Tidak ada pengajuan yang cocok dengan penyaring ini.
     </p>
   )

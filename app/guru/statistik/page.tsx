@@ -102,7 +102,7 @@ export default async function GuruStatistikPage({ searchParams }: PageProps) {
         />
 
         {s.jumlahSiswa === 0 ? (
-          <div className="rounded-xl border border-dashed bg-card py-10 text-center text-sm text-muted-foreground">
+          <div className="rounded-2xl border border-dashed bg-muted/30 py-10 text-center text-sm text-muted-foreground">
             {s.halaqohTerpilih
               ? 'Halaqoh ini belum berisi siswa aktif.'
               : 'Anda belum mengampu halaqoh aktif, atau halaqohnya belum berisi siswa.'}

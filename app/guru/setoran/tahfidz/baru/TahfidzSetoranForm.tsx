@@ -67,7 +67,7 @@ export function TahfidzSetoranForm({ students, surat, completedJuzByStudent = {}
           </div>
         ) : (
           <Select value={studentId} onValueChange={setStudentId}>
-            <SelectTrigger id="student_picker"><SelectValue placeholder="Pilih siswa" /></SelectTrigger>
+            <SelectTrigger id="student_picker" className="w-full min-w-0"><SelectValue placeholder="Pilih siswa" /></SelectTrigger>
             <SelectContent>
               {students.map(s => (
                 <SelectItem key={s.id} value={s.id}>
@@ -182,11 +182,11 @@ function DailySubForm({
         {lintas ? (
           <>
             {/* Muroja'ah: "dari surat … ayat … sampai surat … ayat …". */}
-            <div className="grid grid-cols-[1fr_96px] gap-3">
-              <div className="space-y-1.5">
+            <div className="grid grid-cols-[minmax(0,1fr)_88px] gap-3">
+              <div className="min-w-0 space-y-1.5">
                 <Label htmlFor="surat_id">Dari surat *</Label>
                 <Select name="surat_id" value={suratId} onValueChange={setSuratId} required>
-                  <SelectTrigger id="surat_id"><SelectValue placeholder="Pilih surat" /></SelectTrigger>
+                  <SelectTrigger id="surat_id" className="w-full min-w-0"><SelectValue placeholder="Pilih surat" /></SelectTrigger>
                   <SelectContent className="max-h-72">{pilihanSurat}</SelectContent>
                 </Select>
               </div>
@@ -200,11 +200,11 @@ function DailySubForm({
                 />
               </div>
             </div>
-            <div className="grid grid-cols-[1fr_96px] gap-3">
-              <div className="space-y-1.5">
+            <div className="grid grid-cols-[minmax(0,1fr)_88px] gap-3">
+              <div className="min-w-0 space-y-1.5">
                 <Label htmlFor="surat_ke">Sampai surat</Label>
                 <Select value={suratKe} onValueChange={setSuratKe}>
-                  <SelectTrigger id="surat_ke"><SelectValue /></SelectTrigger>
+                  <SelectTrigger id="surat_ke" className="w-full min-w-0"><SelectValue /></SelectTrigger>
                   <SelectContent className="max-h-72">
                     <SelectItem value="sama">
                       {selectedSurat ? `Surat yang sama (${selectedSurat.name_latin})` : 'Surat yang sama'}
@@ -226,17 +226,17 @@ function DailySubForm({
           </>
         ) : (
           <>
-            <div className="grid grid-cols-1 sm:grid-cols-[1fr_120px] gap-3">
-              <div className="space-y-1.5">
+            <div className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_120px] gap-3">
+              <div className="min-w-0 space-y-1.5">
                 <Label htmlFor="surat_id">Surat *</Label>
                 <Select name="surat_id" value={suratId} onValueChange={setSuratId} required>
-                  <SelectTrigger id="surat_id"><SelectValue placeholder="Pilih surat" /></SelectTrigger>
+                  <SelectTrigger id="surat_id" className="w-full min-w-0"><SelectValue placeholder="Pilih surat" /></SelectTrigger>
                   <SelectContent className="max-h-72">{pilihanSurat}</SelectContent>
                 </Select>
               </div>
               <div className="space-y-1.5">
                 <Label>Juz</Label>
-                <div className="h-9 px-3 flex items-center rounded-md border bg-muted/40 text-sm text-muted-foreground">
+                <div className="h-9 px-3 flex items-center rounded-lg border bg-muted/40 text-sm text-muted-foreground">
                   {/* Juz menurut AYAT, bukan awal surat: Al-Baqarah 187 = juz 2. */}
                   {selectedSurat
                     ? (ayatDari && labelJuzRentang(selectedSurat.id, Number(ayatDari), ayatKe ? Number(ayatKe) : null)) || `Juz ${selectedSurat.juz_start}`

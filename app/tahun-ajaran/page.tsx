@@ -39,7 +39,7 @@ export default async function TahunAjaranPage() {
         </div>
 
         {terms.length === 0 ? (
-          <div className="rounded-lg border border-dashed py-12 text-center">
+          <div className="rounded-2xl border border-dashed py-12 text-center bg-muted/30">
             <CalendarRange className="mx-auto h-8 w-8 text-muted-foreground" />
             <p className="mt-2 text-sm text-muted-foreground">
               Belum ada tahun ajaran. Buat satu dulu sebelum menambah halaqoh.

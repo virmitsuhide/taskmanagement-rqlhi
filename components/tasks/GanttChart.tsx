@@ -222,7 +222,7 @@ export function GanttChart({
 
   if (lines.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed bg-card py-12 text-center">
+      <div className="rounded-2xl border border-dashed bg-muted/30 py-12 text-center">
         <p className="text-sm font-medium">Gantt Chart masih kosong</p>
         <p className="mt-1 text-xs text-muted-foreground">{emptyLabel}</p>
       </div>

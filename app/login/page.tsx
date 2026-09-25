@@ -13,14 +13,14 @@ export default function LoginPage() {
   const [state, action, isPending] = useActionState(loginAction, null)
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-muted/30 px-4">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-background px-4">
       <div className="mb-6 flex flex-col items-center text-center">
         <Logo variant="full" size={132} priority className="mb-1" />
       </div>
 
-      <Card className="w-full max-w-sm">
+      <Card className="w-full max-w-sm shadow-sm">
         <CardHeader className="pb-4">
-          <CardTitle className="text-xl">Masuk</CardTitle>
+          <CardTitle className="text-2xl">Masuk</CardTitle>
           <CardDescription>Untuk pengurus &amp; guru — masukkan username dan password Anda</CardDescription>
         </CardHeader>
         <CardContent>
@@ -50,12 +50,12 @@ export default function LoginPage() {
             </div>
 
             {state?.error && (
-              <p className="text-sm text-destructive bg-destructive/10 px-3 py-2 rounded-md">
+              <p className="text-sm font-medium text-destructive bg-destructive-wash px-4 py-3 rounded-xl">
                 {state.error}
               </p>
             )}
 
-            <Button type="submit" className="w-full" disabled={isPending}>
+            <Button type="submit" size="lg" className="w-full" disabled={isPending}>
               {isPending ? 'Memuat...' : 'Masuk'}
             </Button>
           </form>

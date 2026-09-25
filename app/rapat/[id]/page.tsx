@@ -130,7 +130,7 @@ export default async function RapatDetailPage({ params }: { params: Promise<{ id
           </div>
 
           {items.length === 0 ? (
-            <div className="rounded-lg border border-dashed py-12 text-center">
+            <div className="rounded-2xl border border-dashed py-12 text-center bg-muted/30">
               <FileText className="h-8 w-8 text-muted-foreground/40 mx-auto mb-2" />
               <p className="text-sm text-muted-foreground">Belum ada poin notulen.</p>
             </div>
@@ -162,7 +162,7 @@ export default async function RapatDetailPage({ params }: { params: Promise<{ id
                     {item.follow_up && (
                       <div className="mt-3 pt-3 border-t flex items-start gap-2 flex-wrap">
                         <div className="flex-1 min-w-[200px]">
-                          <p className="text-[10px] font-semibold uppercase tracking-wide text-orange-700 dark:text-orange-400 mb-1">
+                          <p className="text-[10px] font-semibold uppercase tracking-wide text-warning mb-1">
                             Tindak Lanjut
                           </p>
                           <p className="text-sm">{item.follow_up}</p>

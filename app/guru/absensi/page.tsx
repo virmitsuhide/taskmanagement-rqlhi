@@ -67,11 +67,11 @@ export default async function AbsensiPage({ searchParams }: PageProps) {
         </div>
 
         {!sesi ? (
-          <div className="rounded-xl border border-dashed bg-card py-10 text-center text-sm text-muted-foreground">
+          <div className="rounded-2xl border border-dashed bg-muted/30 py-10 text-center text-sm text-muted-foreground">
             Anda belum mengampu halaqoh aktif.
           </div>
         ) : !absensi.tabelAda ? (
-          <div className="rounded-xl border border-dashed bg-card p-5 text-sm text-muted-foreground">
+          <div className="rounded-2xl border border-dashed bg-muted/30 p-5 text-sm text-muted-foreground">
             Tabel absensi belum ada di basis data. Jalankan{' '}
             <code className="rounded bg-muted px-1 py-0.5 text-xs">drizzle/0081_absensi_harian_PASTE_TO_SUPABASE.sql</code>{' '}
             di Supabase SQL Editor lebih dulu.
@@ -106,7 +106,7 @@ export default async function AbsensiPage({ searchParams }: PageProps) {
             </div>
 
             {siswa.length === 0 ? (
-              <div className="rounded-xl border border-dashed bg-card py-10 text-center text-sm text-muted-foreground">
+              <div className="rounded-2xl border border-dashed bg-muted/30 py-10 text-center text-sm text-muted-foreground">
                 Belum ada siswa aktif di sesi ini.
               </div>
             ) : (

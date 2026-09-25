@@ -104,5 +104,5 @@ async function Isi({ sabtu }: { sabtu: Awaited<ReturnType<typeof getSabtuPengamp
 }
 
 function Kosong({ children }: { children: React.ReactNode }) {
-  return <div className="rounded-xl border border-dashed bg-card py-10 text-center text-sm text-muted-foreground">{children}</div>
+  return <div className="rounded-2xl border border-dashed bg-muted/30 py-10 text-center text-sm text-muted-foreground">{children}</div>
 }

@@ -101,7 +101,7 @@ export default async function ProgresHalaqohPage({ params, searchParams }: PageP
         <FilterSesiBulan basePath={`/halaqoh/${id}/progres`} daftar={[]} halaqoh="" periode={periode} params={{ jenis }} />
 
         {data.baris.length === 0 ? (
-          <div className="rounded-xl border border-dashed bg-card py-10 text-center text-sm text-muted-foreground">
+          <div className="rounded-2xl border border-dashed bg-muted/30 py-10 text-center text-sm text-muted-foreground">
             Belum ada siswa aktif di halaqoh ini.
           </div>
         ) : (

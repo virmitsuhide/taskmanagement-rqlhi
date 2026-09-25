@@ -67,7 +67,7 @@ export default async function RaporQuranPage({ searchParams }: PageProps) {
         </div>
 
         {!sesi || !term ? (
-          <div className="rounded-xl border border-dashed bg-card py-10 text-center text-sm text-muted-foreground">
+          <div className="rounded-2xl border border-dashed bg-muted/30 py-10 text-center text-sm text-muted-foreground">
             {!sesi ? 'Anda belum mengampu halaqoh aktif.' : 'Belum ada tahun ajaran yang ditetapkan.'}
           </div>
         ) : (
@@ -92,11 +92,11 @@ export default async function RaporQuranPage({ searchParams }: PageProps) {
             </div>
 
             {!tabelAda ? (
-              <div className="rounded-xl border border-dashed bg-card p-5 text-sm text-muted-foreground">
+              <div className="rounded-2xl border border-dashed bg-muted/30 p-5 text-sm text-muted-foreground">
                 Tabel rapor belum ada di basis data. Migrasi 0081 &amp; 0082 perlu dijalankan lebih dulu.
               </div>
             ) : !template ? (
-              <div className="rounded-xl border border-dashed bg-card p-5 text-sm text-muted-foreground">
+              <div className="rounded-2xl border border-dashed bg-muted/30 p-5 text-sm text-muted-foreground">
                 Belum ada template {LABEL_JENIS_RAPOR[jenis]} untuk kelas ini. Koordinator unit mengunggahnya di menu{' '}
                 <b>Template Rapor</b>; sampai itu ada, rapor belum bisa dicetak.
               </div>

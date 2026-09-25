@@ -160,7 +160,7 @@ export function TahsinSetoranForm({
           </>
         ) : (
           <Select name="student_id" value={studentId} onValueChange={onStudentChange} required>
-            <SelectTrigger id="student_id"><SelectValue placeholder="Pilih siswa" /></SelectTrigger>
+            <SelectTrigger id="student_id" className="w-full min-w-0"><SelectValue placeholder="Pilih siswa" /></SelectTrigger>
             <SelectContent>
               {students.map(s => (
                 <SelectItem key={s.id} value={s.id}>
@@ -179,7 +179,7 @@ export function TahsinSetoranForm({
           <div className="space-y-1.5">
             <Label htmlFor="method_id">Metode *</Label>
             <Select name="method_id" value={methodId} onValueChange={setMethodId} required>
-              <SelectTrigger id="method_id"><SelectValue placeholder="Metode" /></SelectTrigger>
+              <SelectTrigger id="method_id" className="w-full min-w-0"><SelectValue placeholder="Metode" /></SelectTrigger>
               <SelectContent>
                 {availableMethods.map(m => <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>)}
               </SelectContent>
@@ -211,7 +211,7 @@ export function TahsinSetoranForm({
             ) : (
               <>
                 <Select name="jilid_id" value={jilidId} onValueChange={setJilidId} disabled={!methodId} required>
-                  <SelectTrigger id="jilid_id"><SelectValue placeholder="Jilid" /></SelectTrigger>
+                  <SelectTrigger id="jilid_id" className="w-full min-w-0"><SelectValue placeholder="Jilid" /></SelectTrigger>
                   <SelectContent>
                     {jilidOptions.map(j => <SelectItem key={j.id} value={j.id}>{j.label}</SelectItem>)}
                   </SelectContent>

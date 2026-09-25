@@ -10,7 +10,7 @@ import { Logo } from '@/components/brand/Logo'
 import { ThemeToggle } from './ThemeToggle'
 import { cn } from '@/lib/utils'
 import {
-  useSidebarCiut, SEMBUNYI_SAAT_CIUT, HILANG_SAAT_CIUT, TAUTAN_CIUT, LENCANA_CIUT,
+  useSidebarCiut, SEMBUNYI_SAAT_CIUT, TAUTAN_CIUT, LENCANA_CIUT,
 } from './sidebar-ciut'
 
 /**
@@ -122,11 +122,13 @@ export function TeacherNav({ fullName, groups, bell, children, ciutAwal = false 
         <Link
           href="/guru"
           title="Beranda Portal Guru"
-          className="flex items-center gap-2 text-base font-extrabold tracking-tight"
-          style={{ fontFamily: 'var(--font-playfair), Georgia, serif' }}
+          className="flex items-center gap-2.5"
         >
-          <Logo size={30} alt="" />
-          <span className={SEMBUNYI_SAAT_CIUT}>RQ <span style={{ color: 'var(--primary)' }}>LHI</span></span>
+          <Logo size={34} alt="" />
+          <span className={cn('flex flex-col leading-none', SEMBUNYI_SAAT_CIUT)}>
+            <span className="font-heading text-[18px] font-semibold text-primary">Rumah Qur&rsquo;an</span>
+            <span className="mt-1 text-[10.5px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">LHI · Portal Guru</span>
+          </span>
         </Link>
         {/* Hanya di sidebar layar lebar; laci mobile punya tombol tutupnya sendiri. */}
         <button
@@ -139,12 +141,6 @@ export function TeacherNav({ fullName, groups, bell, children, ciutAwal = false 
         >
           {ciut ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
         </button>
-        <span
-          className={cn('mt-2 inline-block rounded-full border px-2 py-0.5 text-[11px]', HILANG_SAAT_CIUT)}
-          style={{ borderColor: 'var(--border)', background: 'var(--primary-wash)', color: 'var(--primary)' }}
-        >
-          Portal Guru
-        </span>
       </div>
 
       <nav className="flex-1 space-y-5 overflow-y-auto overflow-x-hidden px-2 pb-4 group-data-[ciut=true]/sb:[scrollbar-width:none]">
@@ -169,7 +165,7 @@ export function TeacherNav({ fullName, groups, bell, children, ciutAwal = false 
                     className={cn(
                       'flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm transition-colors', TAUTAN_CIUT,
                       aktif === item.href
-                        ? 'bg-accent font-medium text-foreground'
+                        ? 'bg-accent font-semibold text-accent-foreground'
                         : 'text-muted-foreground hover:text-foreground',
                     )}
                                       >

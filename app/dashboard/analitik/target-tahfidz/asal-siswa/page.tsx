@@ -42,13 +42,13 @@ export default async function AsalSiswaPage() {
         </div>
 
         {error ? (
-          <p className="rounded-xl border border-dashed p-6 text-sm text-muted-foreground">
+          <p className="rounded-2xl border border-dashed p-6 text-sm text-muted-foreground bg-muted/30">
             {error.message.includes('asal_sd_lhi')
               ? 'Kolom asal siswa belum ada. Jalankan drizzle/0070_target_tahfidz_bulanan_PASTE_TO_SUPABASE.sql di Supabase SQL Editor, lalu muat ulang halaman ini.'
               : `Data siswa tidak terbaca: ${error.message}`}
           </p>
         ) : siswa.length === 0 ? (
-          <p className="rounded-xl border border-dashed p-6 text-sm text-muted-foreground">Belum ada siswa SMP aktif.</p>
+          <p className="rounded-2xl border border-dashed p-6 text-sm text-muted-foreground bg-muted/30">Belum ada siswa SMP aktif.</p>
         ) : (
           <>
             <AsalSdLhiForm siswa={siswa} />

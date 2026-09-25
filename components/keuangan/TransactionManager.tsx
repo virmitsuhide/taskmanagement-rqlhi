@@ -59,7 +59,7 @@ export function TransactionManager({ period, tab, accounts, settled, receivables
           >
             {t}
             {t === 'piutang' && receivables.length > 0 && (
-              <span className="ml-1.5 text-xs text-amber-600 dark:text-amber-400">{receivables.length}</span>
+              <span className="ml-1.5 text-xs text-warning">{receivables.length}</span>
             )}
           </Link>
         ))}

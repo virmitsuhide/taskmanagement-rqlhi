@@ -29,7 +29,7 @@ export function DrillTahsinBoard({ units }: { units: DrillUnit[] }) {
       </p>
 
       {units.length === 0 ? (
-        <div className="rounded-xl border border-dashed py-8 text-center">
+        <div className="rounded-2xl border border-dashed py-8 text-center bg-muted/30">
           <p className="text-sm text-muted-foreground">Tidak ada siswa yang sedang drill.</p>
         </div>
       ) : (

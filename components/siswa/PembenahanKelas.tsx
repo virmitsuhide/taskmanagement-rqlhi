@@ -47,7 +47,7 @@ export interface KelompokBenah {
 export function PembenahanKelas({ kelompok }: { kelompok: KelompokBenah[] }) {
   if (kelompok.length === 0) {
     return (
-      <p className="rounded-xl border border-dashed py-12 text-center text-sm text-muted-foreground">
+      <p className="rounded-2xl border border-dashed py-12 text-center text-sm text-muted-foreground bg-muted/30">
         Semua siswa sudah punya kelas yang jelas.
       </p>
     )

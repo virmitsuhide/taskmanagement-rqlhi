@@ -66,7 +66,7 @@ export function BudgetForm({ period, accounts, incomeRows, expenseRows, previous
       />
 
       {state?.error && <p className="text-sm text-destructive">{state.error}</p>}
-      {state?.success && <p className="text-sm text-emerald-600 dark:text-emerald-400">Anggaran tersimpan.</p>}
+      {state?.success && <p className="text-sm text-success">Anggaran tersimpan.</p>}
 
       {canManage && (
         <Button type="submit" size="sm" disabled={pending}>

@@ -119,56 +119,59 @@
     --sidebar-ring: #6FA89C;
 }
 
+/*
+ * Mode gelap "Tilawah Malam" — teal malam sebagai dasar, mint untuk tinta
+ * utama, emas (bukan oranye) untuk yang menunggu: oranye murni bergetar di
+ * latar gelap. Semua pasangan teks/latar ≥ 4.5:1.
+ */
 .dark {
-    --background: oklch(0.16 0.01 160);
-    --foreground: oklch(0.985 0 0);
-    --card: oklch(0.22 0.02 162);
-    --card-foreground: oklch(0.985 0 0);
-    --popover: oklch(0.22 0.02 162);
-    --popover-foreground: oklch(0.985 0 0);
-    --primary: oklch(0.78 0.16 162);
-    --primary-foreground: oklch(0.18 0.04 160);
-    --secondary: oklch(0.28 0.03 162);
-    --secondary-foreground: oklch(0.985 0 0);
-    --muted: oklch(0.28 0.03 162);
-    --muted-foreground: oklch(0.72 0.02 160);
-    --accent: oklch(0.30 0.05 162);
-    --accent-foreground: oklch(0.985 0 0);
-    --destructive: oklch(0.704 0.191 22.216);
-    --destructive-foreground: oklch(0.985 0 0);
-    --destructive-wash: oklch(0.32 0.07 25);
-    --success: oklch(0.75 0.14 152);
-    --success-foreground: oklch(0.18 0.04 152);
-    --success-wash: oklch(0.32 0.06 152);
-    --warning: oklch(0.82 0.12 82);
-    --warning-foreground: oklch(0.20 0.04 80);
-    --warning-wash: oklch(0.34 0.06 80);
-    --info: oklch(0.74 0.12 248);
-    --info-foreground: oklch(0.18 0.04 248);
-    --info-wash: oklch(0.32 0.06 248);
-    --border: oklch(1 0 0 / 10%);
-    --input: oklch(1 0 0 / 15%);
-    --ring: oklch(0.62 0.14 163);
-    --chart-1: oklch(0.72 0.14 162);
-    --chart-2: oklch(0.62 0.10 158);
-    --chart-3: oklch(0.55 0.14 168);
-    --chart-4: oklch(0.80 0.10 150);
-    --chart-5: oklch(0.42 0.10 170);
-    --primary-wash: oklch(0.30 0.05 162);
-    --accent-warm: oklch(0.78 0.15 65);
-    --accent-warm-wash: oklch(0.30 0.05 70);
-    /* Di latar gelap oranye murni bergetar dan melelahkan mata, jadi turun
-       saturasinya ke emas — sesuai arah "Tilawah Malam" pada palet brand. */
+    --background: #0E1917;
+    --foreground: #ECEFEA;
+    --card: #15221F;
+    --card-foreground: #ECEFEA;
+    --popover: #15221F;
+    --popover-foreground: #ECEFEA;
+    --primary: #6FBFAE;
+    --primary-foreground: #0B2A27;
+    --secondary: #1D2B28;
+    --secondary-foreground: #ECEFEA;
+    --muted: #1D2B28;
+    --muted-foreground: #A3B2AD;
+    --accent: #1F3A35;
+    --accent-foreground: #E6EFEC;
+    --destructive: #F08A7E;
+    --destructive-foreground: #2A0E0B;
+    --destructive-wash: #3A1D1A;
+    --success: #7CCB9E;
+    --success-foreground: #0E2418;
+    --success-wash: #173026;
+    --warning: #E3A93C;
+    --warning-foreground: #1E1405;
+    --warning-wash: #372812;
+    --info: #8DB4E8;
+    --info-foreground: #0E1A2B;
+    --info-wash: #1A2940;
+    --border: rgb(255 255 255 / 0.09);
+    --input: rgb(255 255 255 / 0.14);
+    --ring: #6FBFAE;
+    --chart-1: #6FBFAE;
+    --chart-2: #4E9C8C;
+    --chart-3: #A8DCD0;
+    --chart-4: #2F6B60;
+    --chart-5: #D6EFE9;
+    --primary-wash: #1F3A35;
+    --accent-warm: #E3A93C;
+    --accent-warm-wash: #372812;
     --seri-1: #5FBFAE; /* mint · 7.26:1 di kartu gelap */
     --seri-2: #E3A93C; /* emas · 8.51:1 di kartu gelap */
-    --sidebar: #0B2A27;
-    --sidebar-foreground: oklch(0.985 0 0);
-    --sidebar-primary: oklch(0.78 0.16 162);
-    --sidebar-primary-foreground: oklch(0.18 0.04 160);
-    --sidebar-accent: oklch(0.30 0.05 162);
-    --sidebar-accent-foreground: oklch(0.985 0 0);
-    --sidebar-border: oklch(1 0 0 / 10%);
-    --sidebar-ring: oklch(0.62 0.14 163);
+    --sidebar: #0A2320;
+    --sidebar-foreground: #E6EFEC;
+    --sidebar-primary: #6FBFAE;
+    --sidebar-primary-foreground: #0B2A27;
+    --sidebar-accent: #1C3F39;
+    --sidebar-accent-foreground: #FFFFFF;
+    --sidebar-border: rgb(255 255 255 / 0.08);
+    --sidebar-ring: #6FBFAE;
 }
 
 /*
@@ -242,11 +245,11 @@
     --sidebar-border: #E4DFD3;
 }
 .dark .portal-guru {
-    --sidebar: #0B2A27;
-    --sidebar-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.30 0.05 162);
-    --sidebar-accent-foreground: oklch(0.985 0 0);
-    --sidebar-border: oklch(1 0 0 / 10%);
+    --sidebar: #0A2320;
+    --sidebar-foreground: #E6EFEC;
+    --sidebar-accent: #1C3F39;
+    --sidebar-accent-foreground: #FFFFFF;
+    --sidebar-border: rgb(255 255 255 / 0.08);
 }
 
 /*

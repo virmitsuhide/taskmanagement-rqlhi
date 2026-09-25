@@ -64,7 +64,7 @@ export default async function KelengkapanPage({ searchParams }: PageProps) {
         </div>
 
         {aktif.length === 0 ? (
-          <p className="rounded-xl border border-dashed py-12 text-center text-sm text-muted-foreground">
+          <p className="rounded-2xl border border-dashed py-12 text-center text-sm text-muted-foreground bg-muted/30">
             Belum ada halaqoh berisi siswa pada lingkup Anda.
           </p>
         ) : (

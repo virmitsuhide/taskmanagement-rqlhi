@@ -105,7 +105,7 @@ export default async function ProfilGuruPage({ searchParams }: PageProps) {
           )}
 
           {daftar.length === 0 ? (
-            <div className="rounded-xl border border-dashed bg-card py-12 text-center">
+            <div className="rounded-2xl border border-dashed bg-muted/30 py-12 text-center">
               <p className="text-sm text-muted-foreground">
                 {unit === 'pengurus'
                   ? 'Belum ada guru yang ditetapkan sebagai pemegang amanah pengurus. Penetapannya dilakukan Kepala RQ lewat halaman Pengurus.'
@@ -166,7 +166,7 @@ export default async function ProfilGuruPage({ searchParams }: PageProps) {
               <GuruProfileForm key={profile.id} profile={profile} scope="sdm" />
             </>
           ) : (
-            <div className="rounded-xl border border-dashed bg-card py-12 text-center">
+            <div className="rounded-2xl border border-dashed bg-muted/30 py-12 text-center">
               <UserRoundSearch className="mx-auto mb-2 h-7 w-7 text-muted-foreground/40" />
               <p className="text-sm font-medium">Pilih satu nama pada dropdown di atas</p>
               <p className="mx-auto mt-1 max-w-sm text-xs text-muted-foreground">

@@ -341,7 +341,7 @@ function StatCard({
 
 function EmptyState({ icon, title, subtitle }: { icon: React.ReactNode; title: string; subtitle: string }) {
   return (
-    <div className="rounded-lg border border-dashed py-12 text-center">
+    <div className="rounded-2xl border border-dashed py-12 text-center bg-muted/30">
       <div className="text-muted-foreground/40 mx-auto mb-3 inline-flex">{icon}</div>
       <p className="font-medium text-sm">{title}</p>
       <p className="text-xs text-muted-foreground mt-1">{subtitle}</p>

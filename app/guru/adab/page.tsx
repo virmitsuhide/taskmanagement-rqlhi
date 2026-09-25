@@ -58,7 +58,7 @@ export default async function CatatanAdabPage({ searchParams }: PageProps) {
         </div>
 
         {!data ? (
-          <div className="rounded-xl border border-dashed bg-card py-10 text-center text-sm text-muted-foreground">
+          <div className="rounded-2xl border border-dashed bg-muted/30 py-10 text-center text-sm text-muted-foreground">
             Anda belum mengampu halaqoh. Hubungi admin untuk assign halaqoh.
           </div>
         ) : (
@@ -84,11 +84,11 @@ export default async function CatatanAdabPage({ searchParams }: PageProps) {
             </div>
 
             {data.totalDinilai === 0 ? (
-              <div className="rounded-xl border border-dashed bg-card py-10 text-center text-sm text-muted-foreground">
+              <div className="rounded-2xl border border-dashed bg-muted/30 py-10 text-center text-sm text-muted-foreground">
                 Belum ada setoran yang dinilai adabnya pada {formatPeriod(periode)}.
               </div>
             ) : data.siswa.length === 0 ? (
-              <div className="rounded-xl border border-dashed bg-card py-10 text-center text-sm text-muted-foreground">
+              <div className="rounded-2xl border border-dashed bg-muted/30 py-10 text-center text-sm text-muted-foreground">
                 Alhamdulillah — tidak ada nilai adab ≤ {BINTANG_ADAB_RENDAH.toLocaleString('id-ID')}★ pada {formatPeriod(periode)}.
               </div>
             ) : (

@@ -46,7 +46,7 @@ export default async function RiyadhohPage({ searchParams }: { searchParams: Pro
         </PageTitle>
 
         {jadwal === null ? (
-          <div className="rounded-xl border border-dashed bg-card p-5 text-sm text-muted-foreground">
+          <div className="rounded-2xl border border-dashed bg-muted/30 p-5 text-sm text-muted-foreground">
             Tabel Riyadhoh belum ada di basis data. Jalankan{' '}
             <code className="rounded bg-muted px-1 py-0.5 text-xs">drizzle/0087_riyadhoh_PASTE_TO_SUPABASE.sql</code>{' '}
             di Supabase SQL Editor lebih dulu.

@@ -530,7 +530,7 @@ function Inisial({ nama }: { nama?: string | null }) {
 
 function Kosong({ ikon, children }: { ikon: React.ReactNode; children: React.ReactNode }) {
   return (
-    <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed bg-muted/30 px-4 py-8 text-center">
+    <div className="flex flex-col items-center justify-center gap-2 rounded-2xl border border-dashed bg-muted/30 px-4 py-8 text-center">
       <span className="text-muted-foreground/60">{ikon}</span>
       <p className="text-sm text-muted-foreground">{children}</p>
     </div>

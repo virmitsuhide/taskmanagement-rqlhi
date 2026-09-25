@@ -65,7 +65,7 @@ export default async function KurikulumPage({ searchParams }: PageProps) {
         </div>
 
         {rows.length === 0 ? (
-          <p className="rounded-xl border border-dashed py-12 text-center text-sm text-muted-foreground">
+          <p className="rounded-2xl border border-dashed py-12 text-center text-sm text-muted-foreground bg-muted/30">
             Belum ada data siswa pada lingkup Anda.
           </p>
         ) : (

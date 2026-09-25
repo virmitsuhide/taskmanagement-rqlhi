@@ -21,7 +21,7 @@ export function HafalanUjianBoard({ units, tampilTeratas = true }: {
     return (
       <section>
         <h2 className="font-heading text-lg font-medium mb-1">Hafalan Lulus Ujian</h2>
-        <div className="rounded-xl border border-dashed py-10 text-center">
+        <div className="rounded-2xl border border-dashed py-10 text-center bg-muted/30">
           <ScrollText className="mx-auto mb-2 h-8 w-8 text-muted-foreground/40" />
           <p className="text-sm text-muted-foreground">
             Belum ada catatan ujian yang terhubung ke data siswa.

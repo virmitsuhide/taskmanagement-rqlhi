@@ -62,7 +62,7 @@ export default async function KalenderPage() {
         </div>
 
         {!tabelAda ? (
-          <div className="rounded-xl border border-dashed bg-card p-5 text-sm text-muted-foreground">
+          <div className="rounded-2xl border border-dashed bg-muted/30 p-5 text-sm text-muted-foreground">
             Agenda belum bisa dimuat. Bila ini baru saja dipasang, jalankan{' '}
             <code className="rounded bg-muted px-1 py-0.5 text-xs">drizzle/0085_kaldik_events_PASTE_TO_SUPABASE.sql</code>{' '}
             di Supabase SQL Editor.

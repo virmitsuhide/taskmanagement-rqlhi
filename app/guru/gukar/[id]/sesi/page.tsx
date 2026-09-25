@@ -68,7 +68,7 @@ export default async function SetorSesiGukarPage({ params }: PageProps) {
     >
 
         {participants.length === 0 ? (
-          <div className="rounded-lg border border-dashed py-10 text-center text-sm text-muted-foreground">
+          <div className="rounded-2xl border border-dashed py-10 text-center text-sm text-muted-foreground bg-muted/30">
             Belum ada peserta di kelompok ini.
           </div>
         ) : (

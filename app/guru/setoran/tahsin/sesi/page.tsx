@@ -51,14 +51,14 @@ export default async function SetoranSesiTahsinPage({ searchParams }: PageProps)
         </div>
 
         {!halaqoh ? (
-          <div className="rounded-xl border border-dashed bg-card py-10 text-center text-sm text-muted-foreground">
+          <div className="rounded-2xl border border-dashed bg-muted/30 py-10 text-center text-sm text-muted-foreground">
             Anda belum mengampu halaqoh. Hubungi admin untuk assign halaqoh.
           </div>
         ) : (
           <>
             <PilihSesi daftar={daftar} terpilih={halaqoh.id} basePath="/guru/setoran/tahsin/sesi" />
             {siswa.length === 0 ? (
-              <div className="rounded-xl border border-dashed bg-card py-10 text-center text-sm text-muted-foreground">
+              <div className="rounded-2xl border border-dashed bg-muted/30 py-10 text-center text-sm text-muted-foreground">
                 Belum ada siswa di sesi ini.
               </div>
             ) : (

@@ -172,7 +172,7 @@ export default async function KpiPage({ searchParams }: PageProps) {
         />
 
         {rows.length === 0 ? (
-          <div className="rounded-lg border border-dashed py-12 text-center">
+          <div className="rounded-2xl border border-dashed py-12 text-center bg-muted/30">
             <p className="text-sm text-muted-foreground">Belum ada guru aktif di unit ini.</p>
           </div>
         ) : (

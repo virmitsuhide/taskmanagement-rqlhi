@@ -92,7 +92,7 @@ export default async function KalenderQuranPage({ searchParams }: PageProps) {
         </PageTitle>
 
         {!kalender.tabelAda ? (
-          <div className="rounded-xl border border-dashed bg-card p-5 text-sm text-muted-foreground">
+          <div className="rounded-2xl border border-dashed bg-muted/30 p-5 text-sm text-muted-foreground">
             Tabel kalender belum ada di basis data. Jalankan{' '}
             <code className="rounded bg-muted px-1 py-0.5 text-xs">drizzle/0084_kalender_quran_PASTE_TO_SUPABASE.sql</code>{' '}
             di Supabase SQL Editor lebih dulu.
@@ -129,7 +129,7 @@ export default async function KalenderQuranPage({ searchParams }: PageProps) {
             </div>
 
             {angkatan.length === 0 ? (
-              <div className="rounded-xl border border-dashed bg-card py-10 text-center text-sm text-muted-foreground">
+              <div className="rounded-2xl border border-dashed bg-muted/30 py-10 text-center text-sm text-muted-foreground">
                 Belum ada siswa aktif di {JENJANG_LABELS[unit]}, jadi belum ada angkatan untuk dijadwalkan.
               </div>
             ) : (

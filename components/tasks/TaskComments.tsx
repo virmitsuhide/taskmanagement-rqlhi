@@ -49,7 +49,7 @@ function renderBody(body: string) {
   const parts = body.split(/(@\S+)/g)
   return parts.map((part, i) =>
     part.startsWith('@')
-      ? <span key={i} className="font-medium" style={{ color: '#b8860b' }}>{part}</span>
+      ? <span key={i} className="font-medium" style={{ color: 'var(--warning)' }}>{part}</span>
       : <span key={i}>{part}</span>,
   )
 }

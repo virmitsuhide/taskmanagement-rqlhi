@@ -48,7 +48,7 @@ export function SetoranKoreksi({ items }: { items: SetoranItem[] }) {
 
   if (items.length === 0) {
     return (
-      <p className="rounded-lg border border-dashed py-8 text-center text-sm text-muted-foreground">
+      <p className="rounded-2xl border border-dashed py-8 text-center text-sm text-muted-foreground bg-muted/30">
         Belum ada setoran tercatat.
       </p>
     )
@@ -105,7 +105,7 @@ function Row({ item, onEdit }: { item: SetoranItem; onEdit: () => void }) {
           </span>
           <span className="text-sm font-medium">{item.judul}</span>
           {item.status === 'ulang' && (
-            <span className="text-xs text-amber-600 dark:text-amber-400">ulang</span>
+            <span className="text-xs text-warning">ulang</span>
           )}
         </div>
         <p className="mt-0.5 text-xs text-muted-foreground">

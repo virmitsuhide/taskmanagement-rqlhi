@@ -91,7 +91,7 @@ export default async function CapaianBulananPage({ searchParams }: PageProps) {
         </p>
 
         {halaqohList.length === 0 ? (
-          <div className="mt-6 rounded-xl border border-dashed bg-card py-10 text-center text-sm text-muted-foreground">
+          <div className="mt-6 rounded-2xl border border-dashed bg-muted/30 py-10 text-center text-sm text-muted-foreground">
             Anda belum menjadi wali atau pengampu halaqoh mana pun.
           </div>
         ) : (

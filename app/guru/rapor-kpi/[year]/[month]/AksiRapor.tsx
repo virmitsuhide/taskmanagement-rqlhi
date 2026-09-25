@@ -77,7 +77,7 @@ export function AksiRapor(props: Props) {
       )}
 
       {/* ── Keadaan sekarang ──────────────────────────────────── */}
-      <div className="rounded-lg border bg-card p-4">
+      <div className="rounded-2xl border bg-card p-4">
         {sudahTtd ? (
           <p className="flex items-start gap-2 text-sm">
             <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-success" />
@@ -261,7 +261,7 @@ function FormBanding({
   const tersisa = baris.filter(b => !dipilih.includes(b.indikator))
 
   return (
-    <form action={formAction} className="rounded-lg border bg-card p-4">
+    <form action={formAction} className="rounded-2xl border bg-card p-4">
       <input type="hidden" name="kpi_id" value={kpiId} />
 
       <h2 className="font-heading text-lg font-medium">Ajukan banding</h2>
@@ -381,7 +381,7 @@ function RiwayatBanding({
   }, [state, router])
 
   return (
-    <div className="rounded-lg border bg-card p-4">
+    <div className="rounded-2xl border bg-card p-4">
       <h2 className="font-heading text-lg font-medium mb-2.5">Riwayat banding</h2>
 
       <ol className="space-y-3">

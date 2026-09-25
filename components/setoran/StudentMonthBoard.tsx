@@ -144,7 +144,7 @@ export function StudentMonthBoard({
         />
       )}
 
-      <div className="overflow-x-auto rounded-xl border bg-white">
+      <div className="overflow-x-auto rounded-2xl border bg-card">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b text-left text-xs text-muted-foreground">
@@ -266,7 +266,7 @@ function MonthlyForm({
   )
 
   return (
-    <form action={action} className="rounded-xl border bg-white p-4 space-y-3">
+    <form action={action} className="rounded-2xl border bg-card p-4 space-y-3">
       <input type="hidden" name="student_id" value={student.id} />
       <input type="hidden" name="period" value={period} />
 

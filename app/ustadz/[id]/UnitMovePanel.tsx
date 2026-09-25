@@ -77,7 +77,7 @@ export function UnitMovePanel({ teacherId, teacherName, currentUnit, riwayat }: 
         Unit Penempatan
       </h2>
 
-      <div className="rounded-lg border bg-card p-4">
+      <div className="rounded-2xl border bg-card p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="text-sm">
             Saat ini di{' '}

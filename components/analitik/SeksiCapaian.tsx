@@ -39,7 +39,7 @@ export async function SeksiCapaian({ info, jenjang, fokus, bulan }: {
   if (kelompok.length === 0) {
     return (
       <Seksi info={info} judul="Capaian per Kelas" pertanyaan="Di jilid dan juz mana siswa tiap kelas berada?">
-        <p className="rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">
+        <p className="rounded-2xl border border-dashed p-6 text-center text-sm text-muted-foreground bg-muted/30">
           Matriks capaian per kelas tersedia untuk SDIT (CLIL, QULS) dan SMPIT. Unit ini belum termasuk.
         </p>
       </Seksi>

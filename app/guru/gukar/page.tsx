@@ -50,7 +50,7 @@ export default async function GukarGroupsPage() {
   return (
     <HalamanGuru judul="Pembinaan Guru &amp; Karyawan" keterangan={formatTerm(term)}>
         {groups.length === 0 ? (
-          <div className="rounded-lg border border-dashed py-10 text-center text-sm text-muted-foreground">
+          <div className="rounded-2xl border border-dashed py-10 text-center text-sm text-muted-foreground bg-muted/30">
             Anda belum ditetapkan sebagai pengampu kelompok pembinaan.
           </div>
         ) : (

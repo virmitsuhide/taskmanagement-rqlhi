@@ -27,7 +27,7 @@ export default async function GuruSiswaPage() {
         </div>
 
         {students.length === 0 ? (
-          <div className="rounded-xl border border-dashed bg-card py-12 text-center">
+          <div className="rounded-2xl border border-dashed bg-muted/30 py-12 text-center">
             <Users className="h-8 w-8 mx-auto text-muted-foreground/40 mb-3" />
             <p className="font-medium text-sm">Belum ada siswa</p>
             <p className="text-xs text-muted-foreground mt-1">

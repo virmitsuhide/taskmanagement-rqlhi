@@ -47,7 +47,7 @@ export async function SetorRiyadhoh({ jenis, diminta }: { jenis: 'tahsin' | 'tah
         </div>
 
         {ids.length === 0 ? (
-          <div className="rounded-xl border border-dashed bg-card py-10 text-center text-sm text-muted-foreground">
+          <div className="rounded-2xl border border-dashed bg-muted/30 py-10 text-center text-sm text-muted-foreground">
             Tidak ada peserta yang hadir.
           </div>
         ) : jenis === 'tahsin' ? (

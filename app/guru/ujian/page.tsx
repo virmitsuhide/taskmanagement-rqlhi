@@ -36,7 +36,7 @@ export default async function UjianGuruPage() {
         {/* Antrian ujian hanya berjalan di SDIT & SMPIT. Guru unit lain
             diberi tahu alasannya, bukan sekadar disodori halaman kosong. */}
         {!unit ? (
-          <div className="rounded-lg border border-dashed p-6 text-center">
+          <div className="rounded-2xl border border-dashed p-6 text-center bg-muted/30">
             <p className="text-sm font-medium">Akun Anda belum terhubung ke unit SD atau SMP</p>
             <p className="mx-auto mt-1.5 max-w-md text-xs text-muted-foreground">
               Pengajuan ujian tahsin &amp; tahfidz baru berjalan di SDIT dan SMPIT LHI, dan

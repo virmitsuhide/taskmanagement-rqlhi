@@ -266,7 +266,7 @@ export default async function UstadzListPage({ searchParams }: PageProps) {
         )}
 
         {teachers.length === 0 ? (
-          <div className="rounded-lg border border-dashed py-12 text-center text-sm text-muted-foreground">
+          <div className="rounded-2xl border border-dashed py-12 text-center text-sm text-muted-foreground bg-muted/30">
             {query
               ? `Tidak ada hasil untuk "${query}"`
               : status === 'deleted'
@@ -415,7 +415,7 @@ function ContractHint({ contractEnd }: { contractEnd: string | null }) {
     return <span className="font-medium text-destructive">Kontrak habis</span>
   }
   return (
-    <span className="font-medium text-amber-600 dark:text-amber-400">
+    <span className="font-medium text-warning">
       Kontrak {daysLeft} hari lagi
     </span>
   )

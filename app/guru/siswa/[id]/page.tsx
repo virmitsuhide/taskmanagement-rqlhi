@@ -438,7 +438,7 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
             <h2 className="font-heading text-lg font-medium mb-3 flex items-center gap-2">
               <BookOpen className="h-4 w-4" /> Peta Tahsin
             </h2>
-            <div className="rounded-xl border border-dashed bg-card p-6 text-center">
+            <div className="rounded-2xl border border-dashed bg-muted/30 p-6 text-center">
               <p className="text-sm font-medium">Murni tahfidz</p>
               <p className="mt-1 text-xs text-muted-foreground">
                 Anak ini tidak mengikuti program tahsin, jadi tidak ada peta jilid untuknya.
@@ -497,7 +497,7 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
         <section>
           <h2 className="font-heading text-lg font-medium mb-3">Riwayat Setoran Tahsin</h2>
           {!logs || logs.length === 0 ? (
-            <div className="rounded-xl border border-dashed bg-card py-8 text-center text-sm text-muted-foreground">
+            <div className="rounded-2xl border border-dashed bg-muted/30 py-8 text-center text-sm text-muted-foreground">
               Belum ada setoran tercatat.
               <div className="mt-3">
                 <Button asChild size="sm" variant="outline">
@@ -568,7 +568,7 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
         <section>
           <h2 className="font-heading text-lg font-medium mb-3">Riwayat Setoran Tahfidz</h2>
           {tahfidzLogs.length === 0 ? (
-            <div className="rounded-xl border border-dashed bg-card py-8 text-center text-sm text-muted-foreground">
+            <div className="rounded-2xl border border-dashed bg-muted/30 py-8 text-center text-sm text-muted-foreground">
               Belum ada setoran tahfidz.
               <div className="mt-3">
                 <Button asChild size="sm" variant="outline">

@@ -15,7 +15,7 @@ export default function TeacherLoginPage() {
   return (
     <div
       className="min-h-screen flex flex-col items-center justify-center px-4"
-      style={{ background: 'linear-gradient(180deg, var(--primary-wash) 0%, var(--secondary) 60%)' }}
+      style={{ background: 'var(--background)' }}
     >
       <div className="mb-6 flex flex-col items-center text-center">
         <Logo variant="full" size={132} priority />
@@ -27,9 +27,9 @@ export default function TeacherLoginPage() {
         </p>
       </div>
 
-      <Card className="w-full max-w-sm border-[var(--border)] shadow-[0_8px_24px_-12px_rgba(184,134,11,0.2)]">
+      <Card className="w-full max-w-sm shadow-sm">
         <CardHeader className="pb-4">
-          <CardTitle className="text-xl">Masuk sebagai Guru</CardTitle>
+          <CardTitle className="text-2xl">Masuk sebagai Guru</CardTitle>
           <CardDescription>
             Masukkan username &amp; password yang diberikan admin
           </CardDescription>
@@ -61,16 +61,16 @@ export default function TeacherLoginPage() {
             </div>
 
             {state?.error && (
-              <p className="text-sm text-destructive bg-destructive/10 px-3 py-2 rounded-md">
+              <p className="text-sm font-medium text-destructive bg-destructive-wash px-4 py-3 rounded-xl">
                 {state.error}
               </p>
             )}
 
             <Button
               type="submit"
+              size="lg"
               className="w-full"
               disabled={isPending}
-              style={{ background: 'var(--primary)', borderColor: 'var(--primary)' }}
             >
               {isPending ? 'Memuat...' : 'Masuk'}
             </Button>

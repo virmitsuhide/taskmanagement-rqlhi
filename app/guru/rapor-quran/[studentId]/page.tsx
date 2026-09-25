@@ -133,7 +133,7 @@ export default async function IsiRaporPage({ params, searchParams }: PageProps) 
                   isian={anak.isian} riyadhoh={anak.riyadhoh} />
               </div>
             ) : (
-              <div className="rounded-xl border border-dashed bg-card p-5 text-sm text-muted-foreground print:hidden">
+              <div className="rounded-2xl border border-dashed bg-muted/30 p-5 text-sm text-muted-foreground print:hidden">
                 Belum ada template {LABEL_JENIS_RAPOR[jenis]} untuk kelas {anak.student.kelas ?? '—'}. Deskripsi yang Anda tulis tetap
                 tersimpan dan akan langsung terpakai begitu koordinator mengunggah formatnya.
               </div>
