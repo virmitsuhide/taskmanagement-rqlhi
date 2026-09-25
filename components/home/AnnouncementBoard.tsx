@@ -2,12 +2,9 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import Image from 'next/image'
-import { ArrowRight, CalendarDays, Clock } from 'lucide-react'
-import { POST_ICONS, postIconOf } from '@/lib/home/post-icons'
-import { adalahTugas, labelTanggalPost, lewatTenggatPost } from '@/lib/home/post-tanggal'
-import { stripMarkdown } from '@/lib/markdown'
-import type { PublicPost, PostPriority } from '@/types'
+import { ArrowRight } from 'lucide-react'
+import { AnnouncementCard } from '@/components/home/AnnouncementCard'
+import type { PublicPost } from '@/types'
 
 interface Props {
   /** Pengumuman & tugas guru sudah digabung oleh pemanggil. */
@@ -16,43 +13,7 @@ interface Props {
   limit?: number
 }
 
-const MONTH_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
-
-/**
- * Tampilan tiap status prioritas.
- *
- * Warnanya dipilih dari token tema yang sudah ada, bukan warna mentah, supaya
- * ikut menyesuaikan mode terang & gelap tanpa aturan tambahan.
- */
-const PRIORITY_META: Record<PostPriority, { label: string; badge: string; iconWrap: string }> = {
-  penting: {
-    label: 'Penting',
-    badge: 'bg-destructive/10 text-destructive',
-    iconWrap: 'bg-destructive/10 text-destructive',
-  },
-  info: {
-    label: 'Info',
-    badge: 'bg-primary-wash text-primary',
-    iconWrap: 'bg-primary-wash text-primary',
-  },
-  pengingat: {
-    label: 'Pengingat',
-    badge: 'bg-accent-warm-wash text-accent-warm',
-    iconWrap: 'bg-accent-warm-wash text-accent-warm',
-  },
-}
-
-/** Post sebelum migrasi 0017 belum punya priority — anggap 'info'. */
-function priorityOf(post: PublicPost): PostPriority {
-  return post.priority ?? 'info'
-}
-
-function displayDate(post: PublicPost): [string, string, string] {
-  const d = new Date(post.due_date ?? post.created_at)
-  return [String(d.getDate()), MONTH_SHORT[d.getMonth()], String(d.getFullYear())]
-}
-
-export function AnnouncementBoard({ posts, title = 'Pengumuman', limit = 6 }: Props) {
+export function AnnouncementBoard({ posts, title = 'Pengumuman', limit = 5 }: Props) {
   const [filter, setFilter] = useState<'semua' | 'sd' | 'smp'>('semua')
 
   const sorted = [...posts].sort(
@@ -67,20 +28,21 @@ export function AnnouncementBoard({ posts, title = 'Pengumuman', limit = 6 }: Pr
     <>
       <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
         <h2
-          className="m-0 text-base font-bold tracking-tight text-foreground"
-          style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
+          className="m-0 text-[26px] font-normal leading-tight tracking-[-0.01em] text-foreground md:text-[30px]"
+          style={{ fontFamily: 'var(--font-display), Georgia, serif' }}
         >
           {title}
         </h2>
-        <div className="flex gap-0.5 bg-muted rounded-xl p-1">
+        <div role="group" aria-label="Saring unit" className="flex gap-0.5 bg-muted rounded-[10px] p-[3px]">
           {(['semua', 'sd', 'smp'] as const).map(f => (
             <button
               key={f}
               type="button"
               onClick={() => setFilter(f)}
-              className={`px-3 py-1.5 rounded-lg text-xs transition-all ${
+              aria-pressed={filter === f}
+              className={`px-3.5 py-1.5 rounded-[7px] text-[13px] font-semibold transition-all ${
                 filter === f
-                  ? 'bg-foreground text-background font-semibold'
+                  ? 'bg-card text-foreground shadow-sm'
                   : 'text-muted-foreground hover:text-foreground'
               }`}
             >
@@ -91,109 +53,27 @@ export function AnnouncementBoard({ posts, title = 'Pengumuman', limit = 6 }: Pr
       </div>
 
       {shown.length === 0 ? (
-        <div className="rounded-xl border border-dashed py-12 text-center">
+        <div className="rounded-2xl border border-dashed bg-muted/30 py-12 text-center">
           <p className="text-sm text-muted-foreground">Belum ada pengumuman.</p>
         </div>
       ) : (
         <div className="space-y-2.5">
-          {shown.map(post => {
-            const [day, mon, year] = displayDate(post)
-            const meta = PRIORITY_META[priorityOf(post)]
-            // Glif dari pilihan penulis, warnanya tetap dari prioritas — dua sumbu
-            // berbeda, dan menyatukannya membuat keduanya tidak terbaca.
-            const Icon = POST_ICONS[postIconOf(post)].icon
-            const unit = post.target === 'sd' ? 'SDIT' : post.target === 'smp' ? 'SMPIT' : null
-
-            return (
-              <article
-                key={post.id}
-                className="group relative flex items-start gap-3.5 rounded-xl border bg-background/40 px-3.5 py-3 hover:border-foreground/20 hover:bg-muted/40 transition-colors"
-              >
-                {/* Flyer sebagai thumbnail bila ada — potret, seperti flyer
-                    pada umumnya; tanpa gambar, ikon prioritas seperti biasa. */}
-                {post.image_url ? (
-                  <span className="relative shrink-0 w-16 aspect-[4/5] overflow-hidden rounded-lg border bg-muted sm:w-20">
-                    <Image src={post.image_url} alt="" fill sizes="80px" className="object-cover" />
-                  </span>
-                ) : (
-                  <span className={`shrink-0 inline-flex h-8 w-8 items-center justify-center rounded-lg ${meta.iconWrap}`}>
-                    <Icon className="h-4 w-4" />
-                  </span>
-                )}
-
-                {/* Konten */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex flex-wrap items-center gap-1.5 mb-1">
-                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wide ${meta.badge}`}>
-                      {meta.label}
-                    </span>
-                    {unit && (
-                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wide bg-muted text-muted-foreground">
-                        {unit}
-                      </span>
-                    )}
-                  </div>
-
-                  <h3 className="text-sm font-semibold leading-snug text-foreground line-clamp-2">
-                    <Link
-                      href={`/pengumuman/${post.id}`}
-                      className="after:absolute after:inset-0 hover:underline underline-offset-2"
-                    >
-                      {post.title}
-                    </Link>
-                  </h3>
-
-                  <p className="text-[12px] text-muted-foreground line-clamp-2 leading-relaxed mt-1">
-                    {stripMarkdown(post.content)}
-                  </p>
-
-                  {post.due_date && (
-                    // Kotak tanggal di kanan tak bisa menjelaskan dirinya:
-                    // bagi tugas ia tenggat, bagi pengumuman hari kegiatan.
-                    <p
-                      className={`mt-1.5 inline-flex items-center gap-1 text-[11px] ${
-                        lewatTenggatPost(post) ? 'font-medium text-destructive' : 'text-muted-foreground'
-                      }`}
-                    >
-                      {adalahTugas(post) ? <Clock className="h-3 w-3" /> : <CalendarDays className="h-3 w-3" />}
-                      {lewatTenggatPost(post) ? 'Lewat tenggat' : labelTanggalPost(post.type)}
-                      {' · '}
-                      {`${day} ${mon} ${year}`}
-                    </p>
-                  )}
-
-                  {post.creator && (
-                    <p className="text-[11px] text-muted-foreground mt-1">
-                      oleh {post.creator.display_name}
-                    </p>
-                  )}
-                </div>
-
-                {/* Tanggal */}
-                <div className="shrink-0 text-center min-w-[42px] rounded-lg border bg-card px-2 py-1.5">
-                  <div
-                    className="text-lg font-bold leading-none text-foreground"
-                    style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
-                  >
-                    {day}
-                  </div>
-                  <div className="text-[9px] text-muted-foreground uppercase tracking-[0.6px] mt-0.5">{mon}</div>
-                  <div className="text-[9px] text-muted-foreground/70 leading-none">{year}</div>
-                </div>
-
-                <ArrowRight className="h-4 w-4 text-muted-foreground/30 group-hover:text-muted-foreground transition-colors shrink-0 self-center" />
-              </article>
-            )
-          })}
+          {shown.map(post => <AnnouncementCard key={post.id} post={post} />)}
         </div>
       )}
 
-      {filtered.length > shown.length && (
+      {/* Selalu ada jalan ke daftar lengkap, bukan hanya saat ada sisa: beranda
+          memang hanya memuat lima yang terbaru. Saringan unit ikut terbawa. */}
+      {filtered.length > 0 && (
         <Link
-          href="/login"
-          className="block text-center text-xs text-muted-foreground mt-3.5 hover:text-foreground transition-colors"
+          href={filter === 'semua' ? '/pengumuman' : `/pengumuman?unit=${filter}`}
+          className="mt-4 flex h-12 items-center justify-center gap-2 rounded-2xl border bg-muted/40 text-sm font-bold text-primary transition-colors hover:border-primary/40 hover:bg-primary-wash"
         >
-          ↓ lihat {filtered.length - shown.length} pengumuman lainnya
+          Lihat semua pengumuman
+          {filtered.length > shown.length && (
+            <span className="font-medium text-muted-foreground">· {filtered.length - shown.length} lainnya</span>
+          )}
+          <ArrowRight className="h-4 w-4" />
         </Link>
       )}
     </>
