@@ -61,7 +61,7 @@ export function AbsensiSesi({ halaqohId, tanggal, siswa, awal }: Props) {
         toast.error(hasil.error)
         return
       }
-      toast.success(sudahTersimpan ? 'Absensi diperbarui.' : `Absensi ${siswa.length} anak tersimpan.`)
+      toast.success(sudahTersimpan ? 'Presensi diperbarui.' : `Presensi ${siswa.length} anak tersimpan.`)
       router.refresh()
     })
   }
@@ -144,7 +144,7 @@ export function AbsensiSesi({ halaqohId, tanggal, siswa, awal }: Props) {
 
       <div className="sticky bottom-0 -mx-4 border-t bg-background/95 px-4 py-3 backdrop-blur md:mx-0 md:rounded-xl md:border">
         <Button type="button" size="lg" className="w-full" onClick={simpan} disabled={pending}>
-          {pending ? 'Menyimpan…' : sudahTersimpan ? 'Perbarui absensi' : `Simpan absensi ${siswa.length} anak`}
+          {pending ? 'Menyimpan…' : sudahTersimpan ? 'Perbarui presensi' : `Simpan presensi ${siswa.length} anak`}
         </Button>
       </div>
     </div>

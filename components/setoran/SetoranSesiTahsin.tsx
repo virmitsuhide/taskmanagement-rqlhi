@@ -58,6 +58,8 @@ interface IsianKelompok {
   /** Nilai per anggota; tidak ada di peta = belum dinilai. */
   nilaiAnak: Record<string, { tahsin: number | null; sikap: number | null }>
   catatan: string
+  /** Catatan khusus satu anggota — ditulis di samping catatan kelompok. */
+  catatanAnak: Record<string, string>
   versi: number
   /** Tidak ada di peta = hadir. */
   absen: Record<string, boolean>
@@ -96,7 +98,7 @@ function isianAwal(s: SiswaSesiTahsin, versi = 0): Isian {
 function kelompokAwal(anggota: SiswaSesiTahsin[], versi = 0): IsianKelompok {
   return {
     dipilih: false, halaman: '', quran: anggota[0] ? bacaanDari(anggota[0]) : BACAAN_KOSONG,
-    materi: {}, status: 'lulus', nilaiAnak: {}, catatan: '', versi,
+    materi: {}, status: 'lulus', nilaiAnak: {}, catatan: '', catatanAnak: {}, versi,
     absen: {}, statusAnak: {},
   }
 }
@@ -329,7 +331,7 @@ export function SetoranSesiTahsin({ siswa, surat, halaqohId, pengaturan, tanggal
           nilai_tahsin: kg.nilaiAnak[s.id]?.tahsin ?? null,
           nilai_sikap: kg.nilaiAnak[s.id]?.sikap ?? null,
           status: kg.statusAnak[s.id] ?? kg.status,
-          catatan: kg.catatan ? `Klasikal · ${kg.catatan}` : 'Klasikal',
+          catatan: ['Klasikal', kg.catatan.trim(), kg.catatanAnak[s.id]?.trim()].filter(Boolean).join(' · '),
           setoran_date: tanggal,
         })
       }
@@ -554,6 +556,13 @@ export function SetoranSesiTahsin({ siswa, surat, halaqohId, pengaturan, tanggal
                                     disabled={pending}
                                   />
                                 </div>
+                                <Input
+                                  placeholder={`Catatan untuk ${s.full_name.split(' ')[0]} (opsional)`}
+                                  value={kg.catatanAnak[s.id] ?? ''}
+                                  onChange={e => ubahKelompok(g.kunci, { catatanAnak: { ...kg.catatanAnak, [s.id]: e.target.value } })}
+                                  aria-label={`Catatan ${s.full_name}`}
+                                  className="h-9 sm:col-span-2"
+                                />
                               </div>
                             )}
                           </li>

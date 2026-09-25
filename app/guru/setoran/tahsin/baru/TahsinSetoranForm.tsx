@@ -342,7 +342,6 @@ export function TahsinSetoranForm({
       {materiTahap.length === 0 && (
       <fieldset className="min-w-0 rounded-2xl border bg-card p-4 md:p-5 [&>legend]:float-left [&>legend]:w-full [&>legend+*]:clear-both">
         <legend className="font-heading text-lg font-medium mb-3">Status Halaman</legend>
-        <input type="hidden" name="status" value={status} />
         <div className="grid grid-cols-2 gap-3 max-w-md">
           <button
             type="button"
@@ -367,6 +366,8 @@ export function TahsinSetoranForm({
             <p className="text-xs text-muted-foreground">Belum tuntas, mengulang</p>
           </button>
         </div>
+        {/* Sesudah tombol, bukan sesudah legend: `legend+*` harus kotak yang terlihat supaya clear-both mengena. */}
+        <input type="hidden" name="status" value={status} />
       </fieldset>
       )}
 

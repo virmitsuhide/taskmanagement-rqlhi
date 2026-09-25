@@ -177,7 +177,6 @@ function DailySubForm({
       {/* Surat + ayat */}
       <fieldset className="min-w-0 rounded-2xl border bg-card p-4 md:p-5 [&>legend]:float-left [&>legend]:w-full [&>legend+*]:clear-both space-y-3">
         <legend className="font-heading text-lg font-medium mb-3">Materi</legend>
-        <input type="hidden" name="surat_ke_id" value={suratKeId ?? ''} />
 
         {lintas ? (
           <>
@@ -276,6 +275,7 @@ function DailySubForm({
             {meta.addsProgress && selectedSurat && ` · ditambahkan ke progress ${labelJuzRentang(selectedSurat.id, Number(ayatDari), Number(ayatKe)) ?? `Juz ${selectedSurat.juz_start}`}`}
           </div>
         )}
+        <input type="hidden" name="surat_ke_id" value={suratKeId ?? ''} />
       </fieldset>
 
       <ScoreFields />
