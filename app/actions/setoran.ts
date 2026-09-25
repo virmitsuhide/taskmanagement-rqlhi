@@ -459,7 +459,21 @@ export async function createTahsinLogAction(_: unknown, formData: FormData): Pro
   if (galat) return { ganda: galat.ganda }
 
   segarkanSetoran([studentId])
+  // "Simpan & berikutnya": lanjut ke form anak berikutnya, bukan ke profil anak.
+  const lanjutTahsin = tujuanLanjut(formData)
+  if (lanjutTahsin) redirect(lanjutTahsin)
   redirect(`/guru/siswa/${studentId}?setoran=ok`)
+}
+
+/**
+ * Alamat form anak berikutnya dari tombol "Simpan & berikutnya".
+ * Hanya menerima pola alamat form setoran — nilai lain diabaikan, jadi medan
+ * ini tak bisa dipakai mengarahkan ke tempat lain.
+ */
+function tujuanLanjut(formData: FormData): string | null {
+  const v = String(formData.get('lanjut') ?? '')
+  const pola = /^\/guru\/setoran\/(tahsin|tahfidz)\/baru\?student=[0-9a-f-]{36}(&antrian=[0-9a-f,-]+)?$/
+  return pola.test(v) ? `${v}&ok=1` : null
 }
 
 export interface HasilSetoranSesi {
@@ -643,6 +657,8 @@ export async function createTahfidzLogAction(_: unknown, formData: FormData): Pr
   if (galat) return { ganda: galat.ganda }
 
   segarkanSetoran([studentId])
+  const lanjutTahfidz = tujuanLanjut(formData)
+  if (lanjutTahfidz) redirect(lanjutTahfidz)
   redirect(`/guru/siswa/${studentId}?setoran=tahfidz_ok`)
 }
 

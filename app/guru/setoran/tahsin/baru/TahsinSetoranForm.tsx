@@ -52,6 +52,8 @@ interface Props {
   /** Keadaan terakhir tiap materi, per siswa. */
   materiHasil: Record<string, Record<string, HasilMateri>>
   defaultStudentId?: string
+  /** Urutan anak dari layar Mulai sesi — untuk tombol "Simpan & berikutnya". */
+  antrian?: string[]
 }
 
 /**
@@ -71,7 +73,7 @@ function bacaanAwal(s: StudentOption | null): IsianBacaan {
 }
 
 export function TahsinSetoranForm({
-  students, methods, jilidLevels, surat, materiPerJilid, materiHasil, defaultStudentId,
+  students, methods, jilidLevels, surat, materiPerJilid, materiHasil, defaultStudentId, antrian,
 }: Props) {
   const router = useRouter()
   const [state, formAction, isPending] = useActionState(createTahsinLogAction, null)
@@ -402,14 +404,38 @@ export function TahsinSetoranForm({
         <p className="text-sm font-medium text-destructive bg-destructive-wash px-4 py-3 rounded-xl">{state.error}</p>
       )}
 
-      <div className="flex gap-2 pt-1">
+      <div className="flex flex-wrap gap-2 pt-1">
         <Button type="submit" size="lg" className="min-w-40" disabled={isPending || !studentId}>
           {isPending ? 'Menyimpan...' : 'Simpan Setoran'}
         </Button>
+        <TombolLanjut students={students} studentId={studentId} antrian={antrian} jenis="tahsin" disabled={isPending} />
         <Button type="button" variant="outline" onClick={() => router.back()} disabled={isPending}>
           Batal
         </Button>
       </div>
     </form>
+  )
+}
+
+function TombolLanjut({ students, studentId, antrian, jenis, disabled }: {
+  students: { id: string; full_name: string }[]
+  studentId: string
+  antrian?: string[]
+  jenis: 'tahsin' | 'tahfidz'
+  disabled: boolean
+}) {
+  // Urutan: antrian dari layar Mulai sesi bila ada, selain itu urutan daftar siswa.
+  const ada = new Set(students.map(s => s.id))
+  const urut = antrian && antrian.length > 0 ? antrian.filter(id => ada.has(id)) : students.map(s => s.id)
+  const i = urut.indexOf(studentId)
+  const berikut = i >= 0 ? urut[i + 1] : urut.find(id => id !== studentId)
+  if (!studentId || !berikut) return null
+  const nama = students.find(s => s.id === berikut)?.full_name.split(' ')[0] ?? ''
+  const antrianQs = antrian && antrian.length > 0 ? `&antrian=${antrian.join(',')}` : ''
+  return (
+    <Button type="submit" name="lanjut" value={`/guru/setoran/${jenis}/baru?student=${berikut}${antrianQs}`}
+      variant="outline" size="lg" disabled={disabled}>
+      Simpan &amp; berikutnya{nama ? ` · ${nama}` : ''}
+    </Button>
   )
 }

@@ -14,6 +14,7 @@ import { URUTAN_JUZ_TAHFIDZ, type NodeLevel } from '@/lib/rq/peta-belajar'
 import { PetaLevel } from '@/components/siswa/PetaLevel'
 import { getJuzUjianSiswa } from '@/lib/data/hafalan'
 import { getRiwayatUjianSiswa } from '@/lib/data/riwayat-ujian-siswa'
+import { getUnitUjianGuru } from '@/lib/data/ujian'
 import { getJuzDrillPerSiswa } from '@/lib/data/drill-tahfidz'
 import { getProgresSiswa } from '@/lib/data/progres-siswa'
 import type { KodePeriode } from '@/lib/data/statistik-guru'
@@ -239,12 +240,13 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
     enam juz tuntas menurut urutan RQ LHI (30, 29, 28, 27, 26, 1); lima juz
     sebelumnya tidak perlu dibuktikan ulang lewat setoran.
   */
-  const [ujianSelesai, drillTahfidz, progres, riwayatUjian] = await Promise.all([
+  const [ujianSelesai, drillTahfidz, progres, riwayatUjian, unitUjian] = await Promise.all([
     getJuzUjianSiswa(id),
     // Juz yang ziyadahnya tuntas dan menunggu diajukan ujian 1 juz (0065).
     getJuzDrillPerSiswa([id]).then(p => p.get(id) ?? []),
     getProgresSiswa(id, kodeProgres),
     getRiwayatUjianSiswa(id),
+    getUnitUjianGuru(session.teacherId),
   ])
 
   const nodeTahfidz: NodeLevel[] = URUTAN_JUZ_TAHFIDZ.map(juz => {
@@ -390,7 +392,8 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
                 </span>
               </div>
             </div>
-            <div className="flex flex-col gap-2 shrink-0">
+            {/* Di HP tombolnya berjajar dua kolom selebar layar; di layar lebar tetap satu kolom di kanan. */}
+            <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:shrink-0 sm:flex-col [&>*]:w-full">
               {/* Anak yang sudah Lulus Tahsin tidak punya progres tahsin lagi —
                   tombol utamanya menjadi setor tahfidz. */}
               {student.current_jilid?.is_terminal ? (
@@ -410,6 +413,11 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
               <Button asChild variant="outline">
                 <Link href={`/guru/siswa/${id}/rapor`}>Rapor &amp; Share</Link>
               </Button>
+              {unitUjian && (
+                <Button asChild variant="outline">
+                  <Link href="/guru/ujian/baru">Ajukan ujian</Link>
+                </Button>
+              )}
             </div>
           </div>
         </div>

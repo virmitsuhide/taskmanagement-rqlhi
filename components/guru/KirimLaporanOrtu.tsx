@@ -99,13 +99,27 @@ export function PesanWaLaporanOrtu({ laporan, tautan }: { laporan: LaporanOrtu; 
         className="w-full resize-y rounded-md border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
       />
 
-      <textarea
-        value={teks}
-        onChange={e => setSuntingan(e.target.value)}
-        rows={14}
-        aria-label="Teks pesan WhatsApp"
-        className={cn('w-full resize-y rounded-md border bg-muted/40 px-3 py-2 font-mono text-xs outline-none')}
-      />
+      {/* Pratinjau seperti yang akan terbaca di WhatsApp. */}
+      <div>
+        <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Pratinjau pesan</p>
+        <div className="rounded-2xl bg-[#EFEAE2] p-3 dark:bg-[#0B141A]">
+          <div className="ml-auto max-w-[94%] whitespace-pre-wrap break-words rounded-xl rounded-tr-sm bg-[#D9FDD3] px-3 py-2 text-[13px] leading-relaxed text-[#111B21] shadow-sm dark:bg-[#005C4B] dark:text-[#E9EDEF]">
+            {teks}
+          </div>
+        </div>
+      </div>
+      <details className="group rounded-md border">
+        <summary className="cursor-pointer select-none px-3 py-2 text-xs font-medium text-muted-foreground hover:text-foreground">
+          Sunting teks {suntingan !== null && <span className="text-warning">· sudah disunting</span>}
+        </summary>
+        <textarea
+          value={teks}
+          onChange={e => setSuntingan(e.target.value)}
+          rows={14}
+          aria-label="Teks pesan WhatsApp"
+          className={cn('w-full resize-y border-t bg-muted/40 px-3 py-2 font-mono text-xs outline-none')}
+        />
+      </details>
       <div className="grid gap-2 sm:grid-cols-2">
         <Button type="button" variant="outline" onClick={() => salin('teks')}>
           {tersalin === 'teks'

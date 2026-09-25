@@ -8,14 +8,16 @@ import type { SuratPilihan } from '@/components/setoran/SetoranSesiTahfidz'
 import { getMateriPerJilid, getHasilMateriPerSiswa } from '@/lib/data/materi-tahsin'
 
 interface PageProps {
-  searchParams: Promise<{ student?: string }>
+  searchParams: Promise<{ student?: string; antrian?: string; ok?: string }>
 }
 
 export default async function NewTahsinSetoranPage({ searchParams }: PageProps) {
   const session = await getTeacherSession()
   if (!session) redirect('/guru/login')
 
-  const { student: defaultStudentId } = await searchParams
+  const { student: defaultStudentId, antrian: antrianQs, ok: okQs } = await searchParams
+  const antrian = (antrianQs ?? '').split(',').filter(x => /^[0-9a-f-]{36}$/.test(x))
+  const ok = okQs === '1'
 
   const supabase = createServerClient()
   const halaqohIds = await getTeacherHalaqohIds(session.teacherId)
@@ -78,6 +80,11 @@ export default async function NewTahsinSetoranPage({ searchParams }: PageProps) 
   return (
     <div className="min-h-screen" style={{ background: 'var(--secondary)' }}>
       <div className="max-w-4xl mx-auto px-4 md:px-6 py-6">
+        {ok && (
+          <p className="mb-4 rounded-xl border border-success/40 bg-success-wash px-4 py-2.5 text-sm text-success">
+            Setoran sebelumnya tersimpan. Lanjut ke anak berikutnya.
+          </p>
+        )}
         <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.1em] text-warning">Setoran Harian</p>
@@ -108,6 +115,7 @@ export default async function NewTahsinSetoranPage({ searchParams }: PageProps) 
               [...hasilPerSiswa].map(([id, per]) => [id, Object.fromEntries(per)]),
             )}
             defaultStudentId={defaultStudentId}
+            antrian={antrian}
           />
         )}
       </div>

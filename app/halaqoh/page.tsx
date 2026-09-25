@@ -15,7 +15,7 @@ import type { Halaqoh, Jenjang, Teacher, UserRole } from '@/types'
 type HalaqohWithStatsBase = Omit<Halaqoh, 'wali_teacher'>
 
 interface PageProps {
-  searchParams: Promise<{ jenjang?: string; sesi?: string; q?: string }>
+  searchParams: Promise<{ jenjang?: string; sesi?: string; q?: string; nilai?: string }>
 }
 
 interface HalaqohWithStats extends HalaqohWithStatsBase {
@@ -38,7 +38,7 @@ interface HalaqohWithStats extends HalaqohWithStatsBase {
 // Unit tidak lagi jadi kolom sendiri — ia menempel sebagai lencana di sel
 // Pengampu, sehingga keterangannya tidak hilang tapi juga tidak memakan lebar
 // yang lebih dibutuhkan capaian.
-const COLS = 'grid-cols-[34px_1.7fr_1.3fr_0.5fr_1.1fr_104px]'
+const COLS = 'grid-cols-[34px_1.7fr_1.1fr_0.5fr_1.1fr_1fr_88px]'
 
 
 export default async function HalaqohListPage({ searchParams }: PageProps) {
@@ -139,11 +139,14 @@ export default async function HalaqohListPage({ searchParams }: PageProps) {
     pada sebagian di antaranya. Kedua penanda itu ada justru supaya tidak perlu.
   */
   const capaian = new Map<string, { jilid: number; quran: number; tahfidz: number }>()
+  // Capaian bulanan (student_monthly) yang sudah terisi bulan ini, per halaqoh.
+  const terisi = new Map<string, number>()
+  const periodeIni = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' }).slice(0, 8) + '01'
   if (halaqohList.length > 0) {
     const ids = halaqohList.map(h => h.id)
     const [{ data: siswa }, { data: levels }] = await Promise.all([
       supabase.from('students')
-        .select('halaqoh_id, current_jilid_id')
+        .select('id, halaqoh_id, current_jilid_id')
         .in('halaqoh_id', ids)
         .eq('is_active', true),
       supabase.from('jilid_levels').select('id, is_quran, is_terminal'),
@@ -168,7 +171,36 @@ export default async function HalaqohListPage({ searchParams }: PageProps) {
       capaian.set(row.halaqoh_id, c)
     }
     for (const h of halaqohList) h.student_count = countMap.get(h.id) ?? 0
+
+    // Hanya membaca: anak yang baris capaian bulan ini sudah berisi.
+    const siswaRows = (siswa ?? []) as { id: string; halaqoh_id: string }[]
+    const halaqohAnak = new Map(siswaRows.map(r => [r.id, r.halaqoh_id]))
+    const idAnak = siswaRows.map(r => r.id)
+    for (let i = 0; i < idAnak.length; i += 300) {
+      const { data: bulanan } = await supabase.from('student_monthly')
+        .select('student_id, halaman_akhir_tahsin, tahfidz_akhir, capaian_halaman, catatan')
+        .in('student_id', idAnak.slice(i, i + 300))
+        .eq('period', periodeIni)
+      for (const r of (bulanan ?? []) as { student_id: string; halaman_akhir_tahsin: string; tahfidz_akhir: string; capaian_halaman: number; catatan: string }[]) {
+        const isi = r.halaman_akhir_tahsin || r.tahfidz_akhir || r.capaian_halaman > 0 || r.catatan
+        const hq = halaqohAnak.get(r.student_id)
+        if (isi && hq) terisi.set(hq, (terisi.get(hq) ?? 0) + 1)
+      }
+    }
   }
+
+  const statusNilai = (h: HalaqohWithStats): 'belum' | 'sebagian' | 'lengkap' => {
+    const n = terisi.get(h.id) ?? 0
+    if (n === 0) return 'belum'
+    return n >= (h.student_count ?? 0) ? 'lengkap' : 'sebagian'
+  }
+  const hitungStatus = { belum: 0, sebagian: 0, lengkap: 0 }
+  for (const h of halaqohList) if ((h.student_count ?? 0) > 0) hitungStatus[statusNilai(h)]++
+  const filterNilai = ['belum', 'sebagian', 'lengkap'].includes(params.nilai ?? '') ? params.nilai as 'belum' | 'sebagian' | 'lengkap' : null
+  const halaqohTampil = filterNilai
+    ? halaqohList.filter(h => (h.student_count ?? 0) > 0 && statusNilai(h) === filterNilai)
+    : halaqohList
+  const namaBulan = new Date(`${periodeIni}T00:00:00+07:00`).toLocaleDateString('id-ID', { month: 'long', timeZone: 'Asia/Jakarta' })
 
   const totalSiswa = halaqohList.reduce((t, h) => t + (h.student_count ?? 0), 0)
 
@@ -193,7 +225,8 @@ export default async function HalaqohListPage({ searchParams }: PageProps) {
             <p className="text-sm text-muted-foreground mt-1.5">
               Kelompok belajar tahsin &amp; tahfidz ·{' '}
               <b className="font-semibold text-foreground tabular-nums">{halaqohList.length}</b> halaqoh ·{' '}
-              <b className="font-semibold text-foreground tabular-nums">{totalSiswa}</b> siswa
+              <b className="font-semibold text-foreground tabular-nums">{totalSiswa}</b> siswa ·{' '}
+              <b className="font-semibold text-warning tabular-nums">{hitungStatus.belum}</b> belum mengisi capaian {namaBulan}
             </p>
           </div>
           {canCreateAny && (
@@ -238,6 +271,27 @@ export default async function HalaqohListPage({ searchParams }: PageProps) {
           ))}
         </div>
 
+        <div role="group" aria-label="Capaian bulanan" className="mb-4 flex flex-wrap items-center gap-1.5">
+          <span className="mr-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Capaian {namaBulan}</span>
+          {([
+            [null, 'Semua', halaqohList.length],
+            ['belum', 'Belum diisi', hitungStatus.belum],
+            ['sebagian', 'Sebagian', hitungStatus.sebagian],
+            ['lengkap', 'Lengkap', hitungStatus.lengkap],
+          ] as const).map(([v, label, n]) => (
+            <Link
+              key={label}
+              href={hrefFor(jenjangFilter, sesiFilter, q, v ?? undefined)}
+              className={cn(
+                'rounded-full border px-3 py-1 text-xs font-medium transition-colors',
+                filterNilai === v ? 'border-primary bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:text-foreground',
+              )}
+            >
+              {label} <span className="tabular-nums opacity-70">{n}</span>
+            </Link>
+          ))}
+        </div>
+
         {sesiFilter === 0 && (
           <p className="mb-3 text-xs text-warning">
             {tanpaSesi} halaqoh belum punya sesi — jamnya kosong sampai diisi lewat Edit.
@@ -248,7 +302,7 @@ export default async function HalaqohListPage({ searchParams }: PageProps) {
           <p className="mb-3 text-xs text-muted-foreground">{ringkasKelas}</p>
         )}
 
-        {halaqohList.length === 0 ? (
+        {halaqohTampil.length === 0 ? (
           <div className="rounded-2xl border border-dashed py-12 text-center bg-muted/30">
             <Users className="h-8 w-8 mx-auto text-muted-foreground/40 mb-3" />
             <p className="font-medium text-sm">
@@ -270,17 +324,18 @@ export default async function HalaqohListPage({ searchParams }: PageProps) {
                 <HeadCell>Tempat</HeadCell>
                 <HeadCell className="text-right pr-3">Siswa</HeadCell>
                 <HeadCell>Capaian</HeadCell>
+                <HeadCell>Terisi {namaBulan}</HeadCell>
                 <span />
               </div>
-              {halaqohList.map((h, i) => (
-                <DesktopRow key={h.id} h={h} no={i + 1} role={session.role} cap={capaian.get(h.id)} />
+              {halaqohTampil.map((h, i) => (
+                <DesktopRow key={h.id} h={h} no={i + 1} role={session.role} cap={capaian.get(h.id)} isi={terisi.get(h.id) ?? 0} />
               ))}
             </div>
 
             {/* ── Layar sempit: daftar ── */}
             <div className="md:hidden">
-              {halaqohList.map((h, i) => (
-                <MobileRow key={h.id} h={h} no={i + 1} cap={capaian.get(h.id)} />
+              {halaqohTampil.map((h, i) => (
+                <MobileRow key={h.id} h={h} no={i + 1} cap={capaian.get(h.id)} isi={terisi.get(h.id) ?? 0} />
               ))}
             </div>
           </div>
@@ -395,8 +450,8 @@ function Avatar({ name, className }: { name: string | null; className?: string }
 }
 
 function DesktopRow(
-  { h, no, role, cap }:
-  { h: HalaqohWithStats; no: number; role: UserRole; cap?: Capaian },
+  { h, no, role, cap, isi }:
+  { h: HalaqohWithStats; no: number; role: UserRole; cap?: Capaian; isi: number },
 ) {
   const wali = h.wali_teacher?.full_name ?? null
   return (
@@ -443,6 +498,7 @@ function DesktopRow(
       </span>
       <span className="pr-3 text-sm font-semibold text-right tabular-nums">{h.student_count ?? 0}</span>
       <span className="pr-3"><CapaianChips c={cap} /></span>
+      <span className="pr-3"><Terisi n={isi} total={h.student_count ?? 0} /></span>
       {/* Aksi muncul saat hover; `focus-within` menjaganya tetap terjangkau
           lewat keyboard, yang tidak bisa diungkapkan mockup statis. */}
       <span className="relative z-10 flex justify-end opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
@@ -459,7 +515,7 @@ function DesktopRow(
   )
 }
 
-function MobileRow({ h, no, cap }: { h: HalaqohWithStats; no: number; cap?: Capaian }) {
+function MobileRow({ h, no, cap, isi }: { h: HalaqohWithStats; no: number; cap?: Capaian; isi: number }) {
   const wali = h.wali_teacher?.full_name
   return (
     <Link
@@ -489,6 +545,7 @@ function MobileRow({ h, no, cap }: { h: HalaqohWithStats; no: number; cap?: Capa
           <span className="shrink-0">· {h.student_count ?? 0} siswa</span>
         </span>
         <span className="mt-1 flex"><CapaianChips c={cap} /></span>
+        <span className="mt-1.5 block max-w-[220px]"><Terisi n={isi} total={h.student_count ?? 0} /></span>
       </span>
       <span className="rounded-md bg-muted px-2 py-0.5 text-[10.5px] font-semibold text-muted-foreground shrink-0">
         {JENJANG_LABELS[h.jenjang]}
@@ -522,8 +579,9 @@ function UnitChip({
  * Ketiganya harus saling mempertahankan: memilih sesi tidak boleh membuang
  * unit atau pencarian yang sedang aktif, dan sebaliknya.
  */
-function hrefFor(jenjang: Jenjang | undefined, sesi: number | null, q: string): string {
+function hrefFor(jenjang: Jenjang | undefined, sesi: number | null, q: string, nilai?: string): string {
   const params = new URLSearchParams()
+  if (nilai) params.set('nilai', nilai)
   if (jenjang) params.set('jenjang', jenjang)
   // 0 adalah penampungan 'belum punya sesi'; nilainya harus ikut tertulis,
   // sebab tanpa itu tabnya tidak bisa dipilih sama sekali.
@@ -554,4 +612,21 @@ function SesiTab({
 
 function Count({ n }: { n: number }) {
   return <span className="ml-1 text-xs text-muted-foreground tabular-nums">({n})</span>
+}
+
+/** 'x/y' anak yang capaian bulanannya sudah terisi, dengan garis tipis. */
+function Terisi({ n, total }: { n: number; total: number }) {
+  if (total === 0) return <span className="text-[11.5px] text-muted-foreground">—</span>
+  const pct = Math.min(100, Math.round((n / total) * 100))
+  const warna = n === 0 ? 'bg-warning' : n >= total ? 'bg-success' : 'bg-primary'
+  return (
+    <span className="block">
+      <span className={cn('text-[11.5px] font-semibold tabular-nums', n === 0 ? 'text-warning' : n >= total ? 'text-success' : 'text-foreground')}>
+        {n >= total ? 'Lengkap' : n === 0 ? 'Belum diisi' : `${n}/${total} terisi`}
+      </span>
+      <span className="mt-1 block h-1 overflow-hidden rounded-full bg-muted">
+        <span className={cn('block h-full rounded-full', warna)} style={{ width: `${Math.max(pct, n === 0 ? 0 : 6)}%` }} />
+      </span>
+    </span>
+  )
 }

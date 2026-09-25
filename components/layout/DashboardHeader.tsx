@@ -5,6 +5,7 @@ import type { UserRole } from '@/types'
 import { BackButton } from './BackButton'
 import { ThemeToggle } from './ThemeToggle'
 import { NotificationBellSlot } from './NotificationBellSlot'
+import { TombolCari } from './PaletPerintah'
 
 interface Crumb {
   label: string
@@ -64,6 +65,7 @@ export function DashboardHeader({ role, title, showBack, breadcrumbs, ownH1 }: P
           )}
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
+          <TombolCari />
           <NotificationBellSlot />
           <ThemeToggle />
           {/* Identitas pengguna sudah tampil di sidebar & di header beranda,

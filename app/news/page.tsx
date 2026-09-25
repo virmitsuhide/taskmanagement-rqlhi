@@ -6,6 +6,8 @@ import { createServerClient } from '@/lib/supabase/server'
 import { getSession } from '@/lib/auth/session'
 import { canCreateNews } from '@/lib/auth/permissions'
 import { PublicHeader } from '@/components/layout/PublicHeader'
+import { PublicFooter } from '@/components/home/PublicFooter'
+import { ArrowRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { SearchInput } from '@/components/ui/search-input'
 import { Pagination } from '@/components/ui/pagination'
@@ -107,8 +109,7 @@ export default async function NewsPage({ searchParams }: PageProps) {
   // Page 1 uses featured + sidebar + grid; page 2+ is pure grid
   const isFirstPage = safePage === 1
   const featured = isFirstPage ? visible[0] : undefined
-  const sideSlot = isFirstPage ? visible.slice(1, 4) : []
-  const rest = isFirstPage ? visible.slice(4) : visible
+  const rest = isFirstPage ? visible.slice(1) : visible
 
   function tabHref(next: Partial<{ category: string; type: string }>) {
     const merged: Record<string, string> = {}
@@ -140,11 +141,12 @@ export default async function NewsPage({ searchParams }: PageProps) {
             <Link href="/" className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground mb-3 transition-colors">
               <ArrowLeft className="h-3 w-3" /> Kembali ke Beranda
             </Link>
+            <p className="text-xs font-bold uppercase tracking-[0.1em] text-accent-warm">Berita Rumah Qur&apos;an</p>
             <h1
-              className="text-[clamp(34px,5.5vw,60px)] font-normal leading-[1.05] tracking-[-0.02em]"
+              className="mt-2 text-[clamp(34px,5.5vw,64px)] font-normal leading-[1.02] tracking-[-0.02em]"
               style={{ fontFamily: "var(--font-playfair), Georgia, serif" }}
             >
-              Berita &amp; Kabar
+              Kabar dari halaqoh
             </h1>
             <p className="text-sm text-muted-foreground mt-1">
               {total} artikel · Rumah Qur&apos;an LHI
@@ -170,8 +172,8 @@ export default async function NewsPage({ searchParams }: PageProps) {
         </div>
 
         {/* Filter Tabs */}
-        <div className="border-b mb-7 -mx-6 px-6 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          <div className="flex gap-1 min-w-fit">
+        <div className="mb-9 -mx-6 px-6 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <div role="group" aria-label="Kategori" className="flex gap-2 min-w-fit">
             <FilterTab href={tabHref({ category: '', type: '' })} active={!activeCategory && !activeType}>
               Semua
             </FilterTab>
@@ -203,124 +205,68 @@ export default async function NewsPage({ searchParams }: PageProps) {
           </div>
         )}
 
-        {/* Featured Hero + Side */}
+        {/* Berita utama — gambar lebar di kiri, ringkasan di kanan */}
         {featured && (
-          <div className="grid md:grid-cols-[1.6fr_1fr] gap-6 mb-10">
-            {/* Lead */}
-            <div className="relative">
-              <Link href={`/news/${featured.id}`} className="group block">
-              <article className="rounded-2xl border bg-card overflow-hidden hover:border-foreground/20 hover:shadow-sm transition">
-                {featured.thumbnail_url ? (
-                  <div className="relative w-full aspect-[16/10] overflow-hidden">
-                    <Image
-                      src={featured.thumbnail_url}
-                      alt={featured.title}
-                      fill
-                      priority
-                      className="object-cover group-hover:scale-[1.02] transition-transform duration-500"
-                    />
-                  </div>
-                ) : (
-                  <div className="w-full aspect-[16/10] bg-gradient-to-br from-accent-warm/15 to-primary/10" />
-                )}
-                <div className="p-5 md:p-6">
-                  <div className="flex items-center gap-2 mb-3">
-                    <CategoryBadge category={featured.category} type={featured.type} />
-                    <span className="text-[11px] text-muted-foreground">
-                      {formatDate(featured.created_at)}
-                    </span>
-                  </div>
-                  <h2
-                    className="font-normal leading-tight text-3xl md:text-[40px] mb-3"
-                    style={{ fontFamily: "var(--font-playfair), Georgia, serif" }}
-                  >
-                    {featured.title}
-                  </h2>
-                  <p className="text-sm text-muted-foreground leading-relaxed line-clamp-3">
-                    {getExcerpt(featured, 240)}
-                  </p>
-                  {featured.author && (
-                    <p className="text-xs text-muted-foreground mt-3">
-                      Oleh <span className="font-medium text-foreground">{featured.author.display_name}</span>
-                    </p>
-                  )}
-                </div>
-              </article>
-              </Link>
+          <Link href={`/news/${featured.id}`} className="group mb-14 grid items-center gap-6 md:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] md:gap-12">
+            {featured.thumbnail_url ? (
+              <div className="relative aspect-[16/10] w-full overflow-hidden rounded-2xl">
+                <Image
+                  src={featured.thumbnail_url}
+                  alt={featured.title}
+                  fill
+                  priority
+                  className="object-cover transition-transform duration-500 group-hover:scale-[1.02]"
+                />
+              </div>
+            ) : (
+              <div className="aspect-[16/10] w-full rounded-2xl bg-gradient-to-br from-primary/15 to-muted" />
+            )}
+            <div className="flex flex-col gap-4">
+              <Eyebrow item={featured} />
+              <h2
+                className="text-3xl leading-[1.1] md:text-[44px]"
+                style={{ fontFamily: "var(--font-playfair), Georgia, serif" }}
+              >
+                {featured.title}
+              </h2>
+              <p className="text-[15px] leading-relaxed text-muted-foreground line-clamp-4">
+                {getExcerpt(featured, 260)}
+              </p>
+              <span className="inline-flex items-center gap-1.5 text-sm font-bold text-primary">
+                Baca berita <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+              </span>
             </div>
-
-            {/* Side slot */}
-            <div className="flex flex-col gap-3">
-              {sideSlot.map(item => (
-                <div key={item.id} className="relative">
-                <Link
-                  href={`/news/${item.id}`}
-                  className="flex gap-3 rounded-lg border bg-card p-3 hover:border-foreground/20 hover:shadow-sm transition group"
-                >
-                  {item.thumbnail_url && (
-                    <div className="relative shrink-0 w-24 h-24 rounded overflow-hidden border">
-                      <Image src={item.thumbnail_url} alt={item.title} fill className="object-cover" />
-                    </div>
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <CategoryBadge category={item.category} type={item.type} />
-                    <h3
-                      className="font-semibold leading-snug text-sm mt-1.5 line-clamp-3"
-                      style={{ fontFamily: "var(--font-playfair), Georgia, serif" }}
-                    >
-                      {item.title}
-                    </h3>
-                    <p className="text-[11px] text-muted-foreground mt-1.5">
-                      {formatDate(item.created_at)}
-                    </p>
-                  </div>
-                </Link>
-                </div>
-              ))}
-            </div>
-          </div>
+          </Link>
         )}
 
         {/* Grid of remaining */}
         {rest.length > 0 && (
-          <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-5">
+          <div className="grid gap-x-7 gap-y-10 sm:grid-cols-2 md:grid-cols-3">
             {rest.map(item => (
-              <article
-                key={item.id}
-                className="group rounded-2xl border bg-card overflow-hidden hover:border-foreground/20 hover:shadow-sm transition relative"
-              >
-                <Link href={`/news/${item.id}`} className="block">
-                  {item.thumbnail_url ? (
-                    <div className="relative w-full aspect-[16/10] overflow-hidden">
-                      <Image
-                        src={item.thumbnail_url}
-                        alt={item.title}
-                        fill
-                        className="object-cover group-hover:scale-[1.02] transition-transform duration-500"
-                      />
-                    </div>
-                  ) : (
-                    <div className="w-full aspect-[16/10] bg-gradient-to-br from-muted to-muted/60" />
-                  )}
-                  <div className="p-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      <CategoryBadge category={item.category} type={item.type} />
-                      <span className="text-[10px] text-muted-foreground">
-                        {formatDate(item.created_at)}
-                      </span>
-                    </div>
-                    <h3
-                      className="font-bold leading-snug text-base mb-1.5 line-clamp-2"
-                      style={{ fontFamily: "var(--font-playfair), Georgia, serif" }}
-                    >
-                      {item.title}
-                    </h3>
-                    <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2">
-                      {getExcerpt(item, 120)}
-                    </p>
+              <Link key={item.id} href={`/news/${item.id}`} className="group flex flex-col gap-3">
+                {item.thumbnail_url ? (
+                  <div className="relative aspect-[16/10] w-full overflow-hidden rounded-2xl">
+                    <Image
+                      src={item.thumbnail_url}
+                      alt={item.title}
+                      fill
+                      className="object-cover transition-transform duration-500 group-hover:scale-[1.02]"
+                    />
                   </div>
-                </Link>
-              </article>
+                ) : (
+                  <div className="aspect-[16/10] w-full rounded-2xl bg-gradient-to-br from-primary/10 to-muted" />
+                )}
+                <Eyebrow item={item} />
+                <h3
+                  className="text-[22px] leading-[1.2] group-hover:text-primary"
+                  style={{ fontFamily: "var(--font-playfair), Georgia, serif" }}
+                >
+                  {item.title}
+                </h3>
+                <p className="text-[13px] leading-relaxed text-muted-foreground line-clamp-2">
+                  {getExcerpt(item, 140)}
+                </p>
+              </Link>
             ))}
           </div>
         )}
@@ -337,14 +283,24 @@ export default async function NewsPage({ searchParams }: PageProps) {
           }}
         />
       </div>
+      <PublicFooter />
     </div>
+  )
+}
+
+/** 'SDIT LHI · 12 Sep 2026' — kategori dan tanggal dalam satu baris kecil berwarna. */
+function Eyebrow({ item }: { item: NewsArticle }) {
+  const kategori = item.type === 'artikel' ? 'Artikel' : item.category ? CATEGORY_META[item.category].label : 'Berita'
+  return (
+    <span className="text-[11.5px] font-bold uppercase tracking-[0.08em] text-accent-warm">
+      {kategori} · <span className="text-muted-foreground">{formatDate(item.created_at)}</span>
+    </span>
   )
 }
 
 function FilterTab({
   href,
   active,
-  color,
   children,
 }: {
   href: string
@@ -355,19 +311,14 @@ function FilterTab({
   return (
     <Link
       href={href}
-      className={`relative px-3.5 py-3 text-sm font-medium whitespace-nowrap transition-colors ${
+      aria-current={active ? 'page' : undefined}
+      className={`inline-flex h-10 items-center rounded-full border px-4 text-[13.5px] font-semibold whitespace-nowrap transition-colors ${
         active
-          ? 'text-foreground'
-          : 'text-muted-foreground hover:text-foreground'
+          ? 'border-primary bg-primary text-primary-foreground'
+          : 'bg-card text-muted-foreground hover:text-foreground'
       }`}
     >
       {children}
-      {active && (
-        <span
-          className="absolute bottom-0 left-2 right-2 h-0.5 rounded-t"
-          style={{ backgroundColor: color ?? 'currentColor' }}
-        />
-      )}
     </Link>
   )
 }

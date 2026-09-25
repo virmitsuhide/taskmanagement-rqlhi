@@ -1,4 +1,4 @@
-import { BookOpen, Sparkles, Users } from 'lucide-react'
+import { BookOpen, Play, Sparkles, UserCheck, Users } from 'lucide-react'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { getTeacherSession } from '@/lib/auth/teacher-session'
@@ -12,6 +12,8 @@ import { ProgresUjianGuru } from '@/components/guru/ProgresUjianGuru'
 import { TandaiUjianGuruDilihat } from '@/components/guru/TandaiUjianGuruDilihat'
 import { PengumumanBeranda } from '@/components/guru/PengumumanBeranda'
 import { getKartuTersembunyi } from '@/lib/data/kartu-tersembunyi'
+import { getHalaqohSesiGuru } from '@/lib/data/setoran-sesi'
+import { sesiBerikutnya } from '@/lib/rq/sesi-berikutnya'
 
 const MONTH_ID = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember']
 const DAY_ID = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu']
@@ -31,7 +33,7 @@ export default async function TeacherHomePage() {
   const now = new Date()
   const dateLabel = `${DAY_ID[now.getDay()]}, ${now.getDate()} ${MONTH_ID[now.getMonth()]} ${now.getFullYear()}`
 
-  const [students, weekly, halaqohSummary, konteks, unitUjian, pengajuan, notifUjian, tersembunyi] = await Promise.all([
+  const [students, weekly, halaqohSummary, konteks, unitUjian, pengajuan, notifUjian, tersembunyi, daftarSesi] = await Promise.all([
     getTeacherStudents(session.teacherId),
     getTeacherWeeklyStats(session.teacherId),
     getTeacherHalaqohSummary(session.teacherId),
@@ -40,7 +42,12 @@ export default async function TeacherHomePage() {
     getUjianGuru(session.teacherId),
     getNotifUjianGuru(session.teacherId),
     getKartuTersembunyi(session.teacherId),
+    getHalaqohSesiGuru(session.teacherId),
   ])
+  const berikut = sesiBerikutnya(daftarSesi)
+  const jumlahSiswaBerikut = berikut
+    ? halaqohSummary.find(h => h.id === berikut.halaqoh.id)?.studentCount ?? 0
+    : 0
   const pengumuman = await getPengumumanGuru(konteks.unit, konteks.seenAt)
   const todayStr = now.toISOString().slice(0, 10)
   const setorHariIni = students.filter(s => s.last_setoran_date === todayStr).length
@@ -55,7 +62,7 @@ export default async function TeacherHomePage() {
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--secondary)' }}>
-      <div className="max-w-4xl mx-auto px-4 md:px-6 py-8">
+      <div className="max-w-5xl mx-auto px-4 md:px-6 py-8">
         <div className="mb-6">
           <p className="text-xs font-bold uppercase tracking-[0.1em] text-warning">{dateLabel}</p>
           <h1
@@ -66,6 +73,44 @@ export default async function TeacherHomePage() {
             <span style={{ borderBottom: '3px solid var(--accent-warm)', paddingBottom: 2 }}>{session.fullName}</span>
           </h1>
         </div>
+
+        {/* Sesi berikutnya — pintu masuk "Mulai sesi". Jamnya dari jadwal sesi baku. */}
+        {berikut && (
+          <section className="mb-6 overflow-hidden rounded-2xl p-5 text-white/80 md:p-6" style={{ background: '#0E3531' }}>
+            <div className="flex flex-wrap items-center justify-between gap-5">
+              <div className="flex min-w-0 items-center gap-5">
+                <div className="shrink-0 border-r border-white/15 pr-5 text-center">
+                  <p className="text-[11px] uppercase tracking-[0.12em] text-white/60">
+                    {berikut.kapan === 'berjalan' ? 'Berjalan' : berikut.kapan === 'besok' ? berikut.hariLabel : 'Mulai'}
+                  </p>
+                  <p className="font-heading text-4xl leading-none tabular-nums text-white">{berikut.mulai}</p>
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs text-white/70">
+                    {berikut.kapan === 'berjalan' ? 'Sesi sedang berjalan' : 'Sesi berikutnya'} · sampai {berikut.selesai}
+                  </p>
+                  <p className="mt-0.5 truncate font-heading text-2xl leading-tight text-white">{berikut.halaqoh.name}</p>
+                  <p className="mt-0.5 text-sm text-white/70">{jumlahSiswaBerikut} siswa</p>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Link
+                  href={`/guru/sesi?halaqoh=${berikut.halaqoh.id}`}
+                  className="inline-flex h-10 items-center gap-2 rounded-xl px-4 text-sm font-semibold text-white"
+                  style={{ background: 'var(--accent-warm)' }}
+                >
+                  <Play className="h-4 w-4" /> Mulai sesi
+                </Link>
+                <Link
+                  href={`/guru/absensi?sesi=${berikut.halaqoh.id}`}
+                  className="inline-flex h-10 items-center gap-2 rounded-xl border border-white/20 px-4 text-sm font-medium text-white hover:bg-white/10"
+                >
+                  <UserCheck className="h-4 w-4" /> Isi daftar hadir saja
+                </Link>
+              </div>
+            </div>
+          </section>
+        )}
 
         {/*
           Pengumuman ditaruh DI ATAS angka-angka setoran, bukan di bawahnya.
@@ -101,10 +146,11 @@ export default async function TeacherHomePage() {
         )}
 
         {/* Stat */}
-        <div className="grid grid-cols-3 gap-3 mb-6">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
           <StatCard num={students.length} label="Total Siswa" />
           <StatCard num={setorHariIni} label="Sudah Setor" tone="ok" />
           <StatCard num={students.length - setorHariIni} label="Belum Setor" tone="warm" />
+          <StatCard num={weekly.tahsinCount + weekly.tahfidzCount} label="Setoran Pekan Ini" />
         </div>
 
         {/* Quick action */}

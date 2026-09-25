@@ -80,9 +80,21 @@ export function PanelFokus({ judul, sub, ringkasan, saring, tampilPelaksana, har
         </Kosong>
       ) : (
         <>
-          <ul className="space-y-2">
-            {daftar.map(t => <BarisTugas key={t.id} tugas={t} hariIni={hariIni} tampilPelaksana={tampilPelaksana} />)}
-          </ul>
+          {/* Dikelompokkan menurut waktu. Daftar sudah terurut dari tenggat
+              terdekat, jadi tiap kelompok berurutan tanpa perlu diurut ulang. */}
+          <div className="space-y-4">
+            {kelompokWaktu(daftar, hariIni).map(g => (
+              <div key={g.judul}>
+                <p className={cn('mb-2 flex items-center justify-between text-[11px] font-semibold uppercase tracking-[0.08em]', g.nada)}>
+                  <span>{g.judul}</span>
+                  <span className="tabular-nums text-muted-foreground">{g.tugas.length} tugas</span>
+                </p>
+                <ul className="space-y-2">
+                  {g.tugas.map(t => <BarisTugas key={t.id} tugas={t} hariIni={hariIni} tampilPelaksana={tampilPelaksana} />)}
+                </ul>
+              </div>
+            ))}
+          </div>
           {totalTersaring > daftar.length && (
             <Link href={semuaHref} className="mt-3 inline-block text-[13px] font-semibold text-primary hover:underline">
               +{(totalTersaring - daftar.length).toLocaleString('id-ID')} tugas lainnya →
@@ -92,6 +104,23 @@ export function PanelFokus({ judul, sub, ringkasan, saring, tampilPelaksana, har
       )}
     </Panel>
   )
+}
+
+function kelompokWaktu(daftar: Task[], hariIni: string): { judul: string; nada: string; tugas: Task[] }[] {
+  const grup: { judul: string; nada: string; tugas: Task[] }[] = []
+  for (const t of daftar) {
+    const sisa = sisaHari(t, hariIni)
+    const [judul, nada] =
+      sisa === null ? ['Tanpa tenggat', 'text-muted-foreground']
+      : sisa < 0 ? ['Lewat tenggat', 'text-destructive']
+      : sisa <= 1 ? ['Hari ini & besok', 'text-warning']
+      : sisa <= 7 ? ['Pekan ini', 'text-foreground']
+      : ['Nanti', 'text-muted-foreground']
+    const akhir = grup[grup.length - 1]
+    if (akhir && akhir.judul === judul) akhir.tugas.push(t)
+    else grup.push({ judul, nada, tugas: [t] })
+  }
+  return grup
 }
 
 function BarisTugas({ tugas, hariIni, tampilPelaksana }: { tugas: Task; hariIni: string; tampilPelaksana?: boolean }) {

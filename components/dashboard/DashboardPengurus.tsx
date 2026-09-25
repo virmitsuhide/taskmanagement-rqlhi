@@ -7,7 +7,7 @@ import {
   canViewFinance, canViewFinanceNotes, canViewGukarRecap, canViewHalaqoh, canViewHumasRequests, canViewKpi,
   canViewStudents, canViewTasks, canViewUnitAnalytics, canCreateNews, canManageHomepage, canManageRaporTemplate,
   canPostToHome, getAnalyticsJenjang, getCreatableMeetingTypes, getManageableJenjang, getUjianUnits,
-  getViewableMeetingTypes, ROLE_LABELS,
+  getViewableMeetingTypes, ROLE_LABELS, getAccessibleDashboards, DASHBOARD_LABELS,
 } from '@/lib/auth/permissions'
 import {
   getCompletionHistory, getPendingVerifications, getRecentMeetings, getSemuaTugasAktifSaya, getTeamActiveTasks,
@@ -278,6 +278,27 @@ export async function DashboardPengurus({ halaman, session, searchParams }: {
     request: cls => request && <PanelRequest className={cls} request={request} />,
   }
 
+  // Dashboard jabatan lain yang boleh dibuka peran ini (aturan yang sama dengan menu samping).
+  const dashboardLain = getAccessibleDashboards(role)
+
+  // "Jawaban hari ini" — dua-tiga kalimat dari angka yang sudah dihitung di atas.
+  const jawaban: React.ReactNode[] = []
+  if (denganTugas) {
+    const telat = fokus.hitung.terlambat
+    jawaban.push(telat > 0
+      ? <><b className="text-destructive">{telat} tugas{k.tim ? ' tim' : ''} lewat tenggat</b>{k.tim ? '' : ' menunggu Anda'}.</>
+      : <>Tidak ada tugas{k.tim ? ' tim' : ''} yang lewat tenggat.</>)
+    if (review.length > 0) jawaban.push(<><b>{review.length} tugas</b> menunggu review Anda.</>)
+  }
+  if (capaian && capaian.bulan.total > 0) {
+    jawaban.push(<>Penilaian bulan ini <b>{capaian.bulan.percent}%</b>{capaian.bulan.halaqohKosong > 0 ? <> — <b className="text-warning">{capaian.bulan.halaqohKosong} halaqoh</b> belum dinilai sama sekali</> : null}.</>)
+  }
+  if (ujian) {
+    const menunggu = ujian[0].diajukan + ujian[1].diajukan
+    if (menunggu > 0) jawaban.push(<><b>{menunggu} ujian</b> menunggu dijadwalkan ({ujian[0].diajukan} tahsin · {ujian[1].diajukan} tahfidz).</>)
+  }
+  if (request && request.length > 0) jawaban.push(<><b>{request.length} request konten</b> masih berjalan.</>)
+
   const hariTeks = new Intl.DateTimeFormat('id-ID', { timeZone: 'Asia/Jakarta', weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(new Date())
 
   return (
@@ -303,6 +324,16 @@ export async function DashboardPengurus({ halaman, session, searchParams }: {
                   }))}
                 />
               )}
+              {dashboardLain.length > 1 && (
+                <Slicer
+                  label="Dashboard"
+                  options={dashboardLain.map(slug => ({
+                    label: DASHBOARD_LABELS[slug] ?? slug,
+                    href: `/dashboard/${slug}`,
+                    active: slug === halaman,
+                  }))}
+                />
+              )}
               {ada('capaian') && unitPilihan.length > 1 && (
                 <Slicer
                   label="Unit"
@@ -315,6 +346,13 @@ export async function DashboardPengurus({ halaman, session, searchParams }: {
             </>
           }
         />
+
+        {jawaban.length > 0 && (
+          <p className="rounded-2xl border-l-4 border-accent-warm bg-card px-5 py-4 text-[15px] leading-relaxed">
+            <span className="mr-1.5 font-heading italic text-accent-warm">Jawaban hari ini —</span>
+            {jawaban.map((j, i) => <Fragment key={i}>{i > 0 && ' '}{j}</Fragment>)}
+          </p>
+        )}
 
         {/* Pintasan jabatan ini — tombol di bawah judul, bukan panel di dasar halaman. */}
         <PintasanBaris items={pintasan} />

@@ -39,6 +39,8 @@ export default async function RaporKpiGuruPage() {
           </p>
         </div>
       ) : (
+        <>
+        <TrenKpi rows={rows} />
         <ul className="space-y-2.5">
           {rows.map(r => {
             const sisa = sisaHari(r.bandingBatas)
@@ -102,7 +104,55 @@ export default async function RaporKpiGuruPage() {
             )
           })}
         </ul>
+        </>
       )}
     </HalamanGuru>
+  )
+}
+
+/**
+ * Tren nilai akhir beberapa bulan terakhir — dari rapor yang sama dengan
+ * daftar di bawahnya, tidak ada data tambahan.
+ */
+function TrenKpi({ rows }: { rows: { kpiId: string; year: number; month: number; label: string; rapot: number; level: number | string }[] }) {
+  const urut = [...rows].sort((a, b) => a.year - b.year || a.month - b.month).slice(-6)
+  const akhir = urut[urut.length - 1]
+  const sebelum = urut.length > 1 ? urut[urut.length - 2] : null
+  const selisih = sebelum ? akhir.rapot - sebelum.rapot : null
+  const min = Math.min(...urut.map(r => r.rapot))
+  const dasar = Math.max(0, Math.floor((min - 10) / 10) * 10)
+  const skala = (v: number) => Math.max(4, ((v - dasar) / (100 - dasar)) * 100)
+
+  return (
+    <section className="mb-5 rounded-2xl border bg-card p-5">
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Nilai akhir terbaru · {akhir.label}</p>
+          <p className="mt-1 flex items-baseline gap-3">
+            <span className="font-heading text-5xl leading-none tabular-nums">{akhir.rapot.toFixed(1)}</span>
+            <span className="text-sm text-muted-foreground">level {akhir.level}</span>
+          </p>
+          {selisih !== null && (
+            <p className={cn('mt-1.5 text-sm font-medium', selisih > 0 ? 'text-success' : selisih < 0 ? 'text-destructive' : 'text-muted-foreground')}>
+              {selisih > 0 ? '▲ naik' : selisih < 0 ? '▼ turun' : 'tetap'}{selisih !== 0 ? ` ${Math.abs(selisih).toFixed(1)} poin` : ''} dari {sebelum!.label}
+            </p>
+          )}
+        </div>
+        {urut.length > 1 && (
+          <div className="flex h-28 items-end gap-2" role="img" aria-label={`Tren nilai KPI ${urut.length} bulan`}>
+            {urut.map((r, i) => (
+              <div key={r.kpiId} className="flex h-full w-10 flex-col items-center justify-end gap-1">
+                <span className="text-[10px] tabular-nums text-muted-foreground">{r.rapot.toFixed(0)}</span>
+                <div
+                  className={cn('w-full rounded-t-md', i === urut.length - 1 ? 'bg-accent-warm' : 'bg-primary/70')}
+                  style={{ height: `${skala(r.rapot)}%` }}
+                />
+                <span className="text-[10px] text-muted-foreground">{r.label.split(' ')[0].slice(0, 3)}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </section>
   )
 }

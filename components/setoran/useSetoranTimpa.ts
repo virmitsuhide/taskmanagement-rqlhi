@@ -24,6 +24,9 @@ export function useSetoranTimpa(formAction: (fd: FormData) => void, ganda: Setor
   function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
     const fd = new FormData(e.currentTarget)
+    // Tombol pengirim (mis. "Simpan & berikutnya") ikut terkirim bila bernama.
+    const pengirim = (e.nativeEvent as SubmitEvent).submitter as HTMLButtonElement | null
+    if (pengirim?.name) fd.set(pengirim.name, pengirim.value)
     tertunda.current = fd
     startTransition(() => formAction(fd))
   }

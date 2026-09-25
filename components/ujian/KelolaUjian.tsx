@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Award, BookOpen, CalendarClock, ChevronDown, ChevronUp,
-  ClipboardList, Settings2, UserCheck, Users,
+  ClipboardList, LayoutGrid, List, Settings2, UserCheck, Users,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button'
 import { EditTahfidzDialog } from './EditTahfidzDialog'
 import { EditTahsinDialog } from './EditTahsinDialog'
 import { Segmen } from './Segmen'
+import { PapanUjian, type KartuUjian } from './PapanUjian'
 import {
   TAHSIN_LEVELS,
   formatJadwalSingkat, formatTahsinLevels, formatTanggalSingkat,
@@ -79,6 +80,25 @@ export function KelolaUjian({
   const [tipe, setTipe] = useState<(typeof TIPE_TABS)[number]['value']>('semua')
   const [level, setLevel] = useState('semua')
   const [terbuka, setTerbuka] = useState<Set<string>>(new Set())
+  // Papan tiga kolom (Diajukan → Terjadwal → Selesai) sebagai tampilan awal;
+  // daftar lama tetap tersedia untuk penyaringan status yang rinci.
+  const [tampilan, setTampilan] = useState<'papan' | 'daftar'>('papan')
+
+  function gantiTampilan(baru: 'papan' | 'daftar') {
+    setTampilan(baru)
+    // Di papan, status sudah jadi kolom — penyaring status dikosongkan.
+    if (baru === 'papan') setStatus('semua')
+  }
+
+  function lihatDiDaftar(s: UjianStatus) {
+    setTampilan('daftar')
+    setStatus(s)
+  }
+
+  function kelolaKartu(k: KartuUjian) {
+    if (k.jenis === 'tahfidz') setEditTahfidz(k.item)
+    else setEditTahsin(k.item)
+  }
   const [editTahfidz, setEditTahfidz] = useState<UjianTahfidz | null>(null)
   const [editTahsin, setEditTahsin] = useState<UjianTahsin | null>(null)
 
@@ -124,6 +144,7 @@ export function KelolaUjian({
 
   return (
     <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
       <Segmen
         label="Jenis ujian"
         value={jenis}
@@ -140,16 +161,37 @@ export function KelolaUjian({
           },
         ]}
       />
+        <div className="inline-flex items-center rounded-full border bg-card p-1" role="group" aria-label="Tampilan">
+          {([
+            { v: 'papan', label: 'Papan', icon: <LayoutGrid className="h-3.5 w-3.5" /> },
+            { v: 'daftar', label: 'Daftar', icon: <List className="h-3.5 w-3.5" /> },
+          ] as const).map(o => (
+            <button
+              key={o.v}
+              onClick={() => gantiTampilan(o.v)}
+              aria-pressed={tampilan === o.v}
+              className={cn(
+                'inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-xs font-medium transition-colors',
+                tampilan === o.v ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground',
+              )}
+            >
+              {o.icon}{o.label}
+            </button>
+          ))}
+        </div>
+      </div>
 
       {/* Penyaring status — dan unit, bila rolenya memegang keduanya */}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-        <BarisSaringan judul="Status">
-          {STATUS_TABS.map(({ value, label }) => (
-            <Chip key={value} aktif={status === value} onClick={() => setStatus(value)}>
-              {label}
-            </Chip>
-          ))}
-        </BarisSaringan>
+        {tampilan === 'daftar' && (
+          <BarisSaringan judul="Status">
+            {STATUS_TABS.map(({ value, label }) => (
+              <Chip key={value} aktif={status === value} onClick={() => setStatus(value)}>
+                {label}
+              </Chip>
+            ))}
+          </BarisSaringan>
+        )}
 
         {units.length > 1 && (
           <BarisSaringan judul="Unit">
@@ -171,7 +213,14 @@ export function KelolaUjian({
             ))}
           </BarisSaringan>
 
-          {tfTampil.length === 0 ? <Kosong /> : (
+          {tampilan === 'papan' ? (
+            <PapanUjian
+              kartu={tfTampil.map(item => ({ jenis: 'tahfidz' as const, item }))}
+              namaPengaju={namaPengaju}
+              onKelola={kelolaKartu}
+              onLihatSemua={lihatDiDaftar}
+            />
+          ) : tfTampil.length === 0 ? <Kosong /> : (
             <ul className="space-y-2">
               {tfTampil.map((item, i) => {
                 const kunci = kunciPengaju(item)
@@ -241,7 +290,14 @@ export function KelolaUjian({
             )}
           </BarisSaringan>
 
-          {tsTampil.length === 0 ? <Kosong /> : (
+          {tampilan === 'papan' ? (
+            <PapanUjian
+              kartu={tsTampil.map(item => ({ jenis: 'tahsin' as const, item }))}
+              namaPengaju={namaPengaju}
+              onKelola={kelolaKartu}
+              onLihatSemua={lihatDiDaftar}
+            />
+          ) : tsTampil.length === 0 ? <Kosong /> : (
             <ul className="space-y-2">
               {tsTampil.map((item, i) => {
                 const dibuka = terbuka.has(item.id)

@@ -6,6 +6,10 @@ import { KelolaUjian } from '@/components/ujian/KelolaUjian'
 import { KalenderUjian } from '@/components/ujian/KalenderUjian'
 import { TandaiUjianDilihat } from '@/components/ujian/TandaiUjianDilihat'
 import { UjianSubNav } from '@/components/ujian/UjianSubNav'
+import { BebanPenguji } from '@/components/ujian/PapanUjian'
+import Link from 'next/link'
+import { PlusCircle } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 import {
   getKalenderUjian, getNamaPengaju, getPengajuanUjian, getPengujis,
 } from '@/lib/data/ujian'
@@ -49,31 +53,46 @@ export default async function KelolaUjianPage({ searchParams }: PageProps) {
       />
       <TandaiUjianDilihat />
 
-      <div className="p-4 md:p-8 max-w-3xl mx-auto space-y-5">
-        <div>
-          <h1 className="text-3xl leading-tight">Kelola Pengajuan Ujian</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {units.join(' & ')} · {total} pengajuan · jadwalkan, tentukan penguji, lalu isi nilainya.
-          </p>
+      <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-6">
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div className="min-w-0">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-accent-warm">
+              Tahsin &amp; tahfidz · pengajuan ujian
+            </p>
+            <h1 className="mt-1 text-3xl leading-tight">Dari pengajuan guru sampai hasil ujian</h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {units.join(' & ')} · {total} pengajuan · jadwalkan, tentukan penguji, lalu isi nilainya.
+            </p>
+          </div>
+          <Button asChild size="sm">
+            <Link href="/ujian/ajukan"><PlusCircle className="mr-1.5 h-4 w-4" />Ajukan ujian</Link>
+          </Button>
         </div>
 
         <UjianSubNav />
 
-        <KalenderUjian
-          events={kalender}
-          year={tahun}
-          month={bulan - 1}
-          todayWIB={hariIni}
-        />
+        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_300px]">
+          <div className="min-w-0 space-y-6">
+            <KelolaUjian
+              tahfidz={tahfidz}
+              tahsin={tahsin}
+              units={units}
+              pengujiOptions={pengujis.map(p => p.nama)}
+              namaPengaju={namaPengaju}
+              jenisAwal={jenisAwal}
+            />
 
-        <KelolaUjian
-          tahfidz={tahfidz}
-          tahsin={tahsin}
-          units={units}
-          pengujiOptions={pengujis.map(p => p.nama)}
-          namaPengaju={namaPengaju}
-          jenisAwal={jenisAwal}
-        />
+            <KalenderUjian
+              events={kalender}
+              year={tahun}
+              month={bulan - 1}
+              todayWIB={hariIni}
+            />
+          </div>
+          <aside className="space-y-4">
+            <BebanPenguji tahfidz={tahfidz} tahsin={tahsin} />
+          </aside>
+        </div>
       </div>
     </div>
   )

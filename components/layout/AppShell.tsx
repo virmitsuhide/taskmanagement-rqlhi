@@ -6,6 +6,7 @@ import { MobileNav } from './MobileNav'
 import { hitungMenungguKoordinator } from '@/lib/data/kpi-pengesahan'
 import { hitungBandingMenunggu } from '@/lib/data/kpi-banding'
 import { COOKIE_SIDEBAR_CIUT } from './sidebar-ciut-cookie'
+import { PaletPerintah } from './PaletPerintah'
 
 interface Props {
   children: React.ReactNode
@@ -55,6 +56,7 @@ export async function AppShell({ children }: Props) {
       <main id="main-content" tabIndex={-1} className="flex-1 overflow-y-auto pb-16 md:pb-0 outline-none print:overflow-visible print:pb-0">
         {children}
       </main>
+      <PaletPerintah />
     </div>
   )
 }

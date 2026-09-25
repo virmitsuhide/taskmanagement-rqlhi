@@ -34,11 +34,13 @@ interface Props {
   /** Juz teruji per siswa (dari ujian yang selesai) — untuk hint muroja'ah lama. */
   completedJuzByStudent?: Record<string, number[]>
   defaultStudentId?: string
+  /** Urutan anak dari layar Mulai sesi — untuk tombol "Simpan & berikutnya". */
+  antrian?: string[]
 }
 
 const today = () => new Date().toISOString().slice(0, 10)
 
-export function TahfidzSetoranForm({ students, surat, completedJuzByStudent = {}, defaultStudentId }: Props) {
+export function TahfidzSetoranForm({ students, surat, completedJuzByStudent = {}, defaultStudentId, antrian }: Props) {
   const router = useRouter()
   const initialStudent = students.find(s => s.id === defaultStudentId) ?? null
   const [studentId, setStudentId] = useState(defaultStudentId ?? '')
@@ -114,6 +116,9 @@ export function TahfidzSetoranForm({ students, surat, completedJuzByStudent = {}
         surat={surat}
         completedJuz={completedJuz}
         onCancel={() => router.back()}
+        lanjut={(pending: boolean) => (
+          <TombolLanjut students={students} studentId={studentId} antrian={antrian} jenis="tahfidz" disabled={pending} />
+        )}
       />
     </div>
   )
@@ -121,8 +126,9 @@ export function TahfidzSetoranForm({ students, surat, completedJuzByStudent = {}
 
 // ─── Setoran harian (ziyadah / muroja'ah baru / lama) ───────────────
 function DailySubForm({
-  studentId, kind, surat, completedJuz, onCancel,
+  studentId, kind, surat, completedJuz, onCancel, lanjut,
 }: {
+  lanjut?: (pending: boolean) => React.ReactNode
   studentId: string
   kind: Exclude<TahfidzKind, 'tasmi'>
   surat: SuratOption[]
@@ -303,10 +309,11 @@ function DailySubForm({
         <p className="text-sm font-medium text-destructive bg-destructive-wash px-4 py-3 rounded-xl">{state.error}</p>
       )}
 
-      <div className="flex gap-2 pt-2">
+      <div className="flex flex-wrap gap-2 pt-2">
         <Button type="submit" disabled={isPending || !studentId || ayatOutOfRange} style={{ background: 'var(--primary)', borderColor: 'var(--primary)' }}>
           {isPending ? 'Menyimpan...' : 'Simpan Setoran'}
         </Button>
+        {lanjut?.(isPending || ayatOutOfRange)}
         <Button type="button" variant="outline" onClick={onCancel} disabled={isPending}>
           Batal
         </Button>
@@ -331,5 +338,28 @@ function ScoreFields() {
         </div>
       </div>
     </fieldset>
+  )
+}
+
+function TombolLanjut({ students, studentId, antrian, jenis, disabled }: {
+  students: { id: string; full_name: string }[]
+  studentId: string
+  antrian?: string[]
+  jenis: 'tahsin' | 'tahfidz'
+  disabled: boolean
+}) {
+  // Urutan: antrian dari layar Mulai sesi bila ada, selain itu urutan daftar siswa.
+  const ada = new Set(students.map(s => s.id))
+  const urut = antrian && antrian.length > 0 ? antrian.filter(id => ada.has(id)) : students.map(s => s.id)
+  const i = urut.indexOf(studentId)
+  const berikut = i >= 0 ? urut[i + 1] : urut.find(id => id !== studentId)
+  if (!studentId || !berikut) return null
+  const nama = students.find(s => s.id === berikut)?.full_name.split(' ')[0] ?? ''
+  const antrianQs = antrian && antrian.length > 0 ? `&antrian=${antrian.join(',')}` : ''
+  return (
+    <Button type="submit" name="lanjut" value={`/guru/setoran/${jenis}/baru?student=${berikut}${antrianQs}`}
+      variant="outline" size="lg" disabled={disabled}>
+      Simpan &amp; berikutnya{nama ? ` · ${nama}` : ''}
+    </Button>
   )
 }
