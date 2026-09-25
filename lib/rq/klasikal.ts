@@ -10,11 +10,12 @@ type Siswa = Pick<SiswaSesiTahsin, 'id' | 'jilid_id' | 'materi' | 'total_halaman
 
 /**
  * Kunci posisi: jilid + halaman buku, atau jilid + surat + ayat untuk tahap
- * mushaf. Tahap berbasis materi (Gharib, Tajwid) tidak bisa klasikal —
- * capaiannya per materi, bukan per halaman.
+ * mushaf. Tahap berbasis materi (Gharib, Tajwid) dikelompokkan per tahap saja:
+ * halamannya tidak bermakna, dan satu kelas biasanya menghafal materi yang sama.
  */
 export function kunciPosisi(s: Siswa): string | null {
-  if (!s.jilid_id || s.materi.length > 0) return null
+  if (!s.jilid_id) return null
+  if (s.materi.length > 0) return `m|${s.jilid_id}`
   if (s.total_halaman !== null) return s.halaman ? `b|${s.jilid_id}|${s.halaman}` : null
   if (s.baca_quran && s.quran.surat_id && s.quran.ayat) return `q|${s.jilid_id}|${s.quran.surat_id}|${s.quran.ayat}`
   return null
@@ -30,8 +31,12 @@ export function usulanKelompok(siswa: Siswa[]): string[][] {
   return [...per.values()].filter(ids => ids.length >= 2)
 }
 
+/**
+ * Semua anak berjilid boleh klasikal. Di tahap Gharib/Tajwid kelompoknya
+ * menyetor satu daftar materi bersama; pengecualian Ulang tetap per anak.
+ */
 export function bisaKlasikal(s: Siswa): boolean {
-  return Boolean(s.jilid_id) && s.materi.length === 0
+  return Boolean(s.jilid_id)
 }
 
 /**

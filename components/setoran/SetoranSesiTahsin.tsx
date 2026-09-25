@@ -20,6 +20,7 @@ import { PilihMateri, type PilihanMateri } from '@/components/setoran/PilihMater
 import type { SuratPilihan } from '@/components/setoran/SetoranSesiTahfidz'
 import type { SiswaSesiTahsin } from '@/lib/data/setoran-sesi'
 import type { KelompokKlasikal } from '@/lib/data/kelompok-klasikal'
+import type { HasilMateri } from '@/lib/data/materi-tahsin'
 import { anggotaDariPengaturan, usulanKelompok } from '@/lib/rq/klasikal'
 
 type Status = 'lulus' | 'ulang'
@@ -51,6 +52,8 @@ interface IsianKelompok {
   dipilih: boolean
   halaman: string
   quran: IsianBacaan
+  /** Materi bersama — hanya di tahap Gharib/Tajwid; halaman lalu diturunkan server. */
+  materi: PilihanMateri
   status: Status
   /** Nilai per anggota; tidak ada di peta = belum dinilai. */
   nilaiAnak: Record<string, { tahsin: number | null; sikap: number | null }>
@@ -93,7 +96,7 @@ function isianAwal(s: SiswaSesiTahsin, versi = 0): Isian {
 function kelompokAwal(anggota: SiswaSesiTahsin[], versi = 0): IsianKelompok {
   return {
     dipilih: false, halaman: '', quran: anggota[0] ? bacaanDari(anggota[0]) : BACAAN_KOSONG,
-    status: 'lulus', nilaiAnak: {}, catatan: '', versi,
+    materi: {}, status: 'lulus', nilaiAnak: {}, catatan: '', versi,
     absen: {}, statusAnak: {},
   }
 }
@@ -105,6 +108,24 @@ function kelompokAwal(anggota: SiswaSesiTahsin[], versi = 0): IsianKelompok {
 function kelompokOtomatis(siswa: SiswaSesiTahsin[]): Record<string, string | null> {
   const hasil: Record<string, string | null> = Object.fromEntries(siswa.map(s => [s.id, null]))
   usulanKelompok(siswa).forEach((ids, i) => { for (const id of ids) hasil[id] = `otomatis-${i}` })
+  return hasil
+}
+
+/**
+ * Keadaan materi kelompok: sebuah materi terhitung lulus hanya bila SEMUA
+ * anggota sudah lulus. Selain itu ambil keadaan anggota yang belum lulus, supaya
+ * materi yang masih berjalan bagi satu anak tetap muncul di daftar fokus.
+ */
+function hasilMateriKelompok(anak: SiswaSesiTahsin[]): Record<string, HasilMateri> {
+  const hasil: Record<string, HasilMateri> = {}
+  for (const m of anak[0]?.materi ?? []) {
+    const semua = anak.map(s => s.materi_hasil[m.id])
+    if (semua.every(h => h === 'lulus')) hasil[m.id] = 'lulus'
+    else {
+      const berjalan = semua.find(h => h === 'ulang' || h === 'lanjut')
+      if (berjalan) hasil[m.id] = berjalan
+    }
+  }
   return hasil
 }
 
@@ -183,13 +204,16 @@ export function SetoranSesiTahsin({ siswa, surat, halaqohId, pengaturan, tanggal
   function dasarKelompok(anak: SiswaSesiTahsin[]) {
     const wakil = anak[0]
     const halaman = modus(anak.map(s => s.halaman).filter((h): h is number => h !== null))
-    return { wakil, halaman, buku: wakil?.total_halaman !== null }
+    const pakaiMateri = (wakil?.materi.length ?? 0) > 0
+    return { wakil, halaman, buku: wakil?.total_halaman !== null && !pakaiMateri, pakaiMateri }
   }
 
   function labelKelompok(anak: SiswaSesiTahsin[], kunci?: string): string {
-    const { wakil, halaman, buku } = dasarKelompok(anak)
+    const { wakil, halaman, buku, pakaiMateri } = dasarKelompok(anak)
     if (!wakil) return ''
-    const posisi = buku
+    const posisi = pakaiMateri
+      ? `${wakil.jilid_label}`
+      : buku
       ? `${wakil.jilid_label} hal. ${halaman ?? '—'}`
       : `${wakil.jilid_label}${wakil.quran.surat_id ? ` · ${namaSurat(surat, wakil.quran.surat_id)}:${wakil.quran.ayat ?? ''}` : ''}`
     const nama = kunci ? namaKelompok.get(kunci) : undefined
@@ -252,7 +276,6 @@ export function SetoranSesiTahsin({ siswa, surat, halaqohId, pengaturan, tanggal
 
   /** Kelompok yang boleh didatangi anak ini: jilid sama, bentuk setoran sama. */
   function kelompokCocok(s: SiswaSesiTahsin) {
-    if (s.materi.length > 0) return []
     return daftarKelompok.filter(g => {
       const w = g.anggota[0]
       return w && w.jilid_id === s.jilid_id && (w.total_halaman !== null) === (s.total_halaman !== null)
@@ -285,16 +308,24 @@ export function SetoranSesiTahsin({ siswa, surat, halaqohId, pengaturan, tanggal
     for (const g of daftarKelompok) {
       const kg = kelompok[g.kunci]
       if (!kg?.dipilih) continue
-      const { halaman: dasar, buku } = dasarKelompok(g.anggota)
+      const { halaman: dasar, buku, pakaiMateri } = dasarKelompok(g.anggota)
+      if (pakaiMateri && Object.keys(kg.materi).length === 0) {
+        toast.error(`${labelKelompok(g.anggota, g.kunci)}: pilih minimal satu materi yang disetor.`)
+        return
+      }
       for (const s of g.anggota) {
         if (kg.absen[s.id]) continue
+        // Anggota yang ditandai Ulang tidak ikut meluluskan materi hari ini.
+        const ulang = (kg.statusAnak[s.id] ?? kg.status) === 'ulang'
         baris.push({
           student_id: s.id,
           method_id: s.method_id,
           jilid_id: s.jilid_id,
           halaman: buku ? (kg.halaman ? Number(kg.halaman) : dasar) : null,
           quran: keBacaanQuran(kg.quran),
-          materi: [],
+          materi: pakaiMateri
+            ? Object.entries(kg.materi).map(([materi_id, hasil]) => ({ materi_id, hasil: ulang && hasil === 'lulus' ? 'ulang' : hasil }))
+            : [],
           nilai_tahsin: kg.nilaiAnak[s.id]?.tahsin ?? null,
           nilai_sikap: kg.nilaiAnak[s.id]?.sikap ?? null,
           status: kg.statusAnak[s.id] ?? kg.status,
@@ -401,7 +432,7 @@ export function SetoranSesiTahsin({ siswa, surat, halaqohId, pengaturan, tanggal
       <ul className="space-y-2">
         {daftarKelompok.map(g => {
           const kg = kelompok[g.kunci]
-          const { wakil, halaman: dasar, buku } = dasarKelompok(g.anggota)
+          const { wakil, halaman: dasar, buku, pakaiMateri } = dasarKelompok(g.anggota)
           const hadir = g.anggota.filter(s => !kg.absen[s.id]).length
           const halamanTerakhir = buku && wakil?.total_halaman !== null &&
             Number(kg.halaman || dasar) >= (wakil?.total_halaman ?? Infinity)
@@ -437,8 +468,27 @@ export function SetoranSesiTahsin({ siswa, surat, halaqohId, pengaturan, tanggal
                         disabled={pending}
                       />
                     )}
-                    <TombolStatus value={kg.status} onChange={st => ubahKelompok(g.kunci, { status: st, statusAnak: {} })} />
+                    {!pakaiMateri && (
+                      <TombolStatus value={kg.status} onChange={st => ubahKelompok(g.kunci, { status: st, statusAnak: {} })} />
+                    )}
                   </div>
+
+                  {pakaiMateri && wakil && (
+                    <div className="rounded-xl border border-dashed p-2.5">
+                      <p className="mb-1.5 text-xs font-semibold">Materi {wakil.jilid_label} bersama</p>
+                      <PilihMateri
+                        key={`m-${kg.versi}`}
+                        materi={wakil.materi}
+                        hasilTerakhir={hasilMateriKelompok(g.anggota)}
+                        value={kg.materi}
+                        onChange={m => ubahKelompok(g.kunci, { materi: m })}
+                        disabled={pending}
+                      />
+                      <p className="mt-1.5 text-[11px] text-muted-foreground">
+                        Anggota yang ditandai Ulang di bawah tidak ikut meluluskan materi ini.
+                      </p>
+                    </div>
+                  )}
 
                   {wakil?.baca_quran && (
                     <div className="rounded-xl border border-dashed p-2.5">

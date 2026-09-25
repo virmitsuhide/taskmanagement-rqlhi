@@ -145,7 +145,7 @@ export function AturKelompokKlasikal({ halaqohId, siswa, kelompok }: {
                   <p className="truncate text-sm font-medium">{s.full_name}</p>
                   <p className="truncate text-[11px] text-muted-foreground">
                     {posisi(s)}{s.kelas ? ` · Kelas ${s.kelas}` : ''}
-                    {!boleh && ' · setor individual (tahap berbasis materi / belum berjilid)'}
+                    {!boleh && ' · setor individual (belum berjilid)'}
                   </p>
                 </div>
                 <select
