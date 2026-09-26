@@ -53,7 +53,7 @@ CREATE TYPE public.task_source AS ENUM ('rapat', 'mandiri', 'home_publik', 'huma
 CREATE TYPE public.task_status AS ENUM ('todo', 'in_progress', 'problem', 'submitted', 'done', 'returned');
 CREATE TYPE public.task_weight AS ENUM ('easy', 'medium', 'hard');
 CREATE TYPE public.teacher_employment AS ENUM ('tetap_yayasan', 'kontrak_yayasan', 'kontrak_rq');
-CREATE TYPE public.user_role AS ENUM ('kepala_rq', 'kumik', 'sdm', 'bendahara', 'koor_ekstra', 'koor_sd', 'koor_smp', 'humas', 'div_training', 'new_squad', 'koor_qulssd', 'div_quran_bpa', 'div_quran_bpi');
+CREATE TYPE public.user_role AS ENUM ('kepala_rq', 'kumik', 'sdm', 'bendahara', 'koor_ekstra', 'koor_sd', 'koor_smp', 'humas', 'div_training', 'new_squad', 'koor_qulssd', 'div_quran_bpa', 'div_quran_bpi', 'admin');
 
 -- ─── Sequence ──────────────────────────────────────────────────────────────
 
@@ -285,6 +285,68 @@ CREATE TABLE public.drizzle_migrations (
   id integer DEFAULT nextval('drizzle_migrations_id_seq'::regclass) NOT NULL,
   tag text NOT NULL,
   applied_at timestamp with time zone DEFAULT now()
+);
+
+CREATE TABLE public.ekstra_booking (
+  id uuid DEFAULT gen_random_uuid() NOT NULL,
+  slot_id uuid NOT NULL,
+  slot_tawaran_id uuid,
+  status text DEFAULT 'baru'::text NOT NULL,
+  nama_anak text NOT NULL,
+  asal text DEFAULT 'lhi'::text NOT NULL,
+  student_id uuid,
+  kelas text DEFAULT ''::text NOT NULL,
+  posisi_bacaan text DEFAULT ''::text NOT NULL,
+  nama_ortu text NOT NULL,
+  wa_ortu text NOT NULL,
+  catatan_ortu text DEFAULT ''::text NOT NULL,
+  catatan_koor text DEFAULT ''::text NOT NULL,
+  ditangani_oleh uuid,
+  ditangani_at timestamp with time zone,
+  mulai date,
+  berhenti date,
+  created_at timestamp with time zone DEFAULT now() NOT NULL,
+  updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+CREATE TABLE public.ekstra_hadir (
+  booking_id uuid NOT NULL,
+  tanggal date NOT NULL,
+  status absensi_status NOT NULL,
+  catatan text DEFAULT ''::text NOT NULL,
+  dicatat_oleh uuid,
+  created_at timestamp with time zone DEFAULT now() NOT NULL,
+  updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+CREATE TABLE public.ekstra_jenis (
+  id uuid DEFAULT gen_random_uuid() NOT NULL,
+  nama text NOT NULL,
+  bidang text DEFAULT 'tahsin'::text NOT NULL,
+  deskripsi text DEFAULT ''::text NOT NULL,
+  biaya integer DEFAULT 0 NOT NULL,
+  satuan_biaya text DEFAULT 'per bulan'::text NOT NULL,
+  kuota smallint DEFAULT 1 NOT NULL,
+  durasi_menit smallint DEFAULT 60 NOT NULL,
+  keterangan_waktu text DEFAULT ''::text NOT NULL,
+  aktif boolean DEFAULT true NOT NULL,
+  urutan smallint DEFAULT 0 NOT NULL,
+  created_at timestamp with time zone DEFAULT now() NOT NULL,
+  updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+CREATE TABLE public.ekstra_slot (
+  id uuid DEFAULT gen_random_uuid() NOT NULL,
+  jenis_id uuid NOT NULL,
+  teacher_id uuid NOT NULL,
+  hari smallint NOT NULL,
+  jam_mulai time without time zone NOT NULL,
+  jam_selesai time without time zone NOT NULL,
+  tempat text DEFAULT ''::text NOT NULL,
+  kuota smallint,
+  aktif boolean DEFAULT true NOT NULL,
+  created_at timestamp with time zone DEFAULT now() NOT NULL,
+  updated_at timestamp with time zone DEFAULT now() NOT NULL
 );
 
 CREATE TABLE public.employees (
@@ -733,7 +795,8 @@ CREATE TABLE public.meetings (
   created_at timestamp with time zone DEFAULT now(),
   updated_at timestamp with time zone DEFAULT now(),
   deleted_at timestamp with time zone,
-  deleted_by uuid
+  deleted_by uuid,
+  peserta_izin text[] DEFAULT '{}'::text[] NOT NULL
 );
 
 CREATE TABLE public.news_articles (
@@ -1061,7 +1124,8 @@ CREATE TABLE public.tahfidz_logs (
   nilai_tahfidz numeric(5,2),
   nilai_sikap numeric(5,2),
   surat_ke_id integer,
-  riyadhoh boolean DEFAULT false NOT NULL
+  riyadhoh boolean DEFAULT false NOT NULL,
+  ekstra_slot_id uuid
 );
 
 CREATE TABLE public.tahsin_log_materi (
@@ -1097,7 +1161,8 @@ CREATE TABLE public.tahsin_logs (
   quran_surat_id integer,
   quran_ayat_dari integer,
   quran_ayat_ke integer,
-  riyadhoh boolean DEFAULT false NOT NULL
+  riyadhoh boolean DEFAULT false NOT NULL,
+  ekstra_slot_id uuid
 );
 
 CREATE TABLE public.tahsin_materi (
@@ -1366,6 +1431,10 @@ ALTER TABLE public.agenda_items ADD CONSTRAINT agenda_items_pkey PRIMARY KEY (id
 ALTER TABLE public.batas_juz ADD CONSTRAINT batas_juz_pkey PRIMARY KEY (juz);
 ALTER TABLE public.content_requests ADD CONSTRAINT content_requests_pkey PRIMARY KEY (id);
 ALTER TABLE public.drizzle_migrations ADD CONSTRAINT drizzle_migrations_pkey PRIMARY KEY (id);
+ALTER TABLE public.ekstra_booking ADD CONSTRAINT ekstra_booking_pkey PRIMARY KEY (id);
+ALTER TABLE public.ekstra_hadir ADD CONSTRAINT ekstra_hadir_pkey PRIMARY KEY (booking_id, tanggal);
+ALTER TABLE public.ekstra_jenis ADD CONSTRAINT ekstra_jenis_pkey PRIMARY KEY (id);
+ALTER TABLE public.ekstra_slot ADD CONSTRAINT ekstra_slot_pkey PRIMARY KEY (id);
 ALTER TABLE public.employees ADD CONSTRAINT employees_pkey PRIMARY KEY (id);
 ALTER TABLE public.finance_accounts ADD CONSTRAINT finance_accounts_pkey PRIMARY KEY (id);
 ALTER TABLE public.finance_budgets ADD CONSTRAINT finance_budgets_pkey PRIMARY KEY (id);
@@ -1474,6 +1543,15 @@ ALTER TABLE public.about_rq ADD CONSTRAINT about_rq_id_check CHECK ((id = 1));
 ALTER TABLE public.academic_terms ADD CONSTRAINT academic_terms_rentang_masuk_akal CHECK ((end_date > start_date));
 ALTER TABLE public.agenda_items ADD CONSTRAINT agenda_items_approval_status_cek CHECK (((approval_status IS NULL) OR (approval_status = ANY (ARRAY['menunggu'::text, 'disetujui'::text, 'ditolak'::text]))));
 ALTER TABLE public.agenda_items ADD CONSTRAINT agenda_items_biaya_cek CHECK (((biaya IS NULL) OR (biaya >= 0)));
+ALTER TABLE public.ekstra_booking ADD CONSTRAINT ekstra_booking_asal_check CHECK ((asal = ANY (ARRAY['lhi'::text, 'luar'::text])));
+ALTER TABLE public.ekstra_booking ADD CONSTRAINT ekstra_booking_status_check CHECK ((status = ANY (ARRAY['baru'::text, 'ditawarkan'::text, 'aktif'::text, 'ditolak'::text, 'berhenti'::text])));
+ALTER TABLE public.ekstra_jenis ADD CONSTRAINT ekstra_jenis_biaya_check CHECK ((biaya >= 0));
+ALTER TABLE public.ekstra_jenis ADD CONSTRAINT ekstra_jenis_bidang_check CHECK ((bidang = ANY (ARRAY['tahsin'::text, 'tahfidz'::text, 'campuran'::text])));
+ALTER TABLE public.ekstra_jenis ADD CONSTRAINT ekstra_jenis_durasi_menit_check CHECK ((durasi_menit > 0));
+ALTER TABLE public.ekstra_jenis ADD CONSTRAINT ekstra_jenis_kuota_check CHECK ((kuota > 0));
+ALTER TABLE public.ekstra_slot ADD CONSTRAINT ekstra_slot_hari_check CHECK (((hari >= 1) AND (hari <= 7)));
+ALTER TABLE public.ekstra_slot ADD CONSTRAINT ekstra_slot_jam CHECK ((jam_selesai > jam_mulai));
+ALTER TABLE public.ekstra_slot ADD CONSTRAINT ekstra_slot_kuota_check CHECK (((kuota IS NULL) OR (kuota > 0)));
 ALTER TABLE public.finance_budgets ADD CONSTRAINT finance_budgets_amount_wajar CHECK ((amount >= 0));
 ALTER TABLE public.finance_budgets ADD CONSTRAINT finance_budgets_period_awal_bulan CHECK ((EXTRACT(day FROM period) = (1)::numeric));
 ALTER TABLE public.finance_funding ADD CONSTRAINT finance_funding_amount_positif CHECK ((amount > 0));
@@ -1565,6 +1643,14 @@ ALTER TABLE public.agenda_items ADD CONSTRAINT agenda_items_selesai_by_fkey FORE
 ALTER TABLE public.content_requests ADD CONSTRAINT content_requests_finished_by_users_id_fk FOREIGN KEY (finished_by) REFERENCES users(id);
 ALTER TABLE public.content_requests ADD CONSTRAINT content_requests_requested_by_users_id_fk FOREIGN KEY (requested_by) REFERENCES users(id);
 ALTER TABLE public.content_requests ADD CONSTRAINT content_requests_task_id_fkey FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE SET NULL;
+ALTER TABLE public.ekstra_booking ADD CONSTRAINT ekstra_booking_ditangani_oleh_fkey FOREIGN KEY (ditangani_oleh) REFERENCES users(id) ON DELETE SET NULL;
+ALTER TABLE public.ekstra_booking ADD CONSTRAINT ekstra_booking_slot_id_fkey FOREIGN KEY (slot_id) REFERENCES ekstra_slot(id) ON DELETE RESTRICT;
+ALTER TABLE public.ekstra_booking ADD CONSTRAINT ekstra_booking_slot_tawaran_id_fkey FOREIGN KEY (slot_tawaran_id) REFERENCES ekstra_slot(id) ON DELETE SET NULL;
+ALTER TABLE public.ekstra_booking ADD CONSTRAINT ekstra_booking_student_id_fkey FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE SET NULL;
+ALTER TABLE public.ekstra_hadir ADD CONSTRAINT ekstra_hadir_booking_id_fkey FOREIGN KEY (booking_id) REFERENCES ekstra_booking(id) ON DELETE CASCADE;
+ALTER TABLE public.ekstra_hadir ADD CONSTRAINT ekstra_hadir_dicatat_oleh_fkey FOREIGN KEY (dicatat_oleh) REFERENCES teachers(id) ON DELETE SET NULL;
+ALTER TABLE public.ekstra_slot ADD CONSTRAINT ekstra_slot_jenis_id_fkey FOREIGN KEY (jenis_id) REFERENCES ekstra_jenis(id) ON DELETE RESTRICT;
+ALTER TABLE public.ekstra_slot ADD CONSTRAINT ekstra_slot_teacher_id_fkey FOREIGN KEY (teacher_id) REFERENCES teachers(id) ON DELETE RESTRICT;
 ALTER TABLE public.employees ADD CONSTRAINT employees_linked_user_id_fkey FOREIGN KEY (linked_user_id) REFERENCES users(id) ON DELETE SET NULL;
 ALTER TABLE public.finance_budgets ADD CONSTRAINT finance_budgets_account_id_fkey FOREIGN KEY (account_id) REFERENCES finance_accounts(id) ON DELETE CASCADE;
 ALTER TABLE public.finance_budgets ADD CONSTRAINT finance_budgets_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE SET NULL;
@@ -1671,6 +1757,7 @@ ALTER TABLE public.students ADD CONSTRAINT students_current_jilid_id_fkey FOREIG
 ALTER TABLE public.students ADD CONSTRAINT students_current_method_id_fkey FOREIGN KEY (current_method_id) REFERENCES tahsin_methods(id) ON DELETE SET NULL;
 ALTER TABLE public.students ADD CONSTRAINT students_current_quran_surat_id_fkey FOREIGN KEY (current_quran_surat_id) REFERENCES surat_master(id) ON DELETE SET NULL;
 ALTER TABLE public.students ADD CONSTRAINT students_halaqoh_id_fkey FOREIGN KEY (halaqoh_id) REFERENCES halaqoh(id) ON DELETE SET NULL;
+ALTER TABLE public.tahfidz_logs ADD CONSTRAINT tahfidz_logs_ekstra_slot_id_fkey FOREIGN KEY (ekstra_slot_id) REFERENCES ekstra_slot(id) ON DELETE SET NULL;
 ALTER TABLE public.tahfidz_logs ADD CONSTRAINT tahfidz_logs_halaqoh_id_fkey FOREIGN KEY (halaqoh_id) REFERENCES halaqoh(id) ON DELETE SET NULL;
 ALTER TABLE public.tahfidz_logs ADD CONSTRAINT tahfidz_logs_student_id_fkey FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE;
 ALTER TABLE public.tahfidz_logs ADD CONSTRAINT tahfidz_logs_surat_id_fkey FOREIGN KEY (surat_id) REFERENCES surat_master(id) ON DELETE RESTRICT;
@@ -1679,6 +1766,7 @@ ALTER TABLE public.tahfidz_logs ADD CONSTRAINT tahfidz_logs_teacher_id_fkey FORE
 ALTER TABLE public.tahsin_log_materi ADD CONSTRAINT tahsin_log_materi_log_id_fkey FOREIGN KEY (log_id) REFERENCES tahsin_logs(id) ON DELETE CASCADE;
 ALTER TABLE public.tahsin_log_materi ADD CONSTRAINT tahsin_log_materi_materi_id_fkey FOREIGN KEY (materi_id) REFERENCES tahsin_materi(id) ON DELETE RESTRICT;
 ALTER TABLE public.tahsin_log_materi ADD CONSTRAINT tahsin_log_materi_student_id_fkey FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE;
+ALTER TABLE public.tahsin_logs ADD CONSTRAINT tahsin_logs_ekstra_slot_id_fkey FOREIGN KEY (ekstra_slot_id) REFERENCES ekstra_slot(id) ON DELETE SET NULL;
 ALTER TABLE public.tahsin_logs ADD CONSTRAINT tahsin_logs_halaqoh_id_fkey FOREIGN KEY (halaqoh_id) REFERENCES halaqoh(id) ON DELETE SET NULL;
 ALTER TABLE public.tahsin_logs ADD CONSTRAINT tahsin_logs_jilid_id_fkey FOREIGN KEY (jilid_id) REFERENCES jilid_levels(id) ON DELETE SET NULL;
 ALTER TABLE public.tahsin_logs ADD CONSTRAINT tahsin_logs_method_id_fkey FOREIGN KEY (method_id) REFERENCES tahsin_methods(id) ON DELETE SET NULL;
@@ -1721,6 +1809,10 @@ ALTER TABLE public.verifikasi_riwayat_tahfidz ADD CONSTRAINT verifikasi_riwayat_
 CREATE INDEX absensi_harian_halaqoh_tanggal_idx ON public.absensi_harian USING btree (halaqoh_id, tanggal);
 CREATE UNIQUE INDEX academic_terms_satu_yang_berjalan ON public.academic_terms USING btree (is_current) WHERE is_current;
 CREATE INDEX agenda_items_papan_idx ON public.agenda_items USING btree (tag) WHERE (diarsipkan_at IS NULL);
+CREATE INDEX ekstra_booking_slot_idx ON public.ekstra_booking USING btree (slot_id) WHERE (status = 'aktif'::text);
+CREATE INDEX ekstra_booking_status_idx ON public.ekstra_booking USING btree (status, created_at);
+CREATE INDEX ekstra_booking_wa_idx ON public.ekstra_booking USING btree (wa_ortu, created_at);
+CREATE INDEX ekstra_slot_teacher_idx ON public.ekstra_slot USING btree (teacher_id) WHERE aktif;
 CREATE UNIQUE INDEX employees_linked_user_id_unik ON public.employees USING btree (linked_user_id) WHERE ((linked_user_id IS NOT NULL) AND (deleted_at IS NULL));
 CREATE UNIQUE INDEX employees_username_unik ON public.employees USING btree (username) WHERE (deleted_at IS NULL);
 CREATE INDEX finance_accounts_order_idx ON public.finance_accounts USING btree (kind, display_order);
@@ -1788,6 +1880,7 @@ CREATE INDEX students_tahsin_drill_idx ON public.students USING btree (tahsin_dr
 CREATE INDEX idx_tahfidz_logs_student ON public.tahfidz_logs USING btree (student_id, setoran_date DESC);
 CREATE INDEX idx_tahfidz_logs_surat ON public.tahfidz_logs USING btree (surat_id);
 CREATE INDEX idx_tahfidz_logs_teacher_date ON public.tahfidz_logs USING btree (teacher_id, setoran_date DESC);
+CREATE INDEX tahfidz_logs_ekstra_idx ON public.tahfidz_logs USING btree (ekstra_slot_id, setoran_date) WHERE (ekstra_slot_id IS NOT NULL);
 CREATE INDEX tahfidz_logs_riyadhoh_idx ON public.tahfidz_logs USING btree (student_id, setoran_date) WHERE riyadhoh;
 CREATE INDEX tahfidz_logs_siswa_tanggal_idx ON public.tahfidz_logs USING btree (student_id, setoran_date);
 CREATE INDEX tahsin_log_materi_log_idx ON public.tahsin_log_materi USING btree (log_id);
@@ -1796,6 +1889,7 @@ CREATE INDEX tahsin_log_materi_terakhir_idx ON public.tahsin_log_materi USING bt
 CREATE INDEX idx_tahsin_logs_date ON public.tahsin_logs USING btree (setoran_date DESC);
 CREATE INDEX idx_tahsin_logs_student ON public.tahsin_logs USING btree (student_id, setoran_date DESC);
 CREATE INDEX idx_tahsin_logs_teacher_date ON public.tahsin_logs USING btree (teacher_id, setoran_date DESC);
+CREATE INDEX tahsin_logs_ekstra_idx ON public.tahsin_logs USING btree (ekstra_slot_id, setoran_date) WHERE (ekstra_slot_id IS NOT NULL);
 CREATE INDEX tahsin_logs_quran_idx ON public.tahsin_logs USING btree (student_id, setoran_date DESC) WHERE (quran_halaman IS NOT NULL);
 CREATE INDEX tahsin_logs_riyadhoh_idx ON public.tahsin_logs USING btree (student_id, setoran_date) WHERE riyadhoh;
 CREATE INDEX tahsin_logs_siswa_tanggal_idx ON public.tahsin_logs USING btree (student_id, setoran_date);
@@ -1857,6 +1951,10 @@ ALTER TABLE public.agenda_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.batas_juz ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.content_requests ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.drizzle_migrations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.ekstra_booking ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.ekstra_hadir ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.ekstra_jenis ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.ekstra_slot ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.employees ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.finance_accounts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.finance_budgets ENABLE ROW LEVEL SECURITY;
@@ -1943,6 +2041,7 @@ COMMENT ON COLUMN public.jilid_levels.baca_quran IS 'Tahap ini ikut mencatat bac
    semua tahap is_quran, dan untuk Gharib & Tajwid UMMI yang bukunya dihafal
    sambil anak tetap membaca Al-Qur''an.';
 COMMENT ON COLUMN public.jilid_promotions.source_log_id IS 'Setoran yang menyebabkan kenaikan ini. Dihapusnya setoran ikut menghapus kenaikan lewat CASCADE. NULL untuk kenaikan yang dicatat manual.';
+COMMENT ON COLUMN public.meetings.peserta_izin IS 'Nama peserta yang izin/tidak hadir. participants = yang hadir.';
 COMMENT ON COLUMN public.public_posts.image_url IS 'Url publik gambar/flyer post (bucket news-images, folder pengumuman/). NULL = tanpa gambar.';
 COMMENT ON COLUMN public.rapor_templates.ttd_koordinator_path IS 'Path objek di bucket signatures (tertutup). NULL = ruang tanda tangan
    dibiarkan kosong untuk ditandatangani basah.';
