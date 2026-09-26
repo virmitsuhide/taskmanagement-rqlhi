@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { createServerClient } from '@/lib/supabase/server'
 import { getSession } from '@/lib/auth/session'
 import { AMANAH_LABELS, ROLE_LABELS, canManagePengurus, JABATAN_ORDER } from '@/lib/auth/permissions'
+import { pindahkanProfilAkun } from '@/lib/data/pengurus'
 import type { UserRole } from '@/types'
 
 /**
@@ -102,6 +103,9 @@ export async function setPemegangAmanahAction(_: unknown, formData: FormData) {
       .update({ linked_user_id: userId })
       .eq('id', orangId)
     if (duduk.error) return { error: pesanGalat(duduk.error.message) }
+
+    // Isian profil yang diketik di akun sebelum kursinya ditetapkan ikut pindah.
+    await pindahkanProfilAkun(userId, sumber, orangId)
 
     const { data: orang } = await supabase
       .from(sumber)

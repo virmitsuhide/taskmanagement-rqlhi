@@ -140,15 +140,15 @@ export default async function ProfilPage() {
             {/*
               Kursinya belum ditetapkan. Formnya tetap dibuka supaya profil tidak
               terkunci total, tapi statusnya dinyatakan terus terang: begitu
-              kepala RQ menetapkan nama, halaman ini berganti membaca rekam guru
-              orang tersebut dan isian di bawah tidak lagi ditampilkan.
+              admin menetapkan nama, isian ini dipindahkan ke rekam guru orang
+              tersebut (pindahkanProfilAkun) dan halaman beralih membacanya.
             */}
             <div className="rounded-xl border border-warning/40 bg-warning/5 px-4 py-3 text-xs leading-relaxed">
-              <p className="font-semibold">Amanah {amanah} belum ditetapkan Kepala RQ.</p>
+              <p className="font-semibold">Pemegang amanah {amanah} belum ditetapkan admin.</p>
               <p className="mt-1 text-muted-foreground">
-                Selama belum ditetapkan, data di bawah tersimpan di akun ini. Setelah Kepala RQ
-                memilih nama pemegangnya lewat menu Pengurus, halaman ini akan menampilkan profil
-                dari rekam guru orang tersebut.
+                Selama belum ditetapkan, data di bawah tersimpan di akun ini. Setelah admin
+                memilih nama pemegangnya lewat menu Pengurus, isian ini ikut dipindahkan ke rekam
+                guru orang tersebut, dan halaman ini menampilkan profil dari sana.
               </p>
             </div>
             <PengurusProfileForm profile={profile} amanahLabel={amanah} />

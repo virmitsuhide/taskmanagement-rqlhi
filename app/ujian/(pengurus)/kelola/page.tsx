@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/auth/session'
-import { canViewUjian, getUjianUnits } from '@/lib/auth/permissions'
+import { canViewUjian, getUjianUnits, getUnitBebanPenguji } from '@/lib/auth/permissions'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { KelolaUjian } from '@/components/ujian/KelolaUjian'
 import { KalenderUjian } from '@/components/ujian/KalenderUjian'
@@ -33,11 +33,16 @@ export default async function KelolaUjianPage({ searchParams }: PageProps) {
   const hariIni = tanggalWIB(new Date())
   const [tahun, bulan] = hariIni.split('-').map(Number)
 
-  const [{ tahfidz, tahsin }, pengujis, kalender] = await Promise.all([
-    getPengajuanUjian(units),
+  // Beban penguji bisa mencakup unit sebelah (SD ↔ SMP); antrean yang
+  // dikelola tetap hanya unit sendiri. Satu query untuk keduanya.
+  const unitBeban = getUnitBebanPenguji(session.role)
+  const [semua, pengujis, kalender] = await Promise.all([
+    getPengajuanUjian(unitBeban),
     getPengujis(),
     getKalenderUjian(units, tahun, bulan),
   ])
+  const tahfidz = semua.tahfidz.filter(u => units.includes(u.unit))
+  const tahsin = semua.tahsin.filter(u => units.includes(u.unit))
 
   const namaPengaju = await getNamaPengaju([...tahfidz, ...tahsin])
   const total = tahfidz.length + tahsin.length
@@ -90,7 +95,7 @@ export default async function KelolaUjianPage({ searchParams }: PageProps) {
             />
           </div>
           <aside className="space-y-4">
-            <BebanPenguji tahfidz={tahfidz} tahsin={tahsin} />
+            <BebanPenguji tahfidz={semua.tahfidz} tahsin={semua.tahsin} units={unitBeban} />
           </aside>
         </div>
       </div>

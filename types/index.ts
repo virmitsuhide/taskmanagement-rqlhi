@@ -15,6 +15,11 @@ export type UserRole =
   | 'div_quran_bpa'
   /** Divisi Qur'an Boarding Putri — membina santri asrama putri SMPIT LHI. */
   | 'div_quran_bpi'
+  /**
+   * Admin sistem — BUKAN jabatan pengurus. Hanya mengelola penempatan
+   * pengurus, akun & password, dan data karyawan (migrasi 0090).
+   */
+  | 'admin'
 
 export type MeetingType =
   | 'manajemen'
@@ -912,6 +917,8 @@ export type HomeSectionKey =
   | 'news'
   | 'program'
   | 'profil_guru'
+  /** Jenis ekstra tahsin & tahfidz yang sedang membuka jadwal (0091). */
+  | 'ekstra'
 
 export interface HomeSection {
   key: HomeSectionKey

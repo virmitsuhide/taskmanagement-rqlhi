@@ -1,10 +1,10 @@
-import { BookMarked, BookOpen, Target } from 'lucide-react'
+import { Target } from 'lucide-react'
 import { capaianSemua, kurikulumBulan } from '@/lib/data/analitik-cache'
 import { BELUM_TERCATAT, type MatriksCapaian } from '@/lib/data/capaian-kelas'
 import { JENJANG_LABELS } from '@/lib/auth/permissions'
 import { formatPeriod, monthName } from '@/lib/finance/period'
 import { Panel, GroupLabel } from '@/components/dashboard/kit'
-import { MatriksCapaianTable } from '@/components/dashboard/MatriksCapaianTable'
+import { CapaianKelompokPanel, PerbandinganJalur } from '@/components/dashboard/CapaianKelompok'
 import { Seksi, Kunci, type InfoSeksi } from './seksi'
 import type { Jenjang } from '@/types'
 
@@ -27,20 +27,21 @@ export async function SeksiCapaian({ info, jenjang, fokus, bulan }: {
   const [capaian, kurikulum] = await Promise.all([capaianSemua(), kurikulumBulan(bulan)])
   const kelompok = capaian.kelompok.filter(k => !jenjang || k.jenjang === jenjang)
   const angkatan = kurikulum.rows.filter(r => !jenjang || r.jenjang === jenjang)
+  const unit = [...new Set(kelompok.map(k => k.jenjang))]
 
   const siswa = kelompok.reduce((n, k) => n + k.siswa, 0)
-  const persen = (pilih: (k: typeof kelompok[number]) => MatriksCapaian) => {
-    const maju = kelompok.reduce((n, k) => n + pilih(k).maju, 0)
-    const tercatat = kelompok.reduce((n, k) => n + pilih(k).total - belum(pilih(k)), 0)
-    return tercatat > 0 ? `${Math.round((maju / tercatat) * 100)}%` : '—'
+  const persen = (pilih: (k: typeof kelompok[number]) => MatriksCapaian[]) => {
+    const capai = kelompok.reduce((n, k) => n + pilih(k).reduce((a, m) => a + m.maju, 0), 0)
+    const target = kelompok.reduce((n, k) => n + pilih(k).reduce((a, m) => a + (m.bertarget ?? 0), 0), 0)
+    return target > 0 ? `${Math.round((capai / target) * 100)}%` : '—'
   }
-  const belumTotal = kelompok.reduce((n, k) => n + belum(k.tahsin) + belum(k.tahfidz), 0)
+  const belumTotal = kelompok.reduce((n, k) => n + belum(k.tahsin) + k.tahfidz.reduce((a, m) => a + belum(m), 0), 0)
 
   if (kelompok.length === 0) {
     return (
       <Seksi info={info} judul="Capaian per Kelas" pertanyaan="Di jilid dan juz mana siswa tiap kelas berada?">
         <p className="rounded-2xl border border-dashed p-6 text-center text-sm text-muted-foreground bg-muted/30">
-          Matriks capaian per kelas tersedia untuk SDIT (CLIL, QULS) dan SMPIT. Unit ini belum termasuk.
+          Belum ada siswa aktif di unit ini.
         </p>
       </Seksi>
     )
@@ -51,33 +52,34 @@ export async function SeksiCapaian({ info, jenjang, fokus, bulan }: {
       info={info}
       judul="Capaian per Kelas"
       pertanyaan="Di jilid dan juz mana siswa tiap kelas berada?"
-      catatan="posisi hari ini"
+      catatan="setoran terakhir"
       kunci={
         <>
           <Kunci label="Siswa" nilai={siswa.toLocaleString('id-ID')} />
-          {fokus !== 'tahfidz' && <Kunci label="Sudah Al-Qur'an" nilai={persen(k => k.tahsin)} />}
-          {fokus !== 'tahsin' && <Kunci label="Lewat Juz 30" nilai={persen(k => k.tahfidz)} />}
-          <Kunci label="Belum tercatat" nilai={belumTotal.toLocaleString('id-ID')} nada={belumTotal > 0 ? 'waspada' : 'baik'} />
+          {fokus !== 'tahfidz' && <Kunci label="Capai target tahsin" nilai={persen(k => [k.tahsin])} />}
+          {fokus !== 'tahsin' && <Kunci label="Capai target tahfidz" nilai={persen(k => k.tahfidz)} />}
+          <Kunci label="Belum ada setoran" nilai={belumTotal.toLocaleString('id-ID')} nada={belumTotal > 0 ? 'waspada' : 'baik'} />
         </>
       }
     >
-      {kelompok.map(k => (
-        <div key={k.kode} className="space-y-3">
-          <GroupLabel note={`${k.keterangan} · ${k.siswa.toLocaleString('id-ID')} siswa${k.metode.length ? ` · ${k.metode.join(', ')}` : ''}`}>
-            {k.judul}
-          </GroupLabel>
-          {fokus !== 'tahfidz' && (
-            <Panel title="Tahsin" icon={<BookOpen className="h-4 w-4" />} sub="Jilid/tahap yang sedang dijalani">
-              <MatriksCapaianTable matriks={k.tahsin} kosong={kosongDari(k.kode, k.judul)} />
-            </Panel>
-          )}
-          {fokus !== 'tahsin' && (
-            <Panel title="Tahfidz" icon={<BookMarked className="h-4 w-4" />} sub="Juz yang sedang dihafal — setoran & ujian, yang terjauh">
-              <MatriksCapaianTable matriks={k.tahfidz} kosong={kosongDari(k.kode, k.judul)} />
-            </Panel>
-          )}
-        </div>
-      ))}
+      {unit.map(u => {
+        const diUnit = kelompok.filter(k => k.jenjang === u)
+        const reguler = diUnit.find(k => k.jalur === 'reguler')
+        const quls = diUnit.find(k => k.jalur === 'quls')
+        return (
+          <div key={u} className="space-y-4">
+            {reguler && quls && <PerbandinganJalur reguler={reguler} quls={quls} tampil={fokus} />}
+            {diUnit.map(k => (
+              <div key={k.kode} className="space-y-3">
+                <GroupLabel note={`${k.keterangan} · ${k.siswa.toLocaleString('id-ID')} siswa${k.metode.length ? ` · ${k.metode.join(', ')}` : ''}`}>
+                  {k.judul}
+                </GroupLabel>
+                <CapaianKelompokPanel k={k} tampil={fokus} />
+              </div>
+            ))}
+          </div>
+        )
+      })}
 
       {fokus !== 'tahfidz' && angkatan.length > 0 && (
         <Panel
@@ -96,12 +98,6 @@ export async function SeksiCapaian({ info, jenjang, fokus, bulan }: {
 function belum(m: MatriksCapaian): number {
   const i = m.kolom.indexOf(BELUM_TERCATAT)
   return i === -1 ? 0 : m.jumlahKolom[i]
-}
-
-function kosongDari(kode: string, judul: string): string {
-  return kode === 'quls'
-    ? 'Belum ada siswa SDIT yang ditandai program QULS. Tandai programnya di data siswa agar kelas QULS muncul di sini.'
-    : `Belum ada siswa aktif di ${judul}.`
 }
 
 /**

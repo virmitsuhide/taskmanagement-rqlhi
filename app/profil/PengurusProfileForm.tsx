@@ -168,7 +168,7 @@ export function PengurusProfileForm({ profile, amanahLabel }: Props) {
             <Input id="nip" name="nip" defaultValue={profile.nip ?? ''} />
           </div>
           {/*
-            Amanah bukan lagi isian. Ia ditetapkan Kepala RQ lewat menu Pengurus
+            Amanah bukan lagi isian. Ia ditetapkan admin lewat menu Pengurus
             dan diturunkan dari role akun, jadi yang tampil di sini hanya
             cerminannya — tanpa name=, sehingga tidak ikut terkirim ke server.
           */}

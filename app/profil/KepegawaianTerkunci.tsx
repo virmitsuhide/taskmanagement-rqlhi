@@ -7,7 +7,7 @@ import type { SumberAmanah } from '@/lib/data/pengurus'
 /**
  * Data yang tidak bisa diubah pengurus dari halaman profilnya.
  *
- * Ditampilkan, bukan disembunyikan. Amanah ditetapkan Kepala RQ; unit, TMT,
+ * Ditampilkan, bukan disembunyikan. Amanah ditetapkan admin; unit, TMT,
  * NIP, dan jenis kepegawaian dipegang SDM karena ketiganya menentukan rubrik
  * KPI dan masa kerja yang tercetak di rapor. Kalau ada yang keliru, pemiliknya
  * perlu melihatnya untuk bisa melaporkannya.
@@ -28,7 +28,7 @@ export function KepegawaianTerkunci({
     <section className="mb-6 rounded-xl border bg-muted/30 p-4">
       <p className="mb-2 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
         <Lock className="h-3.5 w-3.5" />
-        Ditetapkan Kepala RQ &amp; SDM — sampaikan bila ada yang keliru
+        Ditetapkan admin &amp; SDM — sampaikan bila ada yang keliru
       </p>
       <div className="grid gap-x-6 gap-y-1 text-sm sm:grid-cols-2">
         <Baris label="Amanah saat ini" value={amanah} tebal />

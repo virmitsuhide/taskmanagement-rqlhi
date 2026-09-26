@@ -1,3 +1,4 @@
+import { idSetoranEkstra } from '@/lib/data/ekstra'
 import { createServerClient } from '@/lib/supabase/server'
 import { getHalaqohSesiGuru, type HalaqohSesi } from '@/lib/data/setoran-sesi'
 import { getPetaHalaman } from '@/lib/data/target-tahfidz'
@@ -67,17 +68,17 @@ export async function getLaporanOrtu(
   const waktuDari = `${periode.dari}T00:00:00+07:00`
   const waktuSampai = `${besok(periode.sampai)}T00:00:00+07:00`
   const kosong = <T,>() => Promise.resolve([] as T[])
-  type LogTahsin = { student_id: string; setoran_date: string; status: string; drill: boolean | null }
-  type LogTahfidz = { student_id: string; setoran_date: string; kind: string; surat_id: number; ayat_dari: number | null; surat_ke_id: number | null; ayat_ke: number | null }
+  type LogTahsin = { id: string; student_id: string; setoran_date: string; status: string; drill: boolean | null }
+  type LogTahfidz = { id: string; student_id: string; setoran_date: string; kind: string; surat_id: number; ayat_dari: number | null; surat_ke_id: number | null; ayat_ke: number | null }
   type Ziyadah = { student_id: string; surat_id: number; ayat_dari: number | null; ayat_ke: number | null; setoran_date: string; created_at: string }
 
-  const [guruRes, tahsin, tahfidz, ziyadahSemua, progres, juzTeruji, ujianTf, ujianTs, peta, surat] = await Promise.all([
+  const [guruRes, tahsinSemua, tahfidzSemua, ziyadahSemua, progres, juzTeruji, ujianTf, ujianTs, peta, surat, logEkstra] = await Promise.all([
     supabase.from('teachers').select('full_name, sapaan, nickname, signature_path').eq('id', teacherId).maybeSingle(),
     ids.length ? ambilSemua<LogTahsin>((a, b) =>
-      supabase.from('tahsin_logs').select('student_id, setoran_date, status, drill')
+      supabase.from('tahsin_logs').select('id, student_id, setoran_date, status, drill')
         .in('student_id', ids).gte('setoran_date', periode.dari).lte('setoran_date', periode.sampai).range(a, b)) : kosong<LogTahsin>(),
     ids.length ? ambilSemua<LogTahfidz>((a, b) =>
-      supabase.from('tahfidz_logs').select('student_id, setoran_date, kind, surat_id, ayat_dari, surat_ke_id, ayat_ke')
+      supabase.from('tahfidz_logs').select('id, student_id, setoran_date, kind, surat_id, ayat_dari, surat_ke_id, ayat_ke')
         .in('student_id', ids).gte('setoran_date', periode.dari).lte('setoran_date', periode.sampai).range(a, b)) : kosong<LogTahfidz>(),
     // Setoran ziyadah terakhir sepanjang masa — posisi hafalan hari ini.
     ids.length ? ambilSemua<Ziyadah>((a, b) =>
@@ -96,7 +97,11 @@ export async function getLaporanOrtu(
       .gte('jadwal', waktuDari).lt('jadwal', waktuSampai),
     getPetaHalaman(),
     getInfoSurat(),
+    // Setoran pertemuan ekstra (0091) masuk laporan ekstra, bukan laporan halaqoh.
+    idSetoranEkstra(ids, periode.dari, periode.sampai),
   ])
+  const tahsin = tahsinSemua.filter(l => !logEkstra.tahsin.has(l.id))
+  const tahfidz = tahfidzSemua.filter(l => !logEkstra.tahfidz.has(l.id))
 
   const guru = guruRes.data as { full_name: string; sapaan: string | null; nickname: string | null; signature_path: string | null } | null
   const ttdUrl = await ttdSrc(guru?.signature_path).catch(() => null)

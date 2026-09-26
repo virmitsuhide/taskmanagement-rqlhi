@@ -22,7 +22,12 @@ const ADMIN_PREFIXES = [
   '/ujian/ajukan',
   '/ujian/riwayat',
   '/ujian/penguji',
+  // Sisi koordinator Ekstra. Pendaftaran orang tua ada di /daftar-ekstra (publik).
+  '/ekstra',
 ]
+
+/** Halaman publik yang kebetulan berawalan sama dengan route pengurus. */
+const PUBLIK = ['/profil-guru']
 
 // Route guru (pakai cookie rqlhi-teacher-session)
 // /guru/login dikecualikan dari guard.
@@ -62,7 +67,10 @@ export async function proxy(request: NextRequest) {
   }
 
   // ── Admin routes ───────────────────────────────────────────────
-  const isAdminProtected = ADMIN_PREFIXES.some(p => pathname.startsWith(p))
+  // '/profil' juga mencocokkan '/profil-guru' — halaman publik daftar guru
+  // (dan pintu booking ekstra). Dikecualikan tegas, bukan dengan mengubah
+  // cara pencocokan semua awalan.
+  const isAdminProtected = ADMIN_PREFIXES.some(p => pathname.startsWith(p)) && !PUBLIK.some(p => pathname === p || pathname.startsWith(`${p}/`))
   if (!isAdminProtected) return NextResponse.next()
 
   const token = request.cookies.get('rqlhi-session')?.value
@@ -72,8 +80,17 @@ export async function proxy(request: NextRequest) {
     response.cookies.delete('rqlhi-session')
     return response
   }
+
+  // Akun admin bukan pengurus: di wilayah pengurus ia hanya boleh ke
+  // berandanya sendiri dan profil. Pengurus, Akun, Karyawan berada di luar
+  // ADMIN_PREFIXES dan dijaga halamannya masing-masing.
+  if (payload.role === 'admin' && !BOLEH_ADMIN.some(p => pathname === p || pathname.startsWith(`${p}/`))) {
+    return NextResponse.redirect(new URL('/dashboard/admin', request.url))
+  }
   return NextResponse.next()
 }
+
+const BOLEH_ADMIN = ['/dashboard/admin', '/profil']
 
 export const config: ProxyConfig = {
   matcher: [

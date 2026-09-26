@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation'
 import { createServerClient } from '@/lib/supabase/server'
 import { getTeacherSession } from '@/lib/auth/teacher-session'
 import { aksesSetoran } from '@/lib/data/riyadhoh'
+import { bolehEkstra } from '@/lib/data/ekstra'
 import { catatDrillSetelahZiyadah } from '@/lib/data/drill-tahfidz'
 import { bolehLintasSurat, periksaRentang } from '@/lib/rq/rentang-surat'
 import { periksaBacaanQuran, posisiLanjut, type BacaanQuran } from '@/lib/rq/bacaan-quran'
@@ -109,6 +110,8 @@ export interface InputSetoranTahsin {
   setoran_date: string
   /** Guru sudah melihat perbandingan dan setuju menimpa setoran hari itu. */
   timpa?: boolean
+  /** Setoran pertemuan EKSTRA (0091): slot tempat setoran ini dicatat. */
+  ekstra_slot_id?: string | null
 }
 
 /**
@@ -126,8 +129,13 @@ async function simpanSetoranTahsin(teacherId: string, input: InputSetoranTahsin)
   const { student_id: studentId, method_id: methodId, jilid_id: jilidId, halaman, status } = input
 
   // Guru halaqoh siswa ini, atau pengampu Riyadhoh pada Sabtu kelompoknya.
-  const akses = await aksesSetoran(teacherId, studentId, input.setoran_date)
-  if (!akses) return 'Anda tidak mengampu siswa ini.'
+  // Jalur ekstra dicek terpisah: pengampu slot ekstra bukan guru halaqoh anak,
+  // dan setorannya ditandai supaya tidak masuk laporan orang tua halaqoh.
+  const ekstraSlotId = input.ekstra_slot_id || null
+  const akses = ekstraSlotId
+    ? ((await bolehEkstra(teacherId, studentId, ekstraSlotId, input.setoran_date)) ? 'ekstra' as const : null)
+    : await aksesSetoran(teacherId, studentId, input.setoran_date)
+  if (!akses) return ekstraSlotId ? 'Anak ini bukan peserta aktif slot ekstra Anda.' : 'Anda tidak mengampu siswa ini.'
 
   if (!jilidId) return 'Jilid wajib dipilih.'
 
@@ -275,10 +283,10 @@ async function simpanSetoranTahsin(teacherId: string, input: InputSetoranTahsin)
       nilai: input.nilai_tahsin,
       sikap: input.nilai_sikap,
       catatan: input.catatan,
-    })
+    }, ekstraSlotId)
     if (ganda) return { ganda }
   } else {
-    const hasil = await arsipkanTahsinSamaHari(supabase, teacherId, studentId, input.setoran_date)
+    const hasil = await arsipkanTahsinSamaHari(supabase, teacherId, studentId, input.setoran_date, ekstraSlotId)
     if ('galat' in hasil) return hasil.galat
     arsipIds = hasil.arsipIds
     if (arsipIds.length > 0) {
@@ -302,6 +310,7 @@ async function simpanSetoranTahsin(teacherId: string, input: InputSetoranTahsin)
     // hanya ditandai asalnya (0087). Tidak disebut bila bukan Riyadhoh,
     // supaya setoran sekolah tetap tersimpan sebelum 0087 dijalankan.
     ...(akses === 'riyadhoh' ? { riyadhoh: true } : {}),
+    ...(akses === 'ekstra' ? { ekstra_slot_id: ekstraSlotId } : {}),
     method_id: methodId,
     jilid_id: jilidId,
     halaman: halamanTersimpan,
@@ -539,6 +548,8 @@ export interface InputSetoranTahfidz {
   setoran_date: string
   /** Lihat InputSetoranTahsin.timpa. */
   timpa?: boolean
+  /** Lihat InputSetoranTahsin.ekstra_slot_id. */
+  ekstra_slot_id?: string | null
 }
 
 const JENIS_SETORAN_TAHFIDZ: TahfidzKind[] = ['ziyadah', 'murojaah_baru', 'murojaah_lama']
@@ -547,8 +558,13 @@ async function simpanSetoranTahfidz(teacherId: string, input: InputSetoranTahfid
   const { student_id: studentId, surat_id: suratId, ayat_dari: ayatDari, ayat_ke: ayatKe } = input
 
   // Guru halaqoh siswa ini, atau pengampu Riyadhoh pada Sabtu kelompoknya.
-  const akses = await aksesSetoran(teacherId, studentId, input.setoran_date)
-  if (!akses) return 'Anda tidak mengampu siswa ini.'
+  // Jalur ekstra dicek terpisah: pengampu slot ekstra bukan guru halaqoh anak,
+  // dan setorannya ditandai supaya tidak masuk laporan orang tua halaqoh.
+  const ekstraSlotId = input.ekstra_slot_id || null
+  const akses = ekstraSlotId
+    ? ((await bolehEkstra(teacherId, studentId, ekstraSlotId, input.setoran_date)) ? 'ekstra' as const : null)
+    : await aksesSetoran(teacherId, studentId, input.setoran_date)
+  if (!akses) return ekstraSlotId ? 'Anak ini bukan peserta aktif slot ekstra Anda.' : 'Anda tidak mengampu siswa ini.'
 
   if (!JENIS_SETORAN_TAHFIDZ.includes(input.kind)) return 'Jenis setoran tidak dikenal.'
   if (!suratId) return 'Surat wajib dipilih.'
@@ -586,10 +602,10 @@ async function simpanSetoranTahfidz(teacherId: string, input: InputSetoranTahfid
     const ganda = await periksaGandaTahfidz(supabase, studentId, input.setoran_date, {
       kind: input.kind, surat_id: suratId, ayat_dari: ayatDari, surat_ke_id: suratKeId, ayat_ke: ayatKe,
       nilai: input.nilai_tahfidz, sikap: input.nilai_sikap, catatan: input.catatan,
-    })
+    }, ekstraSlotId)
     if (ganda) return { ganda }
   } else {
-    const hasil = await arsipkanTahfidzSamaHari(supabase, teacherId, studentId, input.setoran_date, input.kind)
+    const hasil = await arsipkanTahfidzSamaHari(supabase, teacherId, studentId, input.setoran_date, input.kind, ekstraSlotId)
     if ('galat' in hasil) return hasil.galat
     arsipIds = hasil.arsipIds
   }
@@ -605,6 +621,7 @@ async function simpanSetoranTahfidz(teacherId: string, input: InputSetoranTahfid
     // hanya ditandai asalnya (0087). Tidak disebut bila bukan Riyadhoh,
     // supaya setoran sekolah tetap tersimpan sebelum 0087 dijalankan.
     ...(akses === 'riyadhoh' ? { riyadhoh: true } : {}),
+    ...(akses === 'ekstra' ? { ekstra_slot_id: ekstraSlotId } : {}),
     kind: input.kind,
     surat_id: suratId,
     ayat_dari: ayatDari,

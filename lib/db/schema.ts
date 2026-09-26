@@ -11,6 +11,7 @@ export const userRoleEnum = pgEnum('user_role', [
   'koor_ekstra', 'koor_sd', 'koor_smp', 'koor_qulssd',
   'humas', 'div_training', 'new_squad',
   'div_quran_bpa', 'div_quran_bpi',
+  'admin',
 ])
 export const meetingTypeEnum = pgEnum('meeting_type', [
   'manajemen', 'kumik', 'new_squad', 'koor_sd', 'koor_smp',

@@ -7,7 +7,7 @@ import {
   Menu, X, LayoutDashboard, CheckSquare, BookOpen,
   ImageIcon, Megaphone, FileText, User, LogOut, GraduationCap, Newspaper, LayoutGrid,
   Users, UserCog, BookMarked, BarChart3, LayoutTemplate, Info, Wallet, CalendarRange, CalendarDays,
-  ClipboardCheck, KeyRound, ScrollText, Repeat, IdCard, UsersRound, Briefcase, Stamp, Scale, ListChecks, Kanban, CalendarHeart,
+  ClipboardCheck, KeyRound, ScrollText, Repeat, IdCard, UsersRound, Briefcase, Stamp, Scale, ListChecks, Kanban, CalendarHeart, Lock,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
@@ -17,7 +17,7 @@ import {
   canViewStudents, canViewHalaqoh, canViewTeachers, canViewUnitAnalytics,
   canManageHomepage,
   canViewKpi, canManageAllAccounts, canManagePengurus, canManageEmployees, canViewUjian, canManageTeacherProfiles,
-  canAccessKpiPublikasi, canManageRaporTemplate, canManageRiyadhoh, canManageKaldik, canViewKpiBanding, canViewTasks, canViewRoutineBoard } from '@/lib/auth/permissions'
+  canAccessKpiPublikasi, canManageRaporTemplate, canManageRiyadhoh, canManageEkstra, canManageKaldik, canViewKpiBanding, canViewTasks, canViewRoutineBoard, isAdmin } from '@/lib/auth/permissions'
 import type { UserRole } from '@/types'
 import { logoutAction } from '@/app/actions/auth'
 import { Logo } from '@/components/brand/Logo'
@@ -173,6 +173,18 @@ export function MobileNav({ role, displayName, username, lencanaKpi }: Props) {
         </div>
 
         <nav aria-label="Navigasi utama" className="flex-1 overflow-y-auto px-3 py-4 space-y-6">
+          {isAdmin(role) ? (
+            <div>
+              <p className="px-2 mb-2 text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/50">Admin</p>
+              <ul className="space-y-1">
+                <DrawerLink href="/dashboard/admin" icon={<LayoutDashboard className="h-4 w-4" />} label="Beranda Admin" active={isActive('/dashboard/admin')} onNavigate={close} />
+                <DrawerLink href="/pengurus" icon={<UsersRound className="h-4 w-4" />} label="Pengurus" active={isActive('/pengurus')} onNavigate={close} />
+                <DrawerLink href="/akun" icon={<KeyRound className="h-4 w-4" />} label="Akun & Password" active={isActive('/akun')} onNavigate={close} />
+                <DrawerLink href="/karyawan" icon={<Briefcase className="h-4 w-4" />} label="Karyawan" active={isActive('/karyawan')} onNavigate={close} />
+                <DrawerLink href="/profil#ganti-password" icon={<Lock className="h-4 w-4" />} label="Ganti Password" active={isActive('/profil')} onNavigate={close} />
+              </ul>
+            </div>
+          ) : (<>
           <div>
             <p className="px-2 mb-2 text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/50">Dashboard</p>
             <ul className="space-y-1">
@@ -274,7 +286,7 @@ export function MobileNav({ role, displayName, username, lencanaKpi }: Props) {
             </ul>
           </div>
 
-          {(canViewStudents(role) || canViewHalaqoh(role) || canViewTeachers(role) || canViewTerms(role) || canViewUjian(role)) && (
+          {(canViewStudents(role) || canViewHalaqoh(role) || canViewTeachers(role) || canViewTerms(role) || canViewUjian(role) || canManageEkstra(role)) && (
             <div>
               <p className="px-2 mb-2 text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/50">Tahsin &amp; Tahfidz</p>
               <ul className="space-y-1">
@@ -307,6 +319,9 @@ export function MobileNav({ role, displayName, username, lencanaKpi }: Props) {
                 {canManageRiyadhoh(role) && (
                   <DrawerLink href="/riyadhoh" icon={<CalendarHeart className="h-4 w-4" />} label="Riyadhoh Sabtu" active={isActive('/riyadhoh')} onNavigate={close} />
                 )}
+                {canManageEkstra(role) && (
+                  <DrawerLink href="/ekstra" icon={<CalendarHeart className="h-4 w-4" />} label="Ekstra & Booking" active={isActive('/ekstra')} onNavigate={close} />
+                )}
                 {/* Menempel di bawah template rapor: keduanya menetapkan isi
                     rapor seluruh angkatan — yang satu bentuknya, yang satu
                     penyebut kehadirannya. */}
@@ -324,13 +339,14 @@ export function MobileNav({ role, displayName, username, lencanaKpi }: Props) {
               </ul>
             </div>
           )}
+          </>)}
         </nav>
 
         <div className="border-t border-sidebar-border px-3 py-3 space-y-1">
-          {canManagePengurus(role) && (
+          {!isAdmin(role) && canManagePengurus(role) && (
             <DrawerLink href="/pengurus" icon={<UsersRound className="h-4 w-4" />} label="Pengurus" active={isActive('/pengurus')} onNavigate={close} />
           )}
-          {canManageAllAccounts(role) && (
+          {!isAdmin(role) && canManageAllAccounts(role) && (
             <DrawerLink href="/akun" icon={<KeyRound className="h-4 w-4" />} label="Akun & Password" active={isActive('/akun')} onNavigate={close} />
           )}
           <Link
@@ -382,15 +398,35 @@ export function MobileNav({ role, displayName, username, lencanaKpi }: Props) {
             <ScrollText className="h-5 w-5" />
             Ujian
           </Link>
+        ) : isAdmin(role) ? (
+          <Link
+            href="/akun"
+            aria-current={isActive('/akun') ? 'page' : undefined}
+            className={cn('flex flex-col items-center gap-0.5 px-3 py-1 rounded-lg text-xs transition-colors', isActive('/akun') ? 'text-primary' : 'text-muted-foreground')}
+          >
+            <KeyRound className="h-5 w-5" />
+            Akun
+          </Link>
         ) : null}
-        <Link
-          href="/rapat"
-          aria-current={isActive('/rapat') ? 'page' : undefined}
-          className={cn('flex flex-col items-center gap-0.5 px-3 py-1 rounded-lg text-xs transition-colors', isActive('/rapat') ? 'text-primary' : 'text-muted-foreground')}
-        >
-          <BookOpen className="h-5 w-5" />
-          Rapat
-        </Link>
+        {isAdmin(role) ? (
+          <Link
+            href="/pengurus"
+            aria-current={isActive('/pengurus') ? 'page' : undefined}
+            className={cn('flex flex-col items-center gap-0.5 px-3 py-1 rounded-lg text-xs transition-colors', isActive('/pengurus') ? 'text-primary' : 'text-muted-foreground')}
+          >
+            <UsersRound className="h-5 w-5" />
+            Pengurus
+          </Link>
+        ) : (
+          <Link
+            href="/rapat"
+            aria-current={isActive('/rapat') ? 'page' : undefined}
+            className={cn('flex flex-col items-center gap-0.5 px-3 py-1 rounded-lg text-xs transition-colors', isActive('/rapat') ? 'text-primary' : 'text-muted-foreground')}
+          >
+            <BookOpen className="h-5 w-5" />
+            Rapat
+          </Link>
+        )}
         <button
           ref={menuBtnRef}
           onClick={() => setOpen(true)}

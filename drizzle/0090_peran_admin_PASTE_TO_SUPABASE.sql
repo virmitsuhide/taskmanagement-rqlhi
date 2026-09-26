@@ -1,0 +1,37 @@
+-- ============================================================
+-- Peran admin — dipisah dari Kepala RQ
+-- ============================================================
+-- 📋 CARA PAKAI: Supabase SQL Editor → paste seluruh file → Run.
+--    Idempoten (boleh dijalankan ulang).
+--
+-- Yang berubah:
+--   • enum user_role : + admin
+--
+-- ── KENAPA ──────────────────────────────────────────────────
+--
+-- Tiga pengelolaan pindah dari akun Kepala RQ ke akun admin tersendiri:
+-- penempatan Pengurus, Akun & Password, dan Karyawan (SDM tetap ikut
+-- mengelola Karyawan). Admin BUKAN jabatan pengurus: tidak ada di
+-- JABATAN_ORDER, tidak bisa diduduki guru, tidak punya tugas, rapat, maupun
+-- analitik. Semua itu lapisan aplikasi (lib/auth/permissions.ts), bukan
+-- database — sama seperti seluruh RBAC aplikasi ini.
+--
+-- ⚠️ Jalankan SQL ini SEBELUM men-deploy kodenya. Begitu kodenya terpasang,
+--    Kepala RQ tidak lagi bisa membuka Akun & Password — tanpa akun admin
+--    tidak ada yang bisa mengelola akun.
+--
+-- ⚠️ Nilai enum tidak bisa dihapus di Postgres. Kalau perlu rollback,
+--    harus membuat type baru.
+--
+-- ⚠️ Akunnya TIDAK dibuat di sini (password harus di-hash bcrypt, dan nilai
+--    enum baru tidak boleh dipakai di transaksi yang sama dengan
+--    ALTER TYPE-nya). Setelah SQL ini jalan:
+--        npm run seed:admin
+--    Skrip itu membuat akun 'admin' dengan password awal 'bismillah' —
+--    segera ganti lewat menu Ganti Password.
+-- ============================================================
+
+ALTER TYPE "user_role" ADD VALUE IF NOT EXISTS 'admin';
+
+-- Verifikasi (opsional):
+-- SELECT unnest(enum_range(NULL::user_role));   -- harus 14 baris, terakhir 'admin'

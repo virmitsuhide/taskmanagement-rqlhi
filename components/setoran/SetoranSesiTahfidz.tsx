@@ -77,11 +77,13 @@ const SELECT_CLASS =
   'h-9 rounded-md border bg-transparent px-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50'
 
 /** Setoran tahfidz satu sesi dalam satu layar — pola yang sama dengan tahsin. */
-export function SetoranSesiTahfidz({ siswa, surat, tanggalTetap }: {
+export function SetoranSesiTahfidz({ siswa, surat, tanggalTetap, ekstraSlotId }: {
   siswa: SiswaSesiTahfidz[]
   surat: SuratPilihan[]
   /** Tanggal terkunci — Riyadhoh hanya boleh dicatat pada Sabtunya. */
   tanggalTetap?: string
+  /** Setoran pertemuan ekstra (0091): tiap baris ditandai slot ini. */
+  ekstraSlotId?: string
 }) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
@@ -122,6 +124,7 @@ export function SetoranSesiTahfidz({ siswa, surat, tanggalTetap }: {
         nilai_sikap: v.nilai_sikap,
         catatan: v.catatan || null,
         setoran_date: tanggal,
+        ekstra_slot_id: ekstraSlotId ?? null,
       }
     })
 

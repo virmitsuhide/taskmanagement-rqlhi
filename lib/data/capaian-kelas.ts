@@ -1,28 +1,28 @@
 import { createServerClient } from '@/lib/supabase/server'
 import { getJuzUjianPerSiswa, juzBerjalanPerSiswa, juzGabunganPerSiswa, type BarisJuzProgress } from '@/lib/data/hafalan'
+import { getTargetTahfidzSemua } from '@/lib/data/target-tahfidz'
+import { getInfoSurat } from '@/lib/data/nama-surat'
 import { posisiJuz, URUTAN_JUZ } from '@/lib/rq/hafalan'
-import { parseLevel } from '@/lib/rq/level'
-import { hafalanDariTeks } from '@/lib/rq/quran'
-import { QULS_SD_PROGRAMS } from '@/lib/rq/programs'
+import { mencapaiTarget } from '@/lib/rq/level'
+import { UNIT_LABELS, UNIT_ORDER } from '@/lib/rq/programs'
 import type { Jenjang } from '@/types'
 
 /**
- * Capaian tahsin & tahfidz per kelas — bentuk tabel bab 02 Laporan Eksekutif
- * (2.1 CLIL, 2.2 QULS, 2.3–2.4 SMP), tapi dihitung dari POSISI SISWA SAAT INI,
- * bukan dari rekap bulanan yang diisi guru.
+ * Capaian tahsin & tahfidz per kelas — bentuk tabel bab 02 Laporan Eksekutif,
+ * tapi dihitung dari SETORAN TERAKHIR tiap siswa di aplikasi, bukan dari rekap
+ * bulanan yang diisi guru. Angkanya berubah begitu setoran, kenaikan jilid,
+ * atau ujian dicatat.
  *
- * Tahsin dibaca dari students.current_jilid_id — kolom yang ikut bergerak
- * setiap kali anak naik jilid. Tahfidz dibaca dari juz yang sedang dihafal:
- * yang terjauh antara setoran berjalan dan juz sesudah juz terakhir yang
- * lulus ujian (lib/data/hafalan.ts). Karena itu angkanya berubah begitu
- * setoran atau kenaikan dicatat, tanpa menunggu akhir bulan. Hanya bila
- * aplikasi belum punya posisi sama sekali, rekap bulanan guru terbaru dipakai
- * sebagai cadangan — dan jumlahnya dilaporkan (MatriksCapaian.dariRekap).
+ * Siswa yang belum pernah setor masuk kolom "Belum" — BUKAN dianggap Jilid 1
+ * atau Juz 30, dan tidak ditambal dari rekap bulanan. Lubang pencatatan harus
+ * terlihat supaya bisa ditagih.
  *
- * Siswa tanpa posisi masuk kolom "Belum tercatat" — BUKAN dianggap Jilid 1
- * atau Juz 30. Laporan manual menaruh semua anak kelas 1 di Juz 30; di sini
- * anak yang belum pernah setor ditampilkan apa adanya, supaya lubang
- * pencatatan terlihat dan bisa ditagih.
+ * Kolom persen di ujung tabel adalah KETERCAPAIAN TARGET kelasnya:
+ *   · tahsin  — target jilid/tahap per angkatan (kurikulum_targets semester ini)
+ *   · tahfidz — status terhadap rencana target tahfidz programnya
+ *               (lib/data/target-tahfidz.ts: sesuai atau di atas target)
+ * Penyebutnya siswa yang kelasnya PUNYA target; siswa yang belum setor ikut
+ * dihitung sebagai belum mencapai.
  */
 
 export const BELUM_TERCATAT = 'Belum tercatat'
@@ -33,8 +33,18 @@ const URUTAN_TAHSIN = [
   "Al-Qur'an", 'Gharib', 'Tajwid', 'Lulus',
 ] as const
 
-/** Tahap yang sudah membaca mushaf — dipakai kolom ringkas "Sudah Al-Qur'an". */
-const TAHAP_QURAN = new Set(["Al-Qur'an", 'Gharib', 'Tajwid', 'Lulus'])
+/** Satu siswa di balik sebuah sel — isi dialog saat sel diklik. */
+export interface SiswaSel {
+  nama: string
+  kelas: string | null
+  pengampu: string | null
+  /** Isi setoran terakhir, mis. 'Jilid 3 hal. 12' atau "An-Naba' 1–20". */
+  posisi: string | null
+  /** Tanggal setoran terakhir, sudah diformat. */
+  tanggal: string | null
+  /** null = kelasnya belum punya target. */
+  capai: boolean | null
+}
 
 export interface BarisMatriks {
   tingkat: number | null
@@ -42,8 +52,14 @@ export interface BarisMatriks {
   total: number
   /** Sejajar dengan MatriksCapaian.kolom. */
   sel: number[]
-  /** Pembilang kolom ringkas (Sudah Al-Qur'an / Lewat Juz 30). */
+  /** Pembilang kolom persen (mis. siswa yang mencapai target). */
   maju: number
+  /** Penyebut kolom persen bila berbasis target; tanpa ini: total dikurangi "Belum". */
+  bertarget?: number
+  /** Teks target baris ini, untuk keterangan judul baris. */
+  target?: string
+  /** Siswa per sel, sejajar dengan sel — hanya bila tabelnya bisa diklik. */
+  rincian?: SiswaSel[][]
 }
 
 export interface MatriksCapaian {
@@ -56,25 +72,31 @@ export interface MatriksCapaian {
   labelMaju: string
   /** Siswa yang posisinya diambil dari rekap bulanan guru, bukan dari aplikasi. */
   dariRekap: number
+  bertarget?: number
+  /** Judul tabel bila satu panel memuat beberapa tabel (blok juz). */
+  judul?: string
+  /** Keterangan kolom yang labelnya ringkas, mis. '3 juz' → 'Tuntas juz 30–28'. */
+  kolomInfo?: Record<string, string>
 }
 
-export type KodeKelompok = 'clil' | 'quls' | 'smp'
+export type JalurCapaian = 'reguler' | 'quls'
 
 export interface CapaianKelompok {
-  kode: KodeKelompok
+  /** `${jenjang}:${jalur}` */
+  kode: string
+  jenjang: Jenjang
+  jalur: JalurCapaian
   judul: string
   keterangan: string
-  jenjang: Jenjang
   siswa: number
   metode: string[]
   tahsin: MatriksCapaian
-  tahfidz: MatriksCapaian
+  /** Satu tabel per blok lima juz (30–26, 1–5, 6–10, …); blok kosong sesudah yang pertama tidak ikut. */
+  tahfidz: MatriksCapaian[]
 }
 
 export interface CapaianKelasData {
   kelompok: CapaianKelompok[]
-  /** Siswa SD aktif yang programnya belum ditandai — tidak masuk CLIL maupun QULS. */
-  sdTanpaProgram: number
   diambil: string
 }
 
@@ -95,26 +117,28 @@ interface BarisLevel {
   is_terminal: boolean
 }
 
-const DEFINISI: {
-  kode: KodeKelompok
-  judul: string
-  keterangan: string
-  jenjang: Jenjang
-  cocok: (s: BarisSiswa) => boolean
-}[] = [
-  {
-    kode: 'clil', judul: 'SDIT — Kelas CLIL', keterangan: 'Program reguler SDIT LHI',
-    jenjang: 'sd', cocok: s => s.program === 'clil',
+/** Nama jalur per unit. QULS dipisah; sisanya (termasuk yang programnya kosong) reguler. */
+const NAMA_JALUR: Partial<Record<Jenjang, Record<JalurCapaian, { judul: string; keterangan: string }>>> = {
+  sd: {
+    reguler: { judul: 'CLIL / non-QULS', keterangan: 'Program reguler SDIT, termasuk yang programnya belum ditandai' },
+    quls: { judul: 'QULS', keterangan: 'Program intensif, termasuk QULS Takhassus' },
   },
-  {
-    kode: 'quls', judul: 'SDIT — Kelas QULS', keterangan: 'Program intensif, termasuk QULS Takhassus',
-    jenjang: 'sd', cocok: s => (QULS_SD_PROGRAMS as readonly string[]).includes(s.program ?? ''),
+  sd_juara: {
+    reguler: { judul: 'Reguler', keterangan: 'Program reguler SD Juara' },
+    quls: { judul: 'QULS', keterangan: 'Program intensif SD Juara' },
   },
-  {
-    kode: 'smp', judul: 'SMPIT LHI', keterangan: 'Seluruh program: reguler & QULS, fullday & boarding',
-    jenjang: 'smp', cocok: () => true,
+  smp: {
+    reguler: { judul: 'Reguler (non-QULS)', keterangan: 'Reguler fullday & boarding' },
+    quls: { judul: 'QULS', keterangan: 'Fullday & boarding QULS' },
   },
-]
+}
+
+/** Unit yang selalu ditampilkan berpasangan reguler vs QULS, walau QULS-nya kosong. */
+const UNIT_BERJALUR = new Set<Jenjang>(['sd', 'sd_juara', 'smp'])
+
+function jalurOf(program: string | null): JalurCapaian {
+  return /quls/i.test(program ?? '') ? 'quls' : 'reguler'
+}
 
 /** Tingkat kelas dari teks bebas ('1A', '9C', '4.0') — hanya angkanya. */
 function tingkatOf(kelas: string | null): number | null {
@@ -141,7 +165,7 @@ async function ambilSemua<T>(
 ): Promise<T[]> {
   const UKURAN = 1000
   const hasil: T[] = []
-  for (let hal = 0; hal < 50; hal++) {
+  for (let hal = 0; hal < 200; hal++) {
     const { data, error } = await buat().range(hal * UKURAN, hal * UKURAN + UKURAN - 1)
     if (error) {
       console.error('[capaian-kelas] gagal mengambil data:', error)
@@ -154,30 +178,34 @@ async function ambilSemua<T>(
   return hasil
 }
 
+// ─── Tabel dengan kolom target ───────────────────────────────────────────────
+
+interface Entri {
+  tingkat: number | null
+  kolom: string
+  siswa: SiswaSel
+}
+
+const menurutNama = (a: SiswaSel, b: SiswaSel) => a.nama.localeCompare(b.nama, 'id')
+
 /**
- * Susun matriks tingkat × kolom. Kolom yang selalu tampil (`kolomTetap`)
- * dipertahankan walau nol, supaya tangga metodenya utuh; kolom lain hanya
- * muncul bila ada isinya.
+ * Susun matriks tingkat × kolom beserta rincian siswanya. Kolom yang selalu
+ * tampil (`kolomTetap`) dipertahankan walau nol, supaya tangganya utuh; kolom
+ * lain hanya muncul bila ada isinya.
  */
 function susunMatriks(
-  siswa: BarisSiswa[],
-  kolomSiswa: (s: BarisSiswa) => Posisi,
+  entri: Entri[],
   urutan: readonly string[],
   kolomTetap: Set<string>,
-  maju: (kolom: string) => boolean,
-  labelMaju: string,
+  opsi: { targetPerTingkat?: Map<number, string>; judul?: string; kolomInfo?: Record<string, string> } = {},
 ): MatriksCapaian {
-  const perTingkat = new Map<number | null, Map<string, number>>()
   const hitungKolom = new Map<string, number>()
-  let dariRekap = 0
-  for (const s of siswa) {
-    const t = tingkatOf(s.kelas)
-    const { kolom: k, rekap } = kolomSiswa(s)
-    if (rekap) dariRekap++
-    const peta = perTingkat.get(t) ?? new Map<string, number>()
-    peta.set(k, (peta.get(k) ?? 0) + 1)
-    perTingkat.set(t, peta)
-    hitungKolom.set(k, (hitungKolom.get(k) ?? 0) + 1)
+  const perTingkat = new Map<number | null, Entri[]>()
+  for (const e of entri) {
+    hitungKolom.set(e.kolom, (hitungKolom.get(e.kolom) ?? 0) + 1)
+    const isi = perTingkat.get(e.tingkat) ?? []
+    isi.push(e)
+    perTingkat.set(e.tingkat, isi)
   }
 
   const posisi = (k: string) => {
@@ -191,14 +219,18 @@ function susunMatriks(
 
   const baris: BarisMatriks[] = [...perTingkat.entries()]
     .sort(([a], [b]) => (a ?? 99) - (b ?? 99))
-    .map(([tingkat, peta]) => {
-      const sel = kolom.map(k => peta.get(k) ?? 0)
+    .map(([tingkat, isi]) => {
+      const rincian = kolom.map(k => isi.filter(e => e.kolom === k).map(e => e.siswa).sort(menurutNama))
+      const sel = rincian.map(r => r.length)
       return {
         tingkat,
         label: tingkat ? `Kelas ${tingkat}` : 'Tanpa kelas',
-        total: sel.reduce((a, b) => a + b, 0),
+        total: isi.length,
         sel,
-        maju: kolom.reduce((n, k, i) => n + (maju(k) ? sel[i] : 0), 0),
+        maju: isi.filter(e => e.siswa.capai === true).length,
+        bertarget: isi.filter(e => e.siswa.capai !== null).length,
+        target: tingkat ? opsi.targetPerTingkat?.get(tingkat) : undefined,
+        rincian,
       }
     })
 
@@ -206,165 +238,348 @@ function susunMatriks(
     kolom,
     baris,
     jumlahKolom: kolom.map(k => hitungKolom.get(k) ?? 0),
-    total: siswa.length,
+    total: entri.length,
     maju: baris.reduce((n, b) => n + b.maju, 0),
-    labelMaju,
-    dariRekap,
+    bertarget: baris.reduce((n, b) => n + (b.bertarget ?? 0), 0),
+    labelMaju: 'Capai target',
+    dariRekap: 0,
+    judul: opsi.judul,
+    kolomInfo: opsi.kolomInfo,
   }
 }
 
-/** Kolom seorang siswa, dan apakah kolom itu berasal dari rekap bulanan. */
-interface Posisi {
-  kolom: string
-  rekap: boolean
+// ─── Blok juz tahfidz ────────────────────────────────────────────────────────
+//
+// Urutan hafalan dibagi per lima juz: 30–26, lalu 1–5, 6–10, … Tiap blok
+// punya dua tonggak, sama dengan tasmi' di lib/rq/hafalan.ts: "3 juz" (tiga
+// juz pertama blok tuntas) dan "5 juz" (bloknya genap). Kolomnya:
+//   Juz a · Juz b · Juz c · 3 juz · Juz d · Juz e · 5 juz
+
+const PER_BLOK = 5
+
+function juzBlok(blok: number): number[] {
+  return URUTAN_JUZ.slice(blok * PER_BLOK, blok * PER_BLOK + PER_BLOK)
 }
 
-interface BarisRekap {
-  student_id: string
-  period: string
-  level: string
-  halaman_awal_tahsin: string
-  halaman_akhir_tahsin: string
-  tahfidz_awal: string
-  tahfidz_akhir: string
+function kolomBlok(blok: number): string[] {
+  const [a, b, c, d, e] = juzBlok(blok).map(j => `Juz ${j}`)
+  return [a, b, c, '3 juz', d, e, '5 juz']
+}
+
+function rentang(daftar: number[]): string {
+  return `${daftar[0]}–${daftar[daftar.length - 1]}`
 }
 
 /**
- * Posisi hafalan dari catatan bebas rekap bulanan, sebagai POSISI dalam
- * URUTAN_JUZ (1 = juz 30). "3 juz" berarti tiga juz tuntas, jadi anaknya
- * sedang di posisi ke-4; "Al-Mulk ayat 10" berarti sedang di juz 29.
+ * Blok & kolom tahfidz seorang siswa.
+ *
+ * `berjalan` = posisi (dalam urutan hafalan) juz terjauh yang sudah ada
+ * setorannya; `tuntas` = jumlah juz yang sudah selesai — lewat kenaikan juz
+ * (mutqin) atau ujian. Selama anak belum mulai menyetor juz berikutnya, ia
+ * berada di tonggak juz yang baru dituntaskannya: sesudah juz 28 tuntas ia di
+ * kolom "3 juz", bukan di "Juz 27" yang belum disentuhnya.
  */
-function posisiJuzDariTeks(teks: string): number {
-  const jumlah = teks.toLowerCase().match(/(\d+)\s*juz/)
-  if (jumlah) {
-    const n = Number(jumlah[1])
-    if (n >= 1 && n <= 30) return n + 1
+function posisiTahfidz(berjalan: number, tuntas: number): { blok: number; kolom: string } | null {
+  if (berjalan === 0 && tuntas === 0) return null
+  const diJuz = (p: number) => ({ blok: Math.floor((p - 1) / PER_BLOK), kolom: `Juz ${URUTAN_JUZ[p - 1]}` })
+  if (tuntas < berjalan) return diJuz(berjalan)
+
+  const n = Math.min(tuntas, URUTAN_JUZ.length)
+  const dalamBlok = ((n - 1) % PER_BLOK) + 1
+  const blok = Math.floor((n - 1) / PER_BLOK)
+  if (dalamBlok === 3) return { blok, kolom: '3 juz' }
+  if (dalamBlok === 5) return { blok, kolom: '5 juz' }
+  return diJuz(n + 1)
+}
+
+/**
+ * Penentu blok & kolom tahfidz untuk sekumpulan siswa — satu-satunya aturan,
+ * dipakai laporan pengurus dan portal guru supaya angkanya tidak pernah berbeda.
+ */
+function pembacaTahfidz(juzProgress: BarisJuzProgress[], juzUjian: Map<string, number>) {
+  const berjalan = juzBerjalanPerSiswa(juzProgress)
+  const tuntasSetoran = juzGabunganPerSiswa(juzProgress, juzUjian)
+  const tuntasMutqin = new Map<string, number>()
+  for (const r of juzProgress) {
+    if (!r.mutqin) continue
+    const p = posisiJuz(r.juz_number) ?? 0
+    if (p > (tuntasMutqin.get(r.student_id) ?? 0)) tuntasMutqin.set(r.student_id, p)
   }
-  const { juz } = hafalanDariTeks(teks)
-  return juz ? (posisiJuz(juz) ?? 0) : 0
+  return (id: string) => {
+    const pBerjalan = berjalan.has(id) ? (posisiJuz(berjalan.get(id)!) ?? 0) : 0
+    const tuntas = Math.max(tuntasSetoran.get(id) ?? 0, tuntasMutqin.get(id) ?? 0)
+    return { tuntas, letak: posisiTahfidz(pBerjalan, tuntas) }
+  }
+}
+
+/**
+ * Label tahfidz yang berdiri sendiri, tanpa judul tabel bloknya: tonggak
+ * menyebut juz-nya ('3 juz (28–30)'), sebab "3 juz" di blok 1–5 bukan
+ * tonggak yang sama dengan "3 juz" di blok 30–26.
+ */
+function labelTahfidzLepas(letak: { blok: number; kolom: string }): string {
+  if (letak.kolom !== '3 juz' && letak.kolom !== '5 juz') return letak.kolom
+  const juz = juzBlok(letak.blok).slice(0, letak.kolom === '3 juz' ? 3 : 5)
+  return `${letak.kolom} (${Math.min(...juz)}–${Math.max(...juz)})`
+}
+
+/** Seluruh label tahfidz lepas, urut sepanjang urutan hafalan — untuk median & legenda. */
+const URUTAN_TAHFIDZ_LEPAS = Array.from({ length: URUTAN_JUZ.length / PER_BLOK }, (_, blok) =>
+  kolomBlok(blok).map(kolom => labelTahfidzLepas({ blok, kolom }))).flat()
+
+// ─── Data ────────────────────────────────────────────────────────────────────
+
+interface LogTahsin {
+  student_id: string
+  setoran_date: string
+  jilid_id: string | null
+  halaman: number | null
+  quran_halaman: number | null
+  quran_surat_id: number | null
+  quran_ayat_dari: number | null
+  quran_ayat_ke: number | null
+  teacher_id: string | null
+}
+
+interface LogZiyadah {
+  student_id: string
+  setoran_date: string
+  surat_id: number
+  ayat_dari: number | null
+  ayat_ke: number | null
+  teacher_id: string | null
+}
+
+const ZIYADAH = ['ziyadah', 'hafalan_baru']
+
+/** '2026-09-12' → '12 Sep 2026'. Tanggal saja, jadi dibaca sebagai UTC. */
+function formatTanggal(iso: string | null): string | null {
+  if (!iso) return null
+  return new Date(`${iso.slice(0, 10)}T00:00:00Z`).toLocaleDateString('id-ID', {
+    timeZone: 'UTC', day: 'numeric', month: 'short', year: 'numeric',
+  })
 }
 
 export async function getCapaianKelas(jenjangBoleh: Jenjang[]): Promise<CapaianKelasData> {
   const diambil = new Date().toISOString()
-  const definisi = DEFINISI.filter(d => jenjangBoleh.includes(d.jenjang))
-  if (definisi.length === 0) return { kelompok: [], sdTanpaProgram: 0, diambil }
+  const jenjangDipakai = UNIT_ORDER.filter(j => jenjangBoleh.includes(j))
+  if (jenjangDipakai.length === 0) return { kelompok: [], diambil }
 
   const supabase = createServerClient()
-  const jenjangDipakai = [...new Set(definisi.map(d => d.jenjang))]
 
-  const [siswaSemua, levelRes, methodRes, juzProgress, juzUjian, rekap] = await Promise.all([
-    ambilSemua<BarisSiswa>(() => supabase.from('students')
-      .select('id, jenjang, kelas, program, current_jilid_id')
+  const [
+    siswaSemua, levelRes, methodRes, halaqohRes, guruRes, termRes,
+    juzProgress, juzUjian, logTahsin, logZiyadah, targetTahfidz, infoSurat,
+  ] = await Promise.all([
+    ambilSemua<BarisSiswa & { full_name: string; halaqoh_id: string | null }>(() => supabase.from('students')
+      .select('id, full_name, jenjang, kelas, program, current_jilid_id, halaqoh_id')
       .eq('is_active', true).in('jenjang', jenjangDipakai).order('id')),
     supabase.from('jilid_levels').select('id, method_id, label, order_num, is_quran, is_terminal'),
     supabase.from('tahsin_methods').select('id, name'),
+    supabase.from('halaqoh').select('id, wali_teacher_id'),
+    supabase.from('teachers').select('id, full_name'),
+    supabase.from('academic_terms').select('id').eq('is_current', true).maybeSingle(),
     ambilSemua<BarisJuzProgress>(() => supabase.from('juz_progress')
       .select('student_id, juz_number, ayat_hafal, mutqin').order('student_id').order('juz_number')),
     getJuzUjianPerSiswa(),
     // Terbaru lebih dulu: pembacaan di bawah mengambil yang pertama ditemui.
-    ambilSemua<BarisRekap>(() => supabase.from('student_monthly')
-      .select('student_id, period, level, halaman_awal_tahsin, halaman_akhir_tahsin, tahfidz_awal, tahfidz_akhir')
-      .order('period', { ascending: false }).order('student_id')),
+    ambilSemua<LogTahsin>(() => supabase.from('tahsin_logs')
+      .select('student_id, setoran_date, jilid_id, halaman, quran_halaman, quran_surat_id, quran_ayat_dari, quran_ayat_ke, teacher_id')
+      .order('setoran_date', { ascending: false }).order('created_at', { ascending: false }).order('id')),
+    ambilSemua<LogZiyadah>(() => supabase.from('tahfidz_logs')
+      .select('student_id, setoran_date, surat_id, ayat_dari, ayat_ke, teacher_id')
+      .in('kind', ZIYADAH)
+      .order('setoran_date', { ascending: false }).order('created_at', { ascending: false }).order('id')),
+    getTargetTahfidzSemua().catch(err => {
+      console.error('[capaian-kelas] target tahfidz gagal dihitung:', err)
+      return null
+    }),
+    getInfoSurat(),
   ])
+
+  const term = termRes.data as { id: string } | null
+  const targetRes = term
+    ? await supabase.from('kurikulum_targets').select('jenjang, tingkat, target_tahsin').eq('term_id', term.id)
+    : { data: [] }
+  const targetTahsin = new Map(
+    ((targetRes.data ?? []) as { jenjang: string; tingkat: number; target_tahsin: string | null }[])
+      .filter(t => t.target_tahsin)
+      .map(t => [`${t.jenjang}|${t.tingkat}`, t.target_tahsin as string]),
+  )
 
   const levels = (levelRes.data ?? []) as BarisLevel[]
   const levelById = new Map(levels.map(l => [l.id, l]))
   const namaMetode = new Map(((methodRes.data ?? []) as { id: string; name: string }[]).map(m => [m.id, m.name]))
+  const namaGuru = new Map(((guruRes.data ?? []) as { id: string; full_name: string }[]).map(g => [g.id, g.full_name]))
+  const waliHalaqoh = new Map(((halaqohRes.data ?? []) as { id: string; wali_teacher_id: string | null }[])
+    .map(h => [h.id, h.wali_teacher_id]))
 
-  const berjalan = juzBerjalanPerSiswa(juzProgress)
-  const tuntas = juzGabunganPerSiswa(juzProgress, juzUjian)
+  const tahsinTerakhir = new Map<string, LogTahsin>()
+  for (const l of logTahsin) if (!tahsinTerakhir.has(l.student_id)) tahsinTerakhir.set(l.student_id, l)
+  const ziyadahTerakhir = new Map<string, LogZiyadah>()
+  for (const l of logZiyadah) if (!ziyadahTerakhir.has(l.student_id)) ziyadahTerakhir.set(l.student_id, l)
 
-  /*
-    Juz yang sedang dihafal = yang terjauh dari dua petunjuk:
-      · setoran berjalan (juz terjauh yang sudah ada ayatnya), atau
-      · juz sesudah juz terakhir yang tuntas (lulus ujian / setoran penuh).
-    Anak yang lulus ujian juz 29 tapi belum setor juz 28 tetap terbaca di
-    juz 28, bukan tertinggal di juz 30 hanya karena setorannya belum masuk.
-  */
-  /*
-    Rekap bulanan guru sebagai CADANGAN, dipakai hanya ketika aplikasi belum
-    punya posisi untuk anak itu. Setoran tahfidz harian di aplikasi baru
-    sedikit, sementara rekap bulanan sudah terisi untuk ratusan siswa —
-    tanpa cadangan ini hampir seluruh kolom tahfidz terbaca "belum tercatat"
-    padahal gurunya sudah melaporkan. Yang diambil catatan terbaru yang
-    kolomnya terisi, per kolom: bulan terakhir bisa baru terisi tahsinnya.
-  */
-  const rekapTahsin = new Map<string, string>()
-  const rekapJuz = new Map<string, number>()
-  for (const r of rekap) {
-    if (!rekapTahsin.has(r.student_id)) {
-      const lv = parseLevel(r.level, r.halaman_akhir_tahsin || r.halaman_awal_tahsin)
-      if (lv) rekapTahsin.set(r.student_id, lv === 'Tahfidz' ? 'Lulus' : lv)
+  const statusTahfidz = new Map((targetTahfidz?.siswa ?? []).map(s => [s.id, s.status]))
+
+  // Juz tuntas: yang terjauh dari kenaikan juz (mutqin), ujian, dan juz
+  // sebelum juz yang sedang disetor.
+  const bacaTahfidz = pembacaTahfidz(juzProgress, juzUjian)
+
+  const namaSurat = (id: number) => infoSurat.get(id)?.name_latin ?? `Surah ${id}`
+  const ayat = (dari: number | null, ke: number | null) =>
+    dari && ke ? (dari === ke ? ` ${dari}` : ` ${dari}–${ke}`) : ke ? ` ${ke}` : ''
+
+  const pengampu = (s: { halaqoh_id: string | null }, cadangan: string | null | undefined) => {
+    const wali = s.halaqoh_id ? waliHalaqoh.get(s.halaqoh_id) : null
+    return (wali && namaGuru.get(wali)) || (cadangan && namaGuru.get(cadangan)) || null
+  }
+
+  type Siswa = (typeof siswaSemua)[number]
+
+  const entriTahsin = (s: Siswa): Entri => {
+    const log = tahsinTerakhir.get(s.id)
+    const tingkat = tingkatOf(s.kelas)
+    const target = tingkat ? targetTahsin.get(`${s.jenjang}|${tingkat}`) : undefined
+    // Jilid diambil dari posisi siswa yang digerakkan setoran (termasuk
+    // kenaikan jilid), tapi hanya bila memang ada setorannya.
+    const lv = log ? (s.current_jilid_id ? levelById.get(s.current_jilid_id) : undefined)
+      ?? (log.jilid_id ? levelById.get(log.jilid_id) : undefined) : undefined
+    const kolom = lv ? kolomTahsin(lv) : BELUM_TERCATAT
+
+    let posisi: string | null = null
+    if (log) {
+      const bagian: string[] = []
+      const lvLog = log.jilid_id ? levelById.get(log.jilid_id) : undefined
+      if (lvLog) bagian.push(log.halaman ? `${lvLog.label} hal. ${log.halaman}` : lvLog.label)
+      if (log.quran_surat_id) bagian.push(`${namaSurat(log.quran_surat_id)}${ayat(log.quran_ayat_dari, log.quran_ayat_ke)}`)
+      else if (log.quran_halaman) bagian.push(`mushaf hal. ${log.quran_halaman}`)
+      posisi = bagian.join(' · ') || null
     }
-    if (!rekapJuz.has(r.student_id)) {
-      const pos = posisiJuzDariTeks(r.tahfidz_akhir || r.tahfidz_awal)
-      if (pos > 0) rekapJuz.set(r.student_id, pos)
-    }
-  }
-
-  const kolomJuz = (s: BarisSiswa): Posisi => {
-    const dariSetoran = berjalan.has(s.id) ? (posisiJuz(berjalan.get(s.id)!) ?? 0) : 0
-    const nTuntas = tuntas.get(s.id) ?? 0
-    const dariAplikasi = Math.max(dariSetoran, nTuntas > 0 ? nTuntas + 1 : 0)
-    const pos = dariAplikasi || rekapJuz.get(s.id) || 0
-    const rekap = dariAplikasi === 0 && pos > 0
-    if (pos === 0) return { kolom: BELUM_TERCATAT, rekap }
-    if (pos > URUTAN_JUZ.length) return { kolom: 'Khatam 30 juz', rekap }
-    return { kolom: `Juz ${URUTAN_JUZ[pos - 1]}`, rekap }
-  }
-  const urutanJuz = [...URUTAN_JUZ.map(j => `Juz ${j}`), 'Khatam 30 juz']
-
-  const kolomJilid = (s: BarisSiswa): Posisi => {
-    const lv = s.current_jilid_id ? levelById.get(s.current_jilid_id) : undefined
-    if (lv) return { kolom: kolomTahsin(lv), rekap: false }
-    const dariRekap = rekapTahsin.get(s.id)
-    return dariRekap ? { kolom: dariRekap, rekap: true } : { kolom: BELUM_TERCATAT, rekap: false }
-  }
-
-  const kelompok: CapaianKelompok[] = definisi.map(d => {
-    const siswa = siswaSemua.filter(s => s.jenjang === d.jenjang && d.cocok(s))
-
-    // Tangga metode yang dipakai kelompok ini ditampilkan utuh — Jilid 5
-    // yang kosong tetap satu kolom, karena kosongnya itu sendiri informasi.
-    const metodeIds = new Set(
-      siswa.map(s => (s.current_jilid_id ? levelById.get(s.current_jilid_id)?.method_id : undefined))
-        .filter((x): x is string => Boolean(x)),
-    )
-    const tetapTahsin = new Set(levels.filter(l => metodeIds.has(l.method_id)).map(kolomTahsin))
 
     return {
-      kode: d.kode,
-      judul: d.judul,
-      keterangan: d.keterangan,
-      jenjang: d.jenjang,
-      siswa: siswa.length,
-      metode: [...metodeIds].map(id => namaMetode.get(id) ?? '—').sort(),
-      tahsin: susunMatriks(siswa, kolomJilid, URUTAN_TAHSIN, tetapTahsin,
-        k => TAHAP_QURAN.has(k), "Sudah Al-Qur'an"),
-      tahfidz: susunMatriks(siswa, kolomJuz, urutanJuz, new Set(siswa.length ? ['Juz 30'] : []),
-        k => k !== 'Juz 30' && k !== BELUM_TERCATAT, 'Lewat Juz 30'),
+      tingkat,
+      kolom,
+      siswa: {
+        nama: s.full_name,
+        kelas: s.kelas,
+        pengampu: pengampu(s, log?.teacher_id),
+        posisi,
+        tanggal: formatTanggal(log?.setoran_date ?? null),
+        capai: target ? mencapaiTarget(kolom === 'Lulus' ? 'Tahfidz' : kolom, target) : null,
+      },
     }
-  })
+  }
 
-  const sdTanpaProgram = jenjangDipakai.includes('sd')
-    ? siswaSemua.filter(s => s.jenjang === 'sd' && !s.program).length
-    : 0
+  const entriTahfidz = (s: Siswa): Entri & { blok: number } => {
+    const { tuntas, letak } = bacaTahfidz(s.id)
+    const log = ziyadahTerakhir.get(s.id)
+    const status = statusTahfidz.get(s.id)
 
-  return { kelompok, sdTanpaProgram, diambil }
+    return {
+      tingkat: tingkatOf(s.kelas),
+      blok: letak?.blok ?? 0,
+      kolom: letak?.kolom ?? BELUM_TERCATAT,
+      siswa: {
+        nama: s.full_name,
+        kelas: s.kelas,
+        pengampu: pengampu(s, log?.teacher_id),
+        posisi: log
+          ? `${namaSurat(log.surat_id)}${ayat(log.ayat_dari, log.ayat_ke)}`
+          : tuntas > 0 ? `${tuntas} juz tuntas (ujian)` : null,
+        tanggal: formatTanggal(log?.setoran_date ?? null),
+        capai: !status || status === 'tanpa_target' ? null : status === 'sesuai' || status === 'di_atas',
+      },
+    }
+  }
+
+  const kelompok: CapaianKelompok[] = []
+  for (const jenjang of jenjangDipakai) {
+    const siswaUnit = siswaSemua.filter(s => s.jenjang === jenjang)
+    if (siswaUnit.length === 0) continue
+
+    const targetPerTingkat = new Map<number, string>()
+    for (const [k, v] of targetTahsin) {
+      const [j, t] = k.split('|')
+      if (j === jenjang) targetPerTingkat.set(Number(t), v)
+    }
+
+    for (const jalur of ['reguler', 'quls'] as const) {
+      const siswa = siswaUnit.filter(s => jalurOf(s.program) === jalur)
+      if (siswa.length === 0 && !(jalur === 'quls' && UNIT_BERJALUR.has(jenjang))) continue
+      const nama = NAMA_JALUR[jenjang]?.[jalur]
+      const pisah = UNIT_BERJALUR.has(jenjang) || siswaUnit.some(s => jalurOf(s.program) === 'quls')
+
+      // Tangga metode yang dipakai kelompok ini ditampilkan utuh — Jilid 5
+      // yang kosong tetap satu kolom, karena kosongnya itu sendiri informasi.
+      const metodeIds = new Set(
+        siswa.map(s => (s.current_jilid_id ? levelById.get(s.current_jilid_id)?.method_id : undefined))
+          .filter((x): x is string => Boolean(x)),
+      )
+      const tetapTahsin = new Set([...levels.filter(l => metodeIds.has(l.method_id)).map(kolomTahsin), BELUM_TERCATAT])
+
+      const tahfidzEntri = siswa.map(entriTahfidz)
+      const blokTerisi = new Set(tahfidzEntri.map(e => e.blok))
+      blokTerisi.add(0)
+      const tahfidz = [...blokTerisi].sort((a, b) => a - b).map(blok => {
+        const kolom = kolomBlok(blok)
+        const juz = juzBlok(blok)
+        return susunMatriks(
+          tahfidzEntri.filter(e => e.blok === blok),
+          [...kolom, BELUM_TERCATAT],
+          new Set(blok === 0 ? [...kolom, BELUM_TERCATAT] : kolom),
+          {
+            judul: `Juz ${rentang(juz)}`,
+            kolomInfo: {
+              '3 juz': `Tuntas juz ${rentang(juz.slice(0, 3))}, belum mulai juz ${juz[3]}`,
+              '5 juz': `Tuntas juz ${rentang(juz)}${blok + 1 < URUTAN_JUZ.length / PER_BLOK ? `, belum mulai juz ${URUTAN_JUZ[(blok + 1) * PER_BLOK]}` : ' — khatam 30 juz'}`,
+            },
+          },
+        )
+      })
+
+      kelompok.push({
+        kode: `${jenjang}:${jalur}`,
+        jenjang,
+        jalur,
+        judul: pisah ? `${UNIT_LABELS[jenjang]} — ${nama?.judul ?? (jalur === 'quls' ? 'QULS' : 'Reguler')}` : UNIT_LABELS[jenjang],
+        keterangan: pisah ? nama?.keterangan ?? '' : 'Seluruh program',
+        siswa: siswa.length,
+        metode: [...metodeIds].map(id => namaMetode.get(id) ?? '—').sort(),
+        tahsin: susunMatriks(siswa.map(entriTahsin), [...URUTAN_TAHSIN, BELUM_TERCATAT], tetapTahsin, { targetPerTingkat }),
+        tahfidz,
+      })
+    }
+  }
+
+  return { kelompok, diambil }
+}
+
+/** Ringkasan target per tingkat dari satu atau beberapa matriks — bahan perbandingan jalur. */
+export function targetPerTingkat(matriks: MatriksCapaian[]): Map<number | null, { tercapai: number; bertarget: number }> {
+  const peta = new Map<number | null, { tercapai: number; bertarget: number }>()
+  for (const m of matriks) {
+    for (const b of m.baris) {
+      const e = peta.get(b.tingkat) ?? { tercapai: 0, bertarget: 0 }
+      e.tercapai += b.maju
+      e.bertarget += b.bertarget ?? 0
+      peta.set(b.tingkat, e)
+    }
+  }
+  return peta
 }
 
 // ─── Capaian unit untuk portal guru ─────────────────────────────────────────
 //
-// Posisi tiap siswa aktif satu unit, dengan aturan yang SAMA persis dengan
-// matriks di atas (kolomTahsin, juz terjauh setoran/ujian, cadangan rekap
-// bulanan) — supaya angka yang dilihat guru tidak pernah berbeda dengan
-// laporan pengurus. Hanya membaca; nama siswa tidak ikut dikembalikan.
+// Posisi tiap siswa aktif satu unit dengan aturan yang SAMA persis dengan
+// laporan pengurus di atas: hanya dari setoran & ujian di aplikasi, siswa
+// tanpa setoran = "Belum tercatat", tahfidz lewat pembacaTahfidz(). Hanya
+// membaca; nama siswa tidak ikut dikembalikan.
 
 export interface PosisiSiswaUnit {
   halaqoh_id: string | null
   tingkat: number | null
   metode_id: string | null
-  /** Label jilid_levels asli metodenya (mis. 'Jilid 4' KIBAR) — untuk tampilan per metode. */
+  /** Label jilid_levels asli metodenya (mis. 'Jilid 4' KIBAR); null = belum ada setoran tahsin. */
   level: string | null
   tahsin: string
   tahfidz: string
@@ -381,13 +596,12 @@ export interface PosisiUnit {
 
 async function ambilPerPotong<T>(
   ids: string[],
-  buat: (potong: string[]) => PromiseLike<{ data: unknown; error: unknown }>,
+  buat: (potong: string[]) => { range: (dari: number, ke: number) => PromiseLike<{ data: unknown; error: unknown }> },
 ): Promise<T[]> {
   const hasil: T[] = []
   for (let i = 0; i < ids.length; i += 150) {
-    const { data, error } = await buat(ids.slice(i, i + 150))
-    if (error) { console.error('[capaian-unit] gagal mengambil data:', error); continue }
-    hasil.push(...((data ?? []) as T[]))
+    const potong = ids.slice(i, i + 150)
+    hasil.push(...await ambilSemua<T>(() => buat(potong)))
   }
   return hasil
 }
@@ -403,39 +617,35 @@ export async function getPosisiUnit(jenjang: Jenjang): Promise<PosisiUnit> {
     getJuzUjianPerSiswa(),
   ])
   const ids = siswaRows.map(s => s.id)
-  const [juzProgress, rekap] = await Promise.all([
+  const [juzProgress, logTahsin] = await Promise.all([
     ambilPerPotong<BarisJuzProgress>(ids, p => supabase.from('juz_progress')
-      .select('student_id, juz_number, ayat_hafal, mutqin').in('student_id', p)),
-    ambilPerPotong<BarisRekap>(ids, p => supabase.from('student_monthly')
-      .select('student_id, period, level, halaman_awal_tahsin, halaman_akhir_tahsin, tahfidz_awal, tahfidz_akhir')
-      .in('student_id', p).order('period', { ascending: false })),
+      .select('student_id, juz_number, ayat_hafal, mutqin').in('student_id', p).order('student_id').order('juz_number')),
+    // Cukup tahu siapa yang pernah setor; posisinya sudah ada di students.
+    ambilPerPotong<{ student_id: string; jilid_id: string | null }>(ids, p => supabase.from('tahsin_logs')
+      .select('student_id, jilid_id').in('student_id', p).order('id')),
   ])
-  rekap.sort((a, b) => b.period.localeCompare(a.period))
 
   const levelById = new Map(((levelRes.data ?? []) as BarisLevel[]).map(l => [l.id, l]))
-  const berjalan = juzBerjalanPerSiswa(juzProgress)
-  const tuntas = juzGabunganPerSiswa(juzProgress, juzUjian)
-  const rekapTahsin = new Map<string, string>()
-  const rekapJuz = new Map<string, number>()
-  for (const r of rekap) {
-    if (!rekapTahsin.has(r.student_id)) {
-      const lv = parseLevel(r.level, r.halaman_akhir_tahsin || r.halaman_awal_tahsin)
-      if (lv) rekapTahsin.set(r.student_id, lv === 'Tahfidz' ? 'Lulus' : lv)
-    }
-    if (!rekapJuz.has(r.student_id)) {
-      const pos = posisiJuzDariTeks(r.tahfidz_akhir || r.tahfidz_awal)
-      if (pos > 0) rekapJuz.set(r.student_id, pos)
-    }
-  }
+  const jilidLog = new Map<string, string | null>()
+  for (const l of logTahsin) if (!jilidLog.get(l.student_id)) jilidLog.set(l.student_id, l.jilid_id)
+  const bacaTahfidz = pembacaTahfidz(juzProgress, juzUjian)
 
   const siswa: PosisiSiswaUnit[] = siswaRows.map(s => {
-    const lv = s.current_jilid_id ? levelById.get(s.current_jilid_id) : undefined
-    const tahsin = lv ? kolomTahsin(lv) : rekapTahsin.get(s.id) ?? BELUM_TERCATAT
-    const dariSetoran = berjalan.has(s.id) ? (posisiJuz(berjalan.get(s.id)!) ?? 0) : 0
-    const nTuntas = tuntas.get(s.id) ?? 0
-    const pos = Math.max(dariSetoran, nTuntas > 0 ? nTuntas + 1 : 0) || rekapJuz.get(s.id) || 0
-    const tahfidz = pos === 0 ? BELUM_TERCATAT : pos > URUTAN_JUZ.length ? 'Khatam 30 juz' : `Juz ${URUTAN_JUZ[pos - 1]}`
-    return { halaqoh_id: s.halaqoh_id, tingkat: tingkatOf(s.kelas), metode_id: lv?.method_id ?? null, level: lv?.label ?? null, tahsin, tahfidz }
+    const lvSiswa = s.current_jilid_id ? levelById.get(s.current_jilid_id) : undefined
+    // Metode tetap dari posisi siswa (untuk pengelompokan), tapi levelnya
+    // hanya dihitung bila memang ada setoran tahsin.
+    const adaSetoran = jilidLog.has(s.id)
+    const logJilid = jilidLog.get(s.id)
+    const lv = adaSetoran ? lvSiswa ?? (logJilid ? levelById.get(logJilid) : undefined) : undefined
+    const { letak } = bacaTahfidz(s.id)
+    return {
+      halaqoh_id: s.halaqoh_id,
+      tingkat: tingkatOf(s.kelas),
+      metode_id: (lv ?? lvSiswa)?.method_id ?? null,
+      level: lv?.label ?? null,
+      tahsin: lv ? kolomTahsin(lv) : BELUM_TERCATAT,
+      tahfidz: letak ? labelTahfidzLepas(letak) : BELUM_TERCATAT,
+    }
   })
 
   const dipakai = new Set(siswa.map(s => s.metode_id).filter((x): x is string => Boolean(x)))
@@ -455,6 +665,6 @@ export async function getPosisiUnit(jenjang: Jenjang): Promise<PosisiUnit> {
     metode,
     tangga,
     urutanTahsin: [...URUTAN_TAHSIN],
-    urutanTahfidz: [...URUTAN_JUZ.map(j => `Juz ${j}`), 'Khatam 30 juz'],
+    urutanTahfidz: URUTAN_TAHFIDZ_LEPAS,
   }
 }

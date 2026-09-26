@@ -8,7 +8,7 @@ import {
   formatTahsinLevels, getPredikatClass, getPredikatLabel, getTahfidzKategori,
   getTahfidzLabel, tanggalWIB,
 } from '@/lib/rq/ujian'
-import type { UjianStatus, UjianTahfidz, UjianTahsin } from '@/types'
+import type { UjianStatus, UjianTahfidz, UjianTahsin, UjianUnit } from '@/types'
 
 /**
  * Papan tiga kolom untuk halaman Kelola Ujian: Diajukan → Terjadwal → Selesai.
@@ -296,31 +296,43 @@ function LihatSemua({ jumlah, onClick }: { jumlah: number; onClick: () => void }
  */
 export const BATAS_TASMI_PEKANAN = 4
 
-export function BebanPenguji({ tahfidz, tahsin }: { tahfidz: UjianTahfidz[]; tahsin: UjianTahsin[] }) {
+/** Nama unit ujian untuk panel beban — SD & SMP di sini berarti SDIT & SMPIT LHI. */
+const NAMA_UNIT_UJIAN: Record<UjianUnit, string> = { SD: 'SDIT', SMP: 'SMPIT' }
+
+export function BebanPenguji({ tahfidz, tahsin, units }: {
+  tahfidz: UjianTahfidz[]
+  tahsin: UjianTahsin[]
+  /** Unit yang dihitung. Lebih dari satu = penguji saling menguji lintas unit. */
+  units: UjianUnit[]
+}) {
   const sekarang = Date.now()
   const dalam = (iso: string | null, hari: number) => {
     if (!iso) return false
     const t = new Date(iso).getTime()
     return t >= sekarang - 86_400_000 && t <= sekarang + hari * 86_400_000
   }
+  const lintasUnit = units.length > 1
 
-  const peta = new Map<string, { tahfidz: number; tahsin: number; tasmiPekanIni: number }>()
+  const peta = new Map<string, { tahfidz: number; tahsin: number; tasmiPekanIni: number; perUnit: Map<UjianUnit, number> }>()
   const ambil = (nama: string) => {
     const ada = peta.get(nama)
     if (ada) return ada
-    const baru = { tahfidz: 0, tahsin: 0, tasmiPekanIni: 0 }
+    const baru = { tahfidz: 0, tahsin: 0, tasmiPekanIni: 0, perUnit: new Map<UjianUnit, number>() }
     peta.set(nama, baru)
     return baru
   }
   for (const t of tahfidz) {
-    if (t.status !== 'dijadwalkan' || !t.penguji || !dalam(t.jadwal, 14)) continue
+    if (!units.includes(t.unit) || t.status !== 'dijadwalkan' || !t.penguji || !dalam(t.jadwal, 14)) continue
     const p = ambil(t.penguji)
     p.tahfidz++
+    p.perUnit.set(t.unit, (p.perUnit.get(t.unit) ?? 0) + 1)
     if (getTahfidzKategori(t.tipe) === 'tasmi' && dalam(t.jadwal, 7)) p.tasmiPekanIni++
   }
   for (const t of tahsin) {
-    if (t.status !== 'dijadwalkan' || !t.penguji || !dalam(t.jadwal, 14)) continue
-    ambil(t.penguji).tahsin++
+    if (!units.includes(t.unit) || t.status !== 'dijadwalkan' || !t.penguji || !dalam(t.jadwal, 14)) continue
+    const p = ambil(t.penguji)
+    p.tahsin++
+    p.perUnit.set(t.unit, (p.perUnit.get(t.unit) ?? 0) + 1)
   }
   const baris = [...peta.entries()].sort((a, b) =>
     (b[1].tahfidz + b[1].tahsin) - (a[1].tahfidz + a[1].tahsin))
@@ -328,7 +340,10 @@ export function BebanPenguji({ tahfidz, tahsin }: { tahfidz: UjianTahfidz[]; tah
   return (
     <section className="rounded-2xl border bg-card p-5">
       <h3 className="font-display text-lg leading-tight">Beban penguji</h3>
-      <p className="mt-0.5 text-xs text-muted-foreground">Ujian terjadwal dua pekan ke depan</p>
+      <p className="mt-0.5 text-xs text-muted-foreground">
+        Ujian terjadwal dua pekan ke depan
+        {lintasUnit && <> · gabungan {units.map(u => NAMA_UNIT_UJIAN[u]).join(' & ')} LHI</>}
+      </p>
       {baris.length === 0 ? (
         <p className="mt-4 text-sm text-muted-foreground">Belum ada penguji yang terjadwal.</p>
       ) : (
@@ -349,6 +364,15 @@ export function BebanPenguji({ tahfidz, tahsin }: { tahfidz: UjianTahfidz[]; tah
                     {[b.tahfidz ? `Tahfidz ${b.tahfidz}` : '', b.tahsin ? `Tahsin ${b.tahsin}` : '']
                       .filter(Boolean).join(' · ')}
                   </p>
+                  {lintasUnit && (
+                    <p className="mt-1 flex flex-wrap gap-1">
+                      {units.filter(u => b.perUnit.get(u)).map(u => (
+                        <span key={u} className="rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                          {NAMA_UNIT_UJIAN[u]} {b.perUnit.get(u)}
+                        </span>
+                      ))}
+                    </p>
+                  )}
                 </div>
                 <span className={cn(
                   'font-display text-xl tabular-nums',
@@ -365,6 +389,7 @@ export function BebanPenguji({ tahfidz, tahsin }: { tahfidz: UjianTahfidz[]; tah
         <p className="font-semibold text-foreground">Catatan jadwal</p>
         Penguji berwarna oranye sudah memegang {BATAS_TASMI_PEKANAN} tasmi&apos; atau lebih pekan ini.
         Ini hanya penanda — penjadwalan tetap bisa dilakukan.
+        {lintasUnit && <> Beban dihitung dari kedua unit karena penguji SDIT dan SMPIT bisa saling menguji.</>}
       </div>
     </section>
   )

@@ -11,6 +11,8 @@ import { AnnouncementBoard } from '@/components/home/AnnouncementBoard'
 import { NewsCarousel } from '@/components/home/NewsCarousel'
 import { ProgramCarousel } from '@/components/home/ProgramCarousel'
 import { TeacherStrip } from '@/components/home/TeacherStrip'
+import { EkstraStrip, type KartuEkstra } from '@/components/home/EkstraStrip'
+import { getDataEkstra, rupiah, type DataEkstra } from '@/lib/data/ekstra'
 import { PublicFooter } from '@/components/home/PublicFooter'
 import type { PublicPost, NewsArticle, KaldiEvent } from '@/types'
 import { getKaldikEvents } from '@/lib/data/kaldik'
@@ -89,8 +91,9 @@ export default async function HomePage() {
   const pengCfg    = findSection(settings, 'pengumuman')
   const programCfg = findSection(settings, 'program')
   const guruCfg    = findSection(settings, 'profil_guru')
+  const ekstraCfg  = findSection(settings, 'ekstra')
 
-  const [posts, newsItems, session, kaldiEvents, publicTeachers, programItems, stats] = await Promise.all([
+  const [posts, newsItems, session, kaldiEvents, publicTeachers, programItems, stats, ekstra] = await Promise.all([
     getPosts(),
     news.enabled ? getNews(news.limit) : Promise.resolve([]),
     getSession(),
@@ -98,7 +101,15 @@ export default async function HomePage() {
     guruCfg.enabled ? getPublicTeachers(guruCfg.limit) : Promise.resolve([]),
     programCfg.enabled ? getActivePrograms(programCfg.limit) : Promise.resolve([]),
     getHomeStats(),
+    // Satu pengambilan untuk dua pemakai: kartu seksi Ekstra dan penanda
+    // "Menerima ekstra" di kartu guru. Gagal = beranda tetap tampil tanpa ekstra.
+    ekstraCfg.enabled || guruCfg.enabled
+      ? getDataEkstra({ hanyaAktif: true }).catch(() => null)
+      : Promise.resolve(null),
   ])
+
+  const kartuEkstra = ekstraCfg.enabled && ekstra ? susunKartuEkstra(ekstra, ekstraCfg.limit) : []
+  const guruEkstra = new Set((ekstra?.slot ?? []).map(s => s.teacher_id))
 
   const now = todayInJakarta()
 
@@ -190,8 +201,12 @@ export default async function HomePage() {
 
       case 'profil_guru':
         blocks.push(
-          <TeacherStrip key="profil_guru" title={guruCfg.title} teachers={publicTeachers} />,
+          <TeacherStrip key="profil_guru" title={guruCfg.title} teachers={publicTeachers} menerimaEkstra={guruEkstra} />,
         )
+        break
+
+      case 'ekstra':
+        blocks.push(<EkstraStrip key="ekstra" title={ekstraCfg.title} items={kartuEkstra} />)
         break
     }
   }
@@ -235,6 +250,30 @@ export default async function HomePage() {
       <PublicFooter />
     </div>
   )
+}
+
+/**
+ * Kartu jenis ekstra untuk beranda: hanya jenis aktif yang punya slot dibuka,
+ * 2–4 kartu. Hanya data yang memang publik — tidak ada data peserta, cuma
+ * sisa kursi yang dijumlah dari semua jadwalnya.
+ */
+function susunKartuEkstra(data: DataEkstra, limit: number): KartuEkstra[] {
+  const batas = Math.min(Math.max(limit || 4, 2), 4)
+  return data.jenis
+    .map(j => {
+      const slot = data.slot.filter(s => s.jenis_id === j.id)
+      return {
+        id: j.id,
+        nama: j.nama,
+        bidang: j.bidang,
+        biaya: `${rupiah(j.biaya)}${j.biaya ? ` ${j.satuan_biaya}` : ''}`,
+        waktu: [j.durasi_menit ? `${j.durasi_menit} menit` : '', j.keterangan_waktu].filter(Boolean).join(' · '),
+        sisa: slot.reduce((n, s) => n + Math.max(0, s.kuotaEfektif - s.peserta), 0),
+        jadwal: slot.length,
+      }
+    })
+    .filter(k => k.jadwal > 0)
+    .slice(0, batas)
 }
 
 function HeroStat({

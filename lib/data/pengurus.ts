@@ -222,6 +222,58 @@ export const KOLOM_PROFIL_KARYAWAN =
   ' sapaan, nickname, birth_place, birth_date, education_level, education_history,' +
   ' quran_competencies, other_competencies, ijazah_sanad, trainings, amanah_history, awards'
 
+/** Kolom profil yang ada di akun (users) maupun di rekam guru/karyawan. */
+const KOLOM_PROFIL_BERSAMA = [
+  'photo_url', 'sapaan', 'nickname', 'birth_place', 'birth_date', 'education_level',
+  'education_history', 'quran_competencies', 'other_competencies', 'ijazah_sanad',
+  'trainings', 'amanah_history', 'awards',
+] as const
+
+const kosong = (v: unknown) => v === null || v === undefined || v === '' || (Array.isArray(v) && v.length === 0)
+
+/**
+ * Pindahkan isian profil yang telanjur tersimpan di AKUN jabatan ke rekam
+ * orang yang kini menduduki kursinya.
+ *
+ * Selama kursi belum ditetapkan, /profil menyimpan isian ke akun itu sendiri.
+ * Begitu kepala RQ menetapkan pemegangnya, /profil beralih membaca rekam
+ * guru/karyawan — dan tanpa pemindahan ini seluruh isian tadi tampak hilang
+ * (yang terjadi pada Koor Ekstra, Kumik, dan SDM). Hanya kolom yang MASIH
+ * KOSONG di rekam tujuan yang diisi; isian akun tidak dihapus.
+ *
+ * Mengembalikan nama kolom yang disalin.
+ */
+export async function pindahkanProfilAkun(
+  userId: string,
+  tabel: 'teachers' | 'employees',
+  recordId: string,
+): Promise<string[]> {
+  const supabase = createServerClient()
+  const kolom = [...KOLOM_PROFIL_BERSAMA, 'photo_focus'].join(', ')
+  const [akunRes, rekamRes] = await Promise.all([
+    supabase.from('users').select(kolom).eq('id', userId).maybeSingle(),
+    supabase.from(tabel).select(kolom).eq('id', recordId).maybeSingle(),
+  ])
+  const akun = akunRes.data as Record<string, unknown> | null
+  const rekam = rekamRes.data as Record<string, unknown> | null
+  if (!akun || !rekam) return []
+
+  const isi: Record<string, unknown> = {}
+  for (const k of KOLOM_PROFIL_BERSAMA) {
+    if (kosong(rekam[k]) && !kosong(akun[k])) isi[k] = akun[k]
+  }
+  // Posisi foto hanya bermakna bersama fotonya.
+  if ('photo_url' in isi && !kosong(akun.photo_focus)) isi.photo_focus = akun.photo_focus
+  if (Object.keys(isi).length === 0) return []
+
+  const { error } = await supabase.from(tabel).update(isi).eq('id', recordId)
+  if (error) {
+    console.error('[pengurus] gagal memindahkan profil akun:', error)
+    return []
+  }
+  return Object.keys(isi)
+}
+
 /**
  * Profil orang yang sedang menduduki jabatan milik `userId`.
  *

@@ -7,7 +7,7 @@ import { getSession } from '@/lib/auth/session'
 import { canManageAllAccounts } from '@/lib/auth/permissions'
 
 /**
- * Pengelolaan password oleh Kepala RQ.
+ * Pengelolaan password oleh admin (dulu Kepala RQ, dipindah sejak 0090).
  *
  * Password TIDAK PERNAH bisa ditampilkan. Yang tersimpan adalah hash bcrypt,
  * dan bcrypt dirancang satu arah — tidak ada jalan mengembalikannya jadi teks
@@ -60,12 +60,12 @@ async function terapkan(target: Target, id: string, password: string) {
   return { success: true, password }
 }
 
-/** Kepala RQ mengetik sendiri password barunya. */
+/** Admin mengetik sendiri password barunya. */
 export async function setPasswordAction(target: Target, id: string, password: string) {
   return terapkan(target, id, password.trim())
 }
 
-/** Kepala RQ menekan Reset — sistem yang membuatkan passwordnya. */
+/** Admin menekan Reset — sistem yang membuatkan passwordnya. */
 export async function resetPasswordAction(target: Target, id: string) {
   return terapkan(target, id, passwordAcak())
 }

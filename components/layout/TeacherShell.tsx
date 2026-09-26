@@ -1,3 +1,4 @@
+import { punyaSlotEkstra } from '@/lib/data/ekstra'
 import {
   LayoutDashboard, Users, BookOpen, Sparkles, CalendarCheck,
   BarChart3, ScrollText, GraduationCap, IdCard, ClipboardCheck, ListChecks,
@@ -36,7 +37,7 @@ export async function TeacherShell({ children }: { children: React.ReactNode }) 
   // halaman masuk tidak perlu menu yang belum boleh ia pakai.
   if (!session) return <>{children}</>
 
-  const [bolehGukar, unitUjian, konteks, raporBaru, notifUjian, kue, riyadhoh] = await Promise.all([
+  const [bolehGukar, unitUjian, konteks, raporBaru, notifUjian, kue, riyadhoh, pengampuEkstra] = await Promise.all([
     bolehMengampuGukar(session.teacherId),
     getUnitUjianGuru(session.teacherId),
     getKonteksPengumuman(session.teacherId),
@@ -51,6 +52,8 @@ export async function TeacherShell({ children }: { children: React.ReactNode }) 
     cookies(),
     // Pengampu Riyadhoh Sabtu (0087) — hanya guru yang ditetapkan koordinator SMP.
     kelompokPengampu(session.teacherId),
+    // Pengampu slot ekstra (0091) — menu Ekstra hanya untuk mereka.
+    punyaSlotEkstra(session.teacherId).catch(() => false),
   ])
 
   // Diambil di kerangka, bukan di tiap halaman: loncengnya ada di bilah atas
@@ -108,6 +111,7 @@ export async function TeacherShell({ children }: { children: React.ReactNode }) 
         ...(unitUjian
           ? [{ label: 'Pengajuan Ujian', href: '/guru/ujian', icon: <ScrollText />, badge: notifUjian.baruCount }]
           : []),
+        ...(pengampuEkstra ? [{ label: 'Ekstra', href: '/guru/ekstra', icon: <CalendarHeart /> }] : []),
         ...(bolehGukar ? [{ label: 'Pembinaan Gukar', href: '/guru/gukar', icon: <GraduationCap /> }] : []),
         { label: 'Profil Saya', href: '/guru/profil', icon: <IdCard /> },
       ],

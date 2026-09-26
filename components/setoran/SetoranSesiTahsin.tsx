@@ -149,7 +149,7 @@ function modus(xs: number[]): number | null {
  * baris per anggota yang hadir sebelum dikirim, jadi aturan server (jilid,
  * halaman terakhir, drill, setoran ganda) tetap berlaku per anak.
  */
-export function SetoranSesiTahsin({ siswa, surat, halaqohId, pengaturan, tanggalTetap }: {
+export function SetoranSesiTahsin({ siswa, surat, halaqohId, pengaturan, tanggalTetap, ekstraSlotId }: {
   siswa: SiswaSesiTahsin[]
   surat: SuratPilihan[]
   halaqohId: string
@@ -157,6 +157,8 @@ export function SetoranSesiTahsin({ siswa, surat, halaqohId, pengaturan, tanggal
   pengaturan: KelompokKlasikal[] | null
   /** Tanggal terkunci — Riyadhoh hanya boleh dicatat pada Sabtunya. */
   tanggalTetap?: string
+  /** Setoran pertemuan ekstra (0091): tiap baris ditandai slot ini. */
+  ekstraSlotId?: string
 }) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
@@ -305,6 +307,7 @@ export function SetoranSesiTahsin({ siswa, surat, halaqohId, pengaturan, tanggal
         status: v.status,
         catatan: v.catatan || null,
         setoran_date: tanggal,
+        ekstra_slot_id: ekstraSlotId ?? null,
       })
     }
     for (const g of daftarKelompok) {
@@ -333,6 +336,7 @@ export function SetoranSesiTahsin({ siswa, surat, halaqohId, pengaturan, tanggal
           status: kg.statusAnak[s.id] ?? kg.status,
           catatan: ['Klasikal', kg.catatan.trim(), kg.catatanAnak[s.id]?.trim()].filter(Boolean).join(' · '),
           setoran_date: tanggal,
+          ekstra_slot_id: ekstraSlotId ?? null,
         })
       }
     }

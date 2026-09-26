@@ -14,28 +14,23 @@ const TABS = [
  */
 export function UjianTabPublik({ aktif }: { aktif: 'antrian' | 'rekap' }) {
   return (
-    <div className="border-b mb-7 -mx-4 md:-mx-6 px-4 md:px-6 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-      <nav aria-label="Menu ujian" className="flex gap-1 min-w-fit">
-        {TABS.map(({ key, href, label, icon: Icon }) => {
-          const active = aktif === key
-          return (
-            <Link
-              key={key}
-              href={href}
-              aria-current={active ? 'page' : undefined}
-              className={`relative inline-flex items-center gap-1.5 px-3.5 py-3 text-sm font-medium whitespace-nowrap transition-colors ${
-                active ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              <Icon className="h-4 w-4" />
-              {label}
-              {active && (
-                <span className="absolute bottom-0 left-2 right-2 h-0.5 rounded-t bg-primary" />
-              )}
-            </Link>
-          )
-        })}
-      </nav>
-    </div>
+    <nav aria-label="Menu ujian" className="mb-6 flex flex-wrap gap-2">
+      {TABS.map(({ key, href, label, icon: Icon }) => {
+        const active = aktif === key
+        return (
+          <Link
+            key={key}
+            href={href}
+            aria-current={active ? 'page' : undefined}
+            className={`inline-flex h-10 items-center gap-1.5 rounded-full border px-4 text-sm font-semibold whitespace-nowrap transition-colors ${
+              active ? 'border-primary bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <Icon className="h-4 w-4" />
+            {label}
+          </Link>
+        )
+      })}
+    </nav>
   )
 }

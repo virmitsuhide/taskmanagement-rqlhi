@@ -8,7 +8,7 @@ import {
   FileText, User, Megaphone, LogOut, ChevronRight, GraduationCap, Newspaper, LayoutGrid,
   Users, UserCog, BookMarked, BarChart3, LayoutTemplate, Info, Wallet, CalendarRange, CalendarDays,
   ClipboardCheck, KeyRound, ScrollText, Repeat, IdCard, UsersRound, Briefcase, Stamp, Scale, ListChecks, Kanban,
-  PanelLeftClose, PanelLeftOpen, CalendarHeart,
+  PanelLeftClose, PanelLeftOpen, CalendarHeart, Lock,
 } from 'lucide-react'
 import { DASHBOARD_LABELS, getAccessibleDashboards, ROLE_LABELS , canManageTeacherProfiles } from '@/lib/auth/permissions'
 import {
@@ -16,7 +16,8 @@ import {
   canAccessProgramMenu, canEditAbout,
   canViewStudents, canViewHalaqoh, canViewTeachers, canViewUnitAnalytics,
   canManageHomepage, canViewKpi, canManageAllAccounts, canManagePengurus, canManageEmployees, canViewUjian,
-  canAccessKpiPublikasi, canManageRaporTemplate, canManageRiyadhoh, canManageKaldik, canViewKpiBanding, canViewTasks, canViewRoutineBoard,
+  canAccessKpiPublikasi, canManageRaporTemplate, canManageRiyadhoh, canManageEkstra, canManageKaldik, canViewKpiBanding, canViewTasks, canViewRoutineBoard,
+  isAdmin,
 } from '@/lib/auth/permissions'
 import type { UserRole } from '@/types'
 import { logoutAction } from '@/app/actions/auth'
@@ -88,6 +89,22 @@ export function Sidebar({ role, displayName, username, lencanaKpi, ciutAwal = fa
 
       {/* Navigation */}
       <nav aria-label="Navigasi utama" className="flex-1 overflow-y-auto overflow-x-hidden px-3 py-4 space-y-6 group-data-[ciut=true]/sb:px-2 group-data-[ciut=true]/sb:[scrollbar-width:none]">
+        {isAdmin(role) ? (
+          // Admin bukan pengurus: tanpa dashboard jabatan, rapat, tugas, maupun
+          // modul tahsin/tahfidz — hanya tiga pengelolaan ini.
+          <div>
+            <p className={cn('px-2 mb-2 text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/50', SEMBUNYI_SAAT_CIUT)}>
+              Admin
+            </p>
+            <ul className="space-y-1">
+              <NavItem href="/dashboard/admin" icon={<LayoutDashboard className="h-4 w-4" />} label="Beranda Admin" active={isActive('/dashboard/admin')} />
+              <NavItem href="/pengurus" icon={<UsersRound className="h-4 w-4" />} label="Pengurus" active={isActive('/pengurus')} />
+              <NavItem href="/akun" icon={<KeyRound className="h-4 w-4" />} label="Akun & Password" active={isActive('/akun')} />
+              <NavItem href="/karyawan" icon={<Briefcase className="h-4 w-4" />} label="Karyawan" active={isActive('/karyawan')} />
+              <NavItem href="/profil#ganti-password" icon={<Lock className="h-4 w-4" />} label="Ganti Password" active={isActive('/profil')} />
+            </ul>
+          </div>
+        ) : (<>
         {/* Dashboard section */}
         <div>
           <p className={cn('px-2 mb-2 text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/50', SEMBUNYI_SAAT_CIUT)}>
@@ -220,7 +237,7 @@ export function Sidebar({ role, displayName, username, lencanaKpi, ciutAwal = fa
         </div>
 
         {/* Tahsin & Tahfidz section */}
-        {(canViewStudents(role) || canViewHalaqoh(role) || canViewTeachers(role) || canViewTerms(role) || canViewUjian(role)) && (
+        {(canViewStudents(role) || canViewHalaqoh(role) || canViewTeachers(role) || canViewTerms(role) || canViewUjian(role) || canManageEkstra(role)) && (
           <div>
             <p className={cn('px-2 mb-2 text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/50', SEMBUNYI_SAAT_CIUT)}>
               Tahsin &amp; Tahfidz
@@ -258,6 +275,9 @@ export function Sidebar({ role, displayName, username, lencanaKpi, ciutAwal = fa
               {canManageRiyadhoh(role) && (
                 <NavItem href="/riyadhoh" icon={<CalendarHeart className="h-4 w-4" />} label="Riyadhoh Sabtu" active={isActive('/riyadhoh')} />
               )}
+              {canManageEkstra(role) && (
+                <NavItem href="/ekstra" icon={<CalendarHeart className="h-4 w-4" />} label="Ekstra & Booking" active={isActive('/ekstra')} />
+              )}
               {/* Menempel di bawah template rapor: keduanya menetapkan isi
                   rapor seluruh angkatan — yang satu bentuknya, yang satu
                   penyebut kehadirannya. */}
@@ -280,14 +300,16 @@ export function Sidebar({ role, displayName, username, lencanaKpi, ciutAwal = fa
             </ul>
           </div>
         )}
+        </>)}
       </nav>
 
       {/* User section */}
       <div className="border-t border-sidebar-border px-3 py-3 space-y-1">
-        {canManagePengurus(role) && (
+        {/* Admin sudah melihat keduanya di menu utama. */}
+        {!isAdmin(role) && canManagePengurus(role) && (
           <NavItem href="/pengurus" icon={<UsersRound className="h-4 w-4" />} label="Pengurus" active={isActive('/pengurus')} />
         )}
-        {canManageAllAccounts(role) && (
+        {!isAdmin(role) && canManageAllAccounts(role) && (
           <NavItem href="/akun" icon={<KeyRound className="h-4 w-4" />} label="Akun & Password" active={isActive('/akun')} />
         )}
         <Link

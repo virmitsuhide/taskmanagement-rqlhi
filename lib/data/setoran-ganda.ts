@@ -124,14 +124,24 @@ interface LogTahsinLama {
   [kolom: string]: unknown
 }
 
-async function cariTahsinSamaHari(supabase: Supabase, studentId: string, tanggal: string) {
+/**
+ * Setoran EKSTRA (0091) dan setoran halaqoh sekolah adalah dua pertemuan
+ * berbeda: anak boleh setor pagi di sekolah dan sore di ekstra. Aturan satu
+ * setoran per hari berlaku di dalam jalurnya masing-masing — `ekstraSlotId`
+ * null = jalur sekolah, berisi = satu slot ekstra itu saja.
+ */
+function sejalur<T>(logs: T[], ekstraSlotId: string | null): T[] {
+  return logs.filter(l => ((l as { ekstra_slot_id?: string | null }).ekstra_slot_id ?? null) === ekstraSlotId)
+}
+
+async function cariTahsinSamaHari(supabase: Supabase, studentId: string, tanggal: string, ekstraSlotId: string | null = null) {
   const { data } = await supabase
     .from('tahsin_logs')
     .select('*, jilid:jilid_levels!tahsin_logs_jilid_id_fkey(label)')
     .eq('student_id', studentId)
     .eq('setoran_date', tanggal)
     .order('created_at')
-  const logs = (data ?? []) as LogTahsinLama[]
+  const logs = sejalur((data ?? []) as LogTahsinLama[], ekstraSlotId)
   if (logs.length === 0) return { logs, materi: new Map<string, Record<string, unknown>[]>() }
 
   const { data: materiRows } = await supabase
@@ -155,8 +165,9 @@ export async function periksaGandaTahsin(
   studentId: string,
   tanggal: string,
   baru: IsiTahsin & Omit<RingkasSetoran, 'isi' | 'waktu'>,
+  ekstraSlotId: string | null = null,
 ): Promise<SetoranGanda | null> {
-  const { logs, materi } = await cariTahsinSamaHari(supabase, studentId, tanggal)
+  const { logs, materi } = await cariTahsinSamaHari(supabase, studentId, tanggal, ekstraSlotId)
   if (logs.length === 0) return null
 
   const surat = await namaSurat(supabase, [
@@ -203,8 +214,9 @@ export async function arsipkanTahsinSamaHari(
   teacherId: string,
   studentId: string,
   tanggal: string,
+  ekstraSlotId: string | null = null,
 ): Promise<{ arsipIds: string[] } | { galat: string }> {
-  const { logs, materi } = await cariTahsinSamaHari(supabase, studentId, tanggal)
+  const { logs, materi } = await cariTahsinSamaHari(supabase, studentId, tanggal, ekstraSlotId)
   if (logs.length === 0) return { arsipIds: [] }
 
   const hasil = await arsipkan(supabase, teacherId, logs.map(l => {
@@ -275,7 +287,7 @@ interface LogTahfidzLama {
   [kolom: string]: unknown
 }
 
-async function cariTahfidzSamaHari(supabase: Supabase, studentId: string, tanggal: string, kind: string) {
+async function cariTahfidzSamaHari(supabase: Supabase, studentId: string, tanggal: string, kind: string, ekstraSlotId: string | null = null) {
   const { data } = await supabase
     .from('tahfidz_logs')
     .select('*')
@@ -283,7 +295,7 @@ async function cariTahfidzSamaHari(supabase: Supabase, studentId: string, tangga
     .eq('setoran_date', tanggal)
     .eq('kind', kind)
     .order('created_at')
-  return (data ?? []) as LogTahfidzLama[]
+  return sejalur((data ?? []) as LogTahfidzLama[], ekstraSlotId)
 }
 
 export async function periksaGandaTahfidz(
@@ -291,8 +303,9 @@ export async function periksaGandaTahfidz(
   studentId: string,
   tanggal: string,
   baru: IsiTahfidz & Pick<RingkasSetoran, 'nilai' | 'sikap' | 'catatan'>,
+  ekstraSlotId: string | null = null,
 ): Promise<SetoranGanda | null> {
-  const logs = await cariTahfidzSamaHari(supabase, studentId, tanggal, baru.kind)
+  const logs = await cariTahfidzSamaHari(supabase, studentId, tanggal, baru.kind, ekstraSlotId)
   if (logs.length === 0) return null
 
   const surat = await namaSurat(supabase, [
@@ -329,8 +342,9 @@ export async function arsipkanTahfidzSamaHari(
   studentId: string,
   tanggal: string,
   kind: string,
+  ekstraSlotId: string | null = null,
 ): Promise<{ arsipIds: string[] } | { galat: string }> {
-  const logs = await cariTahfidzSamaHari(supabase, studentId, tanggal, kind)
+  const logs = await cariTahfidzSamaHari(supabase, studentId, tanggal, kind, ekstraSlotId)
   if (logs.length === 0) return { arsipIds: [] }
 
   /*

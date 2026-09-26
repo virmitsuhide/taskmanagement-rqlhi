@@ -7,7 +7,7 @@ import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { JabatanRow } from './JabatanRow'
 
 /**
- * Pengurus — kepala RQ menetapkan siapa menduduki jabatan apa. Khusus kepala RQ.
+ * Pengurus — admin menetapkan siapa menduduki jabatan apa. Khusus admin (0090).
  *
  * Halaman ini adalah satu-satunya tempat "Amanah Saat Ini" ditentukan. Sebelum
  * ada halaman ini, tiap pengurus mengetik sendiri nama jabatannya di /profil —

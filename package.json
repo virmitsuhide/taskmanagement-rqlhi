@@ -48,6 +48,7 @@
     "uji:riyadhoh": "tsx scripts/uji-riyadhoh.ts",
     "rapikan:halaqoh": "tsx scripts/rapikan-nama-halaqoh.ts",
     "seed:div-quran-boarding": "tsx scripts/seed-div-quran-boarding.ts",
+    "seed:admin": "tsx scripts/seed-admin.ts",
     "impor:tmt": "tsx scripts/impor-tmt-guru.ts"
   },
   "dependencies": {

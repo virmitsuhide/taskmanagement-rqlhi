@@ -188,7 +188,7 @@ export function GuruProfileForm({ profile, scope }: Props) {
                   placeholder="Bendahara"
                 />
                 <p className="text-[11px] text-muted-foreground">
-                  Posisi kerjanya. Berbeda dari amanah pengurus, yang ditetapkan Kepala RQ.
+                  Posisi kerjanya. Berbeda dari amanah pengurus, yang ditetapkan admin lewat menu Pengurus.
                 </p>
               </div>
             ) : (

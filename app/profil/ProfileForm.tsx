@@ -44,7 +44,7 @@ export function ProfileForm({ user }: { user: User }) {
       {user.can_change_password && (
         <>
           <Separator />
-          <section>
+          <section id="ganti-password" className="scroll-mt-20">
             <h2 className="font-semibold mb-4">Ganti Password</h2>
             <form action={pwAction} className="space-y-4">
               <div className="space-y-1.5">

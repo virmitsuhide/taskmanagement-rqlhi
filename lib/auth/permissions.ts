@@ -20,6 +20,7 @@ const DASHBOARD_ACCESS: Record<string, UserRole[]> = {
   humas: ['humas'],
   'div-training': ['div_training'],
   pribadi: ['bendahara', 'new_squad', 'div_quran_bpa', 'div_quran_bpi'],
+  admin: ['admin'],
 }
 
 export function canViewDashboard(role: UserRole, dashboardSlug: string): boolean {
@@ -198,7 +199,7 @@ export function getCreatableMeetingTypes(role: UserRole): MeetingType[] {
  * Jadi tanpa fungsi ini, membatasi peran baru cuma berarti menyembunyikan
  * tautannya, sementara alamatnya tetap terbuka bagi yang mengetiknya langsung.
  */
-const TANPA_MODUL_TUGAS: UserRole[] = ['div_quran_bpa', 'div_quran_bpi']
+const TANPA_MODUL_TUGAS: UserRole[] = ['div_quran_bpa', 'div_quran_bpi', 'admin']
 
 export function canViewTasks(role: UserRole): boolean {
   return !TANPA_MODUL_TUGAS.includes(role)
@@ -216,8 +217,7 @@ export function canViewTasks(role: UserRole): boolean {
  * sifat kolom alasan itu: orang berhenti menulis sebab yang sebenarnya
  * begitu tahu rekan sejawatnya ikut membaca.
  *
- * Kepala RQ adalah pengecualiannya karena dialah yang menilai amanah, dan
- * penilaian itu memang sudah menjadi wewenangnya (lihat canManagePengurus).
+ * Kepala RQ adalah pengecualiannya karena dialah yang menilai amanah.
  */
 export function canViewRoutineBoard(role: UserRole): boolean {
   return role === 'kepala_rq'
@@ -243,6 +243,8 @@ const TASK_ASSIGN_TO: Record<UserRole, UserRole[]> = {
   // mereka tugasi — dan tidak ada yang boleh menugasi mereka.
   div_quran_bpa: [],
   div_quran_bpi: [],
+  // Admin bukan jabatan: tidak menugasi dan tidak ditugasi.
+  admin: [],
 }
 
 export function canAssignTask(role: UserRole, targetRole: UserRole): boolean {
@@ -808,12 +810,12 @@ export function canManageTeachers(role: UserRole): boolean {
 /**
  * Mengelola akun & profil karyawan RQ — menu "Karyawan".
  *
- * Sejalan dengan canManageTeachers: kepala RQ dan SDM. Karyawan bukan guru —
- * tidak mengampu halaqoh, tidak dinilai KPI — tapi urusan akun dan
- * kepegawaiannya tetap di tangan yang sama.
+ * Admin dan SDM. Sejak akun admin dipisah dari Kepala RQ (0090), urusan
+ * akun dan data orang ada di admin; SDM tetap ikut karena rekam
+ * kepegawaian karyawan adalah wilayahnya.
  */
 export function canManageEmployees(role: UserRole): boolean {
-  return role === 'kepala_rq' || role === 'sdm'
+  return role === 'admin' || role === 'sdm'
 }
 
 export function canManageTeacherProfiles(role: UserRole): boolean {
@@ -939,7 +941,7 @@ export const KATEGORI_GURU_ORDER: KategoriGuru[] = [
  * New Squad dikecualikan — mereka hanya punya pengaturan akun dasar.
  */
 export function canHavePengurusProfile(role: UserRole): boolean {
-  return role !== 'new_squad'
+  return role !== 'new_squad' && role !== 'admin'
 }
 
 /**
@@ -972,6 +974,7 @@ export const ROLE_LABELS: Record<UserRole, string> = {
   new_squad: 'New Squad',
   div_quran_bpa: 'Div Qur’an BPA',
   div_quran_bpi: 'Div Qur’an BPI',
+  admin: 'Admin',
 }
 
 /**
@@ -1000,6 +1003,8 @@ export const AMANAH_LABELS: Record<UserRole, string> = {
   new_squad:   "New Squad",
   div_quran_bpa: "Divisi Qur’an Boarding Putra",
   div_quran_bpi: "Divisi Qur’an Boarding Putri",
+  // Bukan jabatan — tidak ada di JABATAN_ORDER, tidak bisa diduduki guru.
+  admin: "Admin Sistem",
 }
 
 /**
@@ -1016,12 +1021,12 @@ export const JABATAN_ORDER: UserRole[] = [
 /**
  * Boleh menetapkan siapa yang menduduki tiap jabatan pengurus.
  *
- * Kepala RQ saja. Ini wewenang penempatan orang, satu tingkat di atas SDM yang
- * mengurus rekam kepegawaiannya — dan hasilnya menentukan profil siapa yang
- * tampil di akun jabatan tersebut.
+ * Admin saja (dulu Kepala RQ, dipindah sejak 0090). Ini wewenang penempatan
+ * orang, satu tingkat di atas SDM yang mengurus rekam kepegawaiannya — dan
+ * hasilnya menentukan profil siapa yang tampil di akun jabatan tersebut.
  */
 export function canManagePengurus(role: UserRole): boolean {
-  return role === "kepala_rq"
+  return role === "admin"
 }
 
 export const TASK_PRIORITY_LABELS: Record<TaskPriority, string> = {
@@ -1077,6 +1082,7 @@ export const DASHBOARD_LABELS: Record<string, string> = {
   humas: 'Humas',
   'div-training': 'Div Training',
   pribadi: 'Dashboard Saya',
+  admin: 'Admin',
 }
 
 export const DEFAULT_DASHBOARD: Record<UserRole, string> = {
@@ -1095,6 +1101,7 @@ export const DEFAULT_DASHBOARD: Record<UserRole, string> = {
   // jadi tidak ada papan divisi yang perlu dibuatkan sendiri.
   div_quran_bpa: 'pribadi',
   div_quran_bpi: 'pribadi',
+  admin: 'admin',
 }
 
 // Pembinaan Guru & Karyawan (Gukar)
@@ -1308,14 +1315,22 @@ export function canViewKpiRaporSheet(role: UserRole): boolean {
 }
 
 /**
- * Kelola akun & password seluruh pengguna — khusus Kepala RQ.
+ * Kelola akun & password seluruh pengguna — khusus admin.
  *
  * Tidak diberikan ke SDM meski SDM mengelola kepegawaian: hak ini mencakup
- * mengganti password Kepala RQ sendiri, jadi memberikannya ke peran lain
+ * mengganti password akun mana pun, jadi memberikannya ke peran lain
  * membuat siapa pun pemegangnya bisa mengambil alih akun tertinggi.
  */
 export function canManageAllAccounts(role: UserRole): boolean {
-  return role === 'kepala_rq'
+  return role === 'admin'
+}
+
+/**
+ * Akun admin sistem — bukan jabatan pengurus. Tidak punya dashboard, tugas,
+ * rapat, maupun analitik; menunya hanya Pengurus, Akun & Password, Karyawan.
+ */
+export function isAdmin(role: UserRole): boolean {
+  return role === 'admin'
 }
 
 // ── Pembinaan Gukar ────────────────────────────────────────────────
@@ -1356,6 +1371,20 @@ export function getUjianUnits(role: UserRole): UjianUnit[] {
   // persis dengan koor SMP.
   if (role === 'koor_smp' || role === 'div_quran_bpa' || role === 'div_quran_bpi') return ['SMP']
   return []
+}
+
+/**
+ * Unit yang ujiannya dihitung dalam panel "Beban penguji".
+ *
+ * Penguji SDIT LHI dan SMPIT LHI bisa saling menguji lintas unit, jadi koor
+ * SD dan koor SMP perlu melihat beban dari kedua unit — tanpa itu penguji
+ * yang sudah penuh di unit sebelah tampak longgar. Ini hanya penglihatan:
+ * mengelola pengajuan tetap dibatasi getUjianUnits/canManageUjian. Peran lain
+ * (BPA/BPI) tidak menguji lintas unit, jadi cakupannya tetap unitnya sendiri.
+ */
+export function getUnitBebanPenguji(role: UserRole): UjianUnit[] {
+  if (role === 'koor_sd' || role === 'koor_smp') return ['SD', 'SMP']
+  return getUjianUnits(role)
 }
 
 /** Boleh membuka modul ujian (kelola, riwayat, daftar penguji). */
@@ -1425,4 +1454,13 @@ export function canManageKaldik(role: UserRole, unit?: string | null): boolean {
   if (u === 'SD') return role === 'koor_sd' || role === 'koor_qulssd'
   if (u === 'SMP') return role === 'koor_smp'
   return false
+}
+
+
+/**
+ * Ekstra tahsin & tahfidz (0091): membuat jenis ekstra, membuka slot guru,
+ * dan menangani booking orang tua.
+ */
+export function canManageEkstra(role: UserRole): boolean {
+  return role === 'kepala_rq' || role === 'koor_ekstra'
 }

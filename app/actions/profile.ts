@@ -267,7 +267,7 @@ export async function updatePengurusOwnProfileAction(_: unknown, formData: FormD
   if (!pemegang) {
     return {
       error:
-        'Amanah ini belum ditetapkan Kepala RQ, jadi belum ada rekam yang bisa disimpan. ' +
+        'Amanah ini belum ditetapkan admin, jadi belum ada rekam yang bisa disimpan. ' +
         'Minta Kepala RQ menetapkan pemegangnya lewat menu Pengurus.',
     }
   }

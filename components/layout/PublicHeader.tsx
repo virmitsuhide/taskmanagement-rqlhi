@@ -19,6 +19,9 @@ const NAV: NavItem[] = [
   { label: 'Beranda', href: '/'        },
   { label: 'Berita',  href: '/news'    },
   { label: 'Program', href: '/program' },
+  // Pintu orang tua ke pendaftaran ekstra; halaman yang sama dipakai
+  // di desktop dan di menu HP (PublicMobileNav membaca NAV ini).
+  { label: 'Ekstra',  href: '/daftar-ekstra' },
   {
     label: 'Tentang RQ',
     href: '/tentang',
@@ -131,7 +134,7 @@ export async function PublicHeader() {
         <Link href="/" className="flex min-w-0 items-center gap-2.5 mr-auto">
           <Logo size={42} alt="" priority className="shrink-0 shadow-sm" />
           <div className="min-w-0 leading-tight">
-            <p className="truncate font-heading text-[19px] font-semibold text-primary leading-none">{settings.header_brand}</p>
+            <p className="truncate font-heading text-[17px] font-semibold text-primary leading-none sm:text-[19px]">{settings.header_brand}</p>
             <p className="mt-1 truncate text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
               {settings.header_tagline}
             </p>

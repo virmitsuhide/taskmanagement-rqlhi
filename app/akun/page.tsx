@@ -49,7 +49,7 @@ export default async function AkunPage() {
         <div className="mb-5 flex gap-3 rounded-xl border border-info/30 bg-info-wash px-4 py-3">
           <ShieldAlert className="h-4 w-4 shrink-0 text-info mt-0.5" />
           <div className="text-xs leading-relaxed text-info">
-            <p className="font-semibold">Password lama tidak bisa ditampilkan — termasuk untuk Kepala RQ.</p>
+            <p className="font-semibold">Password lama tidak bisa ditampilkan — termasuk untuk admin.</p>
             <p className="mt-1 text-info/90">
               Yang tersimpan di database adalah hash bcrypt, bukan passwordnya. Hash itu satu arah:
               dipakai untuk memeriksa apakah password yang diketik cocok, tapi tidak bisa dikembalikan

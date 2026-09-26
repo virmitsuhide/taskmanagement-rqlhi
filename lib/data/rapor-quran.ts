@@ -1,3 +1,4 @@
+import { idSetoranEkstra } from '@/lib/data/ekstra'
 import { createServerClient } from '@/lib/supabase/server'
 import { getPetaHalaman } from '@/lib/data/target-tahfidz'
 import { rincianHafalan } from '@/lib/rq/target-tahfidz'
@@ -185,17 +186,17 @@ export async function getBahanRaporSesi(
   const ids = siswa.map(s => s.id)
   if (ids.length === 0) return []
 
-  type LogTahsin = { student_id: string; nilai_tahsin: number | null; nilai_sikap: number | null }
-  type LogTahfidz = { student_id: string; nilai_tahfidz: number | null; nilai_sikap: number | null }
+  type LogTahsin = { id: string; student_id: string; nilai_tahsin: number | null; nilai_sikap: number | null }
+  type LogTahfidz = { id: string; student_id: string; nilai_tahfidz: number | null; nilai_sikap: number | null }
   type Ziyadah = { student_id: string; surat_id: number; ayat_dari: number | null; ayat_ke: number | null; setoran_date: string; created_at: string }
 
-  const [tahsin, tahfidz, ziyadahSemua, progres, juzTeruji, absensi, kalender, peta, surat, isianRes, pengampuRes] =
+  const [tahsinSemua, tahfidzSemua, ziyadahSemua, progres, juzTeruji, absensi, kalender, peta, surat, isianRes, pengampuRes, logEkstra] =
     await Promise.all([
       ambilSemua<LogTahsin>((a, b) =>
-        supabase.from('tahsin_logs').select('student_id, nilai_tahsin, nilai_sikap')
+        supabase.from('tahsin_logs').select('id, student_id, nilai_tahsin, nilai_sikap')
           .in('student_id', ids).gte('setoran_date', term.start_date).lte('setoran_date', term.end_date).range(a, b)),
       ambilSemua<LogTahfidz>((a, b) =>
-        supabase.from('tahfidz_logs').select('student_id, nilai_tahfidz, nilai_sikap')
+        supabase.from('tahfidz_logs').select('id, student_id, nilai_tahfidz, nilai_sikap')
           .in('student_id', ids).gte('setoran_date', term.start_date).lte('setoran_date', term.end_date).range(a, b)),
       // Ziyadah terakhir sepanjang masa — posisi hafalan hari ini, bukan
       // capaian semester: itulah yang ditanyakan wali.
@@ -214,7 +215,12 @@ export async function getBahanRaporSesi(
       getInfoSurat(),
       ambilIsian(ids, term.id, jenis),
       ambilPengampu(halaqoh.id),
+      // Nilai dari setoran pertemuan ekstra (0091) tidak ikut rata-rata rapor
+      // semester — dilaporkan di laporan ekstra. Posisi hafalan tetap ikut.
+      idSetoranEkstra(ids, term.start_date, term.end_date),
     ])
+  const tahsin = tahsinSemua.filter(l => !logEkstra.tahsin.has(l.id))
+  const tahfidz = tahfidzSemua.filter(l => !logEkstra.tahfidz.has(l.id))
 
   const pengampu = pengampuRes
 

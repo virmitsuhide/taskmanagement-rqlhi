@@ -18,6 +18,7 @@ const SECTION_META: Record<HomeSectionKey, { hint: string; hasLimit: boolean }> 
   news:        { hint: 'Carousel berita & artikel dari halaman Berita',   hasLimit: true  },
   program:     { hint: 'Kartu ringkas program RQ',                        hasLimit: true  },
   profil_guru: { hint: 'Cuplikan guru yang ditandai tampil publik',       hasLimit: true  },
+  ekstra:      { hint: 'Kartu jenis ekstra yang membuka jadwal (2–4 kartu); tersembunyi bila belum ada jadwal', hasLimit: true },
 }
 
 export function SectionsForm({ sections }: { sections: HomeSection[] }) {

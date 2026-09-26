@@ -17,6 +17,9 @@ export const DEFAULT_SECTIONS: HomeSection[] = [
   { key: 'news',        enabled: true, title: 'Kabar & Berita',    limit: 12 },
   { key: 'program',     enabled: true, title: 'Program Kami',      limit: 4 },
   { key: 'profil_guru', enabled: true, title: "Guru Rumah Qur'an", limit: 6 },
+  // Mati bawaan: Humas yang memutuskan kapan pendaftaran ekstra diumumkan di
+  // beranda. Seksi ini tetap tersembunyi selama belum ada jadwal dibuka.
+  { key: 'ekstra',      enabled: false, title: 'Ekstra Tahsin & Tahfidz', limit: 4 },
 ]
 
 export const DEFAULT_SITE_SETTINGS: SiteSettings = {
