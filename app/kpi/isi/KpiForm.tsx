@@ -22,6 +22,11 @@ interface Props {
   monthLabel: string
   backHref: string
   existing: KpiMonthly | null
+  /**
+   * Posisi hafalan dari setoran terakhir bulan ini (Setoran Guru, 0096).
+   * Bidang yang terisi dikunci di formulir: sumber kebenarannya setoran.
+   */
+  dariSetoran?: { nilai: Partial<Record<'hafalan_juz' | 'hafalan_pages' | 'tuhfatul_bait', number>>; keterangan: Partial<Record<'hafalan_juz' | 'hafalan_pages' | 'tuhfatul_bait', string>> }
   /** Menentukan rubrik: SMP menargetkan 5 juz, SD 3 juz. */
   unit: Jenjang | null
 }
@@ -46,6 +51,21 @@ const bulananFields = (P: KpiParam): { name: keyof KpiMonthly & string; label: s
   { name: 'pengganti_found', label: 'Cari pengganti — berhasil dapat', hint: 'Dinilai dari rasio berhasil ÷ kasus' },
 ]
 
+/** Isian rinci → kunci nilai langsungnya (0097). */
+const LANGSUNG_DARI_FIELD: Partial<Record<string, KunciLangsung>> = {
+  late_minutes: 'hadir',
+  db_late_days: 'database',
+  buku_pegangan_meetings: 'bukuPegangan',
+  izin_wa_cases: 'perizinan',
+  pengganti_cases: 'pengganti',
+  pengganti_found: 'pengganti',
+}
+type KunciLangsung = 'hadir' | 'database' | 'bukuPegangan' | 'perizinan' | 'pengganti'
+const KOLOM_LANGSUNG: Record<KunciLangsung, string> = {
+  hadir: 'nilai_hadir', database: 'nilai_database', bukuPegangan: 'nilai_buku_pegangan',
+  perizinan: 'nilai_perizinan', pengganti: 'nilai_pengganti',
+}
+
 const angka = (v: unknown) => {
   const n = typeof v === 'string' ? parseFloat(v) : Number(v)
   return Number.isFinite(n) ? n : 0
@@ -59,13 +79,16 @@ const angka = (v: unknown) => {
  * satu modul dipanggil dari dua tempat, jadi angka pratinjau tidak mungkin
  * berbeda dari angka yang tersimpan.
  */
-export function KpiForm({ teacherId, teacherName, year, month, monthLabel, backHref, existing, unit }: Props) {
+export function KpiForm({ teacherId, teacherName, year, month, monthLabel, backHref, existing, unit, dariSetoran }: Props) {
   const P = paramFor(unit)
   const router = useRouter()
   const [state, action, isPending] = useActionState(simpanKpiAction, null)
 
   const [bulanan, setBulanan] = useState<Record<string, string>>(() =>
-    Object.fromEntries(bulananFields(paramFor(unit)).map(f => [f.name, String(existing?.[f.name] ?? 0)])),
+    Object.fromEntries(bulananFields(paramFor(unit)).map(f => [
+      f.name,
+      String(dariSetoran?.nilai[f.name as keyof typeof dariSetoran.nilai] ?? existing?.[f.name] ?? 0),
+    ])),
   )
 
   // Mode rinci vs total. Kalau baris tersimpan punya *_total terisi, berarti
@@ -96,6 +119,18 @@ export function KpiForm({ teacherId, teacherName, year, month, monthLabel, backH
     halaqoh_total: String(existing?.halaqoh_total ?? ''),
   })
 
+  // Nilai langsung dari tabel isi cepat. Dibiarkan apa adanya saat formulir ini
+  // disimpan, kecuali SDM memilih kembali memakai rincian (hapus_langsung).
+  const [langsung, setLangsung] = useState<Partial<Record<KunciLangsung, number | null>>>(() => ({
+    hadir: existing?.nilai_hadir ?? null,
+    database: existing?.nilai_database ?? null,
+    bukuPegangan: existing?.nilai_buku_pegangan ?? null,
+    perizinan: existing?.nilai_perizinan ?? null,
+    pengganti: existing?.nilai_pengganti ?? null,
+  }))
+  const dilepas = (Object.keys(KOLOM_LANGSUNG) as KunciLangsung[])
+    .filter(k => langsung[k] === null && existing?.[KOLOM_LANGSUNG[k] as keyof KpiMonthly] != null)
+
   const hasil = hitungKpi(
     {
       lateMinutes: angka(bulanan.late_minutes),
@@ -108,6 +143,7 @@ export function KpiForm({ teacherId, teacherName, year, month, monthLabel, backH
       izinWaCases: angka(bulanan.izin_wa_cases),
       penggantiCases: angka(bulanan.pengganti_cases),
       penggantiFound: angka(bulanan.pengganti_found),
+      langsung,
     },
     mode === 'grid'
       ? {
@@ -136,6 +172,7 @@ export function KpiForm({ teacherId, teacherName, year, month, monthLabel, backH
   return (
     <form action={action} className="space-y-5">
       <input type="hidden" name="teacher_id" value={teacherId} />
+      {dilepas.map(k => <input key={k} type="hidden" name="hapus_langsung" value={KOLOM_LANGSUNG[k]} />)}
       <input type="hidden" name="year" value={year} />
       <input type="hidden" name="month" value={month} />
 
@@ -182,9 +219,27 @@ export function KpiForm({ teacherId, teacherName, year, month, monthLabel, backH
                 step="any"
                 inputMode="decimal"
                 value={bulanan[f.name]}
+                readOnly={dariSetoran?.nilai[f.name as keyof typeof dariSetoran.nilai] !== undefined}
+                className={cn(dariSetoran?.nilai[f.name as keyof typeof dariSetoran.nilai] !== undefined && 'bg-muted')}
                 onChange={e => setBulanan(b => ({ ...b, [f.name]: e.target.value }))}
               />
               <p className="text-xs text-muted-foreground">{f.hint}</p>
+              {(() => {
+                const k = LANGSUNG_DARI_FIELD[f.name]
+                const v = k ? langsung[k] : null
+                if (!k || v === null || v === undefined) return null
+                return (
+                  <p className="text-xs font-medium text-warning">
+                    Nilai langsung {v} dipakai (diisi di tabel isi cepat); angka ini diabaikan.{' '}
+                    <button type="button" className="font-semibold text-primary underline" onClick={() => setLangsung(l => ({ ...l, [k]: null }))}>
+                      Pakai rincian
+                    </button>
+                  </p>
+                )
+              })()}
+              {dariSetoran?.keterangan[f.name as keyof typeof dariSetoran.keterangan] && (
+                <p className="text-xs font-medium text-primary">{dariSetoran.keterangan[f.name as keyof typeof dariSetoran.keterangan]}</p>
+              )}
             </div>
           ))}
         </CardContent>

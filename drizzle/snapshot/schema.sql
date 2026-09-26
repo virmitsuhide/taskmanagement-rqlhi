@@ -289,7 +289,7 @@ CREATE TABLE public.drizzle_migrations (
 
 CREATE TABLE public.ekstra_booking (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
-  slot_id uuid NOT NULL,
+  slot_id uuid,
   slot_tawaran_id uuid,
   status text DEFAULT 'baru'::text NOT NULL,
   nama_anak text NOT NULL,
@@ -305,6 +305,20 @@ CREATE TABLE public.ekstra_booking (
   ditangani_at timestamp with time zone,
   mulai date,
   berhenti date,
+  created_at timestamp with time zone DEFAULT now() NOT NULL,
+  updated_at timestamp with time zone DEFAULT now() NOT NULL,
+  jenis_id uuid NOT NULL,
+  hari_pilihan smallint[] DEFAULT '{}'::smallint[] NOT NULL,
+  waktu_pilihan text[] DEFAULT '{}'::text[] NOT NULL,
+  catatan_waktu text DEFAULT ''::text NOT NULL,
+  guru_pilihan_ids uuid[] DEFAULT '{}'::uuid[] NOT NULL
+);
+
+CREATE TABLE public.ekstra_guru (
+  teacher_id uuid NOT NULL,
+  aktif boolean DEFAULT true NOT NULL,
+  catatan text DEFAULT ''::text NOT NULL,
+  ditambah_oleh uuid,
   created_at timestamp with time zone DEFAULT now() NOT NULL,
   updated_at timestamp with time zone DEFAULT now() NOT NULL
 );
@@ -751,7 +765,12 @@ CREATE TABLE public.kpi_monthly (
   guru_ttd_focus jsonb,
   banding_batas date,
   direset_at timestamp with time zone,
-  direset_by uuid
+  direset_by uuid,
+  nilai_hadir numeric,
+  nilai_database numeric,
+  nilai_buku_pegangan numeric,
+  nilai_perizinan numeric,
+  nilai_pengganti numeric
 );
 
 CREATE TABLE public.kpi_rapor_riwayat (
@@ -778,6 +797,22 @@ CREATE TABLE public.kurikulum_targets (
   catatan text DEFAULT ''::text NOT NULL,
   updated_by uuid,
   updated_at timestamp with time zone DEFAULT now()
+);
+
+CREATE TABLE public.laporan_kurikulum (
+  id uuid DEFAULT gen_random_uuid() NOT NULL,
+  periode date NOT NULL,
+  status text DEFAULT 'draf'::text NOT NULL,
+  data jsonb NOT NULL,
+  narasi jsonb DEFAULT '{}'::jsonb NOT NULL,
+  dihitung_at timestamp with time zone DEFAULT now() NOT NULL,
+  dibuat_oleh uuid,
+  diajukan_at timestamp with time zone,
+  disetujui_oleh uuid,
+  disetujui_at timestamp with time zone,
+  catatan_kepala text DEFAULT ''::text NOT NULL,
+  created_at timestamp with time zone DEFAULT now() NOT NULL,
+  updated_at timestamp with time zone DEFAULT now() NOT NULL
 );
 
 CREATE TABLE public.meetings (
@@ -991,6 +1026,24 @@ CREATE TABLE public.setoran_arsip (
   diganti_oleh uuid,
   diarsipkan_oleh uuid,
   created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+CREATE TABLE public.setoran_guru (
+  id uuid DEFAULT gen_random_uuid() NOT NULL,
+  teacher_id uuid NOT NULL,
+  tanggal date NOT NULL,
+  jenis text NOT NULL,
+  surat_id integer,
+  ayat_dari smallint,
+  ayat_ke smallint,
+  juz_selesai smallint,
+  bait_dari smallint,
+  bait_ke smallint,
+  nilai smallint,
+  catatan text DEFAULT ''::text NOT NULL,
+  dicatat_oleh uuid,
+  created_at timestamp with time zone DEFAULT now() NOT NULL,
+  updated_at timestamp with time zone DEFAULT now() NOT NULL
 );
 
 CREATE TABLE public.site_settings (
@@ -1432,6 +1485,7 @@ ALTER TABLE public.batas_juz ADD CONSTRAINT batas_juz_pkey PRIMARY KEY (juz);
 ALTER TABLE public.content_requests ADD CONSTRAINT content_requests_pkey PRIMARY KEY (id);
 ALTER TABLE public.drizzle_migrations ADD CONSTRAINT drizzle_migrations_pkey PRIMARY KEY (id);
 ALTER TABLE public.ekstra_booking ADD CONSTRAINT ekstra_booking_pkey PRIMARY KEY (id);
+ALTER TABLE public.ekstra_guru ADD CONSTRAINT ekstra_guru_pkey PRIMARY KEY (teacher_id);
 ALTER TABLE public.ekstra_hadir ADD CONSTRAINT ekstra_hadir_pkey PRIMARY KEY (booking_id, tanggal);
 ALTER TABLE public.ekstra_jenis ADD CONSTRAINT ekstra_jenis_pkey PRIMARY KEY (id);
 ALTER TABLE public.ekstra_slot ADD CONSTRAINT ekstra_slot_pkey PRIMARY KEY (id);
@@ -1466,6 +1520,7 @@ ALTER TABLE public.kpi_banding ADD CONSTRAINT kpi_banding_pkey PRIMARY KEY (id);
 ALTER TABLE public.kpi_monthly ADD CONSTRAINT kpi_monthly_pkey PRIMARY KEY (id);
 ALTER TABLE public.kpi_rapor_riwayat ADD CONSTRAINT kpi_rapor_riwayat_pkey PRIMARY KEY (id);
 ALTER TABLE public.kurikulum_targets ADD CONSTRAINT kurikulum_targets_pkey PRIMARY KEY (id);
+ALTER TABLE public.laporan_kurikulum ADD CONSTRAINT laporan_kurikulum_pkey PRIMARY KEY (id);
 ALTER TABLE public.meetings ADD CONSTRAINT meetings_pkey PRIMARY KEY (id);
 ALTER TABLE public.news_articles ADD CONSTRAINT news_articles_pkey PRIMARY KEY (id);
 ALTER TABLE public.notification_reads ADD CONSTRAINT notification_reads_pkey PRIMARY KEY (user_id, history_id);
@@ -1484,6 +1539,7 @@ ALTER TABLE public.routine_task_checks ADD CONSTRAINT routine_task_checks_pkey P
 ALTER TABLE public.routine_task_members ADD CONSTRAINT routine_task_members_pkey PRIMARY KEY (task_id, user_id);
 ALTER TABLE public.routine_tasks ADD CONSTRAINT routine_tasks_pkey PRIMARY KEY (id);
 ALTER TABLE public.setoran_arsip ADD CONSTRAINT setoran_arsip_pkey PRIMARY KEY (id);
+ALTER TABLE public.setoran_guru ADD CONSTRAINT setoran_guru_pkey PRIMARY KEY (id);
 ALTER TABLE public.site_settings ADD CONSTRAINT site_settings_pkey PRIMARY KEY (id);
 ALTER TABLE public.sprint_goals ADD CONSTRAINT sprint_goals_pkey PRIMARY KEY (id);
 ALTER TABLE public.sprint_items ADD CONSTRAINT sprint_items_pkey PRIMARY KEY (id);
@@ -1525,6 +1581,7 @@ ALTER TABLE public.juz_promotions ADD CONSTRAINT juz_promotions_student_id_juz_n
 ALTER TABLE public.kelompok_klasikal_anggota ADD CONSTRAINT kelompok_klasikal_anggota_satu_kelompok UNIQUE (student_id);
 ALTER TABLE public.kpi_monthly ADD CONSTRAINT kpi_monthly_guru_periode_unik UNIQUE (teacher_id, year, month);
 ALTER TABLE public.kurikulum_targets ADD CONSTRAINT kurikulum_targets_term_id_jenjang_tingkat_key UNIQUE (term_id, jenjang, tingkat);
+ALTER TABLE public.laporan_kurikulum ADD CONSTRAINT laporan_kurikulum_periode_key UNIQUE (periode);
 ALTER TABLE public.programs ADD CONSTRAINT programs_slug_key UNIQUE (slug);
 ALTER TABLE public.sprint_goals ADD CONSTRAINT sprint_goals_satu_per_jabatan UNIQUE (sprint_id, jabatan);
 ALTER TABLE public.sprint_items ADD CONSTRAINT sprint_items_sekali_per_sprint UNIQUE (sprint_id, task_id);
@@ -1543,6 +1600,7 @@ ALTER TABLE public.about_rq ADD CONSTRAINT about_rq_id_check CHECK ((id = 1));
 ALTER TABLE public.academic_terms ADD CONSTRAINT academic_terms_rentang_masuk_akal CHECK ((end_date > start_date));
 ALTER TABLE public.agenda_items ADD CONSTRAINT agenda_items_approval_status_cek CHECK (((approval_status IS NULL) OR (approval_status = ANY (ARRAY['menunggu'::text, 'disetujui'::text, 'ditolak'::text]))));
 ALTER TABLE public.agenda_items ADD CONSTRAINT agenda_items_biaya_cek CHECK (((biaya IS NULL) OR (biaya >= 0)));
+ALTER TABLE public.ekstra_booking ADD CONSTRAINT ekstra_booking_aktif_punya_halaqoh CHECK (((status <> 'aktif'::text) OR (slot_id IS NOT NULL)));
 ALTER TABLE public.ekstra_booking ADD CONSTRAINT ekstra_booking_asal_check CHECK ((asal = ANY (ARRAY['lhi'::text, 'luar'::text])));
 ALTER TABLE public.ekstra_booking ADD CONSTRAINT ekstra_booking_status_check CHECK ((status = ANY (ARRAY['baru'::text, 'ditawarkan'::text, 'aktif'::text, 'ditolak'::text, 'berhenti'::text])));
 ALTER TABLE public.ekstra_jenis ADD CONSTRAINT ekstra_jenis_biaya_check CHECK ((biaya >= 0));
@@ -1580,8 +1638,15 @@ ALTER TABLE public.kalender_pekan_efektif ADD CONSTRAINT kalender_pekan_efektif_
 ALTER TABLE public.kalender_pekan_efektif ADD CONSTRAINT kalender_pekan_efektif_semester_check CHECK ((semester = ANY (ARRAY[1, 2])));
 ALTER TABLE public.kalender_pekan_efektif ADD CONSTRAINT kalender_pekan_efektif_tahun_ajaran_check CHECK ((tahun_ajaran ~ '^\d{4}/\d{4}$'::text));
 ALTER TABLE public.kpi_monthly ADD CONSTRAINT kpi_monthly_month_check CHECK (((month >= 1) AND (month <= 12)));
+ALTER TABLE public.kpi_monthly ADD CONSTRAINT kpi_monthly_nilai_buku_pegangan_check CHECK (((nilai_buku_pegangan >= (0)::numeric) AND (nilai_buku_pegangan <= (100)::numeric)));
+ALTER TABLE public.kpi_monthly ADD CONSTRAINT kpi_monthly_nilai_database_check CHECK (((nilai_database >= (0)::numeric) AND (nilai_database <= (100)::numeric)));
+ALTER TABLE public.kpi_monthly ADD CONSTRAINT kpi_monthly_nilai_hadir_check CHECK (((nilai_hadir >= (0)::numeric) AND (nilai_hadir <= (100)::numeric)));
+ALTER TABLE public.kpi_monthly ADD CONSTRAINT kpi_monthly_nilai_pengganti_check CHECK (((nilai_pengganti >= (0)::numeric) AND (nilai_pengganti <= (100)::numeric)));
+ALTER TABLE public.kpi_monthly ADD CONSTRAINT kpi_monthly_nilai_perizinan_check CHECK (((nilai_perizinan >= (0)::numeric) AND (nilai_perizinan <= (100)::numeric)));
 ALTER TABLE public.kurikulum_targets ADD CONSTRAINT kurikulum_targets_juz_sah CHECK (((target_juz IS NULL) OR ((target_juz >= 1) AND (target_juz <= 30))));
 ALTER TABLE public.kurikulum_targets ADD CONSTRAINT kurikulum_targets_tingkat_sah CHECK (((tingkat >= 1) AND (tingkat <= 12)));
+ALTER TABLE public.laporan_kurikulum ADD CONSTRAINT laporan_kurikulum_periode_awal_bulan CHECK ((EXTRACT(day FROM periode) = (1)::numeric));
+ALTER TABLE public.laporan_kurikulum ADD CONSTRAINT laporan_kurikulum_status_check CHECK ((status = ANY (ARRAY['draf'::text, 'diajukan'::text, 'disetujui'::text])));
 ALTER TABLE public.rapor_isian ADD CONSTRAINT rapor_isian_jenis_sah CHECK ((jenis = ANY (ARRAY['ats'::text, 'semester'::text])));
 ALTER TABLE public.rapor_templates ADD CONSTRAINT rapor_templates_jenis_sah CHECK ((jenis = ANY (ARRAY['ats'::text, 'semester'::text])));
 ALTER TABLE public.rapor_templates ADD CONSTRAINT rapor_templates_tingkat_masuk_akal CHECK ((tingkat_min <= tingkat_max));
@@ -1591,6 +1656,12 @@ ALTER TABLE public.routine_task_checks ADD CONSTRAINT routine_task_checks_alasan
 ALTER TABLE public.routine_task_checks ADD CONSTRAINT routine_task_checks_konfirmasi_ck CHECK (((konfirmasi = ANY (ARRAY['selesai'::text, 'menunggu'::text, 'ditolak'::text])) AND ((outcome = 'terlaksana'::routine_outcome) OR (konfirmasi = 'selesai'::text))));
 ALTER TABLE public.routine_task_members ADD CONSTRAINT routine_task_members_status_check CHECK ((status = ANY (ARRAY['menunggu'::text, 'diterima'::text, 'ditolak'::text])));
 ALTER TABLE public.setoran_arsip ADD CONSTRAINT setoran_arsip_jenis_check CHECK ((jenis = ANY (ARRAY['tahsin'::text, 'tahfidz'::text])));
+ALTER TABLE public.setoran_guru ADD CONSTRAINT setoran_guru_bait_dari_check CHECK (((bait_dari >= 1) AND (bait_dari <= 61)));
+ALTER TABLE public.setoran_guru ADD CONSTRAINT setoran_guru_bait_ke_check CHECK (((bait_ke >= 1) AND (bait_ke <= 61)));
+ALTER TABLE public.setoran_guru ADD CONSTRAINT setoran_guru_isi_cek CHECK ((((jenis = 'tahfidz'::text) AND (surat_id IS NOT NULL) AND (ayat_ke IS NOT NULL) AND (juz_selesai IS NOT NULL)) OR ((jenis = 'tuhfatul'::text) AND (bait_ke IS NOT NULL))));
+ALTER TABLE public.setoran_guru ADD CONSTRAINT setoran_guru_jenis_check CHECK ((jenis = ANY (ARRAY['tahfidz'::text, 'tuhfatul'::text])));
+ALTER TABLE public.setoran_guru ADD CONSTRAINT setoran_guru_juz_selesai_check CHECK (((juz_selesai >= 0) AND (juz_selesai <= 30)));
+ALTER TABLE public.setoran_guru ADD CONSTRAINT setoran_guru_nilai_check CHECK (((nilai >= 0) AND (nilai <= 100)));
 ALTER TABLE public.site_settings ADD CONSTRAINT site_settings_singleton CHECK ((id = 1));
 ALTER TABLE public.sprint_goals ADD CONSTRAINT sprint_goals_hasil_check CHECK ((hasil = ANY (ARRAY['tercapai'::text, 'sebagian'::text, 'tidak'::text])));
 ALTER TABLE public.sprint_items ADD CONSTRAINT sprint_items_poin_check CHECK (((poin >= 1) AND (poin <= 3)));
@@ -1644,9 +1715,12 @@ ALTER TABLE public.content_requests ADD CONSTRAINT content_requests_finished_by_
 ALTER TABLE public.content_requests ADD CONSTRAINT content_requests_requested_by_users_id_fk FOREIGN KEY (requested_by) REFERENCES users(id);
 ALTER TABLE public.content_requests ADD CONSTRAINT content_requests_task_id_fkey FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE SET NULL;
 ALTER TABLE public.ekstra_booking ADD CONSTRAINT ekstra_booking_ditangani_oleh_fkey FOREIGN KEY (ditangani_oleh) REFERENCES users(id) ON DELETE SET NULL;
+ALTER TABLE public.ekstra_booking ADD CONSTRAINT ekstra_booking_jenis_id_fkey FOREIGN KEY (jenis_id) REFERENCES ekstra_jenis(id) ON DELETE RESTRICT;
 ALTER TABLE public.ekstra_booking ADD CONSTRAINT ekstra_booking_slot_id_fkey FOREIGN KEY (slot_id) REFERENCES ekstra_slot(id) ON DELETE RESTRICT;
 ALTER TABLE public.ekstra_booking ADD CONSTRAINT ekstra_booking_slot_tawaran_id_fkey FOREIGN KEY (slot_tawaran_id) REFERENCES ekstra_slot(id) ON DELETE SET NULL;
 ALTER TABLE public.ekstra_booking ADD CONSTRAINT ekstra_booking_student_id_fkey FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE SET NULL;
+ALTER TABLE public.ekstra_guru ADD CONSTRAINT ekstra_guru_ditambah_oleh_fkey FOREIGN KEY (ditambah_oleh) REFERENCES users(id) ON DELETE SET NULL;
+ALTER TABLE public.ekstra_guru ADD CONSTRAINT ekstra_guru_teacher_id_fkey FOREIGN KEY (teacher_id) REFERENCES teachers(id) ON DELETE CASCADE;
 ALTER TABLE public.ekstra_hadir ADD CONSTRAINT ekstra_hadir_booking_id_fkey FOREIGN KEY (booking_id) REFERENCES ekstra_booking(id) ON DELETE CASCADE;
 ALTER TABLE public.ekstra_hadir ADD CONSTRAINT ekstra_hadir_dicatat_oleh_fkey FOREIGN KEY (dicatat_oleh) REFERENCES teachers(id) ON DELETE SET NULL;
 ALTER TABLE public.ekstra_slot ADD CONSTRAINT ekstra_slot_jenis_id_fkey FOREIGN KEY (jenis_id) REFERENCES ekstra_jenis(id) ON DELETE RESTRICT;
@@ -1713,6 +1787,8 @@ ALTER TABLE public.kpi_rapor_riwayat ADD CONSTRAINT kpi_rapor_riwayat_kpi_monthl
 ALTER TABLE public.kpi_rapor_riwayat ADD CONSTRAINT kpi_rapor_riwayat_teacher_id_fkey FOREIGN KEY (teacher_id) REFERENCES teachers(id) ON DELETE SET NULL;
 ALTER TABLE public.kurikulum_targets ADD CONSTRAINT kurikulum_targets_term_id_fkey FOREIGN KEY (term_id) REFERENCES academic_terms(id) ON DELETE CASCADE;
 ALTER TABLE public.kurikulum_targets ADD CONSTRAINT kurikulum_targets_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE SET NULL;
+ALTER TABLE public.laporan_kurikulum ADD CONSTRAINT laporan_kurikulum_dibuat_oleh_fkey FOREIGN KEY (dibuat_oleh) REFERENCES users(id) ON DELETE SET NULL;
+ALTER TABLE public.laporan_kurikulum ADD CONSTRAINT laporan_kurikulum_disetujui_oleh_fkey FOREIGN KEY (disetujui_oleh) REFERENCES users(id) ON DELETE SET NULL;
 ALTER TABLE public.meetings ADD CONSTRAINT meetings_created_by_users_id_fk FOREIGN KEY (created_by) REFERENCES users(id);
 ALTER TABLE public.meetings ADD CONSTRAINT meetings_deleted_by_fkey FOREIGN KEY (deleted_by) REFERENCES users(id);
 ALTER TABLE public.news_articles ADD CONSTRAINT news_articles_author_id_fkey FOREIGN KEY (author_id) REFERENCES users(id) ON DELETE SET NULL;
@@ -1743,6 +1819,9 @@ ALTER TABLE public.routine_task_members ADD CONSTRAINT routine_task_members_user
 ALTER TABLE public.routine_tasks ADD CONSTRAINT routine_tasks_owner_id_fkey FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE;
 ALTER TABLE public.setoran_arsip ADD CONSTRAINT setoran_arsip_diarsipkan_oleh_fkey FOREIGN KEY (diarsipkan_oleh) REFERENCES teachers(id) ON DELETE SET NULL;
 ALTER TABLE public.setoran_arsip ADD CONSTRAINT setoran_arsip_student_id_fkey FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE;
+ALTER TABLE public.setoran_guru ADD CONSTRAINT setoran_guru_dicatat_oleh_fkey FOREIGN KEY (dicatat_oleh) REFERENCES users(id) ON DELETE SET NULL;
+ALTER TABLE public.setoran_guru ADD CONSTRAINT setoran_guru_surat_id_fkey FOREIGN KEY (surat_id) REFERENCES surat_master(id);
+ALTER TABLE public.setoran_guru ADD CONSTRAINT setoran_guru_teacher_id_fkey FOREIGN KEY (teacher_id) REFERENCES teachers(id) ON DELETE CASCADE;
 ALTER TABLE public.site_settings ADD CONSTRAINT site_settings_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES users(id);
 ALTER TABLE public.sprint_goals ADD CONSTRAINT sprint_goals_disahkan_by_fkey FOREIGN KEY (disahkan_by) REFERENCES users(id) ON DELETE SET NULL;
 ALTER TABLE public.sprint_goals ADD CONSTRAINT sprint_goals_sprint_id_fkey FOREIGN KEY (sprint_id) REFERENCES sprints(id) ON DELETE CASCADE;
@@ -1870,6 +1949,7 @@ CREATE INDEX routine_task_checks_period_outcome_idx ON public.routine_task_check
 CREATE INDEX routine_task_members_user_idx ON public.routine_task_members USING btree (user_id, status);
 CREATE INDEX routine_tasks_owner_idx ON public.routine_tasks USING btree (owner_id, cadence, order_num);
 CREATE INDEX setoran_arsip_student_idx ON public.setoran_arsip USING btree (student_id, setoran_date DESC);
+CREATE INDEX setoran_guru_guru_tanggal_idx ON public.setoran_guru USING btree (teacher_id, tanggal);
 CREATE INDEX sprint_items_task_idx ON public.sprint_items USING btree (task_id);
 CREATE INDEX student_monthly_period_idx ON public.student_monthly USING btree (period);
 CREATE INDEX student_monthly_student_idx ON public.student_monthly USING btree (student_id, period DESC);
@@ -1952,6 +2032,7 @@ ALTER TABLE public.batas_juz ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.content_requests ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.drizzle_migrations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.ekstra_booking ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.ekstra_guru ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.ekstra_hadir ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.ekstra_jenis ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.ekstra_slot ENABLE ROW LEVEL SECURITY;
@@ -1986,6 +2067,7 @@ ALTER TABLE public.kpi_banding ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.kpi_monthly ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.kpi_rapor_riwayat ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.kurikulum_targets ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.laporan_kurikulum ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.meetings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.news_articles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.notification_reads ENABLE ROW LEVEL SECURITY;
@@ -2004,6 +2086,7 @@ ALTER TABLE public.routine_task_checks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.routine_task_members ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.routine_tasks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.setoran_arsip ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.setoran_guru ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.site_settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.sprint_goals ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.sprint_items ENABLE ROW LEVEL SECURITY;

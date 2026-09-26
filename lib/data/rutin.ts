@@ -1,4 +1,5 @@
 import { createServerClient } from '@/lib/supabase/server'
+import { getRingkasPemegang } from '@/lib/data/pengurus'
 import { CADENCES, kunciPeriode } from '@/lib/rutin/periode'
 import { JABATAN_ORDER, canViewTasks } from '@/lib/auth/permissions'
 import { labelPengurus, type PengurusMention } from '@/lib/rutin/bersama'
@@ -418,6 +419,8 @@ export async function getRoutineBoard(): Promise<RoutineBoard> {
     id: string; display_name: string; role: UserRole; photo_url: string | null
   }[]
   const ids = tasks.map(t => t.id)
+  // Foto pengurus = foto pemegang kursinya; akun hanya cadangan.
+  const pemegang = await getRingkasPemegang(users.map(u => u.id))
   const [laporan, anggota, keputusan] = await Promise.all([
     ambilLaporan(ids, periods),
     ambilAnggota(ids),
@@ -461,7 +464,7 @@ export async function getRoutineBoard(): Promise<RoutineBoard> {
         userId: u.id,
         displayName: u.display_name,
         role: u.role,
-        photoUrl: u.photo_url,
+        photoUrl: pemegang.get(u.id)?.photo_url ?? u.photo_url,
         items,
         ...hitung(items),
       }

@@ -1328,6 +1328,12 @@ export const kpiMonthly = pgTable('kpi_monthly', {
   seragam_total: numeric('seragam_total'),
   lapor_ortu_total: numeric('lapor_ortu_total'),
   halaqoh_total: numeric('halaqoh_total'),
+  /** Nilai akhir yang diketik langsung di tabel isi cepat (0097); NULL = dari rincian. */
+  nilai_hadir: numeric('nilai_hadir'),
+  nilai_database: numeric('nilai_database'),
+  nilai_buku_pegangan: numeric('nilai_buku_pegangan'),
+  nilai_perizinan: numeric('nilai_perizinan'),
+  nilai_pengganti: numeric('nilai_pengganti'),
 
   /**
    * Unit guru SAAT dinilai — bukan unit sekarang. Rubrik SD dan SMP berbeda
@@ -1415,6 +1421,31 @@ export const kpiRaporRiwayat = pgTable('kpi_rapor_riwayat', {
   actor_teacher_id: uuid('actor_teacher_id').references(() => teachers.id, { onDelete: 'set null' }),
   catatan: text('catatan'),
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
+})
+
+/**
+ * Setoran guru Qur'an yang disimak SDM (0096). Setoran terakhir tiap jenis
+ * dalam sebulan menjadi posisi hafalan di kpi_monthly — lihat
+ * lib/data/setoran-guru.ts. `nilai` (bintang) hanya catatan mutu.
+ */
+export const setoranGuru = pgTable('setoran_guru', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  teacher_id: uuid('teacher_id').notNull().references(() => teachers.id, { onDelete: 'cascade' }),
+  tanggal: date('tanggal').notNull(),
+  /** 'tahfidz' | 'tuhfatul' */
+  jenis: text('jenis').notNull(),
+  surat_id: integer('surat_id').references(() => suratMaster.id),
+  ayat_dari: smallint('ayat_dari'),
+  ayat_ke: smallint('ayat_ke'),
+  /** Juz yang sudah selesai sebelum juz tempat ayat_ke berada. */
+  juz_selesai: smallint('juz_selesai'),
+  bait_dari: smallint('bait_dari'),
+  bait_ke: smallint('bait_ke'),
+  nilai: smallint('nilai'),
+  catatan: text('catatan').notNull().default(''),
+  dicatat_oleh: uuid('dicatat_oleh').references(() => users.id, { onDelete: 'set null' }),
+  created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updated_at: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 })
 
 /**
@@ -1546,4 +1577,27 @@ export const ujianTahsin = pgTable('ujian_tahsin', {
   created_by_user: uuid('created_by_user').references(() => users.id, { onDelete: 'set null' }),
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+})
+
+/**
+ * Laporan bulanan Kurikulum & Pembelajaran Al-Qur'an — Bab 02 Laporan
+ * Eksekutif BPH (0092). Angka dikunci per tanggal akhir bulan di `data`;
+ * narasi Kumik di `narasi`; disetujui Kepala RQ. Isinya: lib/data/laporan-kurikulum.ts.
+ */
+export const laporanKurikulum = pgTable('laporan_kurikulum', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  /** Hari pertama bulan laporan. */
+  periode: date('periode').notNull().unique(),
+  /** 'draf' | 'diajukan' | 'disetujui' */
+  status: text('status').notNull().default('draf'),
+  data: jsonb('data').notNull(),
+  narasi: jsonb('narasi').notNull().default({}),
+  dihitung_at: timestamp('dihitung_at', { withTimezone: true }).notNull().defaultNow(),
+  dibuat_oleh: uuid('dibuat_oleh').references(() => users.id, { onDelete: 'set null' }),
+  diajukan_at: timestamp('diajukan_at', { withTimezone: true }),
+  disetujui_oleh: uuid('disetujui_oleh').references(() => users.id, { onDelete: 'set null' }),
+  disetujui_at: timestamp('disetujui_at', { withTimezone: true }),
+  catatan_kepala: text('catatan_kepala').notNull().default(''),
+  created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updated_at: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 })

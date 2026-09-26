@@ -3,7 +3,6 @@ import { getSession } from '@/lib/auth/session'
 import { createServerClient } from '@/lib/supabase/server'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { ProfileForm } from './ProfileForm'
-import { PengurusProfileForm } from './PengurusProfileForm'
 import { KepegawaianTerkunci } from './KepegawaianTerkunci'
 import { GuruProfileForm } from '@/components/profil/GuruProfileForm'
 import { getProfilAmanah } from '@/lib/data/pengurus'
@@ -64,7 +63,6 @@ export default async function ProfilPage() {
   if (!data) redirect('/login')
 
   const profile = data as unknown as PengurusProfile
-  const hasProfileColumns = 'sapaan' in data
 
   // Amanah diturunkan dari role, tidak lagi diketik pengurus — lihat AMANAH_LABELS.
   const amanah = AMANAH_LABELS[session.role]
@@ -135,31 +133,19 @@ export default async function ProfilPage() {
           </div>
         )}
 
-        {full && !pemegang && hasProfileColumns && (
-          <div className="mb-8 space-y-4">
-            {/*
-              Kursinya belum ditetapkan. Formnya tetap dibuka supaya profil tidak
-              terkunci total, tapi statusnya dinyatakan terus terang: begitu
-              admin menetapkan nama, isian ini dipindahkan ke rekam guru orang
-              tersebut (pindahkanProfilAkun) dan halaman beralih membacanya.
-            */}
-            <div className="rounded-xl border border-warning/40 bg-warning/5 px-4 py-3 text-xs leading-relaxed">
-              <p className="font-semibold">Pemegang amanah {amanah} belum ditetapkan admin.</p>
-              <p className="mt-1 text-muted-foreground">
-                Selama belum ditetapkan, data di bawah tersimpan di akun ini. Setelah admin
-                memilih nama pemegangnya lewat menu Pengurus, isian ini ikut dipindahkan ke rekam
-                guru orang tersebut, dan halaman ini menampilkan profil dari sana.
-              </p>
-            </div>
-            <PengurusProfileForm profile={profile} amanahLabel={amanah} />
-          </div>
-        )}
-
-        {full && !pemegang && !hasProfileColumns && (
-          <div className="mb-8 rounded-lg border border-warning/40 bg-warning/5 p-4 text-sm">
-            Kolom profil belum tersedia di database. Jalankan{' '}
-            <code className="text-xs">drizzle/0014_profil_pengurus_PASTE_TO_SUPABASE.sql</code>{' '}
-            di Supabase untuk mengaktifkan form profil lengkap.
+        {/*
+          Akun pengurus hanyalah kursi jabatan; data diri selalu milik pemegangnya
+          (rekam guru, atau karyawan untuk Bendahara). Kursi tanpa pemegang tidak
+          diberi form: dulu isiannya tersimpan di akun dan tertinggal tak terbaca
+          setelah pemegang ditetapkan.
+        */}
+        {full && !pemegang && (
+          <div className="mb-8 rounded-xl border border-warning/40 bg-warning/5 px-4 py-3 text-sm leading-relaxed">
+            <p className="font-semibold">Pemegang amanah {amanah} belum ditetapkan.</p>
+            <p className="mt-1 text-muted-foreground">
+              Data diri pengurus diambil dari data guru atau karyawan orang yang memegang amanah ini.
+              Minta admin menetapkan pemegangnya lewat menu Pengurus; setelah itu profilnya bisa diisi di sini.
+            </p>
           </div>
         )}
 

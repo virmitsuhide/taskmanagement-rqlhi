@@ -6,7 +6,6 @@ import { canManageKaldik } from '@/lib/auth/permissions'
 import { getKaldikTahun, KALDIK_UNIT, type KaldikUnit } from '@/lib/data/kaldik'
 import { tanggalWIB } from '@/lib/rq/ujian'
 import { PublicHeader } from '@/components/layout/PublicHeader'
-import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { PageTitle } from '@/components/layout/PageTitle'
 import { PublicFooter } from '@/components/home/PublicFooter'
 import { KalenderTahun } from '@/components/kalender/KalenderTahun'
@@ -28,6 +27,10 @@ export const metadata: Metadata = {
  *
  * Yang dijaga adalah siapa yang boleh MENGUBAH: tombol suntingnya hanya
  * muncul bagi koordinator unit yang sedang masuk.
+ *
+ * Tampilannya selalu tampilan situs publik, juga bagi yang sedang masuk:
+ * halaman ini dibuka dari beranda, jadi sekelilingnya tetap beranda. Header
+ * publik sudah memuat menu akun & tautan dasbor bagi yang masuk.
  */
 export default async function KalenderPage() {
   const session = await getSession()
@@ -38,23 +41,15 @@ export default async function KalenderPage() {
     ? (KALDIK_UNIT.filter(u => canManageKaldik(session.role, u)) as KaldikUnit[])
     : []
 
-  // Pengurus yang masuk membukanya di dalam AppShell (lihat layout.tsx), jadi
-  // header publik & footer diganti header dasbor agar tak ada dua navigasi.
-  const masuk = !!session?.isLoggedIn
-
   return (
     <div>
-      {session?.isLoggedIn
-        ? <DashboardHeader role={session.role} displayName={session.displayName} title="Kalender Pendidikan" showBack ownH1 />
-        : <PublicHeader />}
+      <PublicHeader />
 
       <div className="mx-auto min-h-[50vh] max-w-5xl space-y-5 p-4 md:p-8">
         <div>
-          {!masuk && (
-            <Link href="/" className="mb-3 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-              <ArrowLeft className="h-4 w-4" /> Beranda
-            </Link>
-          )}
+          <Link href="/" className="mb-3 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+            <ArrowLeft className="h-4 w-4" /> Beranda
+          </Link>
           <PageTitle icon={<CalendarDays className="size-5" aria-hidden />} title={`Kalender Pendidikan ${tahun}`}>
             Agenda dan hari libur sekolah sepanjang tahun. Libur nasional dan kegiatan yayasan selalu ikut tampil di
             semua pilihan unit.
@@ -72,7 +67,7 @@ export default async function KalenderPage() {
         )}
       </div>
 
-      {!masuk && <PublicFooter />}
+      <PublicFooter />
     </div>
   )
 }

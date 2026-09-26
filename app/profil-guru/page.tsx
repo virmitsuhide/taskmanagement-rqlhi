@@ -9,7 +9,7 @@ import { PublicFooter } from '@/components/home/PublicFooter'
 import { Button } from '@/components/ui/button'
 import { parseFocus, photoStyle } from '@/lib/profil/foto'
 import type { PublicTeacher } from '@/types'
-import { getDataEkstra } from '@/lib/data/ekstra'
+import { bolehGuruEkstra, getDataEkstra, getGuruEkstra } from '@/lib/data/ekstra'
 
 export const metadata: Metadata = {
   title: "Profil Guru — RQ LHI",
@@ -26,17 +26,15 @@ function initials(name: string) {
 }
 
 export default async function ProfilGuruPage() {
-  const [session, teachers, settings, ekstra] = await Promise.all([
+  const [session, teachers, settings, ekstra, { ids: guruEkstra }] = await Promise.all([
     getSession(),
     getPublicTeachers(),
     getSiteSettings(),
     getDataEkstra({ hanyaAktif: true }),
+    getGuruEkstra(),
   ])
-  // Guru yang punya slot ekstra dibuka → sisa kursinya (0 = penuh).
-  const sisaEkstra = new Map<string, number>()
-  for (const s of ekstra.slot) {
-    sisaEkstra.set(s.teacher_id, (sisaEkstra.get(s.teacher_id) ?? 0) + Math.max(0, s.kuotaEfektif - s.peserta))
-  }
+  // Semua guru terbuka untuk ekstra — tombol Booking tampil selama ada jenis dibuka.
+  const bukaEkstra = ekstra.tabelAda && ekstra.jenis.length > 0
 
   const canManage = !!session && canManageHomepage(session.role)
   const heading = findSection(settings, 'profil_guru').title
@@ -58,7 +56,7 @@ export default async function ProfilGuruPage() {
           <p className="text-[15px] leading-relaxed text-muted-foreground md:text-right md:text-[17px]">
             {teachers.length > 0 ? `${teachers.length} pengajar` : 'Para pengajar'} yang mendampingi siswa Rumah Qur&apos;an LHI.
           </p>
-          {ekstra.slot.length > 0 && (
+          {bukaEkstra && (
             <Link
               href="/daftar-ekstra"
               className="inline-flex h-11 items-center gap-1.5 rounded-xl bg-accent-warm px-5 text-sm font-bold text-white transition-opacity hover:opacity-90"
@@ -90,7 +88,7 @@ export default async function ProfilGuruPage() {
         ) : (
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
             {teachers.map(teacher => (
-              <TeacherCard key={teacher.id} teacher={teacher} sisaEkstra={sisaEkstra.get(teacher.id)} />
+              <TeacherCard key={teacher.id} teacher={teacher} bukaEkstra={bukaEkstra} menerima={bolehGuruEkstra(guruEkstra, teacher.id)} />
             ))}
           </div>
         )}
@@ -101,7 +99,7 @@ export default async function ProfilGuruPage() {
   )
 }
 
-function TeacherCard({ teacher, sisaEkstra }: { teacher: PublicTeacher; sisaEkstra?: number }) {
+function TeacherCard({ teacher, bukaEkstra, menerima }: { teacher: PublicTeacher; bukaEkstra: boolean; menerima: boolean }) {
   return (
     <article className="flex min-w-0 flex-col gap-3 rounded-2xl border bg-card p-3.5 transition-all hover:border-primary/40 hover:shadow-sm">
       <div className="relative aspect-[4/5] w-full overflow-hidden rounded-xl bg-primary-wash">
@@ -123,34 +121,27 @@ function TeacherCard({ teacher, sisaEkstra }: { teacher: PublicTeacher; sisaEkst
         <h2 className="font-heading text-[22px] leading-tight">
           <Link href={`/profil-guru/${teacher.id}`} className="hover:text-primary hover:underline">{teacher.full_name}</Link>
         </h2>
-        {teacher.public_title && (
-          <p className="mt-1 text-[13px] font-semibold text-accent-warm">{teacher.public_title}</p>
-        )}
+        <p className="mt-1 text-[13px] font-semibold text-accent-warm">{teacher.keterangan}</p>
         {teacher.public_bio && (
           <p className="mt-2 whitespace-pre-line text-[13px] leading-relaxed text-muted-foreground line-clamp-5">
             {teacher.public_bio}
           </p>
         )}
       </div>
-      {sisaEkstra !== undefined && (
-        <div className="mt-auto space-y-2 px-1 pb-1">
-          <p className={`flex items-center gap-1.5 text-xs font-semibold ${sisaEkstra > 0 ? 'text-primary' : 'text-muted-foreground'}`}>
-            <span className={`h-2 w-2 rounded-full ${sisaEkstra > 0 ? 'bg-primary' : 'bg-muted-foreground/40'}`} />
-            {sisaEkstra > 0 ? `${sisaEkstra} kursi ekstra tersedia` : 'Kuota ekstra penuh'}
-          </p>
-          <Link
-            href={`/profil-guru/${teacher.id}#booking`}
-            className="flex h-11 items-center justify-center rounded-xl bg-accent-warm text-sm font-bold text-white transition-opacity hover:opacity-90"
-          >
-            Booking ekstra
-          </Link>
-        </div>
-      )}
-      {sisaEkstra === undefined && (
-        <Link href={`/profil-guru/${teacher.id}`} className="mt-auto flex h-11 items-center justify-center rounded-xl border bg-card text-sm font-semibold transition-colors hover:border-primary/40 hover:text-primary">
-          Lihat profil
+      <div className="mt-auto grid grid-cols-2 gap-2 px-1 pb-1">
+        <Link href={`/profil-guru/${teacher.id}`} className="flex h-11 items-center justify-center rounded-xl border bg-card text-sm font-semibold transition-colors hover:border-primary/40 hover:text-primary">
+          Profil
         </Link>
-      )}
+        {bukaEkstra && menerima ? (
+          <Link href={`/profil-guru/${teacher.id}#booking`} className="flex h-11 items-center justify-center rounded-xl bg-accent-warm text-sm font-bold text-white transition-opacity hover:opacity-90">
+            Booking
+          </Link>
+        ) : (
+          <span aria-disabled="true" className="flex h-11 items-center justify-center rounded-xl border border-dashed px-2 text-center text-xs leading-tight text-muted-foreground">
+            {bukaEkstra ? 'Tidak menerima ekstra' : 'Ekstra belum dibuka'}
+          </span>
+        )}
+      </div>
     </article>
   )
 }

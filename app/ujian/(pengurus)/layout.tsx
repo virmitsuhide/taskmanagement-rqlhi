@@ -3,7 +3,7 @@ import { AppShell } from '@/components/layout/AppShell'
 /**
  * Sisi pengurus modul ujian.
  *
- * Dikelompokkan dalam route group supaya /ujian dan /ujian/rekap tetap
+ * Dikelompokkan dalam route group supaya /ujian tetap
  * berupa halaman publik tanpa sidebar, sementara kelola/ajukan/riwayat/penguji
  * di bawahnya memakai kerangka aplikasi yang sama dengan menu lain.
  */

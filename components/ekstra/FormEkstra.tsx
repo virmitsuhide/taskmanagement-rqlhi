@@ -41,7 +41,7 @@ export function FormJenisEkstra({ jenis, onSelesai }: { jenis?: JenisEkstra; onS
           <option value="tahsin">Tahsin</option><option value="tahfidz">Tahfidz</option><option value="campuran">Tahsin &amp; tahfidz</option>
         </select>
       </Kolom>
-      <Kolom label="Jumlah peserta per slot"><Input name="kuota" type="number" min={1} max={50} required defaultValue={jenis?.kuota ?? 1} /></Kolom>
+      <Kolom label="Jumlah peserta per halaqoh"><Input name="kuota" type="number" min={1} max={50} required defaultValue={jenis?.kuota ?? 1} /></Kolom>
       <Kolom label="Biaya (Rp, 0 = tanpa biaya)"><Input name="biaya" inputMode="numeric" defaultValue={jenis?.biaya ?? 0} /></Kolom>
       <Kolom label="Satuan biaya"><Input name="satuan_biaya" defaultValue={jenis?.satuan_biaya ?? 'per bulan'} /></Kolom>
       <Kolom label="Durasi tiap pertemuan (menit)"><Input name="durasi_menit" type="number" min={10} max={300} defaultValue={jenis?.durasi_menit ?? 60} /></Kolom>
@@ -94,8 +94,8 @@ export function FormSlotEkstra({ slot, jenis, guru, onSelesai }: {
       </div>
       <Kolom label="Tempat"><Input name="tempat" defaultValue={slot?.tempat} placeholder="mis. Ruang RQ lt. 2" /></Kolom>
       <Kolom label="Kuota (kosong = ikut jenis)"><Input name="kuota" type="number" min={1} max={50} defaultValue={slot?.kuota ?? ''} /></Kolom>
-      <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="aktif" defaultChecked={slot?.aktif ?? true} className="h-4 w-4" />Slot dibuka</label>
-      <div className="flex justify-end"><Button type="submit" disabled={pending}>{pending ? 'Menyimpan…' : slot ? 'Simpan perubahan' : 'Buka slot'}</Button></div>
+      <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="aktif" defaultChecked={slot?.aktif ?? true} className="h-4 w-4" />Halaqoh berjalan</label>
+      <div className="flex justify-end"><Button type="submit" disabled={pending}>{pending ? 'Menyimpan…' : slot ? 'Simpan perubahan' : 'Buat halaqoh'}</Button></div>
     </form>
   )
 }

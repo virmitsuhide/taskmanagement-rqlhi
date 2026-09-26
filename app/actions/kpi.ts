@@ -7,6 +7,10 @@ import { canInputKpi } from '@/lib/auth/permissions'
 import { terkunci } from '@/lib/kpi/alur'
 import type { Jenjang, KpiRaporStatus } from '@/types'
 import { paramFor } from '@/lib/kpi/parameter'
+import { getIsianKpiSetoran } from '@/lib/data/setoran-guru'
+
+/** Kolom nilai langsung (0097). Terisi = menggantikan hitungan rincian indikatornya. */
+const KOLOM_NILAI_LANGSUNG = ['nilai_hadir', 'nilai_database', 'nilai_buku_pegangan', 'nilai_perizinan', 'nilai_pengganti'] as const
 
 /** Angka dari form: kosong/aneh dijadikan 0, lalu dijepit ke rentang wajar. */
 function angka(fd: FormData, key: string, max = Number.MAX_SAFE_INTEGER): number {
@@ -136,11 +140,23 @@ export async function simpanKpiAction(_: unknown, formData: FormData) {
     updated_at: new Date().toISOString(),
   }
 
+  // Posisi hafalan dari Setoran Guru (0096) menang atas angka ketikan:
+  // setoran terakhir bulan ini adalah sumber kebenarannya.
+  const isian = await getIsianKpiSetoran(teacherId, year, month, unit)
+  if (isian.hafalan_juz !== undefined) row.hafalan_juz = isian.hafalan_juz
+  if (isian.hafalan_pages !== undefined) row.hafalan_pages = isian.hafalan_pages
+  if (isian.tuhfatul_bait !== undefined) row.tuhfatul_bait = isian.tuhfatul_bait
+
+  // Nilai langsung (0097) tidak dikirim formulir ini, jadi upsert tidak
+  // menyentuhnya — kecuali SDM menekan "Pakai rincian" untuk indikator itu.
+  const lepas = new Set(formData.getAll('hapus_langsung').map(String))
+  const kosongkan = Object.fromEntries(KOLOM_NILAI_LANGSUNG.filter(k => lepas.has(k)).map(k => [k, null]))
+
   // Upsert lewat kunci unik (guru, tahun, bulan) — dua penyimpanan berturut-turut
   // untuk periode yang sama menimpa, bukan menumpuk baris ganda.
   const { error } = await supabase
     .from('kpi_monthly')
-    .upsert({ ...row, created_by: session.userId }, { onConflict: 'teacher_id,year,month' })
+    .upsert({ ...row, ...kosongkan, created_by: session.userId }, { onConflict: 'teacher_id,year,month' })
 
   if (error) {
     // Kolom catatan rapor baru ada setelah 0044 — sebutkan migrasinya alih-alih
@@ -157,4 +173,90 @@ export async function simpanKpiAction(_: unknown, formData: FormData) {
   revalidatePath('/kpi')
   revalidatePath('/kpi/cetak')
   return { success: true }
+}
+
+/** Kolom yang boleh diisi dari tabel isi cepat — nilai akhir 0–100 per indikator. */
+const KOLOM_ISI_CEPAT = [
+  'nilai_hadir', 'nilai_database', 'bacaan_score', 'seragam_total', 'lapor_ortu_total',
+  'halaqoh_total', 'nilai_buku_pegangan', 'nilai_perizinan', 'nilai_pengganti',
+] as const
+export type KolomIsiCepat = typeof KOLOM_ISI_CEPAT[number]
+
+export interface BarisIsiCepat {
+  teacher_id: string
+  /** null = kosongkan (pakai rincian); tidak ada kunci = tidak diubah. */
+  nilai: Partial<Record<KolomIsiCepat, number | null>>
+}
+
+/**
+ * Isi cepat KPI: nilai akhir tiap indikator untuk banyak guru sekaligus,
+ * tanpa membuka formulir rinci satu per satu.
+ *
+ * Baris yang sudah ada hanya diubah kolom nilainya — rincian harian & isian
+ * mentah tetap tersimpan, jadi mengosongkan sel kembali memakai rincian.
+ * Baris baru dibuat bila ada minimal satu nilai; posisi hafalannya diambil
+ * dari Setoran Guru. Rapor yang terbit/banding dilewati, bukan ditimpa.
+ */
+export async function simpanIsiCepatKpiAction(
+  year: number, month: number, baris: BarisIsiCepat[],
+): Promise<{ error?: string; success?: boolean; disimpan?: number; terkunci?: number }> {
+  const session = await getSession()
+  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!canInputKpi(session.role)) return { error: 'Tidak memiliki izin mengisi KPI.' }
+  if (!Number.isInteger(year) || !Number.isInteger(month) || month < 1 || month > 12) return { error: 'Periode tidak sah.' }
+  if (!Array.isArray(baris) || baris.length === 0) return { error: 'Tidak ada perubahan untuk disimpan.' }
+
+  const supabase = createServerClient()
+  const ids = baris.map(b => b.teacher_id)
+  const [adaRes, guruRes] = await Promise.all([
+    supabase.from('kpi_monthly').select('id, teacher_id, status').eq('year', year).eq('month', month).in('teacher_id', ids),
+    supabase.from('teachers').select('id, unit').in('id', ids),
+  ])
+  const ada = new Map(((adaRes.data ?? []) as { id: string; teacher_id: string; status: KpiRaporStatus }[]).map(r => [r.teacher_id, r]))
+  const unitGuru = new Map(((guruRes.data ?? []) as { id: string; unit: Jenjang | null }[]).map(g => [g.id, g.unit]))
+  const galatMigrasi = (m?: string) => m?.includes('nilai_')
+    ? 'Jalankan drizzle/0097_kpi_nilai_langsung_PASTE_TO_SUPABASE.sql lebih dulu.'
+    : 'Gagal menyimpan sebagian nilai.'
+
+  let disimpan = 0, jumlahTerkunci = 0
+  for (const b of baris) {
+    // Hanya kolom yang dikenal, dijepit ke 0–100.
+    const nilai: Record<string, number | null> = {}
+    for (const k of KOLOM_ISI_CEPAT) {
+      if (!(k in b.nilai)) continue
+      const v = b.nilai[k]
+      if (v === null || v === undefined) {
+        // bacaan_score tidak boleh NULL: kosong berarti tidak diubah.
+        if (k !== 'bacaan_score') nilai[k] = null
+        continue
+      }
+      const n = Number(v)
+      if (Number.isFinite(n)) nilai[k] = Math.max(0, Math.min(100, n))
+    }
+    if (Object.keys(nilai).length === 0) continue
+
+    const lama = ada.get(b.teacher_id)
+    const stempel = { updated_by: session.userId, updated_at: new Date().toISOString() }
+    if (lama) {
+      if (terkunci(lama.status)) { jumlahTerkunci++; continue }
+      const { error } = await supabase.from('kpi_monthly').update({ ...nilai, ...stempel }).eq('id', lama.id)
+      if (error) return { error: galatMigrasi(error.message) }
+    } else {
+      if (Object.values(nilai).every(v => v === null)) continue
+      const unit = unitGuru.get(b.teacher_id) ?? null
+      const isian = await getIsianKpiSetoran(b.teacher_id, year, month, unit)
+      const { error } = await supabase.from('kpi_monthly').insert({
+        teacher_id: b.teacher_id, year, month, unit, ...nilai, ...stempel, created_by: session.userId,
+        ...(isian.hafalan_juz !== undefined ? { hafalan_juz: isian.hafalan_juz, hafalan_pages: isian.hafalan_pages ?? 0 } : {}),
+        ...(isian.tuhfatul_bait !== undefined ? { tuhfatul_bait: isian.tuhfatul_bait } : {}),
+      })
+      if (error) return { error: galatMigrasi(error.message) }
+    }
+    disimpan++
+  }
+
+  revalidatePath('/kpi')
+  revalidatePath('/kpi/isi-cepat')
+  revalidatePath('/kpi/cetak')
+  return { success: true, disimpan, terkunci: jumlahTerkunci }
 }

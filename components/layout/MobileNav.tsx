@@ -7,7 +7,7 @@ import {
   Menu, X, LayoutDashboard, CheckSquare, BookOpen,
   ImageIcon, Megaphone, FileText, User, LogOut, GraduationCap, Newspaper, LayoutGrid,
   Users, UserCog, BookMarked, BarChart3, LayoutTemplate, Info, Wallet, CalendarRange, CalendarDays,
-  ClipboardCheck, KeyRound, ScrollText, Repeat, IdCard, UsersRound, Briefcase, Stamp, Scale, ListChecks, Kanban, CalendarHeart, Lock,
+  ClipboardCheck, KeyRound, ScrollText, Repeat, IdCard, UsersRound, Briefcase, Stamp, Scale, ListChecks, Kanban, CalendarHeart, Lock, UserRound,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
@@ -17,7 +17,7 @@ import {
   canViewStudents, canViewHalaqoh, canViewTeachers, canViewUnitAnalytics,
   canManageHomepage,
   canViewKpi, canManageAllAccounts, canManagePengurus, canManageEmployees, canViewUjian, canManageTeacherProfiles,
-  canAccessKpiPublikasi, canManageRaporTemplate, canManageRiyadhoh, canManageEkstra, canManageKaldik, canViewKpiBanding, canViewTasks, canViewRoutineBoard, isAdmin } from '@/lib/auth/permissions'
+  canAccessKpiPublikasi, canManageRaporTemplate, canManageRiyadhoh, canManageEkstra, canManageKaldik, canViewKpiBanding, canViewTasks, canViewRoutineBoard, isAdmin, canViewLaporanKurikulum } from '@/lib/auth/permissions'
 import type { UserRole } from '@/types'
 import { logoutAction } from '@/app/actions/auth'
 import { Logo } from '@/components/brand/Logo'
@@ -191,12 +191,24 @@ export function MobileNav({ role, displayName, username, lencanaKpi }: Props) {
               {dashboards.map(slug => (
                 <DrawerLink key={slug} href={`/dashboard/${slug}`} icon={DASHBOARD_ICONS[slug]} label={DASHBOARD_LABELS[slug]} active={isActive(`/dashboard/${slug}`)} onNavigate={close} />
               ))}
+              {canManageEkstra(role) && (
+                <DrawerLink href="/ekstra/analitik" icon={<BarChart3 className="h-4 w-4" />} label="Analitik Ekstra" active={isActive('/ekstra/analitik')} onNavigate={close} />
+              )}
               {canViewUnitAnalytics(role) && (
                 <DrawerLink
                   href="/dashboard/analitik"
                   icon={<BarChart3 className="h-4 w-4" />}
                   label="Analitik RQ"
                   active={isActive('/dashboard/analitik')}
+                  onNavigate={close}
+                />
+              )}
+              {canViewLaporanKurikulum(role) && (
+                <DrawerLink
+                  href="/laporan-kurikulum"
+                  icon={<FileText className="h-4 w-4" />}
+                  label="Laporan Kurikulum"
+                  active={isActive('/laporan-kurikulum')}
                   onNavigate={close}
                 />
               )}
@@ -217,7 +229,16 @@ export function MobileNav({ role, displayName, username, lencanaKpi }: Props) {
                   href="/kpi"
                   icon={<ClipboardCheck className="h-4 w-4" />}
                   label="Buat KPI"
-                  active={isActive('/kpi') && !pathname.startsWith('/kpi/publikasi') && !pathname.startsWith('/kpi/banding') && !pathname.startsWith('/kpi/analisis')}
+                  active={isActive('/kpi') && !pathname.startsWith('/kpi/publikasi') && !pathname.startsWith('/kpi/banding') && !pathname.startsWith('/kpi/analisis') && !pathname.startsWith('/kpi/setoran-guru')}
+                  onNavigate={close}
+                />
+              )}
+              {canViewKpi(role) && (
+                <DrawerLink
+                  href="/kpi/setoran-guru"
+                  icon={<BookMarked className="h-4 w-4" />}
+                  label="Setoran Guru"
+                  active={isActive('/kpi/setoran-guru')}
                   onNavigate={close}
                 />
               )}
@@ -320,7 +341,13 @@ export function MobileNav({ role, displayName, username, lencanaKpi }: Props) {
                   <DrawerLink href="/riyadhoh" icon={<CalendarHeart className="h-4 w-4" />} label="Riyadhoh Sabtu" active={isActive('/riyadhoh')} onNavigate={close} />
                 )}
                 {canManageEkstra(role) && (
-                  <DrawerLink href="/ekstra" icon={<CalendarHeart className="h-4 w-4" />} label="Ekstra & Booking" active={isActive('/ekstra')} onNavigate={close} />
+                  <>
+                    <DrawerLink href="/ekstra" icon={<CalendarHeart className="h-4 w-4" />} label="Ekstra & Booking"
+                      active={pathname === '/ekstra' || pathname.startsWith('/ekstra/atur') || pathname.startsWith('/ekstra/laporan')} onNavigate={close} />
+                    <DrawerLink href="/ekstra/halaqoh" icon={<UsersRound className="h-4 w-4" />} label="Halaqoh Ekstra" active={isActive('/ekstra/halaqoh')} onNavigate={close} />
+                    <DrawerLink href="/ekstra/siswa" icon={<UserRound className="h-4 w-4" />} label="Siswa Ekstra" active={isActive('/ekstra/siswa')} onNavigate={close} />
+                    <DrawerLink href="/ekstra/guru" icon={<GraduationCap className="h-4 w-4" />} label="Guru Ekstra" active={isActive('/ekstra/guru')} onNavigate={close} />
+                  </>
                 )}
                 {/* Menempel di bawah template rapor: keduanya menetapkan isi
                     rapor seluruh angkatan — yang satu bentuknya, yang satu

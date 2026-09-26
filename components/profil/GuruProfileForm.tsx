@@ -92,6 +92,18 @@ interface Props {
   scope: Scope
 }
 
+/**
+ * Ubah satu medan pada baris ke-i sebuah daftar.
+ *
+ * Semua daftar di form ini TERKENDALI (value + onChange), sama dengan riwayat
+ * pendidikan. Dulu memakai defaultValue: React 19 mereset form sesudah action
+ * selesai, dan input tak terkendali kembali ke nilai awal state (kosong) —
+ * isian yang sudah tersimpan tampak hilang, seolah gagal disimpan.
+ */
+function ubahBaris<T>(set: React.Dispatch<React.SetStateAction<T[]>>, i: number, patch: Partial<T>) {
+  set(rows => rows.map((r, x) => (x === i ? { ...r, ...patch } : r)))
+}
+
 export function GuruProfileForm({ profile, scope }: Props) {
   const [state, action, pending] = useActionState(
     ACTIONS[scope],
@@ -404,8 +416,8 @@ export function GuruProfileForm({ profile, scope }: Props) {
         {quranComps.map((c, i) => (
           <RowShell key={i} onRemove={() => setQuranComps(quranComps.filter((_, x) => x !== i))}>
             <div className="grid gap-2 sm:grid-cols-2">
-              <Input name="quran_comp_name" defaultValue={c.name} placeholder="Tahsin metode UMMI" aria-label={`Kompetensi Al-Qur'an ${i + 1}`} />
-              <Input name="quran_comp_institution" defaultValue={c.institution} placeholder="Lembaga penjamin (kosongkan bila belum)" aria-label={`Lembaga penjamin ${i + 1}`} />
+              <Input name="quran_comp_name" value={c.name} onChange={e => ubahBaris(setQuranComps, i, { name: e.target.value })} placeholder="Tahsin metode UMMI" aria-label={`Kompetensi Al-Qur'an ${i + 1}`} />
+              <Input name="quran_comp_institution" value={c.institution} onChange={e => ubahBaris(setQuranComps, i, { institution: e.target.value })} placeholder="Lembaga penjamin (kosongkan bila belum)" aria-label={`Lembaga penjamin ${i + 1}`} />
             </div>
           </RowShell>
         ))}
@@ -421,8 +433,8 @@ export function GuruProfileForm({ profile, scope }: Props) {
         {otherComps.map((c, i) => (
           <RowShell key={i} onRemove={() => setOtherComps(otherComps.filter((_, x) => x !== i))}>
             <div className="grid gap-2 sm:grid-cols-2">
-              <Input name="other_comp_name" defaultValue={c.name} placeholder="Kurikulum PHI" aria-label={`Kompetensi lain ${i + 1}`} />
-              <Input name="other_comp_institution" defaultValue={c.institution} placeholder="Lembaga penjamin (kosongkan bila belum)" aria-label={`Lembaga penjamin lain ${i + 1}`} />
+              <Input name="other_comp_name" value={c.name} onChange={e => ubahBaris(setOtherComps, i, { name: e.target.value })} placeholder="Kurikulum PHI" aria-label={`Kompetensi lain ${i + 1}`} />
+              <Input name="other_comp_institution" value={c.institution} onChange={e => ubahBaris(setOtherComps, i, { institution: e.target.value })} placeholder="Lembaga penjamin (kosongkan bila belum)" aria-label={`Lembaga penjamin lain ${i + 1}`} />
             </div>
           </RowShell>
         ))}
@@ -437,9 +449,9 @@ export function GuruProfileForm({ profile, scope }: Props) {
         {trainings.map((t, i) => (
           <RowShell key={i} onRemove={() => setTrainings(trainings.filter((_, x) => x !== i))}>
             <div className="grid gap-2 sm:grid-cols-[1fr_90px_1fr]">
-              <Input name="training_name" defaultValue={t.name} placeholder="Nama diklat" aria-label={`Nama diklat ${i + 1}`} />
-              <Input name="training_year" defaultValue={t.year} placeholder="Tahun" aria-label={`Tahun diklat ${i + 1}`} />
-              <Input name="training_organizer" defaultValue={t.organizer} placeholder="Penyelenggara" aria-label={`Penyelenggara ${i + 1}`} />
+              <Input name="training_name" value={t.name} onChange={e => ubahBaris(setTrainings, i, { name: e.target.value })} placeholder="Nama diklat" aria-label={`Nama diklat ${i + 1}`} />
+              <Input name="training_year" value={t.year} onChange={e => ubahBaris(setTrainings, i, { year: e.target.value })} placeholder="Tahun" aria-label={`Tahun diklat ${i + 1}`} />
+              <Input name="training_organizer" value={t.organizer} onChange={e => ubahBaris(setTrainings, i, { organizer: e.target.value })} placeholder="Penyelenggara" aria-label={`Penyelenggara ${i + 1}`} />
             </div>
           </RowShell>
         ))}
@@ -454,8 +466,8 @@ export function GuruProfileForm({ profile, scope }: Props) {
         {amanah.map((a, i) => (
           <RowShell key={i} onRemove={() => setAmanah(amanah.filter((_, x) => x !== i))}>
             <div className="grid gap-2 sm:grid-cols-[1fr_160px]">
-              <Input name="amanah_position" defaultValue={a.position} placeholder="Jabatan" aria-label={`Jabatan ${i + 1}`} />
-              <Input name="amanah_period" defaultValue={a.period} placeholder="2020–2023" aria-label={`Periode ${i + 1}`} />
+              <Input name="amanah_position" value={a.position} onChange={e => ubahBaris(setAmanah, i, { position: e.target.value })} placeholder="Jabatan" aria-label={`Jabatan ${i + 1}`} />
+              <Input name="amanah_period" value={a.period} onChange={e => ubahBaris(setAmanah, i, { period: e.target.value })} placeholder="2020–2023" aria-label={`Periode ${i + 1}`} />
             </div>
           </RowShell>
         ))}
@@ -470,8 +482,8 @@ export function GuruProfileForm({ profile, scope }: Props) {
         {awards.map((a, i) => (
           <RowShell key={i} onRemove={() => setAwards(awards.filter((_, x) => x !== i))}>
             <div className="grid gap-2 sm:grid-cols-[1fr_90px]">
-              <Input name="award_name" defaultValue={a.name} placeholder="Nama penghargaan" aria-label={`Penghargaan ${i + 1}`} />
-              <Input name="award_year" defaultValue={a.year} placeholder="Tahun" aria-label={`Tahun penghargaan ${i + 1}`} />
+              <Input name="award_name" value={a.name} onChange={e => ubahBaris(setAwards, i, { name: e.target.value })} placeholder="Nama penghargaan" aria-label={`Penghargaan ${i + 1}`} />
+              <Input name="award_year" value={a.year} onChange={e => ubahBaris(setAwards, i, { year: e.target.value })} placeholder="Tahun" aria-label={`Tahun penghargaan ${i + 1}`} />
             </div>
           </RowShell>
         ))}
@@ -488,7 +500,8 @@ export function GuruProfileForm({ profile, scope }: Props) {
           <RowShell key={i} onRemove={() => setIjazahSanad(ijazahSanad.filter((_, x) => x !== i))}>
             <Input
               name="ijazah_sanad"
-              defaultValue={v}
+              value={v}
+              onChange={e => setIjazahSanad(rows => rows.map((r, x) => (x === i ? e.target.value : r)))}
               placeholder="Sanad Qira'ah Ashim riwayat Hafsh"
               aria-label={`Ijazah atau sanad ${i + 1}`}
             />

@@ -49,6 +49,22 @@ function normalize(raw: Record<string, unknown>): KpiMonthly {
     seragam_total: raw.seragam_total == null ? null : num(raw.seragam_total),
     lapor_ortu_total: raw.lapor_ortu_total == null ? null : num(raw.lapor_ortu_total),
     halaqoh_total: raw.halaqoh_total == null ? null : num(raw.halaqoh_total),
+    nilai_hadir: raw.nilai_hadir == null ? null : num(raw.nilai_hadir),
+    nilai_database: raw.nilai_database == null ? null : num(raw.nilai_database),
+    nilai_buku_pegangan: raw.nilai_buku_pegangan == null ? null : num(raw.nilai_buku_pegangan),
+    nilai_perizinan: raw.nilai_perizinan == null ? null : num(raw.nilai_perizinan),
+    nilai_pengganti: raw.nilai_pengganti == null ? null : num(raw.nilai_pengganti),
+  }
+}
+
+/** Nilai langsung satu baris KPI (0097) — bentuk yang diterima hitungKpi. */
+export function langsungDari(e: Partial<KpiMonthly>) {
+  return {
+    hadir: e.nilai_hadir,
+    database: e.nilai_database,
+    bukuPegangan: e.nilai_buku_pegangan,
+    perizinan: e.nilai_perizinan,
+    pengganti: e.nilai_pengganti,
   }
 }
 
@@ -72,6 +88,7 @@ export function nilaiDari(e: KpiMonthly): KpiHasil {
       izinWaCases: e.izin_wa_cases,
       penggantiCases: e.pengganti_cases,
       penggantiFound: e.pengganti_found,
+      langsung: langsungDari(e),
     },
     {
       seragamDaily: e.seragam_daily,

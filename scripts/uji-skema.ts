@@ -20,13 +20,13 @@ import { readFileSync } from 'fs'
 import { join } from 'path'
 
 const HARAP = {
-  tabel: 85,
+  tabel: 88,
   enum: 38,
-  constraint: 379,
-  indeks: 118,
+  constraint: 405,
+  indeks: 119,
   fungsi: 6,
   trigger: 14,
-  rls: 85,
+  rls: 88,
   bucket: 5,
 }
 

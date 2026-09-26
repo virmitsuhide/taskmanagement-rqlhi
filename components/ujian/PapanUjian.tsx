@@ -1,6 +1,6 @@
 'use client'
 
-import { CalendarClock, CheckCircle2, Inbox, Settings2 } from 'lucide-react'
+import { CalendarClock, CheckCircle2, Inbox } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -299,13 +299,16 @@ export const BATAS_TASMI_PEKANAN = 4
 /** Nama unit ujian untuk panel beban — SD & SMP di sini berarti SDIT & SMPIT LHI. */
 const NAMA_UNIT_UJIAN: Record<UjianUnit, string> = { SD: 'SDIT', SMP: 'SMPIT' }
 
+/** Di luar komponen agar render tetap murni (react-hooks/purity). */
+const kiniMs = () => Date.now()
+
 export function BebanPenguji({ tahfidz, tahsin, units }: {
   tahfidz: UjianTahfidz[]
   tahsin: UjianTahsin[]
   /** Unit yang dihitung. Lebih dari satu = penguji saling menguji lintas unit. */
   units: UjianUnit[]
 }) {
-  const sekarang = Date.now()
+  const sekarang = kiniMs()
   const dalam = (iso: string | null, hari: number) => {
     if (!iso) return false
     const t = new Date(iso).getTime()

@@ -40,6 +40,27 @@ export interface KpiInput {
   penggantiCases: number
   /** N — jumlah kasus yang berhasil dapat pengganti. */
   penggantiFound: number
+  /**
+   * Nilai akhir 0–100 yang diketik langsung di tabel isi cepat (0097).
+   * Terisi = menggantikan hitungan dari rincian indikator itu; null/undefined
+   * = dihitung dari rincian seperti biasa.
+   */
+  langsung?: NilaiLangsung
+}
+
+export interface NilaiLangsung {
+  hadir?: number | null
+  database?: number | null
+  bukuPegangan?: number | null
+  perizinan?: number | null
+  pengganti?: number | null
+}
+
+/** Nilai langsung bila terisi, selain itu hasil rumus rinciannya. */
+function atau(langsung: number | null | undefined, rinci: () => number): number {
+  const n = Number(langsung)
+  if (langsung === null || langsung === undefined || !Number.isFinite(n)) return rinci()
+  return Math.max(0, Math.min(100, n))
 }
 
 /** Isian harian. Null berarti SDM memilih mengisi totalnya langsung. */
@@ -91,15 +112,22 @@ export function nilaiTuhfatulAthfal(bait: number, P: KpiParam): number {
 }
 
 // 6 ── 'Seragam'!X = MIN(100, SUM(20 hari))
+//
+// Nilai total yang terisi MENANG atas grid harian (0097): tabel isi cepat
+// mengisi *_total tanpa menghapus rincian harian, supaya mengosongkan
+// totalnya kembali memakai rincian. Formulir rinci tidak pernah mengirim
+// keduanya sekaligus. Berlaku sama untuk Lapor Ortu dan Halaqoh.
 export function nilaiSeragam(h: KpiHarian): number {
+  if (h.seragamTotal !== null && h.seragamTotal !== undefined) return clamp100(h.seragamTotal)
   if (h.seragamDaily) return clamp100(sum(h.seragamDaily))
-  return clamp100(h.seragamTotal ?? 0)
+  return 0
 }
 
 // 7 ── 'Lapor Ortu'!Y = MIN(100, SUM(16 hari aktif) + basisLaporOrtu)
 export function nilaiLaporOrtu(h: KpiHarian, P: KpiParam): number {
+  if (h.laporOrtuTotal !== null && h.laporOrtuTotal !== undefined) return clamp100(h.laporOrtuTotal)
   if (h.laporOrtuDaily) return clamp100(sum(h.laporOrtuDaily) + P.basisLaporOrtu)
-  return clamp100(h.laporOrtuTotal ?? 0)
+  return 0
 }
 
 // 8 ── 'Halaqoh'!AL = MIN(100, basis + MIN(sumHadir, 16*3) + MIN(sumAkhiri, 16*3))
@@ -108,6 +136,7 @@ export function nilaiLaporOrtu(h: KpiHarian, P: KpiParam): number {
 // terpisah, sehingga kelebihan poin kehadiran tidak bisa menambal kekurangan
 // poin mengakhiri. Membatasi totalnya saja akan memberi hasil berbeda.
 export function nilaiHalaqoh(h: KpiHarian, P: KpiParam): number {
+  if (h.halaqohTotal !== null && h.halaqohTotal !== undefined) return clamp100(h.halaqohTotal)
   if (h.halaqohHadir && h.halaqohAkhiri) {
     const maxHadir = P.pertemuanHalaqoh * P.poinHadirHalaqoh
     const maxAkhiri = P.pertemuanHalaqoh * P.poinAkhiriHalaqoh
@@ -117,7 +146,7 @@ export function nilaiHalaqoh(h: KpiHarian, P: KpiParam): number {
       Math.min(sum(h.halaqohAkhiri), maxAkhiri),
     )
   }
-  return clamp100(h.halaqohTotal ?? 0)
+  return 0
 }
 
 // 9 ── MAX(0,MIN(100, basisBukuPegangan + K*poinPerPertemuanBuku))
@@ -189,17 +218,17 @@ export interface KpiHasil {
 export function hitungKpi(input: KpiInput, harian: KpiHarian, unit: Jenjang | null | undefined): KpiHasil {
   const P = paramFor(unit)
   const nilai = [
-    nilaiKedisiplinanHadir(input.lateMinutes),
-    nilaiPengisianDatabase(input.dbLateDays),
+    atau(input.langsung?.hadir, () => nilaiKedisiplinanHadir(input.lateMinutes)),
+    atau(input.langsung?.database, () => nilaiPengisianDatabase(input.dbLateDays)),
     nilaiHafalanQuran(input.hafalanJuz, input.hafalanPages, P),
     nilaiTuhfatulAthfal(input.tuhfatulBait, P),
     clamp100(input.bacaanScore),
     nilaiSeragam(harian),
     nilaiLaporOrtu(harian, P),
     nilaiHalaqoh(harian, P),
-    nilaiBukuPegangan(input.bukuPeganganMeetings, P),
-    nilaiBukuPerizinan(input.izinWaCases, P),
-    nilaiCariPengganti(input.penggantiCases, input.penggantiFound),
+    atau(input.langsung?.bukuPegangan, () => nilaiBukuPegangan(input.bukuPeganganMeetings, P)),
+    atau(input.langsung?.perizinan, () => nilaiBukuPerizinan(input.izinWaCases, P)),
+    atau(input.langsung?.pengganti, () => nilaiCariPengganti(input.penggantiCases, input.penggantiFound)),
   ]
   const total = sum(nilai)
   const rapot = total / P.jumlahIndikator

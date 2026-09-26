@@ -5,7 +5,6 @@ import { PublicHeader } from '@/components/layout/PublicHeader'
 import { PublicFooter } from '@/components/home/PublicFooter'
 import { Button } from '@/components/ui/button'
 import { AntrianUjian } from '@/components/ujian/AntrianUjian'
-import { UjianTabPublik } from '@/components/ujian/UjianTabPublik'
 import { getAntrianUjian } from '@/lib/data/ujian'
 import { getSession } from '@/lib/auth/session'
 import { canViewUjian } from '@/lib/auth/permissions'
@@ -18,7 +17,7 @@ export const metadata: Metadata = {
 const ALUR = [
   { t: 'Diajukan', d: 'Guru pengampu mengajukan setelah anak menuntaskan jilid atau juznya.', c: 'bg-accent-warm' },
   { t: 'Terjadwal', d: 'Koordinator menetapkan tanggal, jam, dan penguji.', c: 'bg-info' },
-  { t: 'Selesai', d: 'Hasil tampil di Rekap Hasil dan disampaikan lewat ustadz/ustadzah.', c: 'bg-primary' },
+  { t: 'Selesai', d: 'Hasil disampaikan lewat ustadz/ustadzah pengampu.', c: 'bg-primary' },
 ]
 
 const TANYA = [
@@ -51,9 +50,6 @@ export default async function AntrianUjianPage() {
               <Link href="/ujian/kelola"><Settings2 className="mr-1.5 h-3.5 w-3.5" />Kelola pengajuan</Link>
             </Button>
           )}
-        </div>
-        <div className="mt-8">
-          <UjianTabPublik aktif="antrian" />
         </div>
       </section>
 

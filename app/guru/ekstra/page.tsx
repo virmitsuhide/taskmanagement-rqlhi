@@ -39,12 +39,12 @@ export default async function GuruEkstraPage({ searchParams }: { searchParams: P
 
         {!tabelAda || slot.length === 0 ? (
           <p className="rounded-2xl border border-dashed bg-muted/30 py-10 text-center text-sm text-muted-foreground">
-            Anda belum mengampu slot ekstra. Slot dibuka oleh Koordinator Ekstra.
+            Anda belum mengampu halaqoh ekstra. Halaqoh ekstra dibentuk oleh Koordinator Ekstra.
           </p>
         ) : (
           <>
             {slot.length > 1 && (
-              <nav aria-label="Pilih slot" className="flex flex-wrap gap-2">
+              <nav aria-label="Pilih halaqoh ekstra" className="flex flex-wrap gap-2">
                 {slot.map(s => (
                   <Link key={s.id} href={`/guru/ekstra?slot=${s.id}`}
                     className={cn('rounded-full border px-3.5 py-1.5 text-sm font-medium',

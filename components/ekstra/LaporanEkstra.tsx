@@ -29,7 +29,7 @@ export async function LaporanEkstra({ slot, peserta, bulan }: { slot: SlotEkstra
   ])
 
   if (slot.length === 0) {
-    return <p className="rounded-2xl border border-dashed py-10 text-center text-sm text-muted-foreground">Belum ada slot ekstra.</p>
+    return <p className="rounded-2xl border border-dashed py-10 text-center text-sm text-muted-foreground">Belum ada halaqoh ekstra.</p>
   }
 
   return (

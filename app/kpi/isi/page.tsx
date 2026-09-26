@@ -7,6 +7,7 @@ import { createServerClient } from '@/lib/supabase/server'
 import { MONTH_NAMES } from '@/lib/data/kpi'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { KpiForm } from './KpiForm'
+import { getIsianKpiSetoran, labelPosisi, posisiHafalan } from '@/lib/data/setoran-guru'
 import type { Jenjang, KpiMonthly } from '@/types'
 
 interface PageProps {
@@ -76,6 +77,25 @@ export default async function IsiKpiPage({ searchParams }: PageProps) {
 
   const backHref = `/kpi?unit=${unit}&year=${year}&month=${month}`
 
+  // Posisi hafalan dari Setoran Guru bulan ini — mengunci isian yang terkait.
+  const unitGuru = (existing?.unit ?? teacher.unit ?? null) as Jenjang | null
+  const isian = await getIsianKpiSetoran(teacher.id, year, month, unitGuru)
+  const { data: surat } = isian.tahfidz?.surat_id
+    ? await supabase.from('surat_master').select('name_latin').eq('id', isian.tahfidz.surat_id).maybeSingle()
+    : { data: null }
+  const tgl = (d: string) => new Date(`${d}T00:00:00+07:00`).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', timeZone: 'Asia/Jakarta' })
+  const ketTahfidz = isian.tahfidz
+    ? `Otomatis dari setoran ${tgl(isian.tahfidz.tanggal)}: ${surat?.name_latin ?? `surat ${isian.tahfidz.surat_id}`} s.d. ayat ${isian.tahfidz.ayat_ke} → ${labelPosisi(posisiHafalan(isian.tahfidz))}`
+    : undefined
+  const dariSetoran = {
+    nilai: { hafalan_juz: isian.hafalan_juz, hafalan_pages: isian.hafalan_pages, tuhfatul_bait: isian.tuhfatul_bait },
+    keterangan: {
+      hafalan_juz: ketTahfidz,
+      hafalan_pages: ketTahfidz ? 'Otomatis dari setoran terakhir bulan ini' : undefined,
+      tuhfatul_bait: isian.tuhfatul ? `Otomatis dari setoran ${tgl(isian.tuhfatul.tanggal)}: s.d. bait ${isian.tuhfatul.bait_ke}` : undefined,
+    },
+  }
+
   return (
     <div>
       <DashboardHeader displayName={session.displayName} role={session.role} title="Isi KPI" showBack />
@@ -130,6 +150,7 @@ export default async function IsiKpiPage({ searchParams }: PageProps) {
           backHref={backHref}
           existing={existing}
           unit={(teacher.unit ?? null) as Jenjang | null}
+          dariSetoran={dariSetoran}
         />
       </div>
     </div>

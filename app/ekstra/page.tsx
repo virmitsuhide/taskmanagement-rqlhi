@@ -5,17 +5,20 @@ import { canManageEkstra } from '@/lib/auth/permissions'
 import { createServerClient } from '@/lib/supabase/server'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { EkstraSubNav, MigrasiEkstra } from '@/components/ekstra/EkstraSubNav'
-import { KartuBooking, type BookingTampil, type InfoSlot } from '@/components/ekstra/KartuBooking'
+import { KartuBooking, type BookingTampil, type InfoHalaqoh } from '@/components/ekstra/KartuBooking'
 import {
-  getBookingEkstra, getCalonSiswa, getDataEkstra, HARI_PENDEK, jam, LABEL_STATUS_BOOKING, labelSlot, nomorWa, rupiah,
+  bolehGuruEkstra, getBookingEkstra, getCalonSiswa, getDataEkstra, getGuruEkstra, LABEL_STATUS_BOOKING, labelPreferensi, labelSlot, nomorWa, rupiah,
   type SlotEkstra, type StatusBooking,
 } from '@/lib/data/ekstra'
 import { cn } from '@/lib/utils'
 
 /**
- * Ekstra · booking — kotak masuk permintaan orang tua dan jadwal pekanan.
- * Orang tua memesan dari /daftar-ekstra; koordinator menerima, menawarkan
- * jadwal lain, atau menolak, lalu mengabari lewat WhatsApp.
+ * Ekstra · booking — kotak masuk permintaan orang tua dan halaqoh ekstra.
+ *
+ * Orang tua menyampaikan jenis, waktu, dan guru pilihan dari /daftar-ekstra
+ * atau tombol Booking di kartu guru. Koordinator menanyakan guru yang bisa di
+ * luar sistem, lalu memasukkan anak ke halaqoh ekstra (yang ada atau baru),
+ * atau menawarkan guru lain bila guru pilihan tidak bisa.
  */
 
 const TAB: StatusBooking[] = ['baru', 'ditawarkan', 'aktif', 'ditolak', 'berhenti']
@@ -28,14 +31,24 @@ export default async function EkstraPage({ searchParams }: { searchParams: Promi
   const { status: diminta } = await searchParams
   const status: StatusBooking = TAB.includes(diminta as StatusBooking) ? (diminta as StatusBooking) : 'baru'
 
-  const [data, semua] = await Promise.all([getDataEkstra(), getBookingEkstra()])
+  const supabase = createServerClient()
+  const [data, semua, guruRes, { ids: guruEkstra }] = await Promise.all([
+    getDataEkstra(),
+    getBookingEkstra(),
+    supabase.from('teachers').select('id, full_name').eq('is_active', true).is('deleted_at', null).order('full_name'),
+    getGuruEkstra(),
+  ])
+  const semuaGuru = ((guruRes.data ?? []) as { id: string; full_name: string }[]).map(g => ({ id: g.id, nama: g.full_name }))
+  // Nama untuk menampilkan guru pilihan ortu dari semua guru; calon pengampu halaqoh baru hanya guru ekstra.
+  const namaGuru = new Map(semuaGuru.map(g => [g.id, g.nama]))
+  const guru = semuaGuru.filter(g => bolehGuruEkstra(guruEkstra, g.id))
 
-  const info = (s: SlotEkstra | undefined): InfoSlot | null => s ? {
-    id: s.id, label: labelSlot(s), guru: s.guru ?? '—', jenis: s.jenis?.nama ?? '—',
-    biaya: s.jenis ? `${rupiah(s.jenis.biaya)} ${s.jenis.biaya ? s.jenis.satuan_biaya : ''}`.trim() : '—',
+  const info = (s: SlotEkstra | undefined): InfoHalaqoh | null => s ? {
+    id: s.id, teacherId: s.teacher_id, guru: s.guru ?? '—', label: labelSlot(s), tempat: s.tempat,
     sisa: s.kuotaEfektif - s.peserta,
   } : null
   const slotById = new Map(data.slot.map(s => [s.id, s]))
+  const jenisById = new Map(data.jenis.map(j => [j.id, j]))
 
   const tampil = semua.filter(b => b.status === status)
   if (status === 'aktif' || status === 'berhenti') tampil.reverse()
@@ -43,15 +56,14 @@ export default async function EkstraPage({ searchParams }: { searchParams: Promi
 
   // Calon siswa untuk ditautkan: permintaan LHI yang terbuka, atau aktif tapi belum tertaut.
   const perluCalon = tampil.filter(b => b.asal === 'lhi' && (b.status === 'baru' || b.status === 'ditawarkan' || (b.status === 'aktif' && !b.student_id)))
-  const calon = new Map(await Promise.all(perluCalon.map(async b => [b.id, await getCalonSiswa(b.nama_anak)] as const)))
+  const calon = new Map(await Promise.all(perluCalon.map(async b => [b.id, await getCalonSiswa(b.nama_anak, b.kelas)] as const)))
   const idTertaut = tampil.filter(b => b.student_id).map(b => b.student_id!)
   const { data: siswaTertaut } = idTertaut.length
-    ? await createServerClient().from('students').select('id, full_name').in('id', idTertaut)
+    ? await supabase.from('students').select('id, full_name').in('id', idTertaut)
     : { data: [] }
   const namaTertaut = new Map(((siswaTertaut ?? []) as { id: string; full_name: string }[]).map(s => [s.id, s.full_name]))
 
   const aktifSlot = data.slot.filter(s => s.aktif)
-  const sisaTotal = aktifSlot.reduce((n, s) => n + Math.max(0, s.kuotaEfektif - s.peserta), 0)
   const guruJadwal = [...new Set(aktifSlot.map(s => s.guru ?? '—'))].sort()
 
   return (
@@ -60,10 +72,11 @@ export default async function EkstraPage({ searchParams }: { searchParams: Promi
       <div className="mx-auto max-w-7xl space-y-6 p-4 md:p-8">
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-accent-warm">Ekstra tahsin &amp; tahfidz · booking</p>
-          <h1 className="mt-1 text-3xl leading-tight">Permintaan ekstra yang perlu dijadwalkan</h1>
+          <h1 className="mt-1 text-3xl leading-tight">Permintaan ekstra yang perlu dicarikan guru</h1>
           <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
-            Orang tua memesan lewat halaman <Link href="/daftar-ekstra" className="font-medium text-primary hover:underline">Daftar Ekstra</Link>.
-            Terima untuk mengunci slot, atau tawarkan jam lain — pesan WhatsApp untuk orang tua disiapkan otomatis.
+            Orang tua memilih jenis, waktu, dan guru pilihan lewat <Link href="/daftar-ekstra" className="font-medium text-primary hover:underline">Daftar Ekstra</Link> atau
+            tombol Booking di kartu guru. Tanyakan guru yang bisa, lalu masukkan anak ke halaqoh ekstra — yang sudah ada atau baru — atau tawarkan guru lain.
+            Pesan WhatsApp untuk orang tua disiapkan otomatis.
           </p>
         </div>
         <EkstraSubNav />
@@ -74,10 +87,10 @@ export default async function EkstraPage({ searchParams }: { searchParams: Promi
               <Angka label="Permintaan baru" nilai={hitung.baru} nada={hitung.baru ? 'warm' : undefined} />
               <Angka label="Menunggu balasan ortu" nilai={hitung.ditawarkan} />
               <Angka label="Peserta aktif" nilai={hitung.aktif} nada="primary" />
-              <Angka label="Kursi kosong" nilai={sisaTotal} ket={`${aktifSlot.length} slot aktif`} />
+              <Link href="/ekstra/halaqoh" className="rounded-2xl transition-colors hover:bg-muted/40"><Angka label="Halaqoh ekstra berjalan" nilai={aktifSlot.length} ket={`${guruJadwal.length} guru pengampu · lihat halaqoh →`} /></Link>
             </div>
 
-            <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]">
+            <div>
               <section className="min-w-0 rounded-2xl border bg-card p-4 md:p-5">
                 <nav aria-label="Status" className="flex flex-wrap gap-1.5">
                   {TAB.map(t => (
@@ -96,19 +109,28 @@ export default async function EkstraPage({ searchParams }: { searchParams: Promi
                 ) : (
                   <ul className="mt-4 space-y-3">
                     {tampil.map(b => {
-                      const slot = slotById.get(b.slot_id)
+                      const j = jenisById.get(b.jenis_id)
                       const bt: BookingTampil = {
                         id: b.id, status: b.status, nama_anak: b.nama_anak, asal: b.asal, student_id: b.student_id,
-                        kelas: b.kelas, posisi_bacaan: b.posisi_bacaan, nama_ortu: b.nama_ortu, wa: nomorWa(b.wa_ortu),
+                        kelas: b.kelas, posisi_bacaan: b.posisi_bacaan, nama_ortu: b.nama_ortu, wa: b.wa_ortu ? nomorWa(b.wa_ortu) : '',
                         catatan_ortu: b.catatan_ortu, catatan_koor: b.catatan_koor,
                         dibuat: new Date(b.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', timeZone: 'Asia/Jakarta' }),
-                        slot: info(slot), tawaran: info(b.slot_tawaran_id ? slotById.get(b.slot_tawaran_id) : undefined),
+                        jenis: {
+                          nama: j?.nama ?? '—',
+                          biaya: j ? `${rupiah(j.biaya)}${j.biaya ? ` ${j.satuan_biaya}` : ''}` : '—',
+                          durasi: j?.durasi_menit ?? 60,
+                        },
+                        preferensi: labelPreferensi(b),
+                        hariPilihan: b.hari_pilihan ?? [],
+                        waktuPilihan: b.waktu_pilihan ?? [],
+                        // Guru yang sudah dihapus dari data diabaikan (kolom array tidak ber-FK).
+                        guruPilihan: (b.guru_pilihan_ids ?? []).filter(id => namaGuru.has(id)).map(id => ({ id, nama: namaGuru.get(id)! })),
+                        halaqoh: b.slot_id ? info(slotById.get(b.slot_id)) : null,
+                        tawaran: b.slot_tawaran_id ? info(slotById.get(b.slot_tawaran_id)) : null,
                       }
-                      const alternatif = data.slot
-                        .filter(s => s.aktif && s.id !== b.slot_id && (!slot || s.jenis_id === slot.jenis_id))
-                        .map(s => info(s)!)
+                      const halaqohCocok = aktifSlot.filter(s => s.jenis_id === b.jenis_id).map(s => info(s)!)
                       return (
-                        <KartuBooking key={b.id} b={bt} alternatif={alternatif} calon={calon.get(b.id) ?? []}
+                        <KartuBooking key={b.id} b={bt} halaqohCocok={halaqohCocok} guru={guru} calon={calon.get(b.id) ?? []}
                           namaSiswaTertaut={b.student_id ? namaTertaut.get(b.student_id) : undefined} />
                       )
                     })}
@@ -116,51 +138,6 @@ export default async function EkstraPage({ searchParams }: { searchParams: Promi
                 )}
               </section>
 
-              <section className="rounded-2xl border bg-card p-4 md:p-5">
-                <h2 className="font-heading text-xl">Jadwal ekstra pekanan</h2>
-                <p className="text-xs text-muted-foreground">Per guru · angka = peserta / kuota</p>
-                {aktifSlot.length === 0 ? (
-                  <p className="mt-4 text-sm text-muted-foreground">
-                    Belum ada slot aktif. <Link href="/ekstra/atur" className="font-medium text-primary hover:underline">Buka slot</Link>
-                  </p>
-                ) : (
-                  <div className="mt-4 overflow-x-auto">
-                    <table className="w-full min-w-[440px] text-xs">
-                      <thead>
-                        <tr className="text-muted-foreground">
-                          <th className="pb-2 text-left font-semibold">Guru</th>
-                          {[1, 2, 3, 4, 5, 6, 7].filter(h => aktifSlot.some(s => s.hari === h)).map(h => (
-                            <th key={h} className="pb-2 font-semibold">{HARI_PENDEK[h]}</th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {guruJadwal.map(g => (
-                          <tr key={g} className="border-t align-top">
-                            <td className="py-2 pr-2 font-medium">{g}</td>
-                            {[1, 2, 3, 4, 5, 6, 7].filter(h => aktifSlot.some(s => s.hari === h)).map(h => (
-                              <td key={h} className="px-1 py-2">
-                                <div className="flex flex-col gap-1">
-                                  {aktifSlot.filter(s => s.guru === g && s.hari === h).map(s => {
-                                    const penuh = s.peserta >= s.kuotaEfektif
-                                    return (
-                                      <span key={s.id} title={`${s.jenis?.nama} · ${labelSlot(s)}`}
-                                        className={cn('rounded-md px-1.5 py-1 text-center font-semibold',
-                                          penuh ? 'bg-primary text-primary-foreground' : 'border border-dashed border-primary/40 text-primary')}>
-                                        {jam(s.jam_mulai)} · {s.peserta}/{s.kuotaEfektif}
-                                      </span>
-                                    )
-                                  })}
-                                </div>
-                              </td>
-                            ))}
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </section>
             </div>
           </>
         )}

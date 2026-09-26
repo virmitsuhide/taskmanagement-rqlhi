@@ -7,6 +7,7 @@ import { getSession } from '@/lib/auth/session'
 import { getTeacherSession } from '@/lib/auth/teacher-session'
 import { logoutTeacherAction } from '@/app/actions/teacher-auth'
 import { createServerClient } from '@/lib/supabase/server'
+import { getRingkasPemegang } from '@/lib/data/pengurus'
 import { ROLE_LABELS, DEFAULT_DASHBOARD, sapaanName } from '@/lib/auth/permissions'
 import { HeaderUserCard } from './HeaderUserCard'
 import { PublicMobileNav, type PublicNavItem } from './PublicMobileNav'
@@ -38,22 +39,9 @@ const NAV: NavItem[] = [
       },
     ],
   },
-  {
-    label: 'Ujian',
-    href: '/ujian',
-    children: [
-      {
-        label: 'Antrian Ujian',
-        href: '/ujian',
-        description: 'Pengajuan yang menunggu jadwal & yang sudah dijadwalkan',
-      },
-      {
-        label: 'Rekap Hasil',
-        href: '/ujian/rekap',
-        description: 'Hasil ujian tahsin & tahfidz yang sudah terlaksana',
-      },
-    ],
-  },
+  // Hanya antrian: Rekap Hasil publik dihapus karena memuat nama lengkap
+  // siswa; rekapnya kini di Riwayat & Rekap Ujian milik pengurus.
+  { label: 'Ujian', href: '/ujian' },
 ]
 
 const LINK_CLASS =
@@ -65,17 +53,21 @@ const LINK_CLASS =
  */
 async function getHeaderProfile(userId: string) {
   const supabase = createServerClient()
-  const { data } = await supabase
-    .from('users')
-    .select('sapaan, nickname, photo_url, photo_focus')
-    .eq('id', userId)
-    .maybeSingle()
-  return data as {
-    sapaan: string | null
-    nickname: string | null
-    photo_url: string | null
-    photo_focus: PhotoFocus | null
-  } | null
+  // Data diri pengurus dibaca dari pemegang kursinya (guru/karyawan); akun
+  // hanya cadangan untuk kursi yang belum ditetapkan pemegangnya.
+  const [{ data }, pemegang] = await Promise.all([
+    supabase.from('users').select('sapaan, nickname, photo_url, photo_focus').eq('id', userId).maybeSingle(),
+    getRingkasPemegang([userId]),
+  ])
+  const akun = data as { sapaan: string | null; nickname: string | null; photo_url: string | null; photo_focus: PhotoFocus | null } | null
+  const p = pemegang.get(userId)
+  if (!p) return akun
+  return {
+    sapaan: p.sapaan ?? akun?.sapaan ?? null,
+    nickname: p.nickname ?? akun?.nickname ?? null,
+    photo_url: p.photo_url ?? akun?.photo_url ?? null,
+    photo_focus: (p.photo_url ? p.photo_focus : akun?.photo_focus ?? null) as PhotoFocus | null,
+  }
 }
 
 /**
@@ -212,7 +204,7 @@ function NavDropdown({ item }: { item: NavItem }) {
 
       <div
         className="
-          absolute left-0 top-full pt-2 w-[268px]
+          absolute left-1/2 -translate-x-1/2 top-full pt-2 w-[268px]
           invisible opacity-0 translate-y-1 pointer-events-none
           transition-all duration-150
           group-hover:visible group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto

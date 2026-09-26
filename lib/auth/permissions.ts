@@ -1176,6 +1176,15 @@ export function canViewKpi(role: UserRole): boolean {
 }
 
 /**
+ * Menyimak & mencatat setoran guru Qur'an (0096): SDM saja. Setoran terakhir
+ * bulanan mengisi posisi hafalan di KPI, jadi pencatatnya sama dengan pemilik
+ * KPI; yang lain (Kepala RQ, koordinator) cukup melihat.
+ */
+export function canCatatSetoranGuru(role: UserRole): boolean {
+  return role === 'sdm'
+}
+
+/**
  * Siapa yang boleh mencetak rapor KPI bulanan seorang guru: SDM saja.
  *
  * Lebih sempit daripada canViewKpi, dan itu disengaja. Halaman KPI adalah
@@ -1463,4 +1472,59 @@ export function canManageKaldik(role: UserRole, unit?: string | null): boolean {
  */
 export function canManageEkstra(role: UserRole): boolean {
   return role === 'kepala_rq' || role === 'koor_ekstra'
+}
+
+// ── Laporan bulanan Kurikulum (Bab 02 BPH, 0092) ─────────────────────
+
+/** Membuka laporan bulanan kurikulum: Kumik yang menyusun, Kepala RQ yang menyetujui. */
+export function canViewLaporanKurikulum(role: UserRole): boolean {
+  return role === 'kumik' || role === 'kepala_rq'
+}
+
+/**
+ * Membuat edisi, menghitung ulang angka, dan menulis narasi. Kumik
+ * pemiliknya; Kepala RQ ikut boleh supaya laporan tidak tertahan bila
+ * Kumik berhalangan.
+ */
+export function canSusunLaporanKurikulum(role: UserRole): boolean {
+  return role === 'kumik' || role === 'kepala_rq'
+}
+
+/** Menyetujui atau mengembalikan edisi yang diajukan — Kepala RQ saja. */
+export function canSetujuiLaporanKurikulum(role: UserRole): boolean {
+  return role === 'kepala_rq'
+}
+
+// ── Keterangan publik guru (kartu /profil-guru & beranda) ─────────────
+
+/**
+ * Keterangan jabatan pengurus di kartu guru publik. Lebih ringkas dari
+ * AMANAH_LABELS (yang dipakai dokumen resmi), dan mengikuti kursi di menu
+ * Pengurus — begitu kursi berpindah orang, keterangannya ikut berpindah.
+ */
+export const KETERANGAN_PUBLIK_JABATAN: Record<UserRole, string> = {
+  kepala_rq: "Kepala Rumah Qur'an LHI",
+  kumik: 'Kumik RQ',
+  sdm: 'SDM RQ',
+  bendahara: 'Bendahara RQ',
+  koor_sd: 'Koordinator SD',
+  koor_smp: 'Koordinator SMP',
+  koor_qulssd: 'Koordinator QULS',
+  koor_ekstra: 'Koordinator Ekstra',
+  humas: 'Humas RQ',
+  div_training: 'Divisi Training RQ',
+  new_squad: 'New Squad RQ',
+  div_quran_bpa: "Divisi Qur'an Boarding Putra",
+  div_quran_bpi: "Divisi Qur'an Boarding Putri",
+  // Akun sistem, bukan jabatan — tidak pernah diduduki guru.
+  admin: '',
+}
+
+/** Keterangan guru yang bukan pengurus, menurut unit tempatnya mengajar. */
+export const KETERANGAN_PUBLIK_UNIT: Record<Jenjang, string> = {
+  paud: "Guru Qur'an TPAIT LHI",
+  sd: "Guru Qur'an SDIT LHI",
+  sd_juara: "Guru Qur'an SD LHI Juara",
+  smp: "Guru Qur'an SMPIT LHI",
+  sma: "Guru Qur'an SMA LHI",
 }

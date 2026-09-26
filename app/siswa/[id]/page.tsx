@@ -1,7 +1,7 @@
 import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
 import { getSession } from '@/lib/auth/session'
-import { canManageSetoran, canManageStudents, canViewStudents, JENJANG_LABELS } from '@/lib/auth/permissions'
+import { canManageEkstra, canManageSetoran, canManageStudents, canViewStudents, JENJANG_LABELS } from '@/lib/auth/permissions'
 import { createServerClient } from '@/lib/supabase/server'
 import { SetoranKoreksi, type SetoranItem } from '@/components/siswa/SetoranKoreksi'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
@@ -75,7 +75,7 @@ export default async function StudentDetailPage({ params }: PageProps) {
   // Semuanya hanya membaca data yang sudah ada; tidak ada yang ditulis.
   type JilidRow = { id: string; label: string; order_num: number; total_pages: number | null; is_terminal: boolean }
   const awal12 = new Date(Date.now() - 12 * 7 * 86_400_000)
-  const [jilidRes, tahsinTgl, tahfidzTgl, riwayatUjian, rekanRes] = await Promise.all([
+  const [jilidRes, tahsinTgl, tahfidzTgl, riwayatUjian, rekanRes, ekstraRes] = await Promise.all([
     student.current_method
       ? supabase.from('jilid_levels').select('id, label, order_num, total_pages, is_terminal')
           .eq('method_id', student.current_method.id).order('order_num')
@@ -90,7 +90,10 @@ export default async function StudentDetailPage({ params }: PageProps) {
       ? supabase.from('students').select('id, kelas, current_jilid_id')
           .eq('jenjang', student.jenjang).eq('current_method_id', student.current_method.id).eq('is_active', true)
       : Promise.resolve({ data: [] as { id: string; kelas: string | null; current_jilid_id: string | null }[] }),
+    // Penanda siswa ekstra; tabel belum ada (sebelum 0091) → error → tanpa penanda.
+    supabase.from('ekstra_booking').select('id').eq('student_id', id).eq('status', 'aktif').limit(1),
   ])
+  const bookingEkstra = ekstraRes.error ? null : ((ekstraRes.data ?? []) as { id: string }[])[0] ?? null
   const jilidList = (jilidRes.data ?? []) as JilidRow[]
   const urutanJilid = new Map(jilidList.map((j, i) => [j.id, i]))
   const posisi = student.current_jilid ? urutanJilid.get(student.current_jilid.id) ?? -1 : -1
@@ -156,6 +159,9 @@ export default async function StudentDetailPage({ params }: PageProps) {
                 <h1 className="text-3xl leading-tight">{student.full_name}</h1>
                 <span className="text-sm">{genderIcon}</span>
                 {!student.is_active && <span className="rounded-md bg-warning-wash px-2 py-0.5 text-xs font-semibold text-warning">Nonaktif</span>}
+                {bookingEkstra && (canManageEkstra(session.role)
+                  ? <Link href={`/ekstra/siswa/${bookingEkstra.id}`} className="rounded-md bg-accent-warm-wash px-2 py-0.5 text-xs font-semibold text-accent-warm hover:underline">Siswa ekstra</Link>
+                  : <span className="rounded-md bg-accent-warm-wash px-2 py-0.5 text-xs font-semibold text-accent-warm">Siswa ekstra</span>)}
               </div>
               <p className="text-sm text-muted-foreground mt-1">
                 {student.nis ? `NIS ${student.nis} · ` : ''}

@@ -1,7 +1,6 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import Link from 'next/link'
 import { CalendarClock, Hourglass, Search } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatTahsinLevels, getTahfidzLabel, namaPublik, tanggalWIB } from '@/lib/rq/ujian'
@@ -196,9 +195,6 @@ export function AntrianUjian({ tahfidz, tahsin }: Props) {
               ))}
             </ul>
           )}
-          <Link href="/ujian/rekap" className="mt-4 inline-block text-sm font-semibold text-primary hover:underline">
-            Lihat hasil ujian yang sudah selesai →
-          </Link>
         </section>
       </div>
     </div>

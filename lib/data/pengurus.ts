@@ -286,6 +286,39 @@ export async function pindahkanProfilAkun(
  * (halaman /profil) lalu jatuh kembali ke kolom profil di akunnya sendiri,
  * supaya isian yang telanjur diketik di sana tidak hilang begitu saja.
  */
+export interface RingkasPemegang {
+  sapaan: string | null
+  nickname: string | null
+  full_name: string | null
+  photo_url: string | null
+  photo_focus: unknown
+}
+
+/**
+ * Sapaan, panggilan & foto pemegang beberapa kursi sekaligus — untuk kartu
+ * header dan papan tugas. Data diri pengurus tinggal di rekam pemegangnya
+ * (guru/karyawan), bukan di akun kursinya: akun hanya kursi jabatan yang
+ * bisa berganti orang. Kursi tanpa pemegang tidak ada di peta.
+ */
+export async function getRingkasPemegang(userIds: string[]): Promise<Map<string, RingkasPemegang>> {
+  const hasil = new Map<string, RingkasPemegang>()
+  if (userIds.length === 0) return hasil
+  const supabase = createServerClient()
+  const kolom = 'linked_user_id, sapaan, nickname, full_name, photo_url, photo_focus'
+  const [guru, karyawan] = await Promise.all([
+    supabase.from('teachers').select(kolom).in('linked_user_id', userIds).is('deleted_at', null),
+    supabase.from('employees').select(kolom).in('linked_user_id', userIds).is('deleted_at', null),
+  ])
+  // Karyawan dulu, guru menimpa — urutan yang sama dengan getProfilAmanah.
+  for (const r of [...(karyawan.data ?? []), ...(guru.data ?? [])] as (RingkasPemegang & { linked_user_id: string })[]) {
+    hasil.set(r.linked_user_id, {
+      sapaan: r.sapaan ?? null, nickname: r.nickname ?? null, full_name: r.full_name ?? null,
+      photo_url: r.photo_url ?? null, photo_focus: r.photo_focus ?? null,
+    })
+  }
+  return hasil
+}
+
 export async function getProfilAmanah(userId: string): Promise<ProfilAmanah | null> {
   const supabase = createServerClient()
 

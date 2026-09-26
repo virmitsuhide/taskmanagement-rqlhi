@@ -1,13 +1,14 @@
 import Link from 'next/link'
-import { CalendarClock } from 'lucide-react'
 import { parseFocus, photoStyle } from '@/lib/profil/foto'
 import type { PublicTeacher } from '@/types'
 
 interface Props {
   title: string
   teachers: PublicTeacher[]
-  /** Id guru yang punya slot ekstra aktif — dihitung sekali di beranda. */
-  menerimaEkstra?: ReadonlySet<string>
+  /** Ada jenis ekstra yang dibuka → setiap kartu guru punya tombol Booking. */
+  bukaEkstra?: boolean
+  /** Guru ekstra (0095); null = daftar belum ada, semua guru boleh dibooking. */
+  guruEkstra?: ReadonlySet<string> | null
 }
 
 function initials(name: string) {
@@ -18,7 +19,7 @@ function initials(name: string) {
  * Cuplikan Profil Guru di beranda. Seksi disembunyikan total kalau belum ada
  * guru yang ditandai publik — beranda tidak menampilkan blok kosong.
  */
-export function TeacherStrip({ title, teachers, menerimaEkstra }: Props) {
+export function TeacherStrip({ title, teachers, bukaEkstra, guruEkstra = null }: Props) {
   if (teachers.length === 0) return null
 
   return (
@@ -37,38 +38,47 @@ export function TeacherStrip({ title, teachers, menerimaEkstra }: Props) {
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
         {teachers.map(teacher => (
-          <Link
+          <div
             key={teacher.id}
-            href={`/profil-guru/${teacher.id}`}
-            className="group flex flex-col gap-2.5 rounded-2xl border bg-card p-2.5 transition-all hover:border-primary/40 hover:shadow-sm"
+            className="group flex min-w-0 flex-col gap-2.5 rounded-2xl border bg-card p-2.5 transition-all hover:border-primary/40 hover:shadow-sm"
           >
-            <span className="relative block aspect-[4/5] w-full overflow-hidden rounded-xl bg-primary-wash">
-              {teacher.photo_url ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={teacher.photo_url}
-                  alt=""
-                  className="h-full w-full transition-transform duration-500 group-hover:scale-[1.03]"
-                  style={photoStyle(parseFocus(teacher.photo_focus))}
-                />
+            <Link href={`/profil-guru/${teacher.id}`} className="flex flex-col gap-2.5">
+              <span className="relative block aspect-[4/5] w-full overflow-hidden rounded-xl bg-primary-wash">
+                {teacher.photo_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={teacher.photo_url}
+                    alt=""
+                    className="h-full w-full transition-transform duration-500 group-hover:scale-[1.03]"
+                    style={photoStyle(parseFocus(teacher.photo_focus))}
+                  />
+                ) : (
+                  <span className="flex h-full items-center justify-center font-heading text-3xl text-primary">
+                    {initials(teacher.full_name)}
+                  </span>
+                )}
+              </span>
+              <span className="px-1">
+                <span className="block font-heading text-[17px] leading-snug line-clamp-2">{teacher.full_name}</span>
+                <span className="mt-0.5 block text-[11px] font-semibold text-accent-warm line-clamp-2">{teacher.keterangan}</span>
+              </span>
+            </Link>
+            <span className="mt-auto grid grid-cols-2 gap-1.5">
+              <Link href={`/profil-guru/${teacher.id}`} className="flex h-9 items-center justify-center rounded-lg border text-xs font-semibold transition-colors hover:border-primary/40 hover:text-primary">
+                Profil
+              </Link>
+              {bukaEkstra && (!guruEkstra || guruEkstra.has(teacher.id)) ? (
+                <Link href={`/profil-guru/${teacher.id}#booking`} aria-label={`Booking ekstra bersama ${teacher.full_name}`}
+                  className="flex h-9 items-center justify-center rounded-lg bg-accent-warm text-xs font-bold text-white transition-opacity hover:opacity-90">
+                  Booking
+                </Link>
               ) : (
-                <span className="flex h-full items-center justify-center font-heading text-3xl text-primary">
-                  {initials(teacher.full_name)}
+                <span aria-disabled="true" className="flex h-9 items-center justify-center rounded-lg border border-dashed px-1 text-center text-[10px] leading-tight text-muted-foreground">
+                  {bukaEkstra ? 'Tidak menerima ekstra' : 'Segera'}
                 </span>
               )}
             </span>
-            <span className="px-1 pb-1">
-              <span className="block font-heading text-[17px] leading-snug line-clamp-2">{teacher.full_name}</span>
-              {teacher.public_title && (
-                <span className="mt-0.5 block text-[11px] font-semibold text-accent-warm line-clamp-2">{teacher.public_title}</span>
-              )}
-              {menerimaEkstra?.has(teacher.id) && (
-                <span className="mt-1.5 inline-flex items-center gap-1 rounded-md bg-accent-warm-wash px-1.5 py-0.5 text-[10px] font-bold text-accent-warm">
-                  <CalendarClock className="h-3 w-3" />Menerima ekstra
-                </span>
-              )}
-            </span>
-          </Link>
+          </div>
         ))}
       </div>
     </section>

@@ -968,6 +968,12 @@ export interface PublicTeacher {
   public_bio: string | null
   display_order: number
   /**
+   * Keterangan di bawah nama pada kartu publik — dihitung, bukan diketik:
+   * jabatan pengurus (lewat linked_user_id), lalu public_title dari Humas,
+   * lalu "Guru Qur'an <unit>". Lihat getPublicTeachers.
+   */
+  keterangan: string
+  /**
    * true kalau photo_url dipinjam dari akun pengurus lewat teachers.linked_user_id
    * — guru ini belum punya fotonya sendiri. Panel Humas memakainya untuk
    * menjelaskan kenapa foto muncul padahal belum pernah diunggah di sana.
@@ -1268,6 +1274,12 @@ export interface KpiMonthly {
   seragam_total: number | null
   lapor_ortu_total: number | null
   halaqoh_total: number | null
+  /** Nilai akhir 0–100 yang diketik di tabel isi cepat (0097); null = dari rincian. */
+  nilai_hadir?: number | null
+  nilai_database?: number | null
+  nilai_buku_pegangan?: number | null
+  nilai_perizinan?: number | null
+  nilai_pengganti?: number | null
   /** Unit guru SAAT dinilai. Rubrik SD & SMP berbeda — lihat drizzle/0035. */
   unit: Jenjang | null
   /** Butir apresiasi tulisan SDM; kosong/null = rapor memakai kalimat turunan. */

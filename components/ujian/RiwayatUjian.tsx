@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react'
 import { BookOpen, ClipboardList, Filter, UserCheck, Users } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { PERIODE_SELECT_CLASS, PilihPeriode } from './PilihPeriode'
+import { RingkasanRekapUjian } from './RingkasanRekapUjian'
 import {
   BULAN_ID, KATEGORI_TAHFIDZ_LABEL, TASMI_TIPE,
   formatTanggal, groupSiswaByLevel,
@@ -254,6 +255,8 @@ export function RiwayatUjian({ tahfidz, tahsin, month, year }: Props) {
           {namaPenguji.map(p => <option key={p} value={p}>{p}</option>)}
         </select>
       </PilihPeriode>
+
+      <RingkasanRekapUjian tahfidz={tahfidz} tahsin={tahsin} month={month} year={year} />
 
       <div className="flex flex-wrap items-center gap-2 rounded-2xl border bg-card p-3">
         <span className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">

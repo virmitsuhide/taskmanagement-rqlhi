@@ -11,7 +11,7 @@ import { KPI_INDIKATOR } from '@/lib/kpi/hitung'
 import { KPI_LEVEL_TONE } from '@/lib/kpi/parameter'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { Button } from '@/components/ui/button'
-import { Pencil, FileText, Printer } from 'lucide-react'
+import { BookMarked, Pencil, FileText, Printer, Table2 } from 'lucide-react'
 import { AlurPanel, type RingkasAlur } from './AlurPanel'
 import { ResetRaporButton } from './ResetRaporButton'
 import { STATUS_LABELS, STATUS_TONE, keteranganRapor } from '@/lib/kpi/alur'
@@ -100,11 +100,23 @@ export default async function KpiPage({ searchParams }: PageProps) {
               {MONTH_NAMES[month - 1]} {year} · {KPI_UNITS.find(u => u.key === unit)?.label}
             </p>
           </div>
-          <Button asChild variant="outline">
-            <Link href={`/kpi/rapor?unit=${unit}&year=${year}`}>
-              <FileText className="h-4 w-4 mr-1" />Rapor Semester
-            </Link>
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button asChild variant="outline">
+              <Link href={`/kpi/isi-cepat?unit=${unit}&year=${year}&month=${month}`}>
+                <Table2 className="h-4 w-4 mr-1" />Isi Cepat per Indikator
+              </Link>
+            </Button>
+            <Button asChild variant="outline">
+              <Link href={`/kpi/setoran-guru?unit=${unit}&year=${year}&month=${month}`}>
+                <BookMarked className="h-4 w-4 mr-1" />Setoran Guru
+              </Link>
+            </Button>
+            <Button asChild variant="outline">
+              <Link href={`/kpi/rapor?unit=${unit}&year=${year}`}>
+                <FileText className="h-4 w-4 mr-1" />Rapor Semester
+              </Link>
+            </Button>
+          </div>
         </div>
 
         <div role="group" aria-label="Unit" className="flex gap-0.5 rounded-[10px] bg-muted p-[3px] mb-4 w-fit overflow-x-auto">

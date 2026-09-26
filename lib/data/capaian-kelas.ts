@@ -1,8 +1,9 @@
 import { createServerClient } from '@/lib/supabase/server'
 import { getJuzUjianPerSiswa, juzBerjalanPerSiswa, juzGabunganPerSiswa, type BarisJuzProgress } from '@/lib/data/hafalan'
-import { getTargetTahfidzSemua } from '@/lib/data/target-tahfidz'
+import { getTargetTahfidz, getTargetTahfidzSemua } from '@/lib/data/target-tahfidz'
+import { ayatPerJuz } from '@/lib/rq/batas-juz'
 import { getInfoSurat } from '@/lib/data/nama-surat'
-import { posisiJuz, URUTAN_JUZ } from '@/lib/rq/hafalan'
+import { posisiJuz, totalJuzHafalan, URUTAN_JUZ } from '@/lib/rq/hafalan'
 import { mencapaiTarget } from '@/lib/rq/level'
 import { UNIT_LABELS, UNIT_ORDER } from '@/lib/rq/programs'
 import type { Jenjang } from '@/types'
@@ -360,16 +361,25 @@ function formatTanggal(iso: string | null): string | null {
   })
 }
 
-export async function getCapaianKelas(jenjangBoleh: Jenjang[]): Promise<CapaianKelasData> {
-  const diambil = new Date().toISOString()
+/**
+ * `sampai` (YYYY-MM-DD) = hitung posisi PER TANGGAL ITU, bukan hari ini —
+ * dipakai laporan bulanan (lib/data/laporan-kurikulum.ts). Setoran, kenaikan
+ * jilid/juz, dan ujian sesudah tanggal itu diabaikan; aturan penentuan kolom
+ * tetap sama persis dengan dashboard.
+ */
+export async function getCapaianKelas(jenjangBoleh: Jenjang[], opsi: { sampai?: string; hanyaSiswa?: string[] } = {}): Promise<CapaianKelasData> {
+  const { sampai } = opsi
+  // Subset siswa (mis. peserta ekstra) — aturan penghitungan tetap sama persis.
+  const hanya = opsi.hanyaSiswa ? new Set(opsi.hanyaSiswa) : null
+  const diambil = sampai ? `${sampai}T23:59:59+07:00` : new Date().toISOString()
   const jenjangDipakai = UNIT_ORDER.filter(j => jenjangBoleh.includes(j))
   if (jenjangDipakai.length === 0) return { kelompok: [], diambil }
 
   const supabase = createServerClient()
 
   const [
-    siswaSemua, levelRes, methodRes, halaqohRes, guruRes, termRes,
-    juzProgress, juzUjian, logTahsin, logZiyadah, targetTahfidz, infoSurat,
+    siswaMentah, levelRes, methodRes, halaqohRes, guruRes, termRes,
+    juzProgressKini, juzUjianKini, logTahsin, logZiyadah, targetTahfidz, infoSurat, riwayat,
   ] = await Promise.all([
     ambilSemua<BarisSiswa & { full_name: string; halaqoh_id: string | null }>(() => supabase.from('students')
       .select('id, full_name, jenjang, kelas, program, current_jilid_id, halaqoh_id')
@@ -379,23 +389,35 @@ export async function getCapaianKelas(jenjangBoleh: Jenjang[]): Promise<CapaianK
     supabase.from('halaqoh').select('id, wali_teacher_id'),
     supabase.from('teachers').select('id, full_name'),
     supabase.from('academic_terms').select('id').eq('is_current', true).maybeSingle(),
-    ambilSemua<BarisJuzProgress>(() => supabase.from('juz_progress')
+    // juz_progress & rekap ujian tidak bertanggal — untuk `sampai` keduanya
+    // disusun ulang dari riwayat bertanggal (riwayatSampai di bawah).
+    sampai ? Promise.resolve([] as BarisJuzProgress[]) : ambilSemua<BarisJuzProgress>(() => supabase.from('juz_progress')
       .select('student_id, juz_number, ayat_hafal, mutqin').order('student_id').order('juz_number')),
-    getJuzUjianPerSiswa(),
+    sampai ? Promise.resolve(new Map<string, number>()) : getJuzUjianPerSiswa(),
     // Terbaru lebih dulu: pembacaan di bawah mengambil yang pertama ditemui.
     ambilSemua<LogTahsin>(() => supabase.from('tahsin_logs')
       .select('student_id, setoran_date, jilid_id, halaman, quran_halaman, quran_surat_id, quran_ayat_dari, quran_ayat_ke, teacher_id')
+      .lte('setoran_date', sampai ?? '9999-12-31')
       .order('setoran_date', { ascending: false }).order('created_at', { ascending: false }).order('id')),
     ambilSemua<LogZiyadah>(() => supabase.from('tahfidz_logs')
       .select('student_id, setoran_date, surat_id, ayat_dari, ayat_ke, teacher_id')
       .in('kind', ZIYADAH)
+      .lte('setoran_date', sampai ?? '9999-12-31')
       .order('setoran_date', { ascending: false }).order('created_at', { ascending: false }).order('id')),
-    getTargetTahfidzSemua().catch(err => {
+    (sampai ? getTargetTahfidz(UNIT_ORDER, sampai) : getTargetTahfidzSemua()).catch(err => {
       console.error('[capaian-kelas] target tahfidz gagal dihitung:', err)
       return null
     }),
     getInfoSurat(),
+    sampai ? riwayatSampai(supabase, sampai) : Promise.resolve(null),
   ])
+
+  // Posisi per `sampai`: juz_progress disusun ulang dari ayat ziyadah, tanda
+  // tuntas (mutqin) dari kenaikan juz, ujian dari yang selesai s.d. tanggal itu.
+  const juzProgress = riwayat ? progresDariZiyadah(logZiyadah, riwayat.juzNaik) : juzProgressKini
+  const juzUjian = riwayat ? riwayat.juzUjian : juzUjianKini
+
+  const siswaSemua = hanya ? siswaMentah.filter(s => hanya.has(s.id)) : siswaMentah
 
   const term = termRes.data as { id: string } | null
   const targetRes = term
@@ -418,6 +440,18 @@ export async function getCapaianKelas(jenjangBoleh: Jenjang[]): Promise<CapaianK
   for (const l of logTahsin) if (!tahsinTerakhir.has(l.student_id)) tahsinTerakhir.set(l.student_id, l)
   const ziyadahTerakhir = new Map<string, LogZiyadah>()
   for (const l of logZiyadah) if (!ziyadahTerakhir.has(l.student_id)) ziyadahTerakhir.set(l.student_id, l)
+
+  // Jilid siswa: kolom students (hari ini), atau — dengan `sampai` — yang
+  // terakhir dari kenaikan jilid / setoran s.d. tanggal itu.
+  const jilidSiswa = (s: { id: string; current_jilid_id: string | null }): string | null => {
+    // Tak bergerak sesudah `sampai` → posisinya hari ini = posisinya saat itu,
+    // termasuk koreksi penempatan yang diketik langsung tanpa setoran.
+    if (!riwayat || !riwayat.bergerakSesudah.has(s.id)) return s.current_jilid_id
+    const log = tahsinTerakhir.get(s.id)
+    const naik = riwayat.jilidNaik.get(s.id)
+    if (naik && (!log || naik.tanggal >= log.setoran_date)) return naik.jilid
+    return log?.jilid_id ?? null
+  }
 
   const statusTahfidz = new Map((targetTahfidz?.siswa ?? []).map(s => [s.id, s.status]))
 
@@ -442,7 +476,8 @@ export async function getCapaianKelas(jenjangBoleh: Jenjang[]): Promise<CapaianK
     const target = tingkat ? targetTahsin.get(`${s.jenjang}|${tingkat}`) : undefined
     // Jilid diambil dari posisi siswa yang digerakkan setoran (termasuk
     // kenaikan jilid), tapi hanya bila memang ada setorannya.
-    const lv = log ? (s.current_jilid_id ? levelById.get(s.current_jilid_id) : undefined)
+    const jilidKini = jilidSiswa(s)
+    const lv = log ? (jilidKini ? levelById.get(jilidKini) : undefined)
       ?? (log.jilid_id ? levelById.get(log.jilid_id) : undefined) : undefined
     const kolom = lv ? kolomTahsin(lv) : BELUM_TERCATAT
 
@@ -512,7 +547,7 @@ export async function getCapaianKelas(jenjangBoleh: Jenjang[]): Promise<CapaianK
       // Tangga metode yang dipakai kelompok ini ditampilkan utuh — Jilid 5
       // yang kosong tetap satu kolom, karena kosongnya itu sendiri informasi.
       const metodeIds = new Set(
-        siswa.map(s => (s.current_jilid_id ? levelById.get(s.current_jilid_id)?.method_id : undefined))
+        siswa.map(s => { const j = jilidSiswa(s); return j ? levelById.get(j)?.method_id : undefined })
           .filter((x): x is string => Boolean(x)),
       )
       const tetapTahsin = new Set([...levels.filter(l => metodeIds.has(l.method_id)).map(kolomTahsin), BELUM_TERCATAT])
@@ -552,6 +587,73 @@ export async function getCapaianKelas(jenjangBoleh: Jenjang[]): Promise<CapaianK
   }
 
   return { kelompok, diambil }
+}
+
+// ─── Riwayat per tanggal (opsi `sampai`) ─────────────────────────────────
+
+interface RiwayatSampai {
+  /** Siswa yang punya setoran tahsin / kenaikan jilid SESUDAH `sampai`. */
+  bergerakSesudah: Set<string>
+  jilidNaik: Map<string, { jilid: string; tanggal: string }>
+  juzNaik: Map<string, Set<number>>
+  juzUjian: Map<string, number>
+}
+
+/** Kenaikan jilid & juz dan ujian tahfidz lulus yang terjadi s.d. `sampai`. */
+async function riwayatSampai(supabase: ReturnType<typeof createServerClient>, sampai: string): Promise<RiwayatSampai> {
+  const akhirHari = `${sampai}T23:59:59+07:00`
+  const [jilid, juz, ujian, logSesudah, naikSesudah] = await Promise.all([
+    ambilSemua<{ student_id: string; to_jilid_id: string; promotion_date: string }>(() => supabase.from('jilid_promotions')
+      .select('student_id, to_jilid_id, promotion_date').lte('promotion_date', sampai)
+      .order('promotion_date', { ascending: false }).order('created_at', { ascending: false }).order('id')),
+    ambilSemua<{ student_id: string; juz_number: number }>(() => supabase.from('juz_promotions')
+      .select('student_id, juz_number').lte('promotion_date', sampai).order('id')),
+    // Selesai & tidak mengulang; ujian tanpa jadwal adalah catatan riwayat lama.
+    ambilSemua<{ student_id: string; juz: string }>(() => supabase.from('ujian_tahfidz')
+      .select('student_id, juz').not('student_id', 'is', null).eq('status', 'selesai')
+      .or('predikat.is.null,predikat.neq.mengulang')
+      .or(`jadwal.is.null,jadwal.lte.${akhirHari}`).order('id')),
+    ambilSemua<{ student_id: string }>(() => supabase.from('tahsin_logs')
+      .select('student_id').gt('setoran_date', sampai).order('id')),
+    ambilSemua<{ student_id: string }>(() => supabase.from('jilid_promotions')
+      .select('student_id').gt('promotion_date', sampai).order('id')),
+  ])
+  const bergerakSesudah = new Set([...logSesudah, ...naikSesudah].map(r => r.student_id))
+  const jilidNaik = new Map<string, { jilid: string; tanggal: string }>()
+  for (const r of jilid) if (!jilidNaik.has(r.student_id)) jilidNaik.set(r.student_id, { jilid: r.to_jilid_id, tanggal: r.promotion_date })
+  const juzNaik = new Map<string, Set<number>>()
+  for (const r of juz) { const d = juzNaik.get(r.student_id) ?? new Set<number>(); d.add(r.juz_number); juzNaik.set(r.student_id, d) }
+  const teksUjian = new Map<string, string[]>()
+  for (const r of ujian) { const d = teksUjian.get(r.student_id) ?? []; d.push(String(r.juz)); teksUjian.set(r.student_id, d) }
+  const juzUjian = new Map<string, number>()
+  for (const [id, d] of teksUjian) juzUjian.set(id, totalJuzHafalan(d))
+  return { bergerakSesudah, jilidNaik, juzNaik, juzUjian }
+}
+
+/**
+ * Padanan juz_progress yang dibentuk dari setoran ziyadah — cermin trigger
+ * upsert_juz_progress (ayat dibagi menurut batas juz mushaf) — ditambah tanda
+ * mutqin dari kenaikan juz.
+ */
+function progresDariZiyadah(log: LogZiyadah[], juzNaik: Map<string, Set<number>>): BarisJuzProgress[] {
+  const ayat = new Map<string, number>()
+  for (const l of log) {
+    if (l.ayat_dari === null || l.ayat_ke === null) continue
+    for (const [juz, n] of ayatPerJuz(l.surat_id, l.ayat_dari, l.ayat_ke)) {
+      const k = `${l.student_id}|${juz}`
+      ayat.set(k, (ayat.get(k) ?? 0) + n)
+    }
+  }
+  const baris = new Map<string, BarisJuzProgress>()
+  for (const [k, n] of ayat) {
+    const [student_id, juz] = k.split('|')
+    baris.set(k, { student_id, juz_number: Number(juz), ayat_hafal: n, mutqin: juzNaik.get(student_id)?.has(Number(juz)) ?? false })
+  }
+  for (const [student_id, set] of juzNaik) for (const juz of set) {
+    const k = `${student_id}|${juz}`
+    if (!baris.has(k)) baris.set(k, { student_id, juz_number: juz, ayat_hafal: 0, mutqin: true })
+  }
+  return [...baris.values()]
 }
 
 /** Ringkasan target per tingkat dari satu atau beberapa matriks — bahan perbandingan jalur. */

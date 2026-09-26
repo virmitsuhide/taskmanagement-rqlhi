@@ -2,13 +2,17 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { FileText, Inbox, Settings2 } from 'lucide-react'
+import { BarChart3, FileText, GraduationCap, Inbox, Settings2, UserRound, UsersRound } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const MENU = [
   { href: '/ekstra', label: 'Booking', icon: Inbox },
-  { href: '/ekstra/atur', label: 'Jenis & slot', icon: Settings2 },
-  { href: '/ekstra/laporan', label: 'Laporan ekstra', icon: FileText },
+  { href: '/ekstra/halaqoh', label: 'Halaqoh ekstra', icon: UsersRound },
+  { href: '/ekstra/siswa', label: 'Siswa ekstra', icon: UserRound },
+  { href: '/ekstra/guru', label: 'Guru ekstra', icon: GraduationCap },
+  { href: '/ekstra/atur', label: 'Jenis ekstra', icon: Settings2 },
+  { href: '/ekstra/laporan', label: 'Laporan', icon: FileText },
+  { href: '/ekstra/analitik', label: 'Analitik', icon: BarChart3 },
 ]
 
 export function EkstraSubNav() {
@@ -16,7 +20,8 @@ export function EkstraSubNav() {
   return (
     <nav aria-label="Menu ekstra" className="flex flex-wrap gap-2">
       {MENU.map(({ href, label, icon: Icon }) => {
-        const aktif = pathname === href
+        // /ekstra hanya cocok persis; menu lain ikut menyala di halaman turunannya (detail halaqoh).
+        const aktif = href === '/ekstra' ? pathname === href : pathname === href || pathname.startsWith(`${href}/`)
         return (
           <Link key={href} href={href} aria-current={aktif ? 'page' : undefined}
             className={cn('inline-flex h-9 items-center gap-1.5 rounded-full border px-3.5 text-sm font-semibold transition-colors',

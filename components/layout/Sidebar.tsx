@@ -8,7 +8,7 @@ import {
   FileText, User, Megaphone, LogOut, ChevronRight, GraduationCap, Newspaper, LayoutGrid,
   Users, UserCog, BookMarked, BarChart3, LayoutTemplate, Info, Wallet, CalendarRange, CalendarDays,
   ClipboardCheck, KeyRound, ScrollText, Repeat, IdCard, UsersRound, Briefcase, Stamp, Scale, ListChecks, Kanban,
-  PanelLeftClose, PanelLeftOpen, CalendarHeart, Lock,
+  PanelLeftClose, PanelLeftOpen, CalendarHeart, Lock, UserRound,
 } from 'lucide-react'
 import { DASHBOARD_LABELS, getAccessibleDashboards, ROLE_LABELS , canManageTeacherProfiles } from '@/lib/auth/permissions'
 import {
@@ -17,7 +17,7 @@ import {
   canViewStudents, canViewHalaqoh, canViewTeachers, canViewUnitAnalytics,
   canManageHomepage, canViewKpi, canManageAllAccounts, canManagePengurus, canManageEmployees, canViewUjian,
   canAccessKpiPublikasi, canManageRaporTemplate, canManageRiyadhoh, canManageEkstra, canManageKaldik, canViewKpiBanding, canViewTasks, canViewRoutineBoard,
-  isAdmin,
+  isAdmin, canViewLaporanKurikulum,
 } from '@/lib/auth/permissions'
 import type { UserRole } from '@/types'
 import { logoutAction } from '@/app/actions/auth'
@@ -132,12 +132,25 @@ export function Sidebar({ role, displayName, username, lencanaKpi, ciutAwal = fa
                 </Link>
               </li>
             ))}
+            {/* Tepat di bawah dashboard jabatannya: analitik milik Koor Ekstra. */}
+            {canManageEkstra(role) && (
+              <NavItem href="/ekstra/analitik" icon={<BarChart3 className="h-4 w-4" />} label="Analitik Ekstra" active={isActive('/ekstra/analitik')} />
+            )}
             {canViewUnitAnalytics(role) && (
               <NavItem
                 href="/dashboard/analitik"
                 icon={<BarChart3 className="h-4 w-4" />}
                 label="Analitik RQ"
                 active={isActive('/dashboard/analitik')}
+              />
+            )}
+            {/* Ringkasan resmi dari angka yang sama, untuk BPH tiap bulan. */}
+            {canViewLaporanKurikulum(role) && (
+              <NavItem
+                href="/laporan-kurikulum"
+                icon={<FileText className="h-4 w-4" />}
+                label="Laporan Kurikulum"
+                active={isActive('/laporan-kurikulum')}
               />
             )}
             {/* Ditaruh menempel di bawah Analitik RQ: KPI adalah penilaian
@@ -158,7 +171,15 @@ export function Sidebar({ role, displayName, username, lencanaKpi, ciutAwal = fa
                 label="Buat KPI"
                 // Dikecualikan dari dua anaknya yang punya menu sendiri —
                 // idiom yang sama dengan /tasks terhadap /tasks/board.
-                active={isActive('/kpi') && !pathname.startsWith('/kpi/publikasi') && !pathname.startsWith('/kpi/banding') && !pathname.startsWith('/kpi/analisis')}
+                active={isActive('/kpi') && !pathname.startsWith('/kpi/publikasi') && !pathname.startsWith('/kpi/banding') && !pathname.startsWith('/kpi/analisis') && !pathname.startsWith('/kpi/setoran-guru')}
+              />
+            )}
+            {canViewKpi(role) && (
+              <NavItem
+                href="/kpi/setoran-guru"
+                icon={<BookMarked className="h-4 w-4" />}
+                label="Setoran Guru"
+                active={isActive('/kpi/setoran-guru')}
               />
             )}
             {/*
@@ -276,7 +297,13 @@ export function Sidebar({ role, displayName, username, lencanaKpi, ciutAwal = fa
                 <NavItem href="/riyadhoh" icon={<CalendarHeart className="h-4 w-4" />} label="Riyadhoh Sabtu" active={isActive('/riyadhoh')} />
               )}
               {canManageEkstra(role) && (
-                <NavItem href="/ekstra" icon={<CalendarHeart className="h-4 w-4" />} label="Ekstra & Booking" active={isActive('/ekstra')} />
+                <>
+                  <NavItem href="/ekstra" icon={<CalendarHeart className="h-4 w-4" />} label="Ekstra & Booking"
+                    active={pathname === '/ekstra' || pathname.startsWith('/ekstra/atur') || pathname.startsWith('/ekstra/laporan')} />
+                  <NavItem href="/ekstra/halaqoh" icon={<UsersRound className="h-4 w-4" />} label="Halaqoh Ekstra" active={isActive('/ekstra/halaqoh')} />
+                  <NavItem href="/ekstra/siswa" icon={<UserRound className="h-4 w-4" />} label="Siswa Ekstra" active={isActive('/ekstra/siswa')} />
+                  <NavItem href="/ekstra/guru" icon={<GraduationCap className="h-4 w-4" />} label="Guru Ekstra" active={isActive('/ekstra/guru')} />
+                </>
               )}
               {/* Menempel di bawah template rapor: keduanya menetapkan isi
                   rapor seluruh angkatan — yang satu bentuknya, yang satu

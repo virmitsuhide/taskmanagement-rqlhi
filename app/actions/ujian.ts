@@ -33,7 +33,6 @@ type Result = {
  */
 function segarkan() {
   revalidatePath('/ujian')
-  revalidatePath('/ujian/rekap')
   revalidatePath('/ujian/kelola')
   revalidatePath('/ujian/riwayat')
   revalidatePath('/guru/ujian')

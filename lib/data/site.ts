@@ -1,7 +1,8 @@
 import { cache } from 'react'
 import { createServerClient } from '@/lib/supabase/server'
+import { KETERANGAN_PUBLIK_JABATAN, KETERANGAN_PUBLIK_UNIT } from '@/lib/auth/permissions'
 import type {
-  FooterLink, FooterUnit, HomeSection, HomeSectionKey, PublicTeacher, SiteSettings,
+  FooterLink, FooterUnit, HomeSection, HomeSectionKey, Jenjang, PublicTeacher, SiteSettings, UserRole,
 } from '@/types'
 
 /**
@@ -116,13 +117,32 @@ export function findSection(settings: SiteSettings, key: HomeSectionKey): HomeSe
 }
 
 const TEACHER_PUBLIC_COLUMNS =
-  'id, full_name, photo_url, photo_focus, public_title, public_bio, display_order, linked_user_id'
+  'id, full_name, photo_url, photo_focus, public_title, public_bio, display_order, linked_user_id, unit'
 
 /** Tanpa kolom dari migrasi 0040 — cadangan kalau migrasinya belum dijalankan. */
 const TEACHER_PUBLIC_COLUMNS_LEGACY =
   'id, full_name, photo_url, public_title, public_bio, display_order'
 
-type TeacherRow = PublicTeacher & { linked_user_id?: string | null; is_public?: boolean }
+type TeacherRow = PublicTeacher & { linked_user_id?: string | null; is_public?: boolean; unit?: Jenjang | null }
+
+/**
+ * Keterangan di bawah nama guru publik: jabatan pengurus > judul dari Humas >
+ * "Guru Qur'an <unit>". Jabatan menang supaya selalu sama dengan kursi di
+ * menu Pengurus, tanpa Humas harus mengetik ulang saat pergantian.
+ */
+async function isiKeterangan(
+  supabase: ReturnType<typeof createServerClient>,
+  rows: TeacherRow[],
+): Promise<TeacherRow[]> {
+  const ids = [...new Set(rows.map(r => r.linked_user_id).filter((x): x is string => !!x))]
+  const { data } = ids.length ? await supabase.from('users').select('id, role').in('id', ids) : { data: [] }
+  const peran = new Map(((data ?? []) as { id: string; role: UserRole }[]).map(u => [u.id, u.role]))
+  return rows.map(r => {
+    const jabatan = r.linked_user_id ? KETERANGAN_PUBLIK_JABATAN[peran.get(r.linked_user_id) as UserRole] : ''
+    const keterangan = jabatan || r.public_title?.trim() || (r.unit ? KETERANGAN_PUBLIK_UNIT[r.unit] : '') || "Guru Qur'an RQ LHI"
+    return { ...r, keterangan }
+  })
+}
 
 /**
  * Guru yang belum punya foto sendiri meminjam foto akun pengurusnya.
@@ -185,7 +205,8 @@ export const getPublicTeachers = cache(async (limit?: number): Promise<PublicTea
     let { data, error } = await run(TEACHER_PUBLIC_COLUMNS)
     if (error) ({ data } = await run(TEACHER_PUBLIC_COLUMNS_LEGACY))
 
-    return await borrowUserPhotos(supabase, (data ?? []) as unknown as TeacherRow[])
+    const rows = await borrowUserPhotos(supabase, (data ?? []) as unknown as TeacherRow[])
+    return await isiKeterangan(supabase, rows)
   } catch {
     return []
   }

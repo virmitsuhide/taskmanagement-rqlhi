@@ -1,33 +1,27 @@
 import type { Metadata } from 'next'
 import { PublicHeader } from '@/components/layout/PublicHeader'
 import { PublicFooter } from '@/components/home/PublicFooter'
-import { FormBookingEkstra, type JenisPublik, type SlotPublik } from '@/components/ekstra/FormBookingEkstra'
-import { getDataEkstra, labelSlot, rupiah } from '@/lib/data/ekstra'
+import { FormBookingEkstra, type JenisPublik, type GuruPublik } from '@/components/ekstra/FormBookingEkstra'
+import { bolehGuruEkstra, getDataEkstra, getGuruEkstra, keJenisPublik } from '@/lib/data/ekstra'
+import { getPublicTeachers } from '@/lib/data/site'
 
 export const metadata: Metadata = {
   title: "Daftar Ekstra Tahsin & Tahfidz — Rumah Qur'an LHI",
   description: "Pesan jadwal ekstra tahsin atau tahfidz bersama pengajar Rumah Qur'an LHI.",
 }
 
-// Kuota berubah setiap ada peserta diterima — jangan disajikan dari cache lama.
+// Jenis & guru bisa berubah kapan saja — jangan disajikan dari cache lama.
 export const dynamic = 'force-dynamic'
 
-export default async function DaftarEkstraPage({ searchParams }: { searchParams: Promise<{ jenis?: string; slot?: string; guru?: string }> }) {
+export default async function DaftarEkstraPage({ searchParams }: { searchParams: Promise<{ jenis?: string; guru?: string }> }) {
   const sp = await searchParams
-  const data = await getDataEkstra({ hanyaAktif: true })
+  const [data, pengajar, { ids: guruEkstra }] = await Promise.all([getDataEkstra({ hanyaAktif: true }), getPublicTeachers(), getGuruEkstra()])
 
-  // Hanya yang boleh tampil ke publik: nama guru, jadwal, sisa kursi — tanpa data peserta.
-  const jenis: JenisPublik[] = data.jenis
-    .filter(j => data.slot.some(s => s.jenis_id === j.id))
-    .map(j => ({
-      id: j.id, nama: j.nama, bidang: j.bidang, deskripsi: j.deskripsi,
-      biaya: `${rupiah(j.biaya)}${j.biaya ? ` ${j.satuan_biaya}` : ''}`,
-      waktu: [`${j.durasi_menit} menit`, j.keterangan_waktu, `maks. ${j.kuota} peserta`].filter(Boolean).join(' · '),
-    }))
-  const slot: SlotPublik[] = data.slot.map(s => ({
-    id: s.id, jenis_id: s.jenis_id, guru: s.guru ?? '—', teacher_id: s.teacher_id,
-    label: labelSlot(s), tempat: s.tempat, sisa: Math.max(0, s.kuotaEfektif - s.peserta),
-  }))
+  // Semua guru terbuka untuk ekstra: orang tua memilih jenis & waktu, guru
+  // pilihan hanya preferensi. Tidak ada jadwal atau data peserta di sini.
+  const jenis: JenisPublik[] = data.jenis.map(keJenisPublik)
+  // Hanya guru yang bersedia mengampu ekstra (daftar Koordinator Ekstra).
+  const guru: GuruPublik[] = pengajar.filter(t => bolehGuruEkstra(guruEkstra, t.id)).map(t => ({ id: t.id, nama: t.full_name }))
 
   // Kerangka mengikuti beranda (app/page.tsx): kontainer max-w-6xl px-4 sm:px-6,
   // hero pt-10/md:pt-14, judul seksi 30/40px, jarak antar-seksi pb-16.
@@ -42,8 +36,8 @@ export default async function DaftarEkstraPage({ searchParams }: { searchParams:
           </h1>
         </div>
         <ol className="min-w-0 space-y-2 rounded-2xl border bg-card p-5 text-sm leading-relaxed">
-          <li><b className="text-accent-warm">1.</b> <b>Ajukan</b> — pilih jenis ekstra dan jadwal, isi data anak.</li>
-          <li><b className="text-accent-warm">2.</b> <b>Dikonfirmasi</b> — Koordinator Ekstra memeriksa kuota lalu menghubungi Anda lewat WhatsApp.</li>
+          <li><b className="text-accent-warm">1.</b> <b>Ajukan</b> — pilih jenis ekstra, waktu yang diinginkan, dan guru pilihan bila ada.</li>
+          <li><b className="text-accent-warm">2.</b> <b>Dicarikan guru</b> — Koordinator Ekstra memastikan guru yang bisa pada waktu itu, lalu menghubungi Anda lewat WhatsApp.</li>
           <li><b className="text-accent-warm">3.</b> <b>Mulai belajar</b> — capaian anak LHI ikut tercatat di aplikasi dan dilaporkan tersendiri.</li>
         </ol>
       </section>
@@ -58,7 +52,7 @@ export default async function DaftarEkstraPage({ searchParams }: { searchParams:
               Pendaftaran ekstra belum dibuka. Silakan kembali lagi nanti.
             </p>
           ) : (
-            <FormBookingEkstra jenis={jenis} slot={slot} awal={{ jenis: sp.jenis, slot: sp.slot, guru: sp.guru }} />
+            <FormBookingEkstra jenis={jenis} guru={guru} awal={{ jenis: sp.jenis, guru: sp.guru }} />
           )}
         </div>
       </section>

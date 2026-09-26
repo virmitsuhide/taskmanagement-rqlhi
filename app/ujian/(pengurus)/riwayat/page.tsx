@@ -42,9 +42,9 @@ export default async function RiwayatUjianPage({ searchParams }: PageProps) {
 
       <div className="p-4 md:p-8 max-w-3xl mx-auto space-y-5">
         <div>
-          <h1 className="text-3xl leading-tight">Riwayat Ujian per Penguji</h1>
+          <h1 className="text-3xl leading-tight">Riwayat &amp; Rekap Ujian</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            {units.join(' & ')} · ujian yang sudah terlaksana, dikelompokkan menurut pengujinya.
+            {units.join(' & ')} · ujian yang sudah terlaksana: rekap nilai sebulan, unduhan Excel, dan rincian per penguji.
           </p>
         </div>
 
