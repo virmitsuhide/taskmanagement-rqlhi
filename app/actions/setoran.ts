@@ -471,6 +471,10 @@ export async function createTahsinLogAction(_: unknown, formData: FormData): Pro
   // "Simpan & berikutnya": lanjut ke form anak berikutnya, bukan ke profil anak.
   const lanjutTahsin = tujuanLanjut(formData)
   if (lanjutTahsin) redirect(lanjutTahsin)
+  // Setor satu-satu dari Riyadhoh: kembali ke daftar setor Sabtu itu, bukan halaman siswa
+  // (anak Riyadhoh bukan anak halaqoh pengampunya).
+  const kembali = String(formData.get('kembali') ?? '')
+  if (/^\/guru\/riyadhoh\/(tahsin|tahfidz)\?tanggal=\d{4}-\d{2}-\d{2}$/.test(kembali)) redirect(kembali)
   redirect(`/guru/siswa/${studentId}?setoran=ok`)
 }
 

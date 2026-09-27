@@ -149,7 +149,7 @@ function modus(xs: number[]): number | null {
  * baris per anggota yang hadir sebelum dikirim, jadi aturan server (jilid,
  * halaman terakhir, drill, setoran ganda) tetap berlaku per anak.
  */
-export function SetoranSesiTahsin({ siswa, surat, halaqohId, pengaturan, tanggalTetap, ekstraSlotId }: {
+export function SetoranSesiTahsin({ siswa, surat, halaqohId, pengaturan, tanggalTetap, ekstraSlotId, hrefSatuSatu }: {
   siswa: SiswaSesiTahsin[]
   surat: SuratPilihan[]
   halaqohId: string
@@ -159,6 +159,11 @@ export function SetoranSesiTahsin({ siswa, surat, halaqohId, pengaturan, tanggal
   tanggalTetap?: string
   /** Setoran pertemuan ekstra (0091): tiap baris ditandai slot ini. */
   ekstraSlotId?: string
+  /**
+   * Tautan setor satu-satu per anak (id ditempel di ujungnya) — Riyadhoh:
+   * anak yang belum punya jilid awal ditetapkan lewat sana, pada Sabtunya.
+   */
+  hrefSatuSatu?: string
 }) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
@@ -729,10 +734,13 @@ export function SetoranSesiTahsin({ siswa, surat, halaqohId, pengaturan, tanggal
 
       {tanpaJilid.length > 0 && (
         <p className="rounded-lg bg-muted px-3 py-2 text-xs text-muted-foreground">
-          {tanpaJilid.length} anak belum punya jilid awal ({tanpaJilid.map(s => s.full_name.split(' ')[0]).join(', ')}).
-          Setoran pertamanya lewat{' '}
-          <Link href="/guru/setoran/tahsin/baru" className="text-primary hover:underline">setor satu-satu</Link>{' '}
-          untuk menetapkan metode &amp; jilid.
+          {tanpaJilid.length} anak belum punya jilid awal. Setoran pertamanya lewat setor satu-satu untuk menetapkan metode &amp; jilid:{' '}
+          {hrefSatuSatu
+            ? tanpaJilid.map((s, i) => (
+                <span key={s.id}>{i > 0 && ', '}<Link href={hrefSatuSatu + s.id} className="font-medium text-primary hover:underline">{s.full_name.split(' ')[0]}</Link></span>
+              ))
+            : <>{tanpaJilid.map(s => s.full_name.split(' ')[0]).join(', ')} — <Link href="/guru/setoran/tahsin/baru" className="text-primary hover:underline">setor satu-satu</Link></>}
+          .
         </p>
       )}
 

@@ -2,8 +2,8 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
 import { getSession } from '@/lib/auth/session'
-import { canInputKpi, canViewKpi } from '@/lib/auth/permissions'
-import { getKpiRows, KPI_UNITS, MONTH_NAMES } from '@/lib/data/kpi'
+import { canCatatSetoranGuru, canInputKpi, canViewKpi } from '@/lib/auth/permissions'
+import { getKpiRows, KPI_UNITS, kpiUnitsFor, MONTH_NAMES } from '@/lib/data/kpi'
 import { getSetoranGuruUnit } from '@/lib/data/setoran-guru'
 import { terkunci } from '@/lib/kpi/alur'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
@@ -27,7 +27,9 @@ export default async function IsiCepatKpiPage({ searchParams }: {
 
   const p = await searchParams
   const now = new Date()
-  const unit = (KPI_UNITS.find(u => u.key === p.unit)?.key ?? 'sd') as Jenjang
+  // Koordinator unit hanya melihat unitnya sendiri (kpiUnitsFor).
+  const unitSaya = kpiUnitsFor(session.role)
+  const unit = (unitSaya.find(u => u.key === p.unit)?.key ?? unitSaya[0]?.key ?? 'sd') as Jenjang
   const year = Number(p.year) || now.getFullYear()
   const month = Number(p.month) >= 1 && Number(p.month) <= 12 ? Number(p.month) : now.getMonth() + 1
   const href = (ubah: { unit?: string; month?: number }) => `${PATH}?unit=${ubah.unit ?? unit}&year=${year}&month=${ubah.month ?? month}`
@@ -59,12 +61,14 @@ export default async function IsiCepatKpiPage({ searchParams }: {
           <p className="mt-1.5 max-w-3xl text-sm text-muted-foreground">
             Ketik nilai akhir 0–100 tiap indikator untuk semua guru {KPI_UNITS.find(u => u.key === unit)?.label} di {MONTH_NAMES[month - 1]} {year},
             tanpa membuka formulir per guru. Sel yang dikosongkan dihitung dari rinciannya seperti biasa. Hafalan Al-Qur&apos;an &amp; Tuhfatul
-            Athfal diambil dari <Link href={`/kpi/setoran-guru?unit=${unit}&year=${year}&month=${month}`} className="font-medium text-primary hover:underline">Setoran Guru</Link>.
+            Athfal diambil dari {canCatatSetoranGuru(session.role)
+              ? <Link href={`/kpi/setoran-guru?unit=${unit}&year=${year}&month=${month}`} className="font-medium text-primary hover:underline">Setoran Guru</Link>
+              : 'Setoran Guru (SDM)'}.
           </p>
         </div>
 
         <div role="group" aria-label="Unit" className="mb-4 flex w-fit gap-0.5 overflow-x-auto rounded-[10px] bg-muted p-[3px]">
-          {KPI_UNITS.map(u => (
+          {unitSaya.map(u => (
             <Link key={u.key} href={href({ unit: u.key })} aria-current={unit === u.key ? 'page' : undefined}
               className={cn('whitespace-nowrap rounded-[7px] px-3 py-1.5 text-[13px] font-semibold transition-colors',
                 unit === u.key ? 'bg-card shadow-sm' : 'text-muted-foreground hover:text-foreground')}>

@@ -6,7 +6,7 @@ import { getCapaianKelas, BELUM_TERCATAT, type CapaianKelompok, type MatriksCapa
 import { UNIT_LABELS } from '@/lib/rq/programs'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { DashTop, GroupLabel, Slicer, KpiCard, hrefDengan } from '@/components/dashboard/kit'
-import { CapaianKelompokPanel, PerbandinganJalur } from '@/components/dashboard/CapaianKelompok'
+import { CapaianKelompokPanel } from '@/components/dashboard/CapaianKelompok'
 import { BookOpen, BookMarked, Users, HelpCircle } from 'lucide-react'
 import type { Jenjang } from '@/types'
 
@@ -39,8 +39,6 @@ export default async function CapaianKelasPage({ searchParams }: PageProps) {
   const diUnit = data.kelompok.filter(k => k.jenjang === unit)
   const jalur = sp.jalur === 'reguler' || sp.jalur === 'quls' ? sp.jalur : null
   const tampil = jalur ? diUnit.filter(k => k.jalur === jalur) : diUnit
-  const reguler = diUnit.find(k => k.jalur === 'reguler')
-  const quls = diUnit.find(k => k.jalur === 'quls')
 
   const siswa = tampil.reduce((n, k) => n + k.siswa, 0)
   const jumlah = (pilih: (k: CapaianKelompok) => MatriksCapaian[], f: (m: MatriksCapaian) => number) =>
@@ -119,8 +117,6 @@ export default async function CapaianKelasPage({ searchParams }: PageProps) {
                 value={`${belumTahsin} · ${belumTahfidz}`}
                 sub="tahsin · tahfidz — perlu ditagih ke guru" />
             </div>
-
-            {!jalur && reguler && quls && <PerbandinganJalur reguler={reguler} quls={quls} />}
 
             {tampil.map(k => (
               <div key={k.kode} className="space-y-4">

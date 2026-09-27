@@ -2,10 +2,10 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { getSession } from '@/lib/auth/session'
 import {
-  canViewKpi, canInputKpi, canPrintKpiRapor, canResetKpiRapor,
+  canViewKpi, canInputKpi, canPrintKpiRapor, canResetKpiRapor, canCatatSetoranGuru,
   canAccessKpiPublikasi, canViewKpiBanding, JENJANG_LABELS,
 } from '@/lib/auth/permissions'
-import { getKpiRows, nilaiDari, KPI_UNITS, MONTH_NAMES } from '@/lib/data/kpi'
+import { getKpiRows, nilaiDari, KPI_UNITS, kpiUnitsFor, MONTH_NAMES } from '@/lib/data/kpi'
 import { getBandingAktifPer } from '@/lib/data/kpi-banding'
 import { KPI_INDIKATOR } from '@/lib/kpi/hitung'
 import { KPI_LEVEL_TONE } from '@/lib/kpi/parameter'
@@ -51,7 +51,9 @@ export default async function KpiPage({ searchParams }: PageProps) {
 
   const p = await searchParams
   const now = new Date()
-  const unit = (KPI_UNITS.find(u => u.key === p.unit)?.key ?? 'sd') as Jenjang
+  // Koordinator unit hanya melihat unitnya sendiri (kpiUnitsFor).
+  const unitSaya = kpiUnitsFor(session.role)
+  const unit = (unitSaya.find(u => u.key === p.unit)?.key ?? unitSaya[0]?.key ?? 'sd') as Jenjang
   const year = Number(p.year) || now.getFullYear()
   const month = Number(p.month) || now.getMonth() + 1
   const saring: Saring = SARING.includes(p.saring as Saring) ? (p.saring as Saring) : 'semua'
@@ -138,7 +140,7 @@ export default async function KpiPage({ searchParams }: PageProps) {
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <div role="group" aria-label="Unit" className="flex gap-0.5 overflow-x-auto rounded-[10px] bg-muted p-[3px]">
-              {KPI_UNITS.map(u => (
+              {unitSaya.map(u => (
                 <Link key={u.key} href={href({ unit: u.key, saring: 'semua' })} aria-current={unit === u.key ? 'page' : undefined}
                   className={cn('whitespace-nowrap rounded-[7px] px-3 py-1.5 text-[13px] font-semibold transition-colors',
                     unit === u.key ? 'bg-card shadow-sm' : 'text-muted-foreground hover:text-foreground')}>
@@ -160,9 +162,11 @@ export default async function KpiPage({ searchParams }: PageProps) {
           <Button asChild variant="outline">
             <Link href={`/kpi/isi-cepat?unit=${unit}&year=${year}&month=${month}`}><Table2 className="mr-1 h-4 w-4" />Isi cepat per indikator</Link>
           </Button>
-          <Button asChild variant="outline">
-            <Link href={`/kpi/setoran-guru?unit=${unit}&year=${year}&month=${month}`}><BookMarked className="mr-1 h-4 w-4" />Setoran guru</Link>
-          </Button>
+          {canCatatSetoranGuru(session.role) && (
+            <Button asChild variant="outline">
+              <Link href={`/kpi/setoran-guru?unit=${unit}&year=${year}&month=${month}`}><BookMarked className="mr-1 h-4 w-4" />Setoran guru</Link>
+            </Button>
+          )}
           <Button asChild variant="outline">
             <Link href={`/kpi/rapor?unit=${unit}&year=${year}`}><FileText className="mr-1 h-4 w-4" />Rapor semester</Link>
           </Button>

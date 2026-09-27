@@ -54,6 +54,10 @@ interface Props {
   defaultStudentId?: string
   /** Urutan anak dari layar Mulai sesi — untuk tombol "Simpan & berikutnya". */
   antrian?: string[]
+  /** Riyadhoh: tanggal terkunci ke Sabtunya. */
+  tanggalTetap?: string
+  /** Riyadhoh: ke mana kembali sesudah menyimpan. */
+  kembali?: string
 }
 
 /**
@@ -73,7 +77,7 @@ function bacaanAwal(s: StudentOption | null): IsianBacaan {
 }
 
 export function TahsinSetoranForm({
-  students, methods, jilidLevels, surat, materiPerJilid, materiHasil, defaultStudentId, antrian,
+  students, methods, jilidLevels, surat, materiPerJilid, materiHasil, defaultStudentId, antrian, tanggalTetap, kembali,
 }: Props) {
   const router = useRouter()
   const [state, formAction, isPending] = useActionState(createTahsinLogAction, null)
@@ -140,6 +144,7 @@ export function TahsinSetoranForm({
 
   return (
     <form onSubmit={kirim.onSubmit} className="space-y-4 max-w-2xl">
+      {kembali && <input type="hidden" name="kembali" value={kembali} />}
       {/* Siswa */}
       <div className="space-y-1.5">
         <Label htmlFor="student_id">Siswa *</Label>
@@ -381,7 +386,7 @@ export function TahsinSetoranForm({
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="setoran_date">Tanggal Setor</Label>
-          <Input id="setoran_date" name="setoran_date" type="date" defaultValue={today} disabled={isPending} />
+          <Input id="setoran_date" name="setoran_date" type="date" defaultValue={tanggalTetap ?? today} readOnly={!!tanggalTetap} disabled={isPending} />
         </div>
       </div>
 

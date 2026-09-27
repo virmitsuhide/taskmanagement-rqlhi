@@ -15,7 +15,7 @@ import {
   canViewTerms, canViewGukarRecap, canViewFinance, canViewFinanceNotes, canPostToHome, canViewHumasRequests, canCreateNews,
   canAccessProgramMenu, canEditAbout,
   canViewStudents, canViewHalaqoh, canViewTeachers, canViewUnitAnalytics,
-  canManageHomepage, canViewKpi, canManageAllAccounts, canManagePengurus, canManageEmployees, canViewUjian,
+  canManageHomepage, canViewKpi, canCatatSetoranGuru, canManageAllAccounts, canManagePengurus, canManageEmployees, canViewUjian,
   canAccessKpiPublikasi, canManageRaporTemplate, canManageRiyadhoh, canManageEkstra, canManageKaldik, canViewKpiBanding, canViewTasks, canViewRoutineBoard,
   isAdmin, canViewLaporanKurikulum,
 } from '@/lib/auth/permissions'
@@ -141,7 +141,16 @@ export function Sidebar({ role, displayName, username, lencanaKpi, ciutAwal = fa
                 href="/dashboard/analitik"
                 icon={<BarChart3 className="h-4 w-4" />}
                 label="Analitik RQ"
-                active={isActive('/dashboard/analitik')}
+                active={isActive('/dashboard/analitik') && !pathname.startsWith('/dashboard/analitik/gukar')}
+              />
+            )}
+            {/* Menempel di bawah Analitik RQ: sama-sama angka pemantauan. */}
+            {canViewGukarRecap(role) && (
+              <NavItem
+                href="/dashboard/analitik/gukar"
+                icon={<BarChart3 className="h-4 w-4" />}
+                label="Analitik Gukar"
+                active={isActive('/dashboard/analitik/gukar')}
               />
             )}
             {/* Ringkasan resmi dari angka yang sama, untuk BPH tiap bulan. */}
@@ -174,7 +183,7 @@ export function Sidebar({ role, displayName, username, lencanaKpi, ciutAwal = fa
                 active={isActive('/kpi') && !pathname.startsWith('/kpi/publikasi') && !pathname.startsWith('/kpi/banding') && !pathname.startsWith('/kpi/analisis') && !pathname.startsWith('/kpi/setoran-guru')}
               />
             )}
-            {canViewKpi(role) && (
+            {canCatatSetoranGuru(role) && (
               <NavItem
                 href="/kpi/setoran-guru"
                 icon={<BookMarked className="h-4 w-4" />}
@@ -315,14 +324,6 @@ export function Sidebar({ role, displayName, username, lencanaKpi, ciutAwal = fa
                   Satu alamat: beranda publik dan Kalender Qur'an membaca agenda ini. */}
               {canManageKaldik(role) && (
                 <NavItem href="/kalender" icon={<CalendarDays className="h-4 w-4" />} label="Kalender Pendidikan" active={isActive('/kalender') && !pathname.startsWith('/kalender-quran')} />
-              )}
-              {canViewGukarRecap(role) && (
-                <NavItem
-                  href="/dashboard/analitik/gukar"
-                  icon={<BarChart3 className="h-4 w-4" />}
-                  label="Analitik Gukar"
-                  active={isActive('/dashboard/analitik/gukar')}
-                />
               )}
             </ul>
           </div>

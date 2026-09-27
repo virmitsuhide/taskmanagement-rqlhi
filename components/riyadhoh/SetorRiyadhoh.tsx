@@ -23,7 +23,7 @@ export async function SetorRiyadhoh({ jenis, diminta }: { jenis: 'tahsin' | 'tah
   if (!terpilih || terpilih.tanggal > sabtu.hariIni) redirect('/guru/riyadhoh')
 
   const [peserta, hadir, suratRes] = await Promise.all([
-    getPesertaKelompok(terpilih.kelompok),
+    getPesertaKelompok(terpilih.kelompok, session.teacherId),
     getHadirRiyadhoh(terpilih.tanggal),
     createServerClient().from('surat_master').select('id, name_latin, total_ayat, juz_start').order('id'),
   ])
@@ -35,9 +35,19 @@ export async function SetorRiyadhoh({ jenis, diminta }: { jenis: 'tahsin' | 'tah
     <div className="min-h-screen" style={{ background: 'var(--secondary)' }}>
       <div className="mx-auto max-w-3xl space-y-4 px-4 py-6 md:px-6">
         <div>
-          <Link href={`/guru/riyadhoh?tanggal=${terpilih.tanggal}`} className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:underline">
-            <ChevronLeft className="size-4" /> Riyadhoh
-          </Link>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <Link href={`/guru/riyadhoh?tanggal=${terpilih.tanggal}`} className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:underline">
+              <ChevronLeft className="size-4" /> Riyadhoh
+            </Link>
+            <span className="flex gap-3 text-sm font-medium">
+              <Link href={`/guru/riyadhoh/${jenis === 'tahsin' ? 'tahfidz' : 'tahsin'}?tanggal=${terpilih.tanggal}`} className="text-primary hover:underline">
+                {jenis === 'tahsin' ? 'Setor Tahfidz' : 'Setor Tahsin'}
+              </Link>
+              <Link href={`/guru/riyadhoh/laporan?tanggal=${terpilih.tanggal}`} className="text-primary hover:underline">
+                Lanjut ke laporan →
+              </Link>
+            </span>
+          </div>
           <h1 className="mt-1 text-2xl font-extrabold tracking-tight" style={{ fontFamily: 'var(--font-playfair), Georgia, serif' }}>
             {jenis === 'tahsin' ? 'Setor Tahsin' : 'Setor Tahfidz'} — Riyadhoh {LABEL_KELOMPOK[terpilih.kelompok]}
           </h1>
@@ -58,6 +68,7 @@ export async function SetorRiyadhoh({ jenis, diminta }: { jenis: 'tahsin' | 'tah
             halaqohId=""
             pengaturan={null}
             tanggalTetap={terpilih.tanggal}
+            hrefSatuSatu={`/guru/setoran/tahsin/baru?riyadhoh=${terpilih.tanggal}&student=`}
           />
         ) : (
           <SetoranSesiTahfidz

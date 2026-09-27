@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { ChevronRight, ClipboardCheck, Gauge, LineChart, Scale, TrendingUp } from 'lucide-react'
 import { getSession } from '@/lib/auth/session'
 import { canViewKpi, canViewKpiBanding } from '@/lib/auth/permissions'
-import { getKpiRows, getKpiTren, nilaiDari, KPI_UNITS, MONTH_NAMES } from '@/lib/data/kpi'
+import { getKpiRows, getKpiTren, nilaiDari, KPI_UNITS, kpiUnitsFor, MONTH_NAMES } from '@/lib/data/kpi'
 import { KPI_INDIKATOR } from '@/lib/kpi/hitung'
 import { KPI_LEVEL_TONE } from '@/lib/kpi/parameter'
 import { STATUS_LABELS, STATUS_TONE } from '@/lib/kpi/alur'
@@ -56,7 +56,9 @@ export default async function AnalisisKpiPage({ searchParams }: PageProps) {
 
   const p = await searchParams
   const now = new Date()
-  const unit = (KPI_UNITS.find(u => u.key === p.unit)?.key ?? 'sd') as Jenjang
+  // Koordinator unit hanya melihat unitnya sendiri (kpiUnitsFor).
+  const unitSaya = kpiUnitsFor(session.role)
+  const unit = (unitSaya.find(u => u.key === p.unit)?.key ?? unitSaya[0]?.key ?? 'sd') as Jenjang
   const year = Number(p.year) || now.getFullYear()
   const month = Number(p.month) || now.getMonth() + 1
 
@@ -136,7 +138,7 @@ export default async function AnalisisKpiPage({ searchParams }: PageProps) {
         {/* Saringan: unit & bulan — sama dengan halaman Buat KPI. */}
         <div className="flex flex-wrap items-center gap-3">
           <div role="group" aria-label="Unit" className="flex w-fit gap-0.5 overflow-x-auto rounded-[10px] bg-muted p-[3px]">
-            {KPI_UNITS.map(u => (
+            {unitSaya.map(u => (
               <Link key={u.key} href={href({ unit: u.key })}
                 className={cn('whitespace-nowrap rounded-[7px] px-3 py-1.5 text-[13px] font-semibold transition-colors',
                   unit === u.key ? 'bg-card shadow-sm' : 'text-muted-foreground hover:text-foreground')}>

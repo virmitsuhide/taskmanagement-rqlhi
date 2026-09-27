@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import { BookOpen, Sparkles } from 'lucide-react'
+import { BookOpen, FileText, Sparkles } from 'lucide-react'
 import { getTeacherSession } from '@/lib/auth/teacher-session'
 import { getHadirRiyadhoh, getPesertaKelompok, getSabtuPengampu, getSudahSetorRiyadhoh } from '@/lib/data/riyadhoh'
 import { LABEL_KELOMPOK } from '@/lib/rq/riyadhoh'
@@ -38,18 +38,18 @@ export default async function RiyadhohGuruPage({ searchParams }: { searchParams:
             Belum ada Sabtu yang dijadwalkan untuk kelompok {sabtu.kelompok.map(g => LABEL_KELOMPOK[g]).join(' & ')}.
           </Kosong>
         ) : (
-          <Isi sabtu={sabtu} />
+          <Isi sabtu={sabtu} teacherId={session.teacherId} />
         )}
       </div>
     </div>
   )
 }
 
-async function Isi({ sabtu }: { sabtu: Awaited<ReturnType<typeof getSabtuPengampu>> }) {
+async function Isi({ sabtu, teacherId }: { sabtu: Awaited<ReturnType<typeof getSabtuPengampu>>; teacherId: string }) {
   const { tanggal, kelompok } = sabtu.terpilih!
   const belumTiba = tanggal > sabtu.hariIni
   const [peserta, hadir, sudah] = await Promise.all([
-    getPesertaKelompok(kelompok),
+    getPesertaKelompok(kelompok, teacherId),
     getHadirRiyadhoh(tanggal),
     getSudahSetorRiyadhoh(tanggal),
   ])
@@ -77,12 +77,16 @@ async function Isi({ sabtu }: { sabtu: Awaited<ReturnType<typeof getSabtuPengamp
               className="inline-flex h-8 items-center gap-1.5 rounded-md border px-3 text-sm font-medium hover:bg-accent">
               <Sparkles className="size-4" /> Setor Tahfidz
             </Link>
+            <Link href={`/guru/riyadhoh/laporan?tanggal=${tanggal}`}
+              className="inline-flex h-8 items-center gap-1.5 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground hover:opacity-90">
+              <FileText className="size-4" /> Laporan
+            </Link>
           </div>
         )}
       </div>
 
       {peserta.length === 0 ? (
-        <Kosong>Belum ada peserta {LABEL_KELOMPOK[kelompok].toLowerCase()}. Koordinator SMP mengatur pesertanya.</Kosong>
+        <Kosong>Belum ada anak {LABEL_KELOMPOK[kelompok].toLowerCase()} di kelompok Riyadhoh Anda. Koordinator SMP yang menetapkan anak ke tiap pengampu.</Kosong>
       ) : (
         <HadirRiyadhoh
           key={tanggal}

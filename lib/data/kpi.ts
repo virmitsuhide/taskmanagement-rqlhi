@@ -1,6 +1,7 @@
 import { createServerClient } from '@/lib/supabase/server'
 import { hitungKpi, type KpiHasil } from '@/lib/kpi/hitung'
-import type { KpiMonthly, KpiRow, Jenjang } from '@/types'
+import { canPublishKpiRapor, getManageableJenjang } from '@/lib/auth/permissions'
+import type { KpiMonthly, KpiRow, Jenjang, UserRole } from '@/types'
 
 /** Bulan tiap semester. Ganjil = Juli–Desember, Genap = Januari–Juni. */
 export const SEMESTER_MONTHS: Record<'ganjil' | 'genap', number[]> = {
@@ -19,6 +20,20 @@ export const KPI_UNITS: { key: Jenjang; label: string }[] = [
   { key: 'sd_juara', label: 'SD LHI Juara' },
   { key: 'smp', label: 'SMPIT LHI' },
 ]
+
+/**
+ * Unit KPI yang boleh dilihat satu peran. Koordinator unit hanya melihat guru
+ * unit yang rapornya ia sahkan (canPublishKpiRapor) — koor SMP hanya SMP.
+ * SDM, Kepala RQ, dan Kumik melihat semua unit. Dijaga di server: ?unit= di
+ * URL tidak bisa membuka unit lain.
+ */
+export function kpiUnitsFor(role: UserRole): typeof KPI_UNITS {
+  if (role === 'koor_sd' || role === 'koor_smp') {
+    const milik = KPI_UNITS.filter(u => canPublishKpiRapor(role, u.key))
+    return milik.length ? milik : KPI_UNITS.filter(u => getManageableJenjang(role).includes(u.key))
+  }
+  return KPI_UNITS
+}
 
 /**
  * Angka dari PostgREST bisa datang sebagai string.

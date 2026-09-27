@@ -29,7 +29,7 @@ import {
 type Fokus = 'semua' | 'tahsin' | 'tahfidz'
 
 interface PageProps {
-  searchParams: Promise<{ bulan?: string; unit?: string; fokus?: string }>
+  searchParams: Promise<{ bulan?: string; unit?: string; fokus?: string; cunit?: string }>
 }
 
 const PATH = '/dashboard/analitik'
@@ -298,7 +298,9 @@ export default async function AnalitikPage({ searchParams }: PageProps) {
         </Seksi>
 
         <Suspense fallback={<SeksiMemuat info={S.capaian} judul="Capaian per Kelas" />}>
-          <SeksiCapaian info={S.capaian} jenjang={jenjang} fokus={fokus} bulan={a.monthKey} />
+          <SeksiCapaian info={S.capaian} jenjang={jenjang} fokus={fokus} bulan={a.monthKey}
+            unitCapaian={sp.cunit} hrefUnit={u => href({ cunit: u })}
+            tanpaTargetAngkatan={session.role === 'koor_sd' || session.role === 'koor_smp'} />
         </Suspense>
 
         {tampilTahfidz && (

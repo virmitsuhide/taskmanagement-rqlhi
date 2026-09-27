@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
 import { getSession } from '@/lib/auth/session'
 import { canViewKpi } from '@/lib/auth/permissions'
-import { getRaporSemester, KPI_UNITS, MONTH_NAMES, SEMESTER_MONTHS } from '@/lib/data/kpi'
+import { getRaporSemester, KPI_UNITS, kpiUnitsFor, MONTH_NAMES, SEMESTER_MONTHS } from '@/lib/data/kpi'
 import { levelDari } from '@/lib/kpi/hitung'
 import { KPI_LEVELS, KPI_LEVEL_TONE } from '@/lib/kpi/parameter'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
@@ -21,7 +21,9 @@ export default async function RaporSemesterPage({ searchParams }: PageProps) {
 
   const p = await searchParams
   const now = new Date()
-  const unit = (KPI_UNITS.find(u => u.key === p.unit)?.key ?? 'sd') as Jenjang
+  // Koordinator unit hanya melihat unitnya sendiri (kpiUnitsFor).
+  const unitSaya = kpiUnitsFor(session.role)
+  const unit = (unitSaya.find(u => u.key === p.unit)?.key ?? unitSaya[0]?.key ?? 'sd') as Jenjang
   const year = Number(p.year) || now.getFullYear()
   const semester = p.semester === 'genap' ? 'genap' : 'ganjil'
   const months = SEMESTER_MONTHS[semester]
@@ -50,7 +52,7 @@ export default async function RaporSemesterPage({ searchParams }: PageProps) {
 
         <div className="flex flex-wrap gap-2 mb-4">
           <div className="flex gap-1 rounded-lg bg-muted p-1 overflow-x-auto">
-            {KPI_UNITS.map(u => (
+            {unitSaya.map(u => (
               <Link
                 key={u.key}
                 href={href({ unit: u.key })}

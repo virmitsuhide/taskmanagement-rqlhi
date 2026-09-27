@@ -100,6 +100,37 @@ export async function ubahPesertaRiyadhohAction(studentId: string, ikut: boolean
   return { success: true }
 }
 
+/**
+ * Tetapkan / pindahkan pengampu seorang peserta (0098). null = lepas —
+ * anak kembali terbuka untuk semua pengampu segender. Pengampu harus
+ * pengampu Riyadhoh kelompok jenis kelamin anak itu.
+ */
+export async function aturPengampuSiswaAction(studentId: string, teacherId: string | null): Promise<Hasil> {
+  const k = await koordinator()
+  if ('error' in k) return { error: k.error }
+  const supabase = createServerClient()
+  if (teacherId === null) {
+    const { error } = await supabase.from('riyadhoh_kelompok_siswa').delete().eq('student_id', studentId)
+    if (error) return { error: tabelHilang(error) ? 'Tabel kelompok belum ada. Jalankan migrasi 0098 lebih dulu.' : 'Gagal menyimpan.' }
+    segarkan()
+    return { success: true }
+  }
+  const [siswaRes, pengampuRes] = await Promise.all([
+    supabase.from('students').select('gender').eq('id', studentId).maybeSingle(),
+    supabase.from('riyadhoh_pengampu').select('gender').eq('teacher_id', teacherId),
+  ])
+  const gender = (siswaRes.data as { gender: KelompokRiyadhoh | null } | null)?.gender
+  const kelompokGuru = ((pengampuRes.data ?? []) as { gender: KelompokRiyadhoh }[]).map(r => r.gender)
+  if (!gender || !kelompokGuru.includes(gender)) return { error: 'Guru itu bukan pengampu kelompok anak ini.' }
+  const { error } = await supabase.from('riyadhoh_kelompok_siswa').upsert(
+    { student_id: studentId, teacher_id: teacherId, diubah_oleh: k.session.userId, updated_at: new Date().toISOString() },
+    { onConflict: 'student_id' },
+  )
+  if (error) return { error: tabelHilang(error) ? 'Tabel kelompok belum ada. Jalankan migrasi 0098 lebih dulu.' : 'Gagal menyimpan.' }
+  segarkan()
+  return { success: true }
+}
+
 const STATUS: StatusHadir[] = ['hadir', 'izin', 'sakit', 'alfa']
 
 /**

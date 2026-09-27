@@ -6,31 +6,48 @@ import { createServerClient } from '@/lib/supabase/server'
 import { TahsinSetoranForm } from './TahsinSetoranForm'
 import type { SuratPilihan } from '@/components/setoran/SetoranSesiTahfidz'
 import { getMateriPerJilid, getHasilMateriPerSiswa } from '@/lib/data/materi-tahsin'
+import { getHadirRiyadhoh, getPesertaKelompok, getSabtuPengampu } from '@/lib/data/riyadhoh'
 
 interface PageProps {
-  searchParams: Promise<{ student?: string; antrian?: string; ok?: string }>
+  /** riyadhoh = tanggal Sabtu: setor satu-satu untuk peserta Riyadhoh kelompok pengampu ini. */
+  searchParams: Promise<{ student?: string; antrian?: string; ok?: string; riyadhoh?: string }>
 }
 
 export default async function NewTahsinSetoranPage({ searchParams }: PageProps) {
   const session = await getTeacherSession()
   if (!session) redirect('/guru/login')
 
-  const { student: defaultStudentId, antrian: antrianQs, ok: okQs } = await searchParams
+  const { student: defaultStudentId, antrian: antrianQs, ok: okQs, riyadhoh: riyadhohQs } = await searchParams
   const antrian = (antrianQs ?? '').split(',').filter(x => /^[0-9a-f-]{36}$/.test(x))
   const ok = okQs === '1'
 
   const supabase = createServerClient()
   const halaqohIds = await getTeacherHalaqohIds(session.teacherId)
 
+  // Mode Riyadhoh: anak kelompok pengampu ini yang hadir/belum dicatat pada
+  // Sabtu itu — bukan anak halaqohnya. Tanggal dikunci ke Sabtu tersebut;
+  // server tetap memeriksa lewat aksesSetoran saat menyimpan.
+  let riyadhoh: { tanggal: string; ids: string[] } | null = null
+  if (riyadhohQs && /^\d{4}-\d{2}-\d{2}$/.test(riyadhohQs)) {
+    const sabtu = await getSabtuPengampu(session.teacherId, riyadhohQs)
+    if (sabtu.terpilih?.tanggal === riyadhohQs && riyadhohQs <= sabtu.hariIni) {
+      const [peserta, hadir] = await Promise.all([
+        getPesertaKelompok(sabtu.terpilih.kelompok, session.teacherId),
+        getHadirRiyadhoh(riyadhohQs),
+      ])
+      riyadhoh = { tanggal: riyadhohQs, ids: peserta.filter(p => !hadir[p.id] || hadir[p.id] === 'hadir').map(p => p.id) }
+    }
+  }
+
   const [studentsRes, methodsRes, jilidRes, suratRes] = await Promise.all([
-    halaqohIds.length > 0
+    (riyadhoh ? riyadhoh.ids.length > 0 : halaqohIds.length > 0)
       ? supabase
           .from('students')
           .select('id, full_name, jenjang, current_method_id, current_jilid_id, current_jilid_page, tahsin_drill_sejak,'
             + ' current_quran_halaman, current_quran_surat_id, current_quran_ayat,'
             + ' halaqoh:halaqoh!students_halaqoh_id_fkey(name),'
             + ' jilid:jilid_levels!students_current_jilid_id_fkey(is_terminal)')
-          .in('halaqoh_id', halaqohIds)
+          .in(riyadhoh ? 'id' : 'halaqoh_id', riyadhoh ? riyadhoh.ids : halaqohIds)
           .eq('is_active', true)
           .order('full_name')
       : Promise.resolve({ data: [] as unknown[] }),
@@ -87,7 +104,7 @@ export default async function NewTahsinSetoranPage({ searchParams }: PageProps) 
         )}
         <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.1em] text-warning">Setoran Harian</p>
+            <p className="text-xs font-bold uppercase tracking-[0.1em] text-warning">{riyadhoh ? 'Riyadhoh Sabtu' : 'Setoran Harian'}</p>
             <h1
               className="text-3xl tracking-tight"
               style={{ fontFamily: 'var(--font-playfair), Georgia, serif' }}
@@ -95,14 +112,20 @@ export default async function NewTahsinSetoranPage({ searchParams }: PageProps) 
               Setor Tahsin
             </h1>
           </div>
-          <Link href="/guru/setoran/tahsin/sesi" className="text-sm font-medium text-primary hover:underline">
-            Setor satu sesi sekaligus →
-          </Link>
+          {riyadhoh ? (
+            <Link href={`/guru/riyadhoh/tahsin?tanggal=${riyadhoh.tanggal}`} className="text-sm font-medium text-primary hover:underline">
+              ← Kembali ke Setor Tahsin Riyadhoh
+            </Link>
+          ) : (
+            <Link href="/guru/setoran/tahsin/sesi" className="text-sm font-medium text-primary hover:underline">
+              Setor satu sesi sekaligus →
+            </Link>
+          )}
         </div>
 
         {students.length === 0 ? (
           <div className="rounded-2xl border border-dashed bg-muted/30 py-10 text-center text-sm text-muted-foreground">
-            Belum ada siswa di halaqoh Anda. Hubungi admin untuk assign siswa.
+            {riyadhoh ? 'Tidak ada anak kelompok Riyadhoh Anda yang hadir di Sabtu ini.' : 'Belum ada siswa di halaqoh Anda. Hubungi admin untuk assign siswa.'}
           </div>
         ) : (
           <TahsinSetoranForm
@@ -116,6 +139,8 @@ export default async function NewTahsinSetoranPage({ searchParams }: PageProps) 
             )}
             defaultStudentId={defaultStudentId}
             antrian={antrian}
+            tanggalTetap={riyadhoh?.tanggal}
+            kembali={riyadhoh ? `/guru/riyadhoh/tahsin?tanggal=${riyadhoh.tanggal}` : undefined}
           />
         )}
       </div>

@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { ArrowLeft, BookMarked, ClipboardList, ScrollText } from 'lucide-react'
 import { getSession } from '@/lib/auth/session'
-import { canCatatSetoranGuru, canInputKpi, canViewKpi } from '@/lib/auth/permissions'
+import { canCatatSetoranGuru, canInputKpi } from '@/lib/auth/permissions'
 import { createServerClient } from '@/lib/supabase/server'
 import { KPI_UNITS, MONTH_NAMES } from '@/lib/data/kpi'
 import { getSetoranGuruUnit, labelPosisi, posisiHafalan, type SetoranGuru } from '@/lib/data/setoran-guru'
@@ -34,8 +34,9 @@ export default async function SetoranGuruPage({ searchParams }: {
 }) {
   const session = await getSession()
   if (!session) redirect('/login')
-  if (!canViewKpi(session.role)) redirect('/dashboard')
-  const bolehCatat = canCatatSetoranGuru(session.role)
+  // Menyimak setoran guru adalah pekerjaan SDM saja — peran lain tidak membukanya.
+  if (!canCatatSetoranGuru(session.role)) redirect('/kpi')
+  const bolehCatat = true
 
   const p = await searchParams
   const hariIni = hariIniWIB()

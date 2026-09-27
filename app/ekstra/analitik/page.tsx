@@ -9,7 +9,6 @@ import { EkstraSubNav, MigrasiEkstra } from '@/components/ekstra/EkstraSubNav'
 import { GroupLabel, KpiCard, MonthStepper, Panel } from '@/components/dashboard/kit'
 
 import { CapaianKelompokPanel } from '@/components/dashboard/CapaianKelompok'
-import { PerbandinganEkstra } from '@/components/ekstra/PerbandinganEkstra'
 import { getCapaianKelas } from '@/lib/data/capaian-kelas'
 import type { Jenjang } from '@/types'
 import { cn } from '@/lib/utils'
@@ -44,11 +43,8 @@ export default async function AnalitikEkstraPage({ searchParams }: { searchParam
   const diminta = (await searchParams).bulan
   const bulan = diminta && /^\d{4}-(0[1-9]|1[0-2])$/.test(diminta) && diminta <= kini ? diminta : kini
   const a = await getAnalitikEkstra(bulan)
-  // Capaian dihitung dengan aturan yang sama dengan Analitik RQ: sekali untuk
-  // peserta ekstra saja, sekali untuk seluruh angkatan sebagai pembanding.
-  const [capEkstra, capSemua] = a.idSiswaLhi.length
-    ? await Promise.all([getCapaianKelas(SEMUA_UNIT, { hanyaSiswa: a.idSiswaLhi }), getCapaianKelas(SEMUA_UNIT)])
-    : [null, null]
+  // Capaian dihitung dengan aturan yang sama dengan Analitik RQ, hanya untuk peserta ekstra.
+  const capEkstra = a.idSiswaLhi.length ? await getCapaianKelas(SEMUA_UNIT, { hanyaSiswa: a.idSiswaLhi }) : null
   const kelompokEkstra = (capEkstra?.kelompok ?? []).filter(x => x.siswa > 0)
   const k = a.kpi
   const [y, m] = bulan.split('-').map(Number)
@@ -203,26 +199,20 @@ export default async function AnalitikEkstraPage({ searchParams }: { searchParam
                 sub={`peserta berhenti · ${namaBulan}`} />
             </div>
 
-            <Bagian no="04" judul="Capaian" tanya="Apakah peserta ekstra lebih cepat mencapai target?" ket="Siswa LHI yang tertaut" />
+            <Bagian no="04" judul="Capaian" tanya="Di jilid dan juz mana peserta ekstra berada, dan berapa yang sudah mencapai target kelasnya?" ket="Siswa LHI yang tertaut" />
             {kelompokEkstra.length === 0 ? (
               <p className="rounded-xl border bg-card p-5 text-sm text-muted-foreground">
                 Belum ada peserta ekstra aktif yang tertaut ke data siswa LHI. Tautkan siswanya saat memasukkan ke halaqoh ekstra.
               </p>
             ) : (
-              <>
-                <PerbandinganEkstra pasangan={kelompokEkstra.map(x => ({ ekstra: x, angkatan: capSemua?.kelompok.find(z => z.kode === x.kode) }))} />
-                <details className="rounded-2xl border bg-card">
-                  <summary className="cursor-pointer px-5 py-3 text-sm font-semibold">Rincian capaian per kelompok</summary>
-                  <div className="space-y-4 border-t p-4">
-                    {kelompokEkstra.map(x => (
-                      <div key={x.kode} className="space-y-4">
-                        <GroupLabel note={`${x.siswa.toLocaleString('id-ID')} peserta ekstra${x.metode.length ? ` · metode ${x.metode.join(', ')}` : ''}`}>{x.judul}</GroupLabel>
-                        <CapaianKelompokPanel k={x} />
-                      </div>
-                    ))}
+              <div className="space-y-6">
+                {kelompokEkstra.map(x => (
+                  <div key={x.kode} className="space-y-4">
+                    <GroupLabel note={`${x.siswa.toLocaleString('id-ID')} peserta ekstra${x.metode.length ? ` · metode ${x.metode.join(', ')}` : ''}`}>{x.judul}</GroupLabel>
+                    <CapaianKelompokPanel k={x} />
                   </div>
-                </details>
-              </>
+                ))}
+              </div>
             )}
             <Panel title="Peserta dari luar LHI" icon={<BookOpen className="h-4 w-4" />}
               sub="Tanpa target — posisi bacaan terakhir yang dicatat di halaqoh ekstra">

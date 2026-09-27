@@ -4,7 +4,7 @@ import { ArrowLeft, Printer } from 'lucide-react'
 import { getSession } from '@/lib/auth/session'
 import { canPrintKpiRapor, canViewKpiRaporSheet } from '@/lib/auth/permissions'
 import { getKpiRapor } from '@/lib/data/kpi-rapor'
-import { KPI_UNITS, MONTH_NAMES } from '@/lib/data/kpi'
+import { KPI_UNITS, kpiUnitsFor, MONTH_NAMES } from '@/lib/data/kpi'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { KpiRaporSheet } from '@/components/kpi/KpiRaporSheet'
 import { KpiPrintButton } from '@/components/kpi/KpiPrintButton'
@@ -35,7 +35,9 @@ export default async function CetakKpiPage({ searchParams }: PageProps) {
   const bolehCetak = canPrintKpiRapor(session.role)
 
   const p = await searchParams
-  const unit = (KPI_UNITS.find(u => u.key === p.unit)?.key ?? 'sd') as Jenjang
+  // Koordinator unit hanya melihat unitnya sendiri (kpiUnitsFor).
+  const unitSaya = kpiUnitsFor(session.role)
+  const unit = (unitSaya.find(u => u.key === p.unit)?.key ?? unitSaya[0]?.key ?? 'sd') as Jenjang
   const now = new Date()
   const year = Number(p.year) || now.getFullYear()
   const month = Number(p.month) || now.getMonth() + 1

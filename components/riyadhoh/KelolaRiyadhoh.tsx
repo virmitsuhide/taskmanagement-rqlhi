@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { SELECT_NATIF } from '@/components/rapor/kontrol'
 import {
-  simpanJadwalRiyadhohAction, simpanPengampuRiyadhohAction, ubahPesertaRiyadhohAction,
+  aturPengampuSiswaAction, simpanJadwalRiyadhohAction, simpanPengampuRiyadhohAction, ubahPesertaRiyadhohAction,
 } from '@/app/actions/riyadhoh'
 import { jadwalBergantian, LABEL_KELOMPOK, type KelompokRiyadhoh } from '@/lib/rq/riyadhoh'
 import type { PengampuRiyadhoh, PesertaRiyadhoh } from '@/lib/data/riyadhoh'
@@ -42,7 +42,7 @@ export function KelolaRiyadhoh(props: Props) {
     <div className="space-y-5">
       <Jadwal {...props} jumlah={jumlah} />
       <Pengampu pengampu={props.pengampu} guru={props.guru} />
-      <Peserta siswa={props.siswa} jumlah={jumlah} tanpaGender={tanpaGender.length} />
+      <Peserta siswa={props.siswa} jumlah={jumlah} tanpaGender={tanpaGender.length} pengampu={props.pengampu} />
     </div>
   )
 }
@@ -230,18 +230,32 @@ function Chip({ aktif, kelompok, onClick, disabled }: { aktif: boolean; kelompok
 
 type Saring = 'L' | 'P' | 'tidak'
 
-function Peserta({ siswa, jumlah, tanpaGender }: { siswa: PesertaRiyadhoh[]; jumlah: Record<KelompokRiyadhoh, number>; tanpaGender: number }) {
+function Peserta({ siswa, jumlah, tanpaGender, pengampu }: { siswa: PesertaRiyadhoh[]; jumlah: Record<KelompokRiyadhoh, number>; tanpaGender: number; pengampu: PengampuRiyadhoh[] }) {
   const router = useRouter()
   const [pending, mulai] = useTransition()
   const [saring, setSaring] = useState<Saring>('L')
   const [cari, setCari] = useState('')
+  // Saringan pengampu: '' = semua, 'belum' = belum ditetapkan, selain itu id guru (0098).
+  const [olehPengampu, setOlehPengampu] = useState('')
+  const namaPengampu = new Map(pengampu.map(p => [p.teacher_id, p.full_name]))
+  const pengampuKelompok = saring === 'tidak' ? [] : pengampu.filter(p => p.kelompok.includes(saring))
+  const belumDitetapkan = saring === 'tidak' ? 0 : siswa.filter(s => s.ikut && s.gender === saring && !s.pengampu_id).length
 
   const tampil = useMemo(() => {
     const q = cari.trim().toLowerCase()
     return siswa
       .filter(s => (saring === 'tidak' ? !s.ikut : s.ikut && s.gender === saring))
       .filter(s => !q || s.full_name.toLowerCase().includes(q) || (s.kelas ?? '').toLowerCase().includes(q))
-  }, [siswa, saring, cari])
+      .filter(s => !olehPengampu || (olehPengampu === 'belum' ? !s.pengampu_id : s.pengampu_id === olehPengampu))
+  }, [siswa, saring, cari, olehPengampu])
+
+  function aturPengampu(s: PesertaRiyadhoh, teacherId: string) {
+    mulai(async () => {
+      const hasil = await aturPengampuSiswaAction(s.id, teacherId || null)
+      if (hasil.error) toast.error(hasil.error)
+      else router.refresh()
+    })
+  }
 
   function ubah(s: PesertaRiyadhoh, ikut: boolean | null) {
     // Pengecualian yang sama dengan aturannya disimpan sebagai "ikut aturan".
@@ -257,7 +271,8 @@ function Peserta({ siswa, jumlah, tanpaGender }: { siswa: PesertaRiyadhoh[]; jum
     <section className="overflow-hidden rounded-2xl border bg-card">
       <Kepala ikon={<Users className="size-4" />} judul="Peserta">
         Otomatis: seluruh kelas 9 SMP dan QuLS kelas 7–8. Anak yang perlu dikecualikan bisa dikeluarkan atau
-        dimasukkan di sini; kenaikan kelas tahun depan terbaca sendiri.
+        dimasukkan di sini; kenaikan kelas tahun depan terbaca sendiri. Tetapkan pengampu tiap anak — pengampu
+        hanya melihat dan mencatat anak di kelompoknya.
       </Kepala>
 
       <div className="space-y-3 p-4">
@@ -265,6 +280,13 @@ function Peserta({ siswa, jumlah, tanpaGender }: { siswa: PesertaRiyadhoh[]; jum
           <p className="flex items-start gap-2 rounded-lg bg-warning/10 px-3 py-2 text-xs text-warning">
             <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
             {tanpaGender} peserta belum punya jenis kelamin di data siswa, jadi tidak masuk kelompok mana pun. Lengkapi di halaman Siswa.
+          </p>
+        )}
+        {belumDitetapkan > 0 && (
+          <p className="flex items-start gap-2 rounded-lg bg-warning/10 px-3 py-2 text-xs text-warning">
+            <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
+            {belumDitetapkan} peserta {LABEL_KELOMPOK[saring as KelompokRiyadhoh]?.toLowerCase()} belum punya pengampu, jadi belum bisa dicatat
+            kehadiran dan setorannya oleh siapa pun. Pilih pengampunya di daftar.
           </p>
         )}
 
@@ -281,6 +303,18 @@ function Peserta({ siswa, jumlah, tanpaGender }: { siswa: PesertaRiyadhoh[]; jum
             <Search className="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
             <Input value={cari} onChange={e => setCari(e.target.value)} placeholder="Cari nama / kelas" className="h-8 pl-8 text-sm" />
           </div>
+          {pengampuKelompok.length > 0 && (
+            <select value={olehPengampu} onChange={e => setOlehPengampu(e.target.value)} aria-label="Saring per pengampu"
+              className={cn(SELECT_NATIF, 'h-8 text-sm')}>
+              <option value="">Semua pengampu</option>
+              {pengampuKelompok.map(p => (
+                <option key={p.teacher_id} value={p.teacher_id}>
+                  {p.full_name} ({siswa.filter(s => s.ikut && s.gender === saring && s.pengampu_id === p.teacher_id).length})
+                </option>
+              ))}
+              <option value="belum">Belum ditetapkan ({siswa.filter(s => s.ikut && s.gender === saring && !s.pengampu_id).length})</option>
+            </select>
+          )}
         </div>
 
         {tampil.length === 0 ? (
@@ -300,7 +334,17 @@ function Peserta({ siswa, jumlah, tanpaGender }: { siswa: PesertaRiyadhoh[]; jum
                     )}
                   </p>
                 </div>
-                <div className="flex items-center gap-1">
+                <div className="flex flex-wrap items-center gap-1">
+                  {s.ikut && s.gender && (
+                    <select value={s.pengampu_id ?? ''} disabled={pending} onChange={e => aturPengampu(s, e.target.value)}
+                      aria-label={`Pengampu ${s.full_name}`} className={cn(SELECT_NATIF, 'h-8 max-w-[12rem] text-xs', !s.pengampu_id && 'text-muted-foreground')}>
+                      <option value="">— Pengampu belum ditetapkan —</option>
+                      {pengampu.filter(p => p.kelompok.includes(s.gender!)).map(p => <option key={p.teacher_id} value={p.teacher_id}>{p.full_name}</option>)}
+                      {s.pengampu_id && !pengampu.some(p => p.teacher_id === s.pengampu_id && p.kelompok.includes(s.gender!)) && (
+                        <option value={s.pengampu_id}>{namaPengampu.get(s.pengampu_id) ?? 'Pengampu lama'}</option>
+                      )}
+                    </select>
+                  )}
                   {s.pengecualian !== undefined && (
                     <Button size="sm" variant="ghost" disabled={pending} onClick={() => ubah(s, null)}>Ikut aturan</Button>
                   )}

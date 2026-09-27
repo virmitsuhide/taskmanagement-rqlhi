@@ -964,6 +964,13 @@ CREATE TABLE public.riyadhoh_jadwal (
   updated_at timestamp with time zone DEFAULT now() NOT NULL
 );
 
+CREATE TABLE public.riyadhoh_kelompok_siswa (
+  student_id uuid NOT NULL,
+  teacher_id uuid NOT NULL,
+  diubah_oleh uuid,
+  updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
 CREATE TABLE public.riyadhoh_pengampu (
   teacher_id uuid NOT NULL,
   gender gender NOT NULL,
@@ -1532,6 +1539,7 @@ ALTER TABLE public.rapor_isian ADD CONSTRAINT rapor_isian_pkey PRIMARY KEY (stud
 ALTER TABLE public.rapor_templates ADD CONSTRAINT rapor_templates_pkey PRIMARY KEY (id);
 ALTER TABLE public.riyadhoh_hadir ADD CONSTRAINT riyadhoh_hadir_pkey PRIMARY KEY (student_id, tanggal);
 ALTER TABLE public.riyadhoh_jadwal ADD CONSTRAINT riyadhoh_jadwal_pkey PRIMARY KEY (tanggal);
+ALTER TABLE public.riyadhoh_kelompok_siswa ADD CONSTRAINT riyadhoh_kelompok_siswa_pkey PRIMARY KEY (student_id);
 ALTER TABLE public.riyadhoh_pengampu ADD CONSTRAINT riyadhoh_pengampu_pkey PRIMARY KEY (teacher_id, gender);
 ALTER TABLE public.riyadhoh_peserta ADD CONSTRAINT riyadhoh_peserta_pkey PRIMARY KEY (student_id);
 ALTER TABLE public.routine_check_konfirmasi ADD CONSTRAINT routine_check_konfirmasi_pkey PRIMARY KEY (task_id, period, user_id);
@@ -1806,6 +1814,9 @@ ALTER TABLE public.rapor_templates ADD CONSTRAINT rapor_templates_dibuat_oleh_fk
 ALTER TABLE public.riyadhoh_hadir ADD CONSTRAINT riyadhoh_hadir_dicatat_oleh_fkey FOREIGN KEY (dicatat_oleh) REFERENCES teachers(id) ON DELETE SET NULL;
 ALTER TABLE public.riyadhoh_hadir ADD CONSTRAINT riyadhoh_hadir_student_id_fkey FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE;
 ALTER TABLE public.riyadhoh_jadwal ADD CONSTRAINT riyadhoh_jadwal_dibuat_oleh_fkey FOREIGN KEY (dibuat_oleh) REFERENCES users(id) ON DELETE SET NULL;
+ALTER TABLE public.riyadhoh_kelompok_siswa ADD CONSTRAINT riyadhoh_kelompok_siswa_diubah_oleh_fkey FOREIGN KEY (diubah_oleh) REFERENCES users(id) ON DELETE SET NULL;
+ALTER TABLE public.riyadhoh_kelompok_siswa ADD CONSTRAINT riyadhoh_kelompok_siswa_student_id_fkey FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE;
+ALTER TABLE public.riyadhoh_kelompok_siswa ADD CONSTRAINT riyadhoh_kelompok_siswa_teacher_id_fkey FOREIGN KEY (teacher_id) REFERENCES teachers(id) ON DELETE CASCADE;
 ALTER TABLE public.riyadhoh_pengampu ADD CONSTRAINT riyadhoh_pengampu_teacher_id_fkey FOREIGN KEY (teacher_id) REFERENCES teachers(id) ON DELETE CASCADE;
 ALTER TABLE public.riyadhoh_peserta ADD CONSTRAINT riyadhoh_peserta_diubah_oleh_fkey FOREIGN KEY (diubah_oleh) REFERENCES users(id) ON DELETE SET NULL;
 ALTER TABLE public.riyadhoh_peserta ADD CONSTRAINT riyadhoh_peserta_student_id_fkey FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE;
@@ -1944,6 +1955,7 @@ CREATE INDEX programs_order_idx ON public.programs USING btree (display_order, c
 CREATE INDEX rapor_isian_term_idx ON public.rapor_isian USING btree (term_id);
 CREATE INDEX rapor_templates_jenjang_jenis_idx ON public.rapor_templates USING btree (jenjang, jenis, aktif);
 CREATE INDEX riyadhoh_hadir_tanggal_idx ON public.riyadhoh_hadir USING btree (tanggal);
+CREATE INDEX riyadhoh_kelompok_siswa_guru_idx ON public.riyadhoh_kelompok_siswa USING btree (teacher_id);
 CREATE INDEX routine_task_checks_period_idx ON public.routine_task_checks USING btree (period);
 CREATE INDEX routine_task_checks_period_outcome_idx ON public.routine_task_checks USING btree (period, outcome);
 CREATE INDEX routine_task_members_user_idx ON public.routine_task_members USING btree (user_id, status);
@@ -2079,6 +2091,7 @@ ALTER TABLE public.rapor_isian ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.rapor_templates ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.riyadhoh_hadir ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.riyadhoh_jadwal ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.riyadhoh_kelompok_siswa ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.riyadhoh_pengampu ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.riyadhoh_peserta ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.routine_check_konfirmasi ENABLE ROW LEVEL SECURITY;

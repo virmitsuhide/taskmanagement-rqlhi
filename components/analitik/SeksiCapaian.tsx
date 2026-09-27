@@ -3,8 +3,8 @@ import { capaianSemua, kurikulumBulan } from '@/lib/data/analitik-cache'
 import { BELUM_TERCATAT, type MatriksCapaian } from '@/lib/data/capaian-kelas'
 import { JENJANG_LABELS } from '@/lib/auth/permissions'
 import { formatPeriod, monthName } from '@/lib/finance/period'
-import { Panel, GroupLabel } from '@/components/dashboard/kit'
-import { CapaianKelompokPanel, PerbandinganJalur } from '@/components/dashboard/CapaianKelompok'
+import { Panel, GroupLabel, Slicer } from '@/components/dashboard/kit'
+import { CapaianKelompokPanel } from '@/components/dashboard/CapaianKelompok'
 import { Seksi, Kunci, type InfoSeksi } from './seksi'
 import type { Jenjang } from '@/types'
 
@@ -18,15 +18,28 @@ import type { Jenjang } from '@/types'
  * per angkatan versi rekap bulanan (halaman Kurikulum) tidak ditampilkan
  * lagi di sini karena sudah diwakili matriks.
  */
-export async function SeksiCapaian({ info, jenjang, fokus, bulan }: {
+export async function SeksiCapaian({ info, jenjang, fokus, bulan, unitCapaian, hrefUnit, tanpaTargetAngkatan }: {
   info: InfoSeksi
   jenjang: Jenjang | null
   fokus: 'semua' | 'tahsin' | 'tahfidz'
   bulan: string
+  /**
+   * Unit yang dibuka di seksi ini saat halaman memilih "Semua" (?cunit=).
+   * Semua unit sekaligus terlalu panjang — satu unit per tampilan.
+   */
+  unitCapaian?: string | null
+  hrefUnit?: (u: Jenjang) => string
+  /** Koordinator unit: tabel target per angkatan tidak perlu, sudah terwakili matriks. */
+  tanpaTargetAngkatan?: boolean
 }) {
   const [capaian, kurikulum] = await Promise.all([capaianSemua(), kurikulumBulan(bulan)])
-  const kelompok = capaian.kelompok.filter(k => !jenjang || k.jenjang === jenjang)
-  const angkatan = kurikulum.rows.filter(r => !jenjang || r.jenjang === jenjang)
+  const semuaKelompok = capaian.kelompok.filter(k => !jenjang || k.jenjang === jenjang)
+  const unitAda = [...new Set(semuaKelompok.filter(k => k.siswa > 0).map(k => k.jenjang))]
+  // Tanpa unit terkunci: tampilkan satu unit, dipilih lewat saringan di bawah.
+  const unitTampil: Jenjang | null = jenjang
+    ?? (unitAda.includes(unitCapaian as Jenjang) ? (unitCapaian as Jenjang) : unitAda[0] ?? null)
+  const kelompok = semuaKelompok.filter(k => !unitTampil || k.jenjang === unitTampil)
+  const angkatan = kurikulum.rows.filter(r => !unitTampil || r.jenjang === unitTampil)
   const unit = [...new Set(kelompok.map(k => k.jenjang))]
 
   const siswa = kelompok.reduce((n, k) => n + k.siswa, 0)
@@ -62,13 +75,21 @@ export async function SeksiCapaian({ info, jenjang, fokus, bulan }: {
         </>
       }
     >
+      {!jenjang && unitAda.length > 1 && hrefUnit && (
+        <Slicer
+          label="Unit"
+          options={unitAda.map(u => ({
+            label: JENJANG_LABELS[u],
+            href: `${hrefUnit(u)}#${info.id}`,
+            active: unitTampil === u,
+            count: semuaKelompok.filter(k => k.jenjang === u).reduce((n, k) => n + k.siswa, 0),
+          }))}
+        />
+      )}
       {unit.map(u => {
         const diUnit = kelompok.filter(k => k.jenjang === u)
-        const reguler = diUnit.find(k => k.jalur === 'reguler')
-        const quls = diUnit.find(k => k.jalur === 'quls')
         return (
           <div key={u} className="space-y-4">
-            {reguler && quls && <PerbandinganJalur reguler={reguler} quls={quls} tampil={fokus} />}
             {diUnit.map(k => (
               <div key={k.kode} className="space-y-3">
                 <GroupLabel note={`${k.keterangan} · ${k.siswa.toLocaleString('id-ID')} siswa${k.metode.length ? ` · ${k.metode.join(', ')}` : ''}`}>
@@ -81,7 +102,7 @@ export async function SeksiCapaian({ info, jenjang, fokus, bulan }: {
         )
       })}
 
-      {fokus !== 'tahfidz' && angkatan.length > 0 && (
+      {fokus !== 'tahfidz' && !tanpaTargetAngkatan && angkatan.length > 0 && (
         <Panel
           title="Ketercapaian Target Tahsin per Angkatan"
           icon={<Target className="h-4 w-4" />}

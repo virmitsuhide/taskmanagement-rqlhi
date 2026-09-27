@@ -35,8 +35,14 @@ export function HadirRiyadhoh({ tanggal, peserta, hadir, terkunci }: {
 }) {
   const router = useRouter()
   const [pending, mulai] = useTransition()
-  const [isi, setIsi] = useState<Record<string, StatusHadir | null>>(() => Object.fromEntries(peserta.map(p => [p.id, hadir[p.id] ?? null])))
+  // Anak yang belum dicatat tampil 'hadir' sebagai bawaan — dan dihitung
+  // BELUM tersimpan, supaya kelas yang hadir semua tetap bisa disimpan
+  // dengan satu ketukan. Sabtu yang belum tiba tidak diisi apa pun.
+  const [isi, setIsi] = useState<Record<string, StatusHadir | null>>(
+    () => Object.fromEntries(peserta.map(p => [p.id, hadir[p.id] ?? (terkunci ? null : 'hadir')])),
+  )
   const berubah = peserta.filter(p => (isi[p.id] ?? null) !== (hadir[p.id] ?? null))
+  const belumDicatat = peserta.filter(p => !hadir[p.id]).length
   const jumlahHadir = peserta.filter(p => isi[p.id] === 'hadir').length
 
   function simpan() {
@@ -51,10 +57,8 @@ export function HadirRiyadhoh({ tanggal, peserta, hadir, terkunci }: {
     <section className="space-y-3 rounded-2xl border bg-card p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="font-heading text-lg font-medium">Kehadiran <span className="font-normal text-muted-foreground">· {jumlahHadir}/{peserta.length} hadir</span></h2>
-        {!terkunci && (
-          <Button size="sm" variant="outline" onClick={() => setIsi(v => Object.fromEntries(peserta.map(p => [p.id, v[p.id] ?? 'hadir'])))}>
-            Sisanya hadir
-          </Button>
+        {!terkunci && belumDicatat > 0 && (
+          <span className="text-xs text-warning">{belumDicatat} anak belum disimpan — bawaannya hadir</span>
         )}
       </div>
 
@@ -96,7 +100,7 @@ export function HadirRiyadhoh({ tanggal, peserta, hadir, terkunci }: {
       {!terkunci && (
         <div className="flex justify-end">
           <Button onClick={simpan} disabled={pending || berubah.length === 0}>
-            {pending ? 'Menyimpan…' : `Simpan kehadiran${berubah.length ? ` (${berubah.length})` : ''}`}
+            {pending ? 'Menyimpan…' : berubah.length ? `Simpan kehadiran (${berubah.length})` : 'Kehadiran tersimpan ✓'}
           </Button>
         </div>
       )}

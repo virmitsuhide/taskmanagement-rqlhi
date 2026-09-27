@@ -16,7 +16,7 @@ import {
   canAccessProgramMenu, canEditAbout,
   canViewStudents, canViewHalaqoh, canViewTeachers, canViewUnitAnalytics,
   canManageHomepage,
-  canViewKpi, canManageAllAccounts, canManagePengurus, canManageEmployees, canViewUjian, canManageTeacherProfiles,
+  canViewKpi, canCatatSetoranGuru, canManageAllAccounts, canManagePengurus, canManageEmployees, canViewUjian, canManageTeacherProfiles,
   canAccessKpiPublikasi, canManageRaporTemplate, canManageRiyadhoh, canManageEkstra, canManageKaldik, canViewKpiBanding, canViewTasks, canViewRoutineBoard, isAdmin, canViewLaporanKurikulum } from '@/lib/auth/permissions'
 import type { UserRole } from '@/types'
 import { logoutAction } from '@/app/actions/auth'
@@ -199,9 +199,12 @@ export function MobileNav({ role, displayName, username, lencanaKpi }: Props) {
                   href="/dashboard/analitik"
                   icon={<BarChart3 className="h-4 w-4" />}
                   label="Analitik RQ"
-                  active={isActive('/dashboard/analitik')}
+                  active={isActive('/dashboard/analitik') && !pathname.startsWith('/dashboard/analitik/gukar')}
                   onNavigate={close}
                 />
+              )}
+              {canViewGukarRecap(role) && (
+                <DrawerLink href="/dashboard/analitik/gukar" icon={<BarChart3 className="h-4 w-4" />} label="Analitik Gukar" active={isActive('/dashboard/analitik/gukar')} onNavigate={close} />
               )}
               {canViewLaporanKurikulum(role) && (
                 <DrawerLink
@@ -233,7 +236,7 @@ export function MobileNav({ role, displayName, username, lencanaKpi }: Props) {
                   onNavigate={close}
                 />
               )}
-              {canViewKpi(role) && (
+              {canCatatSetoranGuru(role) && (
                 <DrawerLink
                   href="/kpi/setoran-guru"
                   icon={<BookMarked className="h-4 w-4" />}
@@ -359,9 +362,6 @@ export function MobileNav({ role, displayName, username, lencanaKpi }: Props) {
                     Satu alamat: beranda publik dan Kalender Qur'an membaca agenda ini. */}
                 {canManageKaldik(role) && (
                   <DrawerLink href="/kalender" icon={<CalendarDays className="h-4 w-4" />} label="Kalender Pendidikan" active={isActive('/kalender') && !pathname.startsWith('/kalender-quran')} onNavigate={close} />
-                )}
-                {canViewGukarRecap(role) && (
-                  <DrawerLink href="/dashboard/analitik/gukar" icon={<BarChart3 className="h-4 w-4" />} label="Analitik Gukar" active={isActive('/dashboard/analitik/gukar')} onNavigate={close} />
                 )}
               </ul>
             </div>
