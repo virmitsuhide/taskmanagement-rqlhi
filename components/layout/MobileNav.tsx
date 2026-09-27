@@ -17,7 +17,7 @@ import {
   canViewStudents, canViewHalaqoh, canViewTeachers, canViewUnitAnalytics,
   canManageHomepage,
   canViewKpi, canCatatSetoranGuru, canManageAllAccounts, canManagePengurus, canManageEmployees, canViewUjian, canManageTeacherProfiles,
-  canAccessKpiPublikasi, canManageRaporTemplate, canManageRiyadhoh, canManageEkstra, canManageKaldik, canViewKpiBanding, canViewTasks, canViewRoutineBoard, isAdmin, canViewLaporanKurikulum } from '@/lib/auth/permissions'
+  canAccessKpiPublikasi, canManageRaporTemplate, canManageRiyadhoh, canViewRiyadhohAnalitik, canManageEkstra, canManageKaldik, canViewKpiBanding, canViewTasks, canViewRoutineBoard, isAdmin, canViewLaporanKurikulum } from '@/lib/auth/permissions'
 import type { UserRole } from '@/types'
 import { logoutAction } from '@/app/actions/auth'
 import { Logo } from '@/components/brand/Logo'
@@ -191,6 +191,9 @@ export function MobileNav({ role, displayName, username, lencanaKpi }: Props) {
               {dashboards.map(slug => (
                 <DrawerLink key={slug} href={`/dashboard/${slug}`} icon={DASHBOARD_ICONS[slug]} label={DASHBOARD_LABELS[slug]} active={isActive(`/dashboard/${slug}`)} onNavigate={close} />
               ))}
+              {canViewRiyadhohAnalitik(role) && (
+                <DrawerLink href="/riyadhoh/analitik" icon={<BarChart3 className="h-4 w-4" />} label="Analitik Riyadhoh" active={isActive('/riyadhoh/analitik')} onNavigate={close} />
+              )}
               {canManageEkstra(role) && (
                 <DrawerLink href="/ekstra/analitik" icon={<BarChart3 className="h-4 w-4" />} label="Analitik Ekstra" active={isActive('/ekstra/analitik')} onNavigate={close} />
               )}
@@ -341,7 +344,7 @@ export function MobileNav({ role, displayName, username, lencanaKpi }: Props) {
                   <DrawerLink href="/rapor-quran/template" icon={<LayoutTemplate className="h-4 w-4" />} label="Template Rapor" active={isActive('/rapor-quran')} onNavigate={close} />
                 )}
                 {canManageRiyadhoh(role) && (
-                  <DrawerLink href="/riyadhoh" icon={<CalendarHeart className="h-4 w-4" />} label="Riyadhoh Sabtu" active={isActive('/riyadhoh')} onNavigate={close} />
+                  <DrawerLink href="/riyadhoh" icon={<CalendarHeart className="h-4 w-4" />} label="Riyadhoh Sabtu" active={pathname === '/riyadhoh'} onNavigate={close} />
                 )}
                 {canManageEkstra(role) && (
                   <>

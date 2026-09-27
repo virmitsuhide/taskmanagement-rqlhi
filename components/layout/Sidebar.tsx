@@ -16,7 +16,7 @@ import {
   canAccessProgramMenu, canEditAbout,
   canViewStudents, canViewHalaqoh, canViewTeachers, canViewUnitAnalytics,
   canManageHomepage, canViewKpi, canCatatSetoranGuru, canManageAllAccounts, canManagePengurus, canManageEmployees, canViewUjian,
-  canAccessKpiPublikasi, canManageRaporTemplate, canManageRiyadhoh, canManageEkstra, canManageKaldik, canViewKpiBanding, canViewTasks, canViewRoutineBoard,
+  canAccessKpiPublikasi, canManageRaporTemplate, canManageRiyadhoh, canViewRiyadhohAnalitik, canManageEkstra, canManageKaldik, canViewKpiBanding, canViewTasks, canViewRoutineBoard,
   isAdmin, canViewLaporanKurikulum,
 } from '@/lib/auth/permissions'
 import type { UserRole } from '@/types'
@@ -133,6 +133,9 @@ export function Sidebar({ role, displayName, username, lencanaKpi, ciutAwal = fa
               </li>
             ))}
             {/* Tepat di bawah dashboard jabatannya: analitik milik Koor Ekstra. */}
+            {canViewRiyadhohAnalitik(role) && (
+              <NavItem href="/riyadhoh/analitik" icon={<BarChart3 className="h-4 w-4" />} label="Analitik Riyadhoh" active={isActive('/riyadhoh/analitik')} />
+            )}
             {canManageEkstra(role) && (
               <NavItem href="/ekstra/analitik" icon={<BarChart3 className="h-4 w-4" />} label="Analitik Ekstra" active={isActive('/ekstra/analitik')} />
             )}
@@ -303,7 +306,7 @@ export function Sidebar({ role, displayName, username, lencanaKpi, ciutAwal = fa
                 <NavItem href="/rapor-quran/template" icon={<LayoutTemplate className="h-4 w-4" />} label="Template Rapor" active={isActive('/rapor-quran')} />
               )}
               {canManageRiyadhoh(role) && (
-                <NavItem href="/riyadhoh" icon={<CalendarHeart className="h-4 w-4" />} label="Riyadhoh Sabtu" active={isActive('/riyadhoh')} />
+                <NavItem href="/riyadhoh" icon={<CalendarHeart className="h-4 w-4" />} label="Riyadhoh Sabtu" active={pathname === '/riyadhoh'} />
               )}
               {canManageEkstra(role) && (
                 <>

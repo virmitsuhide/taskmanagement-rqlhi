@@ -1,6 +1,6 @@
 import { punyaSlotEkstra } from '@/lib/data/ekstra'
 import {
-  LayoutDashboard, Users, BookOpen, Sparkles, CalendarCheck,
+  LayoutDashboard, Users, CalendarCheck,
   BarChart3, ScrollText, GraduationCap, IdCard, ClipboardCheck, ListChecks,
   Table2, HeartHandshake, UserCheck,
   FileText, CalendarHeart, Play, PieChart,
@@ -65,7 +65,7 @@ export async function TeacherShell({ children }: { children: React.ReactNode }) 
       title: null,
       items: [
         { label: 'Dashboard', href: '/guru', icon: <LayoutDashboard />, exact: true },
-        { label: 'Siswa Saya', href: '/guru/siswa', icon: <Users /> },
+        { label: 'Siswa Saya', href: '/guru/siswa', icon: <Users />, juga: ['/guru/setoran/tahsin/baru', '/guru/setoran/tahfidz/baru'] },
       ],
     },
     {
@@ -76,8 +76,8 @@ export async function TeacherShell({ children }: { children: React.ReactNode }) 
         // Satu layar yang merangkai hadir → setor → catatan untuk sesi yang sedang berjalan.
         { label: 'Mulai Sesi', href: '/guru/sesi', icon: <Play /> },
         { label: 'Daftar Hadir', href: '/guru/absensi', icon: <UserCheck /> },
-        { label: 'Setor Tahsin', href: '/guru/setoran/tahsin/baru', icon: <BookOpen /> },
-        { label: 'Setor Tahfidz', href: '/guru/setoran/tahfidz/baru', icon: <Sparkles /> },
+        // Setor tahsin/tahfidz satu anak dibuka dari profil anak (Siswa Saya →
+        // nama anak → tombol Setor), bukan dari menu — sidebar guru terlalu panjang.
         // Satu sesi sekaligus — cara yang lebih cepat saat seluruh halaqoh setor.
         // Dipisah per jenis, bukan satu tautan: tahsin dan tahfidz punya halaman
         // sendiri dengan isian yang berbeda, jadi satu menu pasti menyembunyikan

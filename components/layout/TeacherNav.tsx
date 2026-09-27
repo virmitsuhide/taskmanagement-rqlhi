@@ -53,6 +53,8 @@ export interface TeacherNavItem {
    * tanpa ini ia menyala di halaman mana pun yang tidak punya menunya sendiri.
    */
   exact?: boolean
+  /** Alamat lain yang juga menyalakan menu ini, mis. halaman setor satu anak → Siswa Saya. */
+  juga?: string[]
   /**
    * Angka kecil di ujung kanan menu — jumlah yang menunggu perhatian.
    * 0 atau tidak diisi berarti tidak ada lencana sama sekali; lencana bertulis
@@ -93,9 +95,11 @@ interface Props {
 function hrefAktif(pathname: string, groups: TeacherNavGroup[]): string | null {
   let terbaik: string | null = null
   for (const g of groups) {
-    for (const { href, exact } of g.items) {
+    for (const { href, exact, juga } of g.items) {
       const cocok = exact ? pathname === href : pathname === href || pathname.startsWith(href + '/')
       if (cocok && (terbaik === null || href.length > terbaik.length)) terbaik = href
+      // Alamat pinjaman menang atas yang lain — ia disebut persis untuk halaman itu.
+      if (juga?.some(j => pathname === j || pathname.startsWith(j + '/'))) return href
     }
   }
   return terbaik

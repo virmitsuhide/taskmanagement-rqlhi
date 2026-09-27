@@ -1443,6 +1443,11 @@ export function canManageRiyadhoh(role: UserRole): boolean {
   return role === 'koor_smp'
 }
 
+/** Analitik Riyadhoh Sabtu — dibaca Kurikulum, Koordinator SMP, dan Kepala RQ. */
+export function canViewRiyadhohAnalitik(role: UserRole): boolean {
+  return role === 'kumik' || role === 'koor_smp' || role === 'kepala_rq'
+}
+
 /**
  * Kalender pendidikan (kaldik, 0085) — agenda sekolah yang tampil di beranda
  * dan menjadi usulan hari kosong di Kalender Qur'an.
