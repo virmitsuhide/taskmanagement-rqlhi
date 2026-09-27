@@ -8,7 +8,7 @@ import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { EkstraSubNav, MigrasiEkstra } from '@/components/ekstra/EkstraSubNav'
 import { FormSlotEkstra } from '@/components/ekstra/FormEkstra'
 import { Slicer, hrefDengan } from '@/components/dashboard/kit'
-import { bolehGuruEkstra, getBookingEkstra, getDataEkstra, getGuruEkstra, HARI_EKSTRA, labelSlot } from '@/lib/data/ekstra'
+import { bolehGuruEkstra, getBookingEkstra, getDataEkstra, getGuruEkstra, HARI_EKSTRA, HARI_PENDEK, jam, kiniWIB, labelSlot } from '@/lib/data/ekstra'
 import { cn } from '@/lib/utils'
 
 const PATH = '/ekstra/halaqoh'
@@ -19,7 +19,7 @@ const PATH = '/ekstra/halaqoh'
  * Pesertanya dibuka di halaman detail.
  */
 export default async function HalaqohEkstraPage({ searchParams }: {
-  searchParams: Promise<{ hari?: string; jenis?: string; q?: string; status?: string }>
+  searchParams: Promise<{ hari?: string; jenis?: string; q?: string; status?: string; tampil?: string }>
 }) {
   const session = await getSession()
   if (!session) redirect('/login')
@@ -54,7 +54,17 @@ export default async function HalaqohEkstraPage({ searchParams }: {
   const daftar = dasar.filter(s => !hariDipilih || s.hari === hariDipilih)
     .sort((a, b) => a.hari - b.hari || a.jam_mulai.localeCompare(b.jam_mulai) || (a.guru ?? '').localeCompare(b.guru ?? ''))
 
-  const param = { hari: sp.hari, jenis: sp.jenis, q: sp.q, status: sp.status }
+  const papan = sp.tampil !== 'daftar'
+  const param = { hari: sp.hari, jenis: sp.jenis, q: sp.q, status: sp.status, tampil: sp.tampil }
+  const aktifDasar = dasar.filter(s => s.aktif)
+  const ringkas = [
+    { n: aktifDasar.length, l: 'halaqoh berjalan', c: '' },
+    { n: aktifDasar.reduce((n, s) => n + s.peserta, 0), l: 'peserta aktif', c: '' },
+    { n: aktifDasar.filter(s => s.peserta >= s.kuotaEfektif).length, l: 'halaqoh penuh', c: 'text-primary' },
+    { n: aktifDasar.filter(s => s.peserta === 0).length, l: 'belum ada peserta', c: 'text-accent-warm' },
+    { n: new Set(aktifDasar.map(s => s.teacher_id)).size, l: 'guru pengampu', c: '' },
+  ]
+  const hariIniNo = ((kiniWIB().getUTCDay() + 6) % 7) + 1
   const jenisDipakai = data.jenis.filter(j => data.slot.some(s => s.jenis_id === j.id))
   const totalPeserta = daftar.reduce((n, s) => n + s.peserta, 0)
 
@@ -64,17 +74,42 @@ export default async function HalaqohEkstraPage({ searchParams }: {
       <div className="mx-auto max-w-6xl space-y-5 p-4 md:p-8">
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-accent-warm">Ekstra tahsin &amp; tahfidz · halaqoh</p>
-          <h1 className="mt-1 text-3xl leading-tight">Halaqoh ekstra</h1>
+          <h1 className="mt-1 font-heading text-3xl leading-tight md:text-[38px]">Halaqoh ekstra sepekan</h1>
           <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
-            Satu halaqoh = satu pengampu pada satu jadwal pekanan. Halaqoh biasanya terbentuk saat memasukkan anak dari kotak masuk Booking;
-            buka halaqoh untuk melihat pesertanya, kehadiran, dan setoran bulan ini.
+            Satu kartu = satu pengampu pada satu jadwal pekanan. Kartu bergaris putus belum punya peserta — tawarkan ke permintaan yang cocok.
+            Buka kartu untuk melihat peserta, kehadiran, dan setoran bulan ini.
           </p>
         </div>
         <EkstraSubNav />
 
         {!data.tabelAda ? <MigrasiEkstra /> : (
           <>
-            <div className="space-y-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <div role="group" aria-label="Tampilan" className="flex rounded-xl bg-muted p-1">
+                {[{ k: 'pekan', l: 'Pekan', on: papan }, { k: 'daftar', l: 'Daftar', on: !papan }].map(t => (
+                  <Link key={t.k} href={hrefDengan(PATH, param, { tampil: t.k === 'daftar' ? 'daftar' : undefined, hari: undefined })} aria-current={t.on ? 'page' : undefined}
+                    className={cn('rounded-lg px-3 py-1.5 text-xs font-semibold', t.on ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground')}>{t.l}</Link>
+                ))}
+              </div>
+              <span className="mx-1 hidden h-6 w-px bg-border sm:block" />
+              {[{ id: '', nama: 'Semua jenis' }, ...jenisDipakai].map(j => {
+                const on = (sp.jenis ?? '') === j.id
+                return (
+                  <Link key={j.id || 'semua'} href={hrefDengan(PATH, param, { jenis: j.id || undefined })} aria-current={on ? 'page' : undefined}
+                    className={cn('rounded-full border px-3 py-1.5 text-xs font-semibold', on ? 'border-primary bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:text-foreground')}>
+                    {j.nama}
+                  </Link>
+                )
+              })}
+              <form action={PATH} className="flex h-9 w-full items-center gap-2 rounded-xl border bg-card px-3 sm:ml-auto sm:w-72">
+                {sp.jenis && <input type="hidden" name="jenis" value={sp.jenis} />}
+                {sp.tampil && <input type="hidden" name="tampil" value={sp.tampil} />}
+                {sp.status && <input type="hidden" name="status" value={sp.status} />}
+                <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
+                <input name="q" defaultValue={sp.q ?? ''} placeholder="Guru, tempat, atau nama peserta" aria-label="Cari halaqoh" className="min-w-0 flex-1 bg-transparent text-sm outline-none" />
+              </form>
+            </div>
+            {!papan && (
               <Slicer label="Hari" options={[
                 { label: 'Semua', href: hrefDengan(PATH, param, { hari: undefined }), active: !hariDipilih, count: dasar.length },
                 ...hariAda.map(h => ({
@@ -82,26 +117,7 @@ export default async function HalaqohEkstraPage({ searchParams }: {
                   active: hariDipilih === h, count: dasar.filter(s => s.hari === h).length,
                 })),
               ]} />
-              <form action={PATH} className="flex min-w-0 flex-wrap items-end gap-2">
-                {sp.hari && <input type="hidden" name="hari" value={sp.hari} />}
-                {sp.status && <input type="hidden" name="status" value={sp.status} />}
-                <label className="flex min-w-0 flex-col gap-1">
-                  <span className="text-[11px] font-bold uppercase tracking-[0.08em] text-muted-foreground">Jenis</span>
-                  <select name="jenis" defaultValue={sp.jenis ?? ''} className="h-9 rounded-md border bg-background px-2 text-sm">
-                    <option value="">Semua jenis</option>
-                    {jenisDipakai.map(j => <option key={j.id} value={j.id}>{j.nama}</option>)}
-                  </select>
-                </label>
-                <label className="flex min-w-0 flex-1 flex-col gap-1 sm:max-w-sm">
-                  <span className="text-[11px] font-bold uppercase tracking-[0.08em] text-muted-foreground">Cari</span>
-                  <span className="flex h-9 items-center gap-2 rounded-md border bg-background px-2">
-                    <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
-                    <input name="q" defaultValue={sp.q ?? ''} placeholder="Guru, tempat, atau peserta" className="min-w-0 flex-1 bg-transparent text-sm outline-none" />
-                  </span>
-                </label>
-                <button type="submit" className="h-9 rounded-md border bg-card px-3 text-sm font-semibold hover:bg-muted">Terapkan</button>
-              </form>
-            </div>
+            )}
 
             <details className="group rounded-2xl border bg-card">
               <summary className="flex cursor-pointer items-center gap-2 px-5 py-3 text-sm font-semibold">
@@ -115,6 +131,70 @@ export default async function HalaqohEkstraPage({ searchParams }: {
               </div>
             </details>
 
+
+            <div className="grid grid-cols-2 gap-y-3 rounded-2xl border bg-card py-4 sm:grid-cols-5">
+              {ringkas.map(r => (
+                <div key={r.l} className="px-5 sm:border-l sm:first:border-l-0">
+                  <p className={cn('font-heading text-3xl leading-none tabular-nums', r.c)}>{r.n}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{r.l}</p>
+                </div>
+              ))}
+            </div>
+
+            {papan && (
+              <div className="-mx-4 overflow-x-auto px-4 md:mx-0 md:px-0">
+                <div className="grid min-w-[980px] grid-cols-7 items-start gap-2.5">
+                  {[1, 2, 3, 4, 5, 6, 7].map(h => {
+                    const isi = daftar.filter(s => s.hari === h)
+                    const hariIni = h === hariIniNo
+                    return (
+                      <div key={h} className="flex min-w-0 flex-col gap-2">
+                        <div className={cn('flex items-baseline gap-1.5 rounded-xl px-2.5 py-2', hariIni ? 'bg-primary text-primary-foreground' : 'bg-muted')}>
+                          <span className="text-sm font-bold">{HARI_PENDEK[h]}</span>
+                          <span className="truncate text-[11px] opacity-75">{isi.length} halaqoh · {isi.reduce((n, s) => n + s.peserta, 0)}</span>
+                        </div>
+                        {isi.map(s => {
+                          const penuh = s.peserta >= s.kuotaEfektif
+                          const kosong = s.peserta === 0
+                          return (
+                            <Link key={s.id} href={`${PATH}/${s.id}`}
+                              className={cn('flex flex-col gap-1.5 rounded-xl border bg-card p-2.5 transition-colors hover:border-primary/50',
+                                kosong && 'border-dashed border-accent-warm', !s.aktif && 'opacity-60')}>
+                              <span className="flex items-center gap-1">
+                                <span className="font-heading text-lg leading-none">{jam(s.jam_mulai)}</span>
+                                <span className="flex-1" />
+                                {!s.aktif ? <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">nonaktif</span>
+                                  : penuh ? <span className="rounded bg-primary-wash px-1.5 py-0.5 text-[10px] font-semibold text-primary">Penuh</span>
+                                  : kosong ? <span className="rounded bg-accent-warm-wash px-1.5 py-0.5 text-[10px] font-semibold text-accent-warm">Kosong</span> : null}
+                              </span>
+                              <span className="text-xs font-bold leading-snug">{s.guru}</span>
+                              <span className="text-[11px] leading-snug text-muted-foreground">{s.jenis?.nama ?? '—'}{s.tempat ? <><br />{s.tempat}</> : null}</span>
+                              <span className="flex items-center gap-1.5">
+                                <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
+                                  <span className={cn('block h-full rounded-full', kosong ? 'bg-accent-warm' : 'bg-primary')} style={{ width: `${s.kuotaEfektif ? Math.min(100, (s.peserta / s.kuotaEfektif) * 100) : 0}%` }} />
+                                </span>
+                                <span className={cn('text-[11px] font-bold tabular-nums', penuh && 'text-primary')}>{s.peserta}/{s.kuotaEfektif}</span>
+                              </span>
+                            </Link>
+                          )
+                        })}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
+            {papan && (
+              <p className="text-xs text-muted-foreground">
+                {tampilNonaktif ? 'Halaqoh nonaktif ikut tampil (pudar) · ' : 'Halaqoh nonaktif disembunyikan · '}
+                <Link href={hrefDengan(PATH, param, { status: tampilNonaktif ? undefined : 'semua' })} className="font-semibold text-primary hover:underline">
+                  {tampilNonaktif ? 'sembunyikan' : 'tampilkan'}
+                </Link>
+              </p>
+            )}
+
+            {!papan && (
             <section className="rounded-2xl border bg-card">
               <div className="flex flex-wrap items-center justify-between gap-2 border-b px-5 py-3">
                 <p className="text-sm font-semibold">
@@ -161,6 +241,7 @@ export default async function HalaqohEkstraPage({ searchParams }: {
                 </ul>
               )}
             </section>
+            )}
           </>
         )}
       </div>

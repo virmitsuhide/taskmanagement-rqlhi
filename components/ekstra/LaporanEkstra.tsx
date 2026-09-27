@@ -68,7 +68,7 @@ export async function LaporanEkstra({ slot, peserta, bulan }: { slot: SlotEkstra
                       const nilai = st.map(x => x.nilai).filter((n): n is number => n !== null)
                       const rata = nilai.length ? Math.round(nilai.reduce((a, b) => a + b, 0) / nilai.length) : null
                       const pesan = [
-                        `Assalamu'alaikum Bapak/Ibu ${p.nama_ortu}.`,
+                        `Assalamu'alaikum Ayah/Bunda ${p.nama_ortu}.`,
                         '',
                         `Laporan ekstra ananda ${p.nama_anak} — ${s.jenis?.nama ?? 'Ekstra'} bersama ${s.guru}, ${label}:`,
                         `• Kehadiran: ${nH} hadir${nIS ? `, ${nIS} izin/sakit` : ''}${nA ? `, ${nA} alfa` : ''}`,

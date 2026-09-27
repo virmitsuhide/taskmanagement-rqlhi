@@ -7,7 +7,7 @@ import {
   canViewFinance, canViewFinanceNotes, canViewGukarRecap, canViewHalaqoh, canViewHumasRequests, canViewKpi,
   canViewStudents, canViewTasks, canViewUnitAnalytics, canCreateNews, canManageHomepage, canManageRaporTemplate,
   canPostToHome, getAnalyticsJenjang, getCreatableMeetingTypes, getManageableJenjang, getUjianUnits,
-  getViewableMeetingTypes, ROLE_LABELS, getAccessibleDashboards, DASHBOARD_LABELS,
+  getViewableMeetingTypes, ROLE_LABELS, getAccessibleDashboards, DASHBOARD_LABELS, canManageEkstra,
 } from '@/lib/auth/permissions'
 import {
   getCompletionHistory, getPendingVerifications, getRecentMeetings, getSemuaTugasAktifSaya, getTeamActiveTasks,
@@ -65,6 +65,7 @@ type KunciPintasan =
   | 'analitik' | 'gukar' | 'papanTugas' | 'tugasBaru' | 'rapatBaru' | 'halaqoh' | 'siswa' | 'ujian'
   | 'templateRapor' | 'kalenderQuran' | 'postBeranda' | 'beranda' | 'request' | 'berita' | 'catatanKeuangan'
   | 'keuangan' | 'kpi' | 'imporSiswa' | 'imporHalaqoh'
+  | 'ekstraHalaqoh' | 'ekstraGuru' | 'ekstraJenis' | 'ekstraLaporan'
 
 interface Konfig {
   judul: string
@@ -150,12 +151,12 @@ const KONFIG: Record<HalamanDashboard, Konfig> = {
   'koor-ekstra': {
     judul: 'Dashboard Koordinator Ekstra',
     // Pertanyaan jabatan — tampil sebagai judul halaman.
-    tanya: 'Tugas apa yang perlu saya selesaikan pekan ini?',
+    tanya: 'Permintaan ekstra mana yang menunggu, dan halaqoh mana yang berjalan hari ini?',
     rapat: () => ['kumik'],
     rapatJudul: 'Rapat Kumik',
     samping: ['rapat'],
     baris: [],
-    pintasan: ['tugasBaru', 'papanTugas', 'rapatBaru', 'postBeranda'],
+    pintasan: ['ekstraHalaqoh', 'ekstraGuru', 'ekstraJenis', 'ekstraLaporan'],
   },
   humas: {
     judul: 'Dashboard Humas',
@@ -207,16 +208,22 @@ const PINTASAN: Record<KunciPintasan, Pintasan & { boleh: (r: UserRole) => boole
   keuangan: { href: '/keuangan', label: 'Keuangan', ket: 'Anggaran & laporan', ikon: <Wallet className="h-4 w-4" />, boleh: canViewFinance },
   kpi: { href: '/kpi/analisis', label: 'Analisis KPI', ket: 'Kinerja guru bulan ini', ikon: <Gauge className="h-4 w-4" />, boleh: canViewKpi },
   imporSiswa: { href: '/siswa/impor', label: 'Impor Siswa', ket: 'Dari berkas Excel', ikon: <Upload className="h-4 w-4" />, boleh: r => getManageableJenjang(r).length > 0 },
+  ekstraHalaqoh: { href: '/ekstra/halaqoh', label: 'Halaqoh Ekstra', ket: 'Papan sepekan & buat baru', ikon: <Plus className="h-4 w-4" />, boleh: canManageEkstra },
+  ekstraGuru: { href: '/ekstra/guru', label: 'Guru Ekstra', ket: 'Dari unit mana pun', ikon: <Users className="h-4 w-4" />, boleh: canManageEkstra },
+  ekstraJenis: { href: '/ekstra/atur', label: 'Jenis & Biaya', ket: 'Jenis ekstra & kafalah', ikon: <LayoutTemplate className="h-4 w-4" />, boleh: canManageEkstra },
+  ekstraLaporan: { href: '/ekstra/laporan', label: 'Laporan Ekstra', ket: 'Presensi & setoran', ikon: <FileText className="h-4 w-4" />, boleh: canManageEkstra },
   imporHalaqoh: { href: '/halaqoh/impor', label: 'Impor Pembagian', ket: 'Pembagian kelompok', ikon: <Upload className="h-4 w-4" />, boleh: r => getManageableJenjang(r).length > 0 },
 }
 
 const SARING_PRIBADI: SaringTugas[] = ['semua', 'terlambat', 'pekan', 'mendesak', 'kendala']
 const SARING_TIM: SaringTugas[] = ['semua', 'terlambat', 'mendesak', 'kendala', 'review']
 
-export async function DashboardPengurus({ halaman, session, searchParams }: {
+export async function DashboardPengurus({ halaman, session, searchParams, atas }: {
   halaman: HalamanDashboard
   session: SessionData
   searchParams: { tugas?: string; unit?: string }
+  /** Ringkasan khusus jabatan (mis. Koordinator Ekstra) — tampil di bawah judul, sebelum pintasan. */
+  atas?: React.ReactNode
 }) {
   const k = KONFIG[halaman]
   const role = session.role
@@ -353,6 +360,8 @@ export async function DashboardPengurus({ halaman, session, searchParams }: {
             {jawaban.map((j, i) => <Fragment key={i}>{i > 0 && ' '}{j}</Fragment>)}
           </p>
         )}
+
+        {atas}
 
         {/* Pintasan jabatan ini — tombol di bawah judul, bukan panel di dasar halaman. */}
         <PintasanBaris items={pintasan} />

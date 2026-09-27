@@ -32,7 +32,15 @@ export interface AnalitikEkstra {
     /** Σ biaya jenis per peserta aktif yang satuannya per bulan. */
     pemasukanBulanan: number
     pesertaTanpaBiayaBulanan: number
+    setoranTahsin: number
+    setoranTahfidz: number
+    /** Peserta yang berhenti pada bulan terpilih. */
+    berhentiBulanIni: number
+    /** Jadwal halaqoh berpeserta yang sudah lewat bulan ini tetapi belum ada presensinya. */
+    tanpaPresensi: number
   }
+  /** Estimasi pemasukan per jenis (tarif bulanan × peserta; keluarga per halaqoh). */
+  pemasukanPerJenis: { nama: string; jumlah: number; rumus: string }[]
   tren: { bulan: string; label: string; masuk: number; mulai: number; berhenti: number }[]
   perJenis: { nama: string; peserta: number; halaqoh: number; kuota: number }[]
   perGuru: { nama: string; peserta: number; halaqoh: number }[]
@@ -76,7 +84,8 @@ export async function getAnalitikEkstra(bulan: string): Promise<AnalitikEkstra> 
   ])
   const kosong: AnalitikEkstra = {
     bulan, tabelAda: false,
-    kpi: { pesertaAktif: 0, pesertaLhi: 0, pesertaNon: 0, halaqoh: 0, guru: 0, permintaanBulanIni: 0, menunggu: 0, diterima: 0, diputus: 0, tanggapHari: null, hadir: 0, catatanHadir: 0, setoran: 0, pemasukanBulanan: 0, pesertaTanpaBiayaBulanan: 0 },
+    kpi: { pesertaAktif: 0, pesertaLhi: 0, pesertaNon: 0, halaqoh: 0, guru: 0, permintaanBulanIni: 0, menunggu: 0, diterima: 0, diputus: 0, tanggapHari: null, hadir: 0, catatanHadir: 0, setoran: 0, pemasukanBulanan: 0, pesertaTanpaBiayaBulanan: 0, setoranTahsin: 0, setoranTahfidz: 0, berhentiBulanIni: 0, tanpaPresensi: 0 },
+    pemasukanPerJenis: [],
     tren: [], perJenis: [], perGuru: [], permintaanHari: [], permintaanBagian: [], keterisian: [], menungguLama: [], idSiswaLhi: [], nonLhi: [],
   }
   if (!data.tabelAda) return kosong
@@ -90,10 +99,10 @@ export async function getAnalitikEkstra(bulan: string): Promise<AnalitikEkstra> 
   const jenisById = new Map(data.jenis.map(j => [j.id, j]))
 
   const [hadirRes, setoran] = await Promise.all([
-    supabase.from('ekstra_hadir').select('booking_id, status').gte('tanggal', dari).lte('tanggal', sampai),
+    supabase.from('ekstra_hadir').select('booking_id, status, tanggal').gte('tanggal', dari).lte('tanggal', sampai),
     getSetoranEkstra(data.slot.map(s => s.id), dari, sampai),
   ])
-  const hadir = (hadirRes.data ?? []) as { booking_id: string; status: StatusHadirEkstra }[]
+  const hadir = (hadirRes.data ?? []) as { booking_id: string; status: StatusHadirEkstra; tanggal: string }[]
   const slotById = new Map(data.slot.map(s => [s.id, s]))
 
   // Keputusan 90 hari terakhir: diterima = pernah jadi peserta (aktif/berhenti).
@@ -108,12 +117,39 @@ export async function getAnalitikEkstra(bulan: string): Promise<AnalitikEkstra> 
   // (= per halaqoh) — Privat Keluarga Rp 1,1 juta untuk 1–4 orang, bukan per orang.
   let pemasukan = 0, tanpaBulanan = 0
   const keluargaTerhitung = new Set<string>()
+  const perJenisUang = new Map<string, { jumlah: number; n: number }>()
+  const tambahUang = (jid: string, v: number) => { const x = perJenisUang.get(jid) ?? { jumlah: 0, n: 0 }; x.jumlah += v; x.n++; perJenisUang.set(jid, x) }
   for (const b of aktif) {
     const j = jenisById.get(b.jenis_id)
     if (!j || !/bulan/i.test(j.satuan_biaya)) { tanpaBulanan++; continue }
     if (/keluarga/i.test(j.nama)) {
-      if (b.slot_id && !keluargaTerhitung.has(b.slot_id)) { keluargaTerhitung.add(b.slot_id); pemasukan += j.biaya }
-    } else pemasukan += j.biaya
+      if (b.slot_id && !keluargaTerhitung.has(b.slot_id)) { keluargaTerhitung.add(b.slot_id); pemasukan += j.biaya; tambahUang(j.id, j.biaya) }
+    } else { pemasukan += j.biaya; tambahUang(j.id, j.biaya) }
+  }
+  const rb = (n: number) => n >= 1_000_000 ? `Rp ${(n / 1_000_000).toLocaleString('id-ID', { maximumFractionDigits: 1 })} jt` : `Rp ${Math.round(n / 1000).toLocaleString('id-ID')} rb`
+  const pemasukanPerJenis = [...perJenisUang.entries()].map(([jid, x]) => {
+    const j = jenisById.get(jid)!
+    return { nama: j.nama, jumlah: x.jumlah, rumus: `${x.n} ${/keluarga/i.test(j.nama) ? 'keluarga' : 'peserta'} × ${rb(j.biaya)}` }
+  }).sort((a, b) => b.jumlah - a.jumlah)
+
+  // Jadwal yang sudah lewat bulan ini tanpa satu pun presensi, per halaqoh berpeserta.
+  const hariIniStr = new Date(Date.now() + 7 * 3600_000).toISOString().slice(0, 10)
+  // Hari ini belum dihitung — pertemuannya mungkin belum selesai.
+  const kemarin = new Date(new Date(`${hariIniStr}T00:00:00Z`).getTime() - 864e5).toISOString().slice(0, 10)
+  const batasAkhir = sampai < hariIniStr ? sampai : kemarin
+  const bookingSlot = new Map(booking.map(b => [b.id, b.slot_id]))
+  const tercatat = new Set(hadir.map(h => `${bookingSlot.get(h.booking_id)}|${h.tanggal}`))
+  let tanpaPresensi = 0
+  for (const s of halaqoh) {
+    const anggota = aktif.filter(b => b.slot_id === s.id)
+    if (anggota.length === 0) continue
+    const mulaiPaling = anggota.map(b => b.mulai ?? dari).sort()[0]
+    for (let d = new Date(`${dari}T00:00:00Z`); d.toISOString().slice(0, 10) <= batasAkhir; d = new Date(d.getTime() + 864e5)) {
+      const t = d.toISOString().slice(0, 10)
+      if (t < mulaiPaling) continue
+      if (((d.getUTCDay() + 6) % 7) + 1 !== s.hari) continue
+      if (!tercatat.has(`${s.id}|${t}`)) tanpaPresensi++
+    }
   }
 
   const tren = Array.from({ length: 6 }, (_, i) => geserBulan(bulan, i - 5)).map(p => ({
@@ -165,7 +201,12 @@ export async function getAnalitikEkstra(bulan: string): Promise<AnalitikEkstra> 
       setoran: setoran.length,
       pemasukanBulanan: pemasukan,
       pesertaTanpaBiayaBulanan: tanpaBulanan,
+      setoranTahsin: setoran.filter(x => x.jenis === 'tahsin').length,
+      setoranTahfidz: setoran.filter(x => x.jenis === 'tahfidz').length,
+      berhentiBulanIni: booking.filter(b => b.berhenti?.slice(0, 7) === bulan).length,
+      tanpaPresensi,
     },
+    pemasukanPerJenis,
     tren,
     perJenis,
     perGuru: [...guruMap.values()].sort((a, b) => b.peserta - a.peserta || a.nama.localeCompare(b.nama)),

@@ -398,6 +398,10 @@ export interface PesertaHalaqohEkstra extends BookingEkstra {
   pertemuan: number
   /** Jumlah setoran ekstra bulan berjalan (tahsin + tahfidz). */
   setoran: number
+  /** Presensi bulan berjalan per pertemuan, urut tanggal. */
+  riwayat: { tanggal: string; status: StatusHadirEkstra }[]
+  /** Setoran ekstra terakhir bulan berjalan di halaqoh ini. */
+  setoranTerakhir: { tanggal: string; ringkas: string } | null
 }
 
 export interface DetailHalaqohEkstra {
@@ -405,6 +409,8 @@ export interface DetailHalaqohEkstra {
   peserta: PesertaHalaqohEkstra[]
   /** Pernah ikut lalu berhenti — tetap ditampilkan terpisah sebagai riwayat. */
   berhenti: BookingEkstra[]
+  /** Pertemuan bulan berjalan yang sudah dipresensi: hadir / tercatat. */
+  pertemuan: { tanggal: string; hadir: number; total: number }[]
 }
 
 /** Satu halaqoh ekstra beserta pesertanya, kehadiran & setoran bulan ini. */
@@ -430,16 +436,25 @@ export async function getHalaqohEkstra(id: string): Promise<DetailHalaqohEkstra 
   const namaSiswa = new Map(((siswa.data ?? []) as { id: string; full_name: string }[]).map(s => [s.id, s.full_name]))
 
   const peserta: PesertaHalaqohEkstra[] = aktif.map(x => {
-    const h = hadir.filter(r => r.booking_id === x.id)
+    const h = hadir.filter(r => r.booking_id === x.id).sort((a, b) => a.tanggal.localeCompare(b.tanggal))
+    const st = x.student_id ? setoran.filter(s => s.student_id === x.student_id) : []
+    const akhir = st[st.length - 1]
     return {
       ...x,
       nama_siswa: x.student_id ? namaSiswa.get(x.student_id) ?? null : null,
       hadir: h.filter(r => r.status === 'hadir').length,
       pertemuan: h.length,
-      setoran: x.student_id ? setoran.filter(s => s.student_id === x.student_id).length : 0,
+      setoran: st.length,
+      riwayat: h.map(r => ({ tanggal: r.tanggal, status: r.status })),
+      setoranTerakhir: akhir ? { tanggal: akhir.tanggal, ringkas: akhir.ringkas } : null,
     }
   })
-  return { slot, peserta, berhenti: semua.filter(x => x.status === 'berhenti') }
+  const tanggal = [...new Set(hadir.map(r => r.tanggal))].sort()
+  const pertemuan = tanggal.map(t => {
+    const r = hadir.filter(x => x.tanggal === t)
+    return { tanggal: t, hadir: r.filter(x => x.status === 'hadir').length, total: r.length }
+  })
+  return { slot, peserta, berhenti: semua.filter(x => x.status === 'berhenti'), pertemuan }
 }
 
 // ─── Guru ekstra (0095): guru yang bersedia mengampu ekstra ─────────────────
@@ -481,4 +496,9 @@ export function bolehGuruEkstra(ids: Set<string> | null, teacherId: string): boo
 /** Tanggal hari ini (WIB) 'YYYY-MM-DD' — di luar komponen agar render tetap murni. */
 export function hariIniWIB(): string {
   return new Date(Date.now() + 7 * 3600_000).toISOString().slice(0, 10)
+}
+
+/** Saat ini digeser ke WIB (baca dengan getUTC*) — di luar komponen agar render tetap murni. */
+export function kiniWIB(): Date {
+  return new Date(Date.now() + 7 * 3600_000)
 }

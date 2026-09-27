@@ -59,22 +59,22 @@ interface Props {
   namaSiswaTertaut?: string
 }
 
-const HARI = ['', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Ahad']
-const MULAI: Record<string, string> = { pagi: '06:30', siang: '12:30', sore: '15:30', malam: '19:00' }
+export const HARI = ['', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Ahad']
+export const MULAI: Record<string, string> = { pagi: '06:30', siang: '12:30', sore: '15:30', malam: '19:00' }
 
-function tambahMenit(jam: string, menit: number): string {
+export function tambahMenit(jam: string, menit: number): string {
   const [h, m] = jam.split(':').map(Number)
   const t = Math.min(h * 60 + m + menit, 23 * 60 + 59)
   return `${String(Math.floor(t / 60)).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`
 }
 
 /** Tujuan yang dipilih + teks ringkas untuk pesan WhatsApp. */
-interface Pilihan { tujuan: TujuanHalaqoh; guru: string; jadwal: string; tempat: string }
+export interface Pilihan { tujuan: TujuanHalaqoh; guru: string; jadwal: string; tempat: string }
 
-function teksWa(jenis: 'terima' | 'tawar' | 'tolak', b: BookingTampil, p: Pilihan | null, catatan = '') {
+export function teksWa(jenis: 'terima' | 'tawar' | 'tolak', b: BookingTampil, p: Pilihan | null, catatan = '') {
   // "ananda" hanya untuk siswa LHI; non siswa bisa jadi wali murid/dewasa yang mendaftar untuk dirinya.
   const peserta = b.asal === 'lhi' ? `ananda ${b.nama_anak}` : b.nama_anak
-  const salam = `Assalamu'alaikum Bapak/Ibu ${b.nama_ortu}.`
+  const salam = `Assalamu'alaikum Ayah/Bunda ${b.nama_ortu}.`
   const penutup = "\n\nJazakumullahu khairan.\n— Koordinator Ekstra Rumah Qur'an LHI"
   const rinci = p ? `\n• ${b.jenis.nama}\n• Bersama ${p.guru}\n• ${p.jadwal}${p.tempat ? `\n• Tempat: ${p.tempat}` : ''}\n• Biaya: ${b.jenis.biaya}` : ''
   if (jenis === 'terima') {
@@ -83,22 +83,22 @@ function teksWa(jenis: 'terima' | 'tawar' | 'tolak', b: BookingTampil, p: Piliha
   if (jenis === 'tawar') {
     const nama = b.guruPilihan.map(g => g.nama)
     const daftar = nama.length > 1 ? `${nama.slice(0, -1).join(', ')} dan ${nama[nama.length - 1]}` : nama[0]
-    const alasan = nama.length ? `${daftar} belum bisa pada waktu yang Bapak/Ibu pilih` : 'waktu yang Bapak/Ibu pilih belum tersedia'
+    const alasan = nama.length ? `${daftar} belum bisa pada waktu yang Ayah/Bunda pilih` : 'waktu yang Ayah/Bunda pilih belum tersedia'
     return `${salam}\n\nTerima kasih atas permintaan ekstra untuk ${peserta}. Mohon maaf, ${alasan}. Kami menawarkan:${rinci}\n\nMohon balas pesan ini bila bersedia.${catatan ? `\n\n${catatan}` : ''}${penutup}`
   }
   return `${salam}\n\nMohon maaf, permintaan ekstra untuk ${peserta} belum dapat kami penuhi saat ini.${catatan ? `\n\n${catatan}` : ''}${penutup}`
 }
 
-type CaraPilih = 'ada' | 'baru'
-interface IsianBaru { teacher_id: string; hari: number; jam_mulai: string; jam_selesai: string; tempat: string; kuota: string }
+export type CaraPilih = 'ada' | 'baru'
+export interface IsianBaru { teacher_id: string; hari: number; jam_mulai: string; jam_selesai: string; tempat: string; kuota: string }
 
 /** Halaqoh guru pilihan lebih dulu (urut sesuai pilihan ortu), lalu yang kursinya paling banyak. */
-function urutHalaqoh(halaqohCocok: InfoHalaqoh[], pilihan: string[]): InfoHalaqoh[] {
+export function urutHalaqoh(halaqohCocok: InfoHalaqoh[], pilihan: string[]): InfoHalaqoh[] {
   const peringkat = (id: string) => { const i = pilihan.indexOf(id); return i < 0 ? pilihan.length : i }
   return [...halaqohCocok].sort((x, y) => peringkat(x.teacherId) - peringkat(y.teacherId) || y.sisa - x.sisa)
 }
 
-function kePilihan(cara: CaraPilih, slotId: string, n: IsianBaru, urut: InfoHalaqoh[], guru: { id: string; nama: string }[]): Pilihan | null {
+export function kePilihan(cara: CaraPilih, slotId: string, n: IsianBaru, urut: InfoHalaqoh[], guru: { id: string; nama: string }[]): Pilihan | null {
   if (cara === 'ada') {
     const h = urut.find(x => x.id === slotId)
     return h ? { tujuan: { slotId: h.id }, guru: h.guru, jadwal: h.label, tempat: h.tempat } : null
@@ -115,7 +115,7 @@ function kePilihan(cara: CaraPilih, slotId: string, n: IsianBaru, urut: InfoHala
  * ortu lebih dulu), atau halaqoh baru yang terisi dari preferensi orang tua.
  * Saat MENAWARKAN guru lain, guru pilihan tidak diisikan — justru dia yang tidak bisa.
  */
-function awalPilihan(b: BookingTampil, halaqohCocok: InfoHalaqoh[], guru: { id: string; nama: string }[], tawar: boolean) {
+export function awalPilihan(b: BookingTampil, halaqohCocok: InfoHalaqoh[], guru: { id: string; nama: string }[], tawar: boolean) {
   const idPilihan = b.guruPilihan.map(g => g.id)
   const urut = urutHalaqoh(halaqohCocok, idPilihan)
   // Menawarkan = guru pilihan tidak bisa, jadi halaqoh mereka tidak diusulkan lebih dulu.
@@ -130,7 +130,7 @@ function awalPilihan(b: BookingTampil, halaqohCocok: InfoHalaqoh[], guru: { id: 
   return { urut, cara, slotId, baru, pilihan: kePilihan(cara, slotId, baru, urut, guru) }
 }
 
-const wa = (no: string, teks: string) => `https://wa.me/${no}?text=${encodeURIComponent(teks)}`
+export const wa = (no: string, teks: string) => `https://wa.me/${no}?text=${encodeURIComponent(teks)}`
 
 export function KartuBooking({ b, halaqohCocok, guru, calon, namaSiswaTertaut }: Props) {
   const [pending, mulai] = useTransition()

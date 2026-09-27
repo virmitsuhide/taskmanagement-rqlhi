@@ -22,7 +22,7 @@ function waPhone(phone: string | null): string | null {
 export function RaporShareButton({ studentName, waliName, waliPhone, monthLabel, summary, raporUrl }: Props) {
   const [copied, setCopied] = useState(false)
 
-  const greeting = waliName ? `Assalamu'alaikum Bapak/Ibu ${waliName},` : `Assalamu'alaikum Bapak/Ibu,`
+  const greeting = waliName ? `Assalamu'alaikum Ayah/Bunda ${waliName},` : `Assalamu'alaikum Ayah/Bunda,`
   const message =
     `${greeting}\n\n` +
     `Berikut rapor tahsin & tahfidz Ananda *${studentName}* bulan ${monthLabel} di RQ LHI. 🌙\n\n` +
