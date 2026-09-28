@@ -4,9 +4,8 @@ import type { Jenjang, PublicPost, PublicTarget } from '@/types'
 /**
  * Pengumuman yang ditujukan kepada seorang guru Qur'an.
  *
- * Sumbernya public_posts — menu "Pengumuman Guru Qur'an" di dashboard
- * pengurus. Sejak 2026-09-29 pengumuman TIDAK lagi tampil di beranda publik;
- * dashboard guru satu-satunya tempat membacanya. Pengumuman yang sudah ditulis Kepala RQ atau Humas
+ * Sumbernya public_posts — papan yang sama yang tampil di beranda publik,
+ * bukan saluran baru. Pengumuman yang sudah ditulis Kepala RQ atau Humas
  * dengan sendirinya sampai ke portal guru; kalau dibuatkan tabel sendiri,
  * setiap pengumuman harus ditulis dua kali dan cepat atau lambat yang satu
  * akan tertinggal dari yang lain.

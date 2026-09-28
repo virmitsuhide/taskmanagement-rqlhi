@@ -17,7 +17,7 @@ import { labelTanggalPost } from '@/lib/home/post-tanggal'
 import type { PublicPost, PublicPostType, PublicTarget } from '@/types'
 
 const CONTENT_PLACEHOLDER =
-  'Isi pengumuman atau tugas yang akan tampil di dashboard guru...\n\nGunakan **tebal**, *miring*, ~~coret~~, daftar, dan emoji 😊'
+  'Isi pengumuman atau tugas yang akan tampil di beranda publik...\n\nGunakan **tebal**, *miring*, ~~coret~~, daftar, dan emoji 😊'
 
 /** Sasaran yang boleh dipilih per jenis post — dari canPostPengumuman/canPostTugasGuru. */
 export interface IzinPost {
@@ -62,7 +62,7 @@ export function PublicPostForm({ post, izin }: { post?: PublicPost; izin: IzinPo
       <Card className="gap-0 border py-0 shadow-sm ring-0">
         <CardHeader className="border-b bg-muted/40 py-3.5">
           <CardTitle>Jenis & Sasaran</CardTitle>
-          <CardDescription>Menentukan jenis post dan guru unit mana yang menerimanya.</CardDescription>
+          <CardDescription>Menentukan di bagian mana post ini muncul di beranda.</CardDescription>
         </CardHeader>
         <CardContent className="py-5">
           <div className="grid gap-3 sm:grid-cols-2">
@@ -99,7 +99,7 @@ export function PublicPostForm({ post, izin }: { post?: PublicPost; izin: IzinPo
         <CardHeader className="border-b bg-muted/40 py-3.5">
           <CardTitle>Isi Post</CardTitle>
           <CardDescription>
-            Judul yang tampil di dashboard guru; isi lengkapnya terbuka saat judul diklik.
+            Judul yang tampil di beranda; isi lengkapnya terbuka saat judul diklik.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4 py-5">
@@ -107,7 +107,7 @@ export function PublicPostForm({ post, izin }: { post?: PublicPost; izin: IzinPo
             <Label htmlFor="title">Judul</Label>
             <Input id="title" name="title" required defaultValue={post?.title} placeholder="Judul pengumuman atau tugas..." />
             <p className="text-xs text-muted-foreground">
-              Ini yang terbaca lebih dulu di dashboard guru — buat ringkas dan jelas.
+              Ini yang terbaca lebih dulu di beranda — buat ringkas dan jelas.
             </p>
           </div>
 
@@ -138,7 +138,7 @@ export function PublicPostForm({ post, izin }: { post?: PublicPost; izin: IzinPo
             {preview && (
               <div className="rounded-md border bg-muted/30 p-4">
                 <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                  Pratinjau tampilan
+                  Pratinjau tampilan publik
                 </p>
                 {content.trim() ? (
                   <Markdown content={content} className="text-sm" />
@@ -167,7 +167,7 @@ export function PublicPostForm({ post, izin }: { post?: PublicPost; izin: IzinPo
             memakai `peer-hover`, bukan `hover` pada kotak itu sendiri.
           */}
           <fieldset className="space-y-1.5">
-            <legend className="text-sm font-medium leading-none">Ikon Pengumuman</legend>
+            <legend className="text-sm font-medium leading-none">Ikon di Beranda</legend>
             <div className="grid grid-cols-2 gap-2 pt-1 sm:grid-cols-4">
               {POST_ICON_ORDER.map(value => {
                 const meta = POST_ICONS[value]
@@ -208,7 +208,7 @@ export function PublicPostForm({ post, izin }: { post?: PublicPost; izin: IzinPo
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground">
-                Menentukan penanda yang tampil di pengumuman dashboard guru.
+                Menentukan penanda yang tampil di papan pengumuman beranda.
               </p>
             </div>
 
@@ -217,8 +217,8 @@ export function PublicPostForm({ post, izin }: { post?: PublicPost; izin: IzinPo
               <Input id="due_date" name="due_date" type="date" defaultValue={post?.due_date ?? undefined} className="dark:[color-scheme:dark]" />
               <p className="text-xs text-muted-foreground">
                 {jenis === 'tugas_guru'
-                  ? 'Batas waktu tugas dikumpulkan — tercantum pada pengumumannya.'
-                  : 'Hari kegiatan berlangsung — tercantum pada pengumumannya.'}
+                  ? 'Batas waktu tugas dikumpulkan. Ikut tampil di kalender agenda beranda.'
+                  : 'Hari kegiatan berlangsung. Ikut tampil di kalender agenda beranda.'}
               </p>
             </div>
           </div>
@@ -229,7 +229,7 @@ export function PublicPostForm({ post, izin }: { post?: PublicPost; izin: IzinPo
       <Card className="gap-0 border py-0 shadow-sm ring-0">
         <CardHeader className="border-b bg-muted/40 py-3.5">
           <CardTitle>Gambar / Flyer <span className="font-normal text-muted-foreground">(opsional)</span></CardTitle>
-          <CardDescription>Tampil sebagai thumbnail di daftar pengumuman guru, dan utuh di halaman pengumumannya.</CardDescription>
+          <CardDescription>Tampil sebagai thumbnail di daftar pengumuman beranda, dan utuh di halaman pengumumannya.</CardDescription>
         </CardHeader>
         <CardContent className="py-5">
           <PilihGambar gambarLama={post?.image_url ?? null} />

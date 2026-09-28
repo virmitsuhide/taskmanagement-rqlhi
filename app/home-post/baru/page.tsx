@@ -29,7 +29,7 @@ export default async function BuatHomePostPage() {
           </Button>
           <h1 className="text-3xl mb-1">Buat Pengumuman</h1>
           <p className="text-sm text-muted-foreground mb-6">
-            Tampil di dashboard guru Qur&apos;an sesuai sasarannya — tidak tampil di beranda publik.
+            Tampil di beranda publik dan di dashboard guru Qur&apos;an sesuai sasarannya.
           </p>
           <PublicPostForm izin={{ pengumuman: canPostPengumuman(session.role), tugas_guru: canPostTugasGuru(session.role) }} />
         </div>

@@ -13,8 +13,7 @@ type FormState = { error?: string; success?: string } | null
 
 /** Penjelasan singkat tiap seksi + apakah punya batas jumlah item. */
 const SECTION_META: Record<HomeSectionKey, { hint: string; hasLimit: boolean }> = {
-  // Tidak lagi tampil di beranda (2026-09-29) — kini menu Pengumuman Guru Qur'an.
-  pengumuman:  { hint: 'Tidak dipakai — pengumuman kini khusus dashboard guru', hasLimit: false },
+  pengumuman:  { hint: 'Pengumuman & tugas guru di kolom kiri',           hasLimit: true  },
   agenda:      { hint: 'Kalender satu bulan penuh di kolom kanan',        hasLimit: false },
   news:        { hint: 'Carousel berita & artikel dari halaman Berita',   hasLimit: true  },
   program:     { hint: 'Kartu ringkas program RQ',                        hasLimit: true  },

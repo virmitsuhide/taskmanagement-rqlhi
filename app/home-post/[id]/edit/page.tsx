@@ -37,7 +37,7 @@ export default async function EditHomePostPage({ params }: { params: Promise<{ i
           </Button>
           <h1 className="text-3xl mb-1">Sunting Post</h1>
           <p className="text-sm text-muted-foreground mb-6">
-            Perubahan langsung tampil di dashboard guru setelah disimpan.
+            Perubahan langsung tampil di beranda publik dan dashboard guru setelah disimpan.
           </p>
           <PublicPostForm post={post} izin={{ pengumuman: canPostPengumuman(session.role), tugas_guru: canPostTugasGuru(session.role) }} />
         </div>

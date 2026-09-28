@@ -10,9 +10,9 @@ import type { PublicPost } from '@/types'
 /**
  * Pengumuman dibaca DI DALAM portal guru.
  *
- * Sejak 2026-09-29 inilah satu-satunya tempat membaca pengumuman: alamat
- * publiknya (/pengumuman/[id]) dialihkan ke sini, jadi tautan lama yang
- * sudah terlanjur dibagikan tetap sampai — setelah guru login.
+ * Alamat publiknya (/pengumuman/[id]) tetap ada dan tetap bisa dibagikan ke
+ * siapa pun. Yang berubah: tautan dari dashboard guru dan dari lonceng kini
+ * menuju ke sini.
  *
  * KENAPA PERLU HALAMAN SENDIRI
  *
