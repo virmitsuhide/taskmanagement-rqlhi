@@ -3,6 +3,7 @@ import { HafalanUjianBoard } from '@/components/dashboard/HafalanUjianBoard'
 import { DrillTahsinBoard } from '@/components/dashboard/DrillTahsinBoard'
 import { DrillTahfidzBoard } from '@/components/dashboard/DrillTahfidzBoard'
 import { Seksi, Kunci, type InfoSeksi } from './seksi'
+import { kunciProgram } from '@/lib/rq/programs'
 import type { Jenjang } from '@/types'
 
 /**
@@ -13,13 +14,16 @@ import type { Jenjang } from '@/types'
  * sudah tampil sebagai 10 Besar di seksi Ringkasan, dan sumbernya (setoran
  * atau ujian, yang terjauh) mencakup angka ujian ini.
  */
-export async function SeksiUjianDrill({ info, jenjang, fokus }: {
+export async function SeksiUjianDrill({ info, jenjang, program = null, fokus }: {
   info: InfoSeksi
   jenjang: Jenjang | null
+  /** Penyempitan program (koor QULS SD). */
+  program?: readonly string[] | null
   fokus: 'semua' | 'tahsin' | 'tahfidz'
 }) {
   const [semuaUjian, semuaDrill, drillTahfidz] = await Promise.all([
-    ujianSemua(), drillTahsinSemua(), drillTahfidzUnit(jenjang ?? 'semua'),
+    ujianSemua(kunciProgram(program)), drillTahsinSemua(kunciProgram(program)),
+    drillTahfidzUnit(jenjang ?? 'semua', kunciProgram(program)),
   ])
   const ujian = semuaUjian.filter(u => !jenjang || u.jenjang === jenjang)
   const drill = semuaDrill.filter(u => !jenjang || u.jenjang === jenjang)

@@ -65,6 +65,25 @@ export function isQulsSdProgram(jenjang: Jenjang, program: string | null | undef
   return (QULS_SD_PROGRAMS as readonly string[]).includes(program)
 }
 
+/**
+ * Cocokkah program sebuah baris dengan penyempitan program analitik
+ * (getAnalyticsProgramScope)? `scope` null = tanpa penyempitan; program
+ * kosong tidak pernah cocok dengan penyempitan apa pun — alasannya sama
+ * dengan isQulsSdProgram.
+ */
+export function cocokProgram(scope: readonly string[] | null | undefined, program: string | null | undefined): boolean {
+  return !scope || (!!program && scope.includes(program))
+}
+
+/** Kunci string sebuah penyempitan program — untuk cache() yang membandingkan argumen dengan ===. */
+export function kunciProgram(scope: readonly string[] | null | undefined): string {
+  return scope ? [...scope].sort().join('|') : ''
+}
+
+export function dariKunciProgram(kunci: string): readonly string[] | null {
+  return kunci ? kunci.split('|') : null
+}
+
 export function getProgramsForJenjang(jenjang: Jenjang): ProgramOption[] {
   return PROGRAMS_BY_JENJANG[jenjang] ?? []
 }

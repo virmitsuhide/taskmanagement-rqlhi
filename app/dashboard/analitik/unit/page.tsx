@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { getSession } from '@/lib/auth/session'
 import {
-  canViewAnalytics, canViewUnitAnalytics, getAnalyticsJenjang, JENJANG_LABELS,
+  canViewAnalytics, canViewUnitAnalytics, getAnalyticsJenjang, getAnalyticsProgramScope, JENJANG_LABELS,
 } from '@/lib/auth/permissions'
 import { getDrillTahfidz, getSiswaDrill, getUnitLearning } from '@/lib/data/analytics'
 import { DrillTahsinBoard } from '@/components/dashboard/DrillTahsinBoard'
@@ -19,9 +19,11 @@ export default async function AnalitikUnitPage() {
   // Manajemen melihat semua unit; koor SD/SMP hanya unitnya sendiri.
   const allowedJenjang = getAnalyticsJenjang(session.role)
   const isFullAccess = canViewAnalytics(session.role)
+  // Koor QULS SD: unitnya SD, isinya hanya program QULS.
+  const program = getAnalyticsProgramScope(session.role)
 
   const [allUnits, drillSemua, drillTahfidz] = await Promise.all([
-    getUnitLearning(), getSiswaDrill(), getDrillTahfidz(allowedJenjang),
+    getUnitLearning(program), getSiswaDrill(program), getDrillTahfidz(allowedJenjang, program),
   ])
   const units = allUnits.filter(u => allowedJenjang.includes(u.jenjang))
   // Koordinator unit perlu tahu siapa yang tertahan drill di unitnya sendiri.
@@ -29,7 +31,7 @@ export default async function AnalitikUnitPage() {
 
   const scopeLabel = isFullAccess
     ? 'Capaian Qur’ani per Unit'
-    : `Unit ${allowedJenjang.map(j => JENJANG_LABELS[j]).join(' · ')}`
+    : program ? 'QULS SD' : `Unit ${allowedJenjang.map(j => JENJANG_LABELS[j]).join(' · ')}`
 
   return (
     <div>

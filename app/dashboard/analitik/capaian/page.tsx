@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { getSession } from '@/lib/auth/session'
-import { canViewAnalytics, canViewUnitAnalytics, getAnalyticsJenjang } from '@/lib/auth/permissions'
+import { canViewAnalytics, canViewUnitAnalytics, getAnalyticsJenjang, getAnalyticsProgramScope } from '@/lib/auth/permissions'
 import { getCapaianKelas, BELUM_TERCATAT, type CapaianKelompok, type MatriksCapaian } from '@/lib/data/capaian-kelas'
 import { UNIT_LABELS } from '@/lib/rq/programs'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
@@ -32,7 +32,11 @@ export default async function CapaianKelasPage({ searchParams }: PageProps) {
   if (!canViewUnitAnalytics(session.role)) redirect('/dashboard')
 
   const sp = await searchParams
-  const data = await getCapaianKelas(getAnalyticsJenjang(session.role))
+  const semua = await getCapaianKelas(getAnalyticsJenjang(session.role))
+  // Koor QULS SD: matriksnya sudah dipisah per jalur, cukup jalur QULS.
+  const data = getAnalyticsProgramScope(session.role)
+    ? { ...semua, kelompok: semua.kelompok.filter(k => k.jalur === 'quls') }
+    : semua
 
   const unitAda = [...new Set(data.kelompok.map(k => k.jenjang))]
   const unit: Jenjang | undefined = unitAda.includes(sp.unit as Jenjang) ? (sp.unit as Jenjang) : unitAda[0]

@@ -2,8 +2,10 @@ import { Suspense } from 'react'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { getSession } from '@/lib/auth/session'
-import { canViewAnalytics, canViewGukarRecap, canViewUnitAnalytics, getAnalyticsJenjang, isKoorUnit } from '@/lib/auth/permissions'
-import { UNIT_LABELS, UNIT_ORDER } from '@/lib/rq/programs'
+import {
+  canViewAnalytics, canViewGukarRecap, canViewUnitAnalytics, getAnalyticsJenjang, getAnalyticsProgramScope, isKoorAnalitik,
+} from '@/lib/auth/permissions'
+import { UNIT_LABELS, UNIT_ORDER, kunciProgram } from '@/lib/rq/programs'
 import {
   getRqAnalytics, getUnitHafalanBoards, getSetoranTrend, getHafalanUjianPerUnit, getSiswaDrill,
   type HafalanBoard,
@@ -89,13 +91,16 @@ export default async function AnalitikPage({ searchParams }: PageProps) {
   const fokus: Fokus = sp.fokus === 'tahsin' || sp.fokus === 'tahfidz' ? sp.fokus : 'semua'
   const bulanDiminta = /^\d{4}-\d{2}$/.test(sp.bulan ?? '') ? sp.bulan! : null
   const lihatGukar = canViewGukarRecap(session.role)
+  // Koor QULS SD: halaman yang sama dengan koor SD, isinya hanya anak QULS.
+  const program = getAnalyticsProgramScope(session.role)
+  const kunci = kunciProgram(program)
 
   const [a, semuaBoards, trend, semuaUjian, semuaDrill] = await Promise.all([
-    getRqAnalytics({ bulan: bulanDiminta, jenjang }),
-    getUnitHafalanBoards(),
-    getSetoranTrend(12, jenjang),
-    ujianSemua(),
-    drillTahsinSemua(),
+    getRqAnalytics({ bulan: bulanDiminta, jenjang, program }),
+    getUnitHafalanBoards(program),
+    getSetoranTrend(12, jenjang, program),
+    ujianSemua(kunci),
+    drillTahsinSemua(kunci),
   ])
 
   // Bulan dibatasi ke jendela tren 12 bulan — di luar itu tidak ada titik
@@ -114,7 +119,7 @@ export default async function AnalitikPage({ searchParams }: PageProps) {
   const boards = jenjang ? semuaBoards.filter(b => b.jenjang === jenjang) : semuaBoards
   const target = ringkasTarget(boards)
   const aktif = a.overview.activeStudents
-  const cakupan = jenjang ? UNIT_LABELS[jenjang] : 'Seluruh RQ'
+  const cakupan = program && jenjang === 'sd' ? 'QULS SD' : jenjang ? UNIT_LABELS[jenjang] : 'Seluruh RQ'
   const tampilTahsin = fokus !== 'tahfidz'
   const tampilTahfidz = fokus !== 'tahsin'
 
@@ -243,7 +248,7 @@ export default async function AnalitikPage({ searchParams }: PageProps) {
               <SetoranTrendChart trend={trend} highlightKey={a.monthKey} fokus={fokus} />
             </div>
             <Suspense fallback={<PanelMemuat className="lg:col-span-4" />}>
-              <PanelTindakLanjut className="lg:col-span-4" jenjang={jenjang} fokus={fokus} bulan={a.monthKey} />
+              <PanelTindakLanjut className="lg:col-span-4" jenjang={jenjang} program={program} fokus={fokus} bulan={a.monthKey} />
             </Suspense>
           </div>
 
@@ -322,23 +327,23 @@ export default async function AnalitikPage({ searchParams }: PageProps) {
         </Seksi>
 
         <Suspense fallback={<SeksiMemuat info={S.capaian} judul="Capaian per Kelas" />}>
-          <SeksiCapaian info={S.capaian} jenjang={jenjang} fokus={fokus} bulan={a.monthKey}
+          <SeksiCapaian info={S.capaian} jenjang={jenjang} program={program} fokus={fokus} bulan={a.monthKey}
             unitCapaian={sp.cunit} hrefUnit={u => href({ cunit: u })}
-            tanpaTargetAngkatan={isKoorUnit(session.role)} />
+            tanpaTargetAngkatan={isKoorAnalitik(session.role)} />
         </Suspense>
 
         {tampilTahfidz && (
           <Suspense fallback={<SeksiMemuat info={S.target} judul="Target Tahfidz" />}>
-            <SeksiTarget info={S.target} jenjang={jenjang} />
+            <SeksiTarget info={S.target} jenjang={jenjang} program={program} />
           </Suspense>
         )}
 
         <Suspense fallback={<SeksiMemuat info={S.ujian} judul="Ujian & Drill" />}>
-          <SeksiUjianDrill info={S.ujian} jenjang={jenjang} fokus={fokus} />
+          <SeksiUjianDrill info={S.ujian} jenjang={jenjang} program={program} fokus={fokus} />
         </Suspense>
 
         <Suspense fallback={<SeksiMemuat info={S.kelengkapan} judul="Kelengkapan Pengisian" />}>
-          <SeksiKelengkapan info={S.kelengkapan} jenjang={jenjang} bulan={a.monthKey} />
+          <SeksiKelengkapan info={S.kelengkapan} jenjang={jenjang} program={program} bulan={a.monthKey} />
         </Suspense>
 
         {/* Pembinaan guru & karyawan punya halaman sendiri: pesertanya

@@ -3,9 +3,10 @@ import Link from 'next/link'
 import { AlertTriangle, Target, UserCheck, Users } from 'lucide-react'
 import { getSession } from '@/lib/auth/session'
 import {
-  canEditKalenderTahfidz, canTandaiAsalSdLhi, canViewUnitAnalytics, getAnalyticsJenjang,
+  canEditKalenderTahfidz, canTandaiAsalSdLhi, canViewUnitAnalytics, getAnalyticsJenjang, getAnalyticsProgramScope,
 } from '@/lib/auth/permissions'
-import { getTabelTargetBulanan, getTargetTahfidz, type RingkasStatus, type SiswaTarget, type StatusSiswa } from '@/lib/data/target-tahfidz'
+import { cocokProgram } from '@/lib/rq/programs'
+import { getTabelTargetBulanan, getTargetTahfidz, saringTargetTahfidz, type RingkasStatus, type SiswaTarget, type StatusSiswa } from '@/lib/data/target-tahfidz'
 import { LABEL_ALASAN, LABEL_MELAMPAUI, RENCANA, TOLERANSI_PEKAN, URUTAN_RENCANA, type AlasanTanpaTarget, type KodeRencana } from '@/lib/rq/target-tahfidz'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { KalenderPekanForm } from '@/components/dashboard/target-tahfidz/KalenderPekanForm'
@@ -42,10 +43,14 @@ export default async function TargetTahfidzPage({ searchParams }: PageProps) {
 
   const scope = getAnalyticsJenjang(session.role)
   const params = await searchParams
-  const rencanaBoleh = URUTAN_RENCANA.filter(k => UNIT_RENCANA[k].some(j => scope.includes(j)))
+  // Koor QULS SD: siswa SD berprogram QULS saja, ringkasan dihitung ulang.
+  const program = getAnalyticsProgramScope(session.role)
+  const mentah = await getTargetTahfidz(scope)
+  const data = program ? saringTargetTahfidz(mentah, s => cocokProgram(program, s.program)) : mentah
+  const rencanaBoleh = URUTAN_RENCANA.filter(k => UNIT_RENCANA[k].some(j => scope.includes(j))
+    && (!program || data.perRencana.some(r => r.kode === k)))
   const kode = rencanaBoleh.find(k => k === params.rencana) ?? rencanaBoleh[0]
 
-  const data = await getTargetTahfidz(scope)
   if (!kode) {
     return (
       <div>

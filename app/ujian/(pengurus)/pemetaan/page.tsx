@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 
 import { getSession } from '@/lib/auth/session'
-import { canViewUjian, getUjianUnits } from '@/lib/auth/permissions'
+import { canViewUjian, getUjianUnits, ujianHanyaQuls } from '@/lib/auth/permissions'
 import { createServerClient } from '@/lib/supabase/server'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { UjianSubNav } from '@/components/ujian/UjianSubNav'
@@ -26,11 +26,12 @@ export default async function PemetaanUjianPage() {
 
   // Unit disaring supaya koor SD tidak memasangkan anak SMP dan sebaliknya —
   // syarat yang sama dengan seluruh modul ujian.
-  const { data } = await supabase
+  let kueri = supabase
     .from('ujian_tahfidz')
     .select('id, unit, tipe, juz, nama_siswa, kelas, jadwal, student_id, siswa:students(full_name)')
     .in('unit', units)
-    .order('created_at', { ascending: false })
+  if (ujianHanyaQuls(session.role)) kueri = kueri.eq('is_quls', true)
+  const { data } = await kueri.order('created_at', { ascending: false })
 
   const baris: BarisPemetaan[] = (data ?? []).map(r => {
     const siswa = r.siswa as unknown as { full_name: string } | null

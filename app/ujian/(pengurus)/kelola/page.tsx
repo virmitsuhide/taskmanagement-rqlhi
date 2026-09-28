@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/auth/session'
-import { canViewUjian, getUjianUnits, getUnitBebanPenguji } from '@/lib/auth/permissions'
+import { canViewUjian, getUjianUnits, getUnitBebanPenguji, ujianHanyaQuls } from '@/lib/auth/permissions'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { KelolaUjian } from '@/components/ujian/KelolaUjian'
 import { KalenderUjian } from '@/components/ujian/KalenderUjian'
@@ -27,6 +27,7 @@ export default async function KelolaUjianPage({ searchParams }: PageProps) {
   if (!canViewUjian(session.role)) redirect('/dashboard')
 
   const units = getUjianUnits(session.role)
+  const hanyaQuls = ujianHanyaQuls(session.role)
 
   // Bulan kalender dihitung dari WIB, bukan dari zona server: kalau server
   // berjalan pada UTC, tanggal 1 pukul 00.30 WIB masih terbaca bulan lalu.
@@ -39,10 +40,13 @@ export default async function KelolaUjianPage({ searchParams }: PageProps) {
   const [semua, pengujis, kalender] = await Promise.all([
     getPengajuanUjian(unitBeban),
     getPengujis(),
-    getKalenderUjian(units, tahun, bulan),
+    getKalenderUjian(units, tahun, bulan, hanyaQuls),
   ])
-  const tahfidz = semua.tahfidz.filter(u => units.includes(u.unit))
-  const tahsin = semua.tahsin.filter(u => units.includes(u.unit))
+  // Beban penguji membaca seluruh antrean; yang dikelola hanya bagian sendiri.
+  const milik = (u: { unit: typeof units[number]; is_quls?: boolean }) =>
+    units.includes(u.unit) && (!hanyaQuls || u.is_quls === true)
+  const tahfidz = semua.tahfidz.filter(milik)
+  const tahsin = semua.tahsin.filter(milik)
 
   const namaPengaju = await getNamaPengaju([...tahfidz, ...tahsin])
   const total = tahfidz.length + tahsin.length
@@ -66,7 +70,7 @@ export default async function KelolaUjianPage({ searchParams }: PageProps) {
             </p>
             <h1 className="mt-1 text-3xl leading-tight">Dari pengajuan guru sampai hasil ujian</h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              {units.join(' & ')} · {total} pengajuan · jadwalkan, tentukan penguji, lalu isi nilainya.
+              {hanyaQuls ? 'QULS SD' : units.join(' & ')} · {total} pengajuan · jadwalkan, tentukan penguji, lalu isi nilainya.
             </p>
           </div>
           <Button asChild size="sm">

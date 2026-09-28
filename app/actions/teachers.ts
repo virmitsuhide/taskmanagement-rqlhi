@@ -7,8 +7,9 @@ import { createServerClient } from '@/lib/supabase/server'
 import { getSession } from '@/lib/auth/session'
 import {
   canManageTeachers, canManageTeacherProfiles, KATEGORI_GURU_ORDER, KATEGORI_GURU_UNIT,
+  getUnitPenunjukPembinaGukar, unitPenunjukanGukar,
 } from '@/lib/auth/permissions'
-import type { KategoriGuru } from '@/types'
+import type { Jenjang, KategoriGuru } from '@/types'
 
 function generatePassword(): string {
   // Format: Guru@<3 huruf random><4 digit random>
@@ -244,6 +245,47 @@ export async function restoreTeacherAction(id: string) {
  * dan halaman Profil Guru publik. Semuanya perlu ikut disegarkan supaya guru
  * yang baru dihapus tidak tertinggal di salah satunya.
  */
+/**
+ * Menunjuk / mencabut seorang guru sebagai pembina gukar (0106).
+ *
+ * Hanya koor TPAIT & SMA, dan hanya untuk guru unitnya sendiri — unit itu
+ * dibaca dari baris guru di database, bukan dari kiriman form. Di unit lain
+ * hak mengampu ditentukan status + kategori Guru RQ, bukan penunjukan.
+ */
+export async function setPembinaGukarAction(id: string, pembina: boolean) {
+  const session = await getSession()
+  const unitKoor = session ? getUnitPenunjukPembinaGukar(session.role) : null
+  if (!session || !unitKoor) return { error: 'Anda tidak memiliki izin.' }
+  if (!id) return { error: 'Guru tidak ditemukan.' }
+
+  const supabase = createServerClient()
+  const { data: guru } = await supabase
+    .from('teachers')
+    .select('unit, kategori_guru')
+    .eq('id', id)
+    .is('deleted_at', null)
+    .maybeSingle()
+  if (!guru) return { error: 'Guru tidak ditemukan.' }
+  const unitGuru = unitPenunjukanGukar(guru as { unit: Jenjang | null; kategori_guru: KategoriGuru | null })
+  if (unitGuru !== unitKoor) return { error: 'Guru ini bukan guru unit Anda.' }
+
+  const { error } = await supabase
+    .from('teachers')
+    .update({ pembina_gukar: pembina, updated_at: new Date().toISOString() })
+    .eq('id', id)
+  if (error) {
+    return {
+      error: error.message.includes('pembina_gukar')
+        ? 'Penunjukan pembina belum aktif: jalankan drizzle/0106_pembina_gukar_PASTE_TO_SUPABASE.sql di Supabase.'
+        : 'Gagal menyimpan penunjukan.',
+    }
+  }
+
+  revalidateTeacherPaths(id)
+  revalidatePath('/guru/gukar')
+  return { success: true }
+}
+
 function revalidateTeacherPaths(id: string) {
   revalidatePath('/ustadz')
   revalidatePath(`/ustadz/${id}`)

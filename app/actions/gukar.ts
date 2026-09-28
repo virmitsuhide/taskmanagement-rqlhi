@@ -71,7 +71,7 @@ async function guardPengampu(groupId: string): Promise<Pengampu | { error: strin
     // Batas sesungguhnya ada di sini, bukan di halaman: menyembunyikan menu
     // tidak menghentikan pengiriman langsung ke server action.
     if (!(await bolehMengampuGukar(teacher.teacherId))) {
-      return { error: 'Pembinaan gukar hanya diampu guru Tetap Yayasan & Kontrak Yayasan.' }
+      return { error: 'Anda belum berhak mengampu pembinaan gukar — hubungi SDM atau koordinator unit Anda.' }
     }
     return { teacherId: teacher.teacherId, groupId, pengurus: false }
   }

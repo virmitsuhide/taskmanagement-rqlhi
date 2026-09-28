@@ -30,6 +30,15 @@ import type {
 const TAHFIDZ_COLS = '*'
 const TAHSIN_COLS = '*'
 
+/**
+ * Koor QULS SD berbagi antrean SD dengan koor SD, tapi hanya melihat baris
+ * anak QULS (ujianHanyaQuls di lib/auth/permissions.ts). Disaring di query
+ * dengan alasan yang sama seperti unit di atas.
+ */
+function saringQuls<Q>(q: Q, hanyaQuls: boolean): Q {
+  return hanyaQuls ? (q as unknown as { eq(c: string, v: boolean): Q }).eq('is_quls', true) : q
+}
+
 /** Awal bulan menurut WIB, sebagai batas bawah query (inklusif). */
 function awalBulanWIB(year: number, month: number): string {
   return `${year}-${String(month).padStart(2, '0')}-01T00:00:00+07:00`
@@ -89,6 +98,7 @@ export async function getRekapUjian(
   month: number,
   year: number,
   units?: UjianUnit[],
+  hanyaQuls = false,
 ): Promise<AntrianUjian> {
   if (units && units.length === 0) return { tahfidz: [], tahsin: [] }
 
@@ -117,7 +127,7 @@ export async function getRekapUjian(
       tsQuery.in('unit', units)
     }
 
-    const [tahfidz, tahsin] = await Promise.all([tfQuery, tsQuery])
+    const [tahfidz, tahsin] = await Promise.all([saringQuls(tfQuery, hanyaQuls), saringQuls(tsQuery, hanyaQuls)])
     return {
       tahfidz: (tahfidz.data ?? []) as UjianTahfidz[],
       tahsin: (tahsin.data ?? []) as UjianTahsin[],
@@ -130,21 +140,21 @@ export async function getRekapUjian(
 // ─── Kelola (pengurus) ───────────────────────────────────────────────────────
 
 /** Seluruh pengajuan pada unit yang boleh dikelola, terbaru dahulu. */
-export async function getPengajuanUjian(units: UjianUnit[]): Promise<AntrianUjian> {
+export async function getPengajuanUjian(units: UjianUnit[], hanyaQuls = false): Promise<AntrianUjian> {
   if (units.length === 0) return { tahfidz: [], tahsin: [] }
 
   try {
     const supabase = createServerClient()
     const [tahfidz, tahsin] = await Promise.all([
-      supabase
+      saringQuls(supabase
         .from('ujian_tahfidz')
         .select(TAHFIDZ_COLS)
-        .in('unit', units)
+        .in('unit', units), hanyaQuls)
         .order('created_at', { ascending: false }),
-      supabase
+      saringQuls(supabase
         .from('ujian_tahsin')
         .select(TAHSIN_COLS)
-        .in('unit', units)
+        .in('unit', units), hanyaQuls)
         .order('created_at', { ascending: false }),
     ])
     return {
@@ -350,10 +360,11 @@ export async function getCalonPenguji(): Promise<CalonPenguji[]> {
 async function hitungStatus(
   table: 'ujian_tahfidz' | 'ujian_tahsin',
   units: UjianUnit[],
+  hanyaQuls: boolean,
   status?: string,
 ): Promise<number> {
   const supabase = createServerClient()
-  const q = supabase.from(table).select('id', { count: 'exact', head: true }).in('unit', units)
+  const q = saringQuls(supabase.from(table).select('id', { count: 'exact', head: true }).in('unit', units), hanyaQuls)
   if (status) q.eq('status', status)
   const { count } = await q
   return count ?? 0
@@ -363,6 +374,7 @@ async function hitungStatus(
 export async function getUjianStats(
   jenis: 'tahfidz' | 'tahsin',
   units: UjianUnit[],
+  hanyaQuls = false,
 ): Promise<UjianStats> {
   const kosong: UjianStats = { diajukan: 0, dijadwalkan: 0, selesai: 0, total: 0 }
   if (units.length === 0) return kosong
@@ -370,10 +382,10 @@ export async function getUjianStats(
   try {
     const table = jenis === 'tahfidz' ? 'ujian_tahfidz' : 'ujian_tahsin'
     const [diajukan, dijadwalkan, selesai, total] = await Promise.all([
-      hitungStatus(table, units, 'diajukan'),
-      hitungStatus(table, units, 'dijadwalkan'),
-      hitungStatus(table, units, 'selesai'),
-      hitungStatus(table, units),
+      hitungStatus(table, units, hanyaQuls, 'diajukan'),
+      hitungStatus(table, units, hanyaQuls, 'dijadwalkan'),
+      hitungStatus(table, units, hanyaQuls, 'selesai'),
+      hitungStatus(table, units, hanyaQuls),
     ])
     return { diajukan, dijadwalkan, selesai, total }
   } catch {
@@ -396,6 +408,7 @@ export async function getKalenderUjian(
   units: UjianUnit[],
   year: number,
   month: number,
+  hanyaQuls = false,
 ): Promise<EventUjian[]> {
   if (units.length === 0) return []
 
@@ -405,20 +418,20 @@ export async function getKalenderUjian(
     const sampai = awalBulanBerikutnyaWIB(year, month)
 
     const [tahfidz, tahsin] = await Promise.all([
-      supabase
+      saringQuls(supabase
         .from('ujian_tahfidz')
         .select('jadwal, nama_siswa, unit')
         .eq('status', 'dijadwalkan')
         .in('unit', units)
         .gte('jadwal', dari)
-        .lt('jadwal', sampai),
-      supabase
+        .lt('jadwal', sampai), hanyaQuls),
+      saringQuls(supabase
         .from('ujian_tahsin')
         .select('jadwal, nama_kelompok, unit')
         .eq('status', 'dijadwalkan')
         .in('unit', units)
         .gte('jadwal', dari)
-        .lt('jadwal', sampai),
+        .lt('jadwal', sampai), hanyaQuls),
     ])
 
     const tf = (tahfidz.data ?? [])
@@ -453,7 +466,7 @@ export async function getKalenderUjian(
  * ratusan pada hari pertama tidak memberi tahu apa pun, dan penanda waktunya
  * baru mulai berjalan begitu halaman itu pertama kali dibuka.
  */
-export async function getUjianBaruCount(userId: string, units: UjianUnit[]): Promise<number> {
+export async function getUjianBaruCount(userId: string, units: UjianUnit[], hanyaQuls = false): Promise<number> {
   if (units.length === 0) return 0
 
   try {
@@ -468,16 +481,16 @@ export async function getUjianBaruCount(userId: string, units: UjianUnit[]): Pro
     if (!seenAt) return 0
 
     const [tahfidz, tahsin] = await Promise.all([
-      supabase
+      saringQuls(supabase
         .from('ujian_tahfidz')
         .select('id', { count: 'exact', head: true })
         .in('unit', units)
-        .gt('created_at', seenAt),
-      supabase
+        .gt('created_at', seenAt), hanyaQuls),
+      saringQuls(supabase
         .from('ujian_tahsin')
         .select('id', { count: 'exact', head: true })
         .in('unit', units)
-        .gt('created_at', seenAt),
+        .gt('created_at', seenAt), hanyaQuls),
     ])
 
     return (tahfidz.count ?? 0) + (tahsin.count ?? 0)

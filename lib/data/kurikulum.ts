@@ -75,6 +75,8 @@ async function fetchAll<T>(
 export async function getKurikulum(
   period: PeriodKey,
   jenjangScope: Jenjang[],
+  /** Penyempitan program siswa (koor QULS SD); kosong = seluruh program. */
+  program: readonly string[] | null = null,
 ): Promise<KurikulumData> {
   if (jenjangScope.length === 0) return EMPTY
 
@@ -87,8 +89,11 @@ export async function getKurikulum(
 
     const [students, targetRows] = await Promise.all([
       fetchAll<{ id: string; kelas: string | null; jenjang: Jenjang }>(
-        () => supabase.from('students').select('id, kelas, jenjang')
-          .eq('is_active', true).in('jenjang', jenjangScope),
+        () => {
+          const q = supabase.from('students').select('id, kelas, jenjang')
+            .eq('is_active', true).in('jenjang', jenjangScope)
+          return program ? q.in('program', [...program]) : q
+        },
       ),
       supabase.from('kurikulum_targets')
         .select('jenjang, tingkat, target_tahsin, target_juz')

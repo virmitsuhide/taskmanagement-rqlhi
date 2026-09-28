@@ -4,13 +4,14 @@ import { getSession } from '@/lib/auth/session'
 import {
   canManageTeachers, canViewTeachers, getManageableJenjang, isKoorUnit, JENJANG_LABELS,
   canManageTeacherProfiles, KATEGORI_GURU_LABELS, KATEGORI_GURU_ORDER,
+  getUnitPenunjukPembinaGukar, unitPenunjukanGukar,
 } from '@/lib/auth/permissions'
 import { createServerClient } from '@/lib/supabase/server'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { SearchInput } from '@/components/ui/search-input'
 import { Button } from '@/components/ui/button'
 import { Plus, Mail, CircleAlert } from 'lucide-react'
-import { RestoreTeacherButton, KategoriPicker } from './TeacherActions'
+import { RestoreTeacherButton, KategoriPicker, PembinaGukarToggle } from './TeacherActions'
 import { contractDaysLeft } from '@/lib/auth/contract'
 import type { KategoriGuru, Teacher, TeacherEmployment } from '@/types'
 
@@ -183,6 +184,22 @@ export default async function UstadzListPage({ searchParams }: PageProps) {
     1/2/3 yang memang sudah terisi untuk seluruh halaqoh.
   */
   const ids = teachers.map(t => t.id)
+
+  // Koor TPAIT & SMA menunjuk pembina gukar unitnya sendiri (0106). Dibaca
+  // terpisah supaya daftar tetap hidup walau kolomnya belum ada.
+  const unitPenunjuk = status === 'active' ? getUnitPenunjukPembinaGukar(session.role) : null
+  const pembinaMap = new Map<string, boolean>()
+  let perluMigrasiPembina = false
+  if (unitPenunjuk && ids.length > 0) {
+    const { data, error } = await supabase.from('teachers').select('id, pembina_gukar').in('id', ids)
+    perluMigrasiPembina = error !== null
+    for (const r of (data ?? []) as { id: string; pembina_gukar: boolean }[]) pembinaMap.set(r.id, r.pembina_gukar)
+  }
+  const bisaDitunjuk = (t: BarisGuru) =>
+    !perluMigrasiPembina && unitPenunjuk !== null
+    && unitPenunjukanGukar({ unit: t.unit, kategori_guru: t.kategori_guru ?? null }) === unitPenunjuk
+  const jumlahPembina = teachers.filter(t => bisaDitunjuk(t) && pembinaMap.get(t.id)).length
+
   const halaqohCountMap = new Map<string, number>()
   const sesiSlotMap = new Map<string, number[]>()
   if (ids.length > 0) {
@@ -263,6 +280,21 @@ export default async function UstadzListPage({ searchParams }: PageProps) {
               memunculkan tab Guru RQ, Guru QULS SD, dan Musyrif/ah SMP.
             </p>
           </div>
+        )}
+
+        {unitPenunjuk && (
+          perluMigrasiPembina ? (
+            <div className="mb-4 flex items-start gap-2 rounded-lg border border-warning/30 bg-warning-wash px-4 py-2.5 text-sm text-warning">
+              <CircleAlert className="mt-0.5 h-4 w-4 shrink-0" />
+              <p>Penunjukan pembina GuKar belum aktif. Jalankan <b>drizzle/0106_pembina_gukar_PASTE_TO_SUPABASE.sql</b> di Supabase.</p>
+            </div>
+          ) : (
+            <p className="mb-4 rounded-lg border bg-card px-4 py-2.5 text-sm text-muted-foreground">
+              <b className="text-foreground">Pembina GuKar {JENJANG_LABELS[unitPenunjuk]}:</b>{' '}
+              hanya guru yang Anda tunjuk yang bisa mengampu pembinaan guru &amp; karyawan dari portal guru.
+              Tekan tombol di baris guru untuk menunjuk atau mencabut. {jumlahPembina} guru ditunjuk.
+            </p>
+          )
         )}
 
         {teachers.length === 0 ? (
@@ -352,6 +384,9 @@ export default async function UstadzListPage({ searchParams }: PageProps) {
                   </Link>
                   {bolehSortir && (
                     <KategoriPicker id={t.id} name={t.full_name} current={t.kategori_guru ?? null} />
+                  )}
+                  {bisaDitunjuk(t) && (
+                    <PembinaGukarToggle id={t.id} name={t.full_name} current={pembinaMap.get(t.id) ?? false} />
                   )}
                 </div>
               )

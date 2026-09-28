@@ -27,17 +27,17 @@ export default async function EditHomePostPage({ params }: { params: Promise<{ i
         displayName={session.displayName}
         role={session.role}
         title="Sunting Post"
-        breadcrumbs={[{ label: 'Home Publik', href: '/home-post' }, { label: 'Sunting Post' }]}
+        breadcrumbs={[{ label: "Pengumuman Guru Qur'an", href: '/home-post' }, { label: 'Sunting Post' }]}
         ownH1
       />
       <div className="flex-1 bg-muted/50 dark:bg-background">
         <div className="p-4 md:p-8 max-w-2xl mx-auto">
           <Button asChild variant="ghost" size="sm" className="mb-4">
-            <Link href="/home-post"><ArrowLeft className="h-4 w-4 mr-1" />Kembali ke Manajemen Home</Link>
+            <Link href="/home-post"><ArrowLeft className="h-4 w-4 mr-1" />Kembali ke Pengumuman Guru Qur&apos;an</Link>
           </Button>
           <h1 className="text-3xl mb-1">Sunting Post</h1>
           <p className="text-sm text-muted-foreground mb-6">
-            Perubahan langsung tampil di beranda publik setelah disimpan.
+            Perubahan langsung tampil di dashboard guru setelah disimpan.
           </p>
           <PublicPostForm post={post} izin={{ pengumuman: canPostPengumuman(session.role), tugas_guru: canPostTugasGuru(session.role) }} />
         </div>

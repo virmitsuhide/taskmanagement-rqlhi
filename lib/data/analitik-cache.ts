@@ -1,5 +1,5 @@
 import { cache } from 'react'
-import { UNIT_ORDER } from '@/lib/rq/programs'
+import { UNIT_ORDER, dariKunciProgram } from '@/lib/rq/programs'
 import type { Jenjang } from '@/types'
 import { getTargetTahfidzSemua } from '@/lib/data/target-tahfidz'
 import { getKelengkapan } from '@/lib/data/kelengkapan'
@@ -27,8 +27,13 @@ export const kelengkapanBulan = cache((bulan: string) => getKelengkapan(bulan, U
 export const capaianSemua = cache(() => getCapaianKelas(UNIT_ORDER))
 export const kurikulumBulan = cache((bulan: string) => getKurikulum(bulan, UNIT_ORDER))
 export const semesterBerjalan = cache(() => getCurrentTerm())
-export const drillTahsinSemua = cache(() => getSiswaDrill())
-/** Kunci string, bukan array: cache() membandingkan argumen dengan ===. */
-export const drillTahfidzUnit = cache((jenjang: Jenjang | 'semua') =>
-  getDrillTahfidz(jenjang === 'semua' ? undefined : [jenjang]))
-export const ujianSemua = cache(() => getHafalanUjianPerUnit())
+/*
+  Tiga di bawah ini menerima kunci program (kunciProgram di lib/rq/programs.ts)
+  karena hitungannya per unit sudah jadi di dalam — tidak bisa disaring per
+  siswa sesudahnya. '' = seluruh program. Kunci string, bukan array:
+  cache() membandingkan argumen dengan ===.
+*/
+export const drillTahsinSemua = cache((program = '') => getSiswaDrill(dariKunciProgram(program)))
+export const drillTahfidzUnit = cache((jenjang: Jenjang | 'semua', program = '') =>
+  getDrillTahfidz(jenjang === 'semua' ? undefined : [jenjang], dariKunciProgram(program)))
+export const ujianSemua = cache((program = '') => getHafalanUjianPerUnit(dariKunciProgram(program)))

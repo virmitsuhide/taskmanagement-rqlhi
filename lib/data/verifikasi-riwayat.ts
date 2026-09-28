@@ -89,16 +89,22 @@ async function ambilSemua<T>(buat: (dari: number, ke: number) => PromiseLike<{ d
   }
 }
 
-export async function getStatusHafalan(units: UjianUnit[]): Promise<HasilStatusHafalan> {
+export async function getStatusHafalan(
+  units: UjianUnit[],
+  /** Penyempitan program (koor QULS SD); null = seluruh siswa unit. */
+  program: readonly string[] | null = null,
+): Promise<HasilStatusHafalan> {
   const jenjang = units.map(u => UJIAN_UNIT_JENJANG[u])
   if (jenjang.length === 0) return { siswa: [], tabelVerifikasiAda: true }
   const supabase = createServerClient()
 
   const [siswaRows, progres, ujian, verif] = await Promise.all([
-    ambilSemua<{ id: string; full_name: string; kelas: string | null; jenjang: Jenjang; halaqoh: { name: string } | null }>((a, b) =>
-      supabase.from('students')
+    ambilSemua<{ id: string; full_name: string; kelas: string | null; jenjang: Jenjang; halaqoh: { name: string } | null }>((a, b) => {
+      const q = supabase.from('students')
         .select('id, full_name, kelas, jenjang, halaqoh:halaqoh!students_halaqoh_id_fkey(name)')
-        .eq('is_active', true).in('jenjang', jenjang).order('full_name').range(a, b)),
+        .eq('is_active', true).in('jenjang', jenjang)
+      return (program ? q.in('program', [...program]) : q).order('full_name').range(a, b)
+    }),
     ambilSemua<{ student_id: string; juz_number: number }>((a, b) =>
       supabase.from('juz_progress').select('student_id, juz_number').gt('ayat_hafal', 0).range(a, b)),
     // Ujian LULUS saja: 'mengulang' belum menuntaskan juznya. Predikat NULL

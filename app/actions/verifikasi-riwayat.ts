@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { createServerClient } from '@/lib/supabase/server'
 import { getSession } from '@/lib/auth/session'
-import { canManageUjian } from '@/lib/auth/permissions'
+import { canManageUjianBaris } from '@/lib/auth/permissions'
 import { kewajibanUjian } from '@/lib/rq/hafalan'
 import { normalJuz } from '@/lib/data/verifikasi-riwayat'
 import { unitUjianDariJenjang } from '@/lib/rq/ujian'
@@ -60,7 +60,8 @@ export async function simpanVerifikasiAction(input: {
   } | null
   if (!s) return { error: 'Siswa tidak ditemukan.' }
   const unit = unitUjianDariJenjang(s.jenjang)
-  if (!unit || !canManageUjian(session.role, unit)) {
+  const isQuls = [s.program, s.halaqoh?.program].some(p => Boolean(p && p.includes('quls')))
+  if (!unit || !canManageUjianBaris(session.role, { unit, is_quls: isQuls })) {
     return { error: 'Hanya koordinator unit siswa ini yang bisa memverifikasi riwayat ujiannya.' }
   }
 
@@ -78,7 +79,6 @@ export async function simpanVerifikasiAction(input: {
 
   const waktu = input.bulan ? new Date(`${input.bulan}-01T08:00:00+07:00`).toISOString() : null
   const catatan = input.catatan.trim() || 'Diverifikasi koordinator — ujian sebelum sistem'
-  const isQuls = [s.program, s.halaqoh?.program].some(p => Boolean(p && p.includes('quls')))
   let tersimpan = 0
 
   for (const k of input.keputusan) {

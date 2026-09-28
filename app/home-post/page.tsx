@@ -35,12 +35,12 @@ export default async function HomePostPage() {
     .order('created_at', { ascending: false })
 
   // Tiap penulis mengelola postingannya sendiri. Kepala RQ dulu melihat
-  // semuanya; Home Publik sudah dilepas darinya (2026-09).
+  // semuanya; fitur ini sudah dilepas darinya (2026-09).
   const posts = (data ?? []) as PublicPost[]
 
   return (
     <div>
-      <DashboardHeader displayName={session.displayName} role={session.role} title="Manajemen Home Publik" />
+      <DashboardHeader displayName={session.displayName} role={session.role} title="Pengumuman Guru Qur'an" />
       <div className="p-4 md:p-8 max-w-3xl mx-auto">
         <div className="flex items-center justify-between mb-4">
           <p className="text-sm text-muted-foreground">{posts.length} post</p>

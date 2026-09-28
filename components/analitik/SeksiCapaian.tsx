@@ -18,9 +18,14 @@ import type { Jenjang } from '@/types'
  * per angkatan versi rekap bulanan (halaman Kurikulum) tidak ditampilkan
  * lagi di sini karena sudah diwakili matriks.
  */
-export async function SeksiCapaian({ info, jenjang, fokus, bulan, unitCapaian, hrefUnit, tanpaTargetAngkatan }: {
+export async function SeksiCapaian({ info, jenjang, program = null, fokus, bulan, unitCapaian, hrefUnit, tanpaTargetAngkatan }: {
   info: InfoSeksi
   jenjang: Jenjang | null
+  /**
+   * Penyempitan program (koor QULS SD). Matriks kelas sudah dipisah per jalur
+   * reguler/QULS, jadi yang tersisa cukup kelompok jalur QULS.
+   */
+  program?: readonly string[] | null
   fokus: 'semua' | 'tahsin' | 'tahfidz'
   bulan: string
   /**
@@ -33,7 +38,7 @@ export async function SeksiCapaian({ info, jenjang, fokus, bulan, unitCapaian, h
   tanpaTargetAngkatan?: boolean
 }) {
   const [capaian, kurikulum] = await Promise.all([capaianSemua(), kurikulumBulan(bulan)])
-  const semuaKelompok = capaian.kelompok.filter(k => !jenjang || k.jenjang === jenjang)
+  const semuaKelompok = capaian.kelompok.filter(k => (!jenjang || k.jenjang === jenjang) && (!program || k.jalur === 'quls'))
   const unitAda = [...new Set(semuaKelompok.filter(k => k.siswa > 0).map(k => k.jenjang))]
   // Tanpa unit terkunci: tampilkan satu unit, dipilih lewat saringan di bawah.
   const unitTampil: Jenjang | null = jenjang

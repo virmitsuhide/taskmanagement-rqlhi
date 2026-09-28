@@ -1,5 +1,5 @@
 import { createServerClient } from '@/lib/supabase/server'
-import { getKoorUnitUjian } from '@/lib/auth/permissions'
+import { getKoorUnitUjian, ujianHanyaQuls } from '@/lib/auth/permissions'
 import { getUjianGuru } from '@/lib/data/ujian'
 import { getTahfidzLabel, formatTahsinLevels } from '@/lib/rq/ujian'
 import type { TahfidzTipe, UjianSiswa, UjianUnit, UserRole } from '@/types'
@@ -176,12 +176,18 @@ export async function getNotifUjianKoor(userId: string, role: UserRole): Promise
     const supabase = createServerClient()
     const sejak = batasWaktu()
 
+    // Koor QULS SD berbagi antrean SD: loncengnya hanya berbunyi untuk anak QULS.
+    const quls = ujianHanyaQuls(role)
+    let kueriTahfidz = supabase.from('ujian_tahfidz').select(KOLOM_TAHFIDZ).eq('unit', unit).gte('created_at', sejak)
+    let kueriTahsin = supabase.from('ujian_tahsin').select(KOLOM_TAHSIN).eq('unit', unit).gte('created_at', sejak)
+    if (quls) {
+      kueriTahfidz = kueriTahfidz.eq('is_quls', true)
+      kueriTahsin = kueriTahsin.eq('is_quls', true)
+    }
     const [user, tahfidz, tahsin] = await Promise.all([
       supabase.from('users').select('notifications_seen_at, ujian_seen_at').eq('id', userId).maybeSingle(),
-      supabase.from('ujian_tahfidz').select(KOLOM_TAHFIDZ)
-        .eq('unit', unit).gte('created_at', sejak).order('created_at', { ascending: false }).limit(BATAS_ITEM),
-      supabase.from('ujian_tahsin').select(KOLOM_TAHSIN)
-        .eq('unit', unit).gte('created_at', sejak).order('created_at', { ascending: false }).limit(BATAS_ITEM),
+      kueriTahfidz.order('created_at', { ascending: false }).limit(BATAS_ITEM),
+      kueriTahsin.order('created_at', { ascending: false }).limit(BATAS_ITEM),
     ])
     if (tahfidz.error || tahsin.error) return kosong
 

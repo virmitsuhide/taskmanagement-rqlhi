@@ -17,16 +17,17 @@ export default async function GukarGroupsPage() {
   const session = await getTeacherSession()
   if (!session) redirect('/guru/login')
 
-  // Pembinaan gukar hanya diampu guru Tetap Yayasan & Kontrak Yayasan.
-  // Ditolak dengan penjelasan, bukan dialihkan diam-diam — guru yang menekan
+  // Pembinaan gukar hanya diampu Guru RQ berstatus yayasan, atau guru TPAIT/SMA
+  // yang ditunjuk koordinatornya (canDoGukarPembinaan). Ditolak dengan penjelasan, bukan dialihkan diam-diam — guru yang menekan
   // menunya berhak tahu kenapa halamannya tidak terbuka.
   if (!(await bolehMengampuGukar(session.teacherId))) {
     return (
       <HalamanGuru judul="Pembinaan Guru &amp; Karyawan">
         <p className="text-sm text-muted-foreground">
-            Pembinaan gukar diampu oleh guru Tetap Yayasan dan Kontrak Yayasan.
-            Kalau status kepegawaianmu semestinya termasuk salah satunya, hubungi SDM
-            untuk memperbaiki datanya.
+            Pembinaan gukar diampu oleh Guru RQ berstatus Tetap Yayasan atau Kontrak
+            Yayasan. Di TPAIT dan SMA, pembinanya ditunjuk koordinator unit. Kalau
+            semestinya kamu termasuk, hubungi SDM untuk memperbaiki datamu, atau
+            koordinator unitmu untuk penunjukan.
         </p>
       </HalamanGuru>
     )

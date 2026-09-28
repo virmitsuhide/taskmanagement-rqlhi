@@ -4,7 +4,9 @@ import { revalidatePath } from 'next/cache'
 import { createServerClient } from '@/lib/supabase/server'
 import { getSession } from '@/lib/auth/session'
 import { getTeacherSession } from '@/lib/auth/teacher-session'
-import { canManageUjian, canSubmitUjian, getUjianUnits } from '@/lib/auth/permissions'
+import {
+  canManageUjian, canManageUjianBaris, canSubmitUjian, getUjianProgramScope, getUjianUnits, ujianHanyaQuls,
+} from '@/lib/auth/permissions'
 import { getUnitsUjianGuru } from '@/lib/data/ujian'
 import { cocokkanLevelUjian, getTahfidzLabel, UJIAN_UNIT_JENJANG, type TahapLevel } from '@/lib/rq/ujian'
 import { getTeacherHalaqohIds, getTeacherStudents } from '@/lib/data/teacher'
@@ -44,7 +46,14 @@ interface Pengaju {
   unit: UjianUnit
   teacherId: string | null
   userId: string | null
+  /**
+   * Koor QULS SD: antreannya SD, tapi yang boleh ia ajukan hanya anak QULS.
+   * Program yang boleh; null = seluruh siswa unit.
+   */
+  program: readonly string[] | null
 }
+
+const HANYA_QULS = 'Koor QULS SD hanya mengajukan dan mengelola ujian anak QULS.'
 
 /**
  * Siapa yang mengajukan, dan untuk unit mana.
@@ -64,7 +73,7 @@ async function guardPengaju(unitDiminta?: UjianUnit): Promise<Pengaju | { error:
     if (!unit) {
       return { error: 'Akun Anda belum punya unit mengajar, jadi belum bisa mengajukan ujian. Hubungi koordinator.' }
     }
-    return { unit, teacherId: guru.teacherId, userId: null }
+    return { unit, teacherId: guru.teacherId, userId: null, program: null }
   }
 
   const pengurus = await getSession()
@@ -72,7 +81,7 @@ async function guardPengaju(unitDiminta?: UjianUnit): Promise<Pengaju | { error:
     const units = getUjianUnits(pengurus.role)
     const unit = unitDiminta && units.includes(unitDiminta) ? unitDiminta : units[0]
     if (!unit) return { error: 'Anda tidak berwenang mengajukan ujian.' }
-    return { unit, teacherId: null, userId: pengurus.userId }
+    return { unit, teacherId: null, userId: pengurus.userId, program: getUjianProgramScope(pengurus.role) }
   }
 
   return { error: 'Sesi tidak valid atau tidak memiliki izin.' }
@@ -87,21 +96,24 @@ async function guardPengaju(unitDiminta?: UjianUnit): Promise<Pengaju | { error:
 async function guardPengelola(
   table: 'ujian_tahfidz' | 'ujian_tahsin',
   id: string,
-): Promise<{ unit: UjianUnit } | { error: string }> {
+): Promise<{ unit: UjianUnit; hanyaQuls: boolean } | { error: string }> {
   if (!id) return { error: 'Pengajuan tidak dikenali.' }
 
   const pengurus = await getSession()
   if (!pengurus) return { error: 'Sesi tidak valid.' }
 
   const supabase = createServerClient()
-  const { data } = await supabase.from(table).select('unit').eq('id', id).maybeSingle()
+  const { data } = await supabase.from(table).select('unit, is_quls').eq('id', id).maybeSingle()
   if (!data) return { error: 'Pengajuan tidak ditemukan.' }
 
   const unit = data.unit as UjianUnit
   if (!canManageUjian(pengurus.role, unit)) {
     return { error: `Anda tidak berwenang mengelola antrian unit ${unit}.` }
   }
-  return { unit }
+  if (!canManageUjianBaris(pengurus.role, { unit, is_quls: data.is_quls as boolean })) {
+    return { error: HANYA_QULS }
+  }
+  return { unit, hanyaQuls: ujianHanyaQuls(pengurus.role) }
 }
 
 // ─── Tahfidz ─────────────────────────────────────────────────────────────────
@@ -127,6 +139,22 @@ async function siswaQuls(studentId: string): Promise<boolean> {
     .maybeSingle()
   const row = data as { program: string | null; halaqoh: { program: string | null } | null } | null
   return programQuls(row?.program) || programQuls(row?.halaqoh?.program)
+}
+
+/**
+ * Ada anak QULS di antara siswa ini? Dipakai menandai pengajuan tahsin
+ * (0105) — satu baris satu kelompok, jadi cukup satu anak QULS supaya
+ * Koor QULS SD melihatnya.
+ */
+async function adaSiswaQuls(studentIds: string[]): Promise<boolean> {
+  if (studentIds.length === 0) return false
+  const supabase = createServerClient()
+  const { data } = await supabase
+    .from('students')
+    .select('program, halaqoh:halaqoh!students_halaqoh_id_fkey(program)')
+    .in('id', studentIds)
+  return ((data ?? []) as unknown as { program: string | null; halaqoh: { program: string | null } | null }[])
+    .some(r => programQuls(r.program) || programQuls(r.halaqoh?.program))
 }
 
 export async function createTahfidzUjianAction(input: {
@@ -161,6 +189,7 @@ export async function createTahfidzUjianAction(input: {
     // di form — supaya format WhatsApp setelah ujian tidak bergantung pada
     // ingatan pengaju. Centang manual tetap berlaku untuk anak di luar itu.
     const isQuls = input.is_quls || (input.student_id ? await siswaQuls(input.student_id) : false)
+    if (pengaju.program && !isQuls) return { error: HANYA_QULS }
 
     const { data: baru, error } = await supabase.from('ujian_tahfidz').insert({
       unit: pengaju.unit,
@@ -202,6 +231,8 @@ export async function updateTahfidzUjianAction(
 ): Promise<Result> {
   const guard = await guardPengelola('ujian_tahfidz', id)
   if ('error' in guard) return guard
+  // Melepas tanda QULS berarti menyerahkan baris ini ke luar wewenangnya.
+  if (guard.hanyaQuls && data.is_quls === false) return { error: HANYA_QULS }
 
   try {
     const supabase = createServerClient()
@@ -270,10 +301,15 @@ export async function createTahsinUjianAction(input: {
     }
   }
 
+  const idSiswa = siswa.map(s => s.student_id).filter((id): id is string => Boolean(id))
+  const isQuls = await adaSiswaQuls(idSiswa)
+  if (pengaju.program && !isQuls) return { error: HANYA_QULS }
+
   try {
     const supabase = createServerClient()
     const { error } = await supabase.from('ujian_tahsin').insert({
       unit: pengaju.unit,
+      is_quls: isQuls,
       nama_kelompok: namaKelompok,
       sesi,
       level: input.level.trim(),
@@ -304,9 +340,15 @@ export async function updateTahsinUjianAction(
   const guard = await guardPengelola('ujian_tahsin', id)
   if ('error' in guard) return guard
 
+  // Anak QULS yang ditambahkan menandai kelompoknya QULS. Tidak pernah
+  // dicabut di sini: anak QULS yang sudah ada tidak hilang hanya karena
+  // daftar kelompoknya disunting.
+  const ids = (data.siswa ?? []).map(s => s.student_id).filter((x): x is string => Boolean(x))
+  const tanda = data.siswa && await adaSiswaQuls(ids) ? { is_quls: true } : {}
+
   try {
     const supabase = createServerClient()
-    const { error } = await supabase.from('ujian_tahsin').update(data).eq('id', id)
+    const { error } = await supabase.from('ujian_tahsin').update({ ...data, ...tanda }).eq('id', id)
     if (error) return { error: error.message }
 
     // Baru setelah barisnya tersimpan: kelulusan diteruskan ke capaian anak.
@@ -508,7 +550,7 @@ async function guardHapus(
   const supabase = createServerClient()
   const { data } = await supabase
     .from(table)
-    .select('unit, status, created_by_teacher')
+    .select('unit, is_quls, status, created_by_teacher')
     .eq('id', id)
     .maybeSingle()
   if (!data) return { error: 'Pengajuan tidak ditemukan.' }
@@ -525,7 +567,9 @@ async function guardHapus(
   }
 
   const pengurus = await getSession()
-  if (pengurus && canManageUjian(pengurus.role, data.unit as UjianUnit)) return { ok: true }
+  if (pengurus && canManageUjianBaris(pengurus.role, { unit: data.unit as UjianUnit, is_quls: data.is_quls as boolean })) {
+    return { ok: true }
+  }
 
   return { error: 'Anda tidak berwenang menghapus pengajuan ini.' }
 }
@@ -717,6 +761,7 @@ export async function cariSiswaUjianAction(
     .eq('is_active', true)
     .ilike('full_name', `%${q}%`)
   if (idHalaqoh) kueriSiswa = kueriSiswa.in('id', idHalaqoh)
+  if (pengaju.program) kueriSiswa = kueriSiswa.in('program', [...pengaju.program])
 
   const { data: siswa } = await kueriSiswa.order('full_name').limit(8)
 
@@ -775,6 +820,7 @@ export async function catatRiwayatTahfidzAction(input: InputRiwayatTahfidz & { u
   const hasil = await simpanRiwayatTahfidz(pengurus.userId, input, {
     unit: input.unit,
     jenjang: [UJIAN_UNIT_JENJANG[input.unit]],
+    hanyaQuls: ujianHanyaQuls(pengurus.role),
     catatanBawaan: 'Riwayat ujian sebelum sistem',
   })
   if (hasil.error) return hasil
@@ -848,6 +894,8 @@ async function simpanRiwayatTahfidz(
     kelas?: string
     /** Bawaan: dari program siswa atau halaqohnya sekarang. */
     isQuls?: boolean
+    /** Koor QULS SD: tolak siswa yang bukan QULS. */
+    hanyaQuls?: boolean
     catatanBawaan: string
   },
 ): Promise<Result> {
@@ -892,6 +940,8 @@ async function simpanRiwayatTahfidz(
     if (!aturan.jenjang.includes(s.jenjang)) return { error: `Siswa ini bukan siswa unit ${aturan.unit}.` }
     const tolak = aturan.syaratSiswa?.(s)
     if (tolak) return { error: tolak }
+    const isQuls = aturan.isQuls ?? (programQuls(s.program) || programQuls(s.halaqoh?.program))
+    if (aturan.hanyaQuls && !isQuls) return { error: HANYA_QULS }
 
     // Satu ujian yang sama tidak dicatat dua kali — lazim terjadi saat
     // memasukkan riwayat dari beberapa buku catatan sekaligus. Ujian yang
@@ -919,7 +969,7 @@ async function simpanRiwayatTahfidz(
       nama_siswa: s.full_name,
       nama_flyer: s.full_name.split(' ')[0] ?? s.full_name,
       kelas: aturan.kelas ?? s.kelas ?? '',
-      is_quls: aturan.isQuls ?? (programQuls(s.program) || programQuls(s.halaqoh?.program)),
+      is_quls: isQuls,
       jadwal: waktu,
       penguji: input.penguji.trim() || null,
       predikat: input.predikat,
@@ -1008,6 +1058,7 @@ export async function daftarHalaqohUjianTahsinAction(unit: UjianUnit): Promise<U
     .in('jenjang', jenjang)
     .eq('is_active', true)
     .order('sesi')
+  if (pengaju.program) kueri = kueri.in('program', [...pengaju.program])
   if (pengaju.teacherId) {
     const milik = await getTeacherHalaqohIds(pengaju.teacherId)
     if (milik.length === 0) return []

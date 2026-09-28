@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/auth/session'
-import { canViewUjian, getUjianUnits } from '@/lib/auth/permissions'
+import { canViewUjian, getUjianUnits, ujianHanyaQuls } from '@/lib/auth/permissions'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { RiwayatUjian } from '@/components/ujian/RiwayatUjian'
 import { UjianSubNav } from '@/components/ujian/UjianSubNav'
@@ -27,7 +27,8 @@ export default async function RiwayatUjianPage({ searchParams }: PageProps) {
 
   const units = getUjianUnits(session.role)
   const { month, year } = periode(await searchParams)
-  const { tahfidz, tahsin } = await getRekapUjian(month, year, units)
+  const hanyaQuls = ujianHanyaQuls(session.role)
+  const { tahfidz, tahsin } = await getRekapUjian(month, year, units, hanyaQuls)
 
   return (
     <div>
@@ -44,7 +45,7 @@ export default async function RiwayatUjianPage({ searchParams }: PageProps) {
         <div>
           <h1 className="text-3xl leading-tight">Riwayat &amp; Rekap Ujian</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            {units.join(' & ')} · ujian yang sudah terlaksana: rekap nilai sebulan, unduhan Excel, dan rincian per penguji.
+            {hanyaQuls ? 'QULS SD' : units.join(' & ')} · ujian yang sudah terlaksana: rekap nilai sebulan, unduhan Excel, dan rincian per penguji.
           </p>
         </div>
 

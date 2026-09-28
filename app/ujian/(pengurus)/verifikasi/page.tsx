@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { ClipboardCheck, UserSearch, CircleX, CheckCircle2 } from 'lucide-react'
 import { getSession } from '@/lib/auth/session'
-import { canViewUjian, getUjianUnits } from '@/lib/auth/permissions'
+import { canViewUjian, getUjianProgramScope, getUjianUnits } from '@/lib/auth/permissions'
 import { getStatusHafalan, type StatusHafalanSiswa } from '@/lib/data/verifikasi-riwayat'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { UjianSubNav } from '@/components/ujian/UjianSubNav'
@@ -35,7 +35,7 @@ export default async function VerifikasiRiwayatPage({ searchParams }: PageProps)
   const tampil: Tampil = sp.status === 'belum' || sp.status === 'selesai' ? sp.status : 'perlu'
   const cari = (sp.q ?? '').trim().toLowerCase()
 
-  const { siswa, tabelVerifikasiAda } = await getStatusHafalan(unit ? [unit] : semuaUnit)
+  const { siswa, tabelVerifikasiAda } = await getStatusHafalan(unit ? [unit] : semuaUnit, getUjianProgramScope(session.role))
   const hitung = (s: StatusHafalanSiswa, st: string) => s.butir.filter(b => b.status === st).length
   const relevan = siswa.filter(s => s.butir.length > 0)
 

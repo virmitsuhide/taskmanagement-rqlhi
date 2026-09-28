@@ -13,7 +13,8 @@ import type {
  * dijalankan). Baris DB ditimpa di atas nilai ini, per-field.
  */
 export const DEFAULT_SECTIONS: HomeSection[] = [
-  { key: 'pengumuman',  enabled: true, title: 'Pengumuman',        limit: 6 },
+  // 'pengumuman' dicabut (2026-09-29): pengumuman kini khusus dashboard guru
+  // Qur'an. Kunci lama yang masih tersimpan di DB diabaikan mergeSections.
   { key: 'agenda',      enabled: true, title: 'Kalender Agenda',   limit: 0 },
   { key: 'news',        enabled: true, title: 'Kabar & Berita',    limit: 12 },
   { key: 'program',     enabled: true, title: 'Program Kami',      limit: 4 },
@@ -36,7 +37,6 @@ export const DEFAULT_SITE_SETTINGS: SiteSettings = {
     { name: 'SMPIT LHI', address: 'Jl. Wonosari No. 17\nBanguntapan, Bantul, DIY', phone: '(0274) 555-1596' },
   ],
   footer_links: [
-    { label: 'Pengumuman',      href: '/#pengumuman' },
     { label: 'Kabar & Berita',  href: '/news'        },
     { label: 'Program',         href: '/program'     },
     { label: 'Profil Guru',     href: '/profil-guru' },
@@ -49,6 +49,18 @@ export const DEFAULT_SITE_SETTINGS: SiteSettings = {
   sections: DEFAULT_SECTIONS,
   updated_at: '',
   updated_by: null,
+}
+
+/**
+ * Tautan footer lama yang kini khusus guru (2026-09-29): pengumuman & tugas
+ * guru hanya dibaca di dashboard guru. Tautannya tersimpan di DB oleh Humas,
+ * jadi disaring saat dibaca — tanpa ini footer publik menautkan ke seksi yang
+ * sudah tidak ada di beranda.
+ */
+function khususGuru(href: string): boolean {
+  const h = href.trim().toLowerCase()
+  return h.startsWith('/pengumuman') || h === '/#pengumuman' || h === '#pengumuman'
+    || h === '/#tugas' || h === '#tugas'
 }
 
 /** Buang field kosong/null supaya tidak menimpa default dengan string kosong. */
@@ -93,7 +105,9 @@ export const getSiteSettings = cache(async (): Promise<SiteSettings> => {
       footer_brand_sub: coalesce(row.footer_brand_sub, d.footer_brand_sub),
       footer_tagline:   coalesce(row.footer_tagline,   d.footer_tagline),
       footer_units:     coalesce(row.footer_units as FooterUnit[], d.footer_units),
-      footer_links:     coalesce(row.footer_links as FooterLink[], d.footer_links),
+      // Tautan ke pengumuman disaring: halamannya bukan lagi halaman publik.
+      footer_links:     coalesce(row.footer_links as FooterLink[], d.footer_links)
+        .filter(l => !khususGuru(l.href)),
       footer_email:     coalesce(row.footer_email,     d.footer_email),
       footer_phone:     coalesce(row.footer_phone,     d.footer_phone),
       footer_hours:     coalesce(row.footer_hours,     d.footer_hours),

@@ -3,9 +3,9 @@
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { RotateCcw, Trash2 } from 'lucide-react'
+import { RotateCcw, Trash2, UserCheck } from 'lucide-react'
 import {
-  deleteTeacherAction, restoreTeacherAction, setKategoriGuruAction,
+  deleteTeacherAction, restoreTeacherAction, setKategoriGuruAction, setPembinaGukarAction,
 } from '@/app/actions/teachers'
 import { KATEGORI_GURU_LABELS, KATEGORI_GURU_ORDER } from '@/lib/auth/permissions'
 import type { KategoriGuru } from '@/types'
@@ -148,6 +148,47 @@ export function KategoriPicker({
         {pending ? 'Menyimpan…' : tersimpan ? '✓ tersimpan' : ''}
       </span>
     </div>
+  )
+}
+
+/**
+ * Penunjukan pembina gukar oleh koor TPAIT / SMA (0106), langsung dari baris
+ * daftar. Satu tombol yang berganti keadaan — ditunjuk atau tidak — dan
+ * langsung tersimpan, seperti KategoriPicker di atas.
+ */
+export function PembinaGukarToggle({
+  id, name, current,
+}: { id: string; name: string; current: boolean }) {
+  const [pending, startTransition] = useTransition()
+  const router = useRouter()
+  const [aktif, setAktif] = useState(current)
+
+  function handleClick() {
+    const baru = !aktif
+    setAktif(baru)
+    startTransition(async () => {
+      const result = await setPembinaGukarAction(id, baru)
+      if (result?.error) {
+        setAktif(!baru)
+        toast.error(result.error)
+        return
+      }
+      toast.success(baru ? `${name} ditunjuk sebagai pembina GuKar` : `${name} tidak lagi pembina GuKar`)
+      router.refresh()
+    })
+  }
+
+  return (
+    <Button
+      type="button" size="sm" disabled={pending} onClick={handleClick}
+      variant={aktif ? 'default' : 'outline'}
+      aria-pressed={aktif}
+      title={aktif ? 'Klik untuk mencabut penunjukan' : 'Klik untuk menunjuk sebagai pembina GuKar'}
+      className="shrink-0"
+    >
+      <UserCheck className="h-3.5 w-3.5 mr-1" />
+      {pending ? 'Menyimpan…' : aktif ? 'Pembina GuKar' : 'Tunjuk pembina'}
+    </Button>
   )
 }
 

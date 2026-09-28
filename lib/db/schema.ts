@@ -602,6 +602,11 @@ export const teachers = pgTable('teachers', {
    * sebab tidak ada nilai bawaan yang benar untuk baris lama.
    */
   kategori_guru: kategoriGuruEnum('kategori_guru'),
+  /**
+   * Ditunjuk koordinator unitnya sebagai pembina gukar (0106). Hanya dibaca
+   * untuk guru TPAIT & SMA — lihat canDoGukarPembinaan.
+   */
+  pembina_gukar: boolean('pembina_gukar').notNull().default(false),
   /** Jenis kepegawaian — menentukan pos gaji & apakah kontraknya bisa habis. */
   employment_type: teacherEmploymentEnum('employment_type'),
   contract_start: date('contract_start'),
@@ -1571,6 +1576,8 @@ export const ujianTahsin = pgTable('ujian_tahsin', {
   level: text('level').notNull(),
   /** [{ nama, predikat: 'lulus'|'mengulang'|null, level }] */
   siswa: jsonb('siswa').notNull().default([]),
+  /** Ada anak QULS di kelompok ini (0105) — bagian antrean SD milik koor QULS SD. */
+  is_quls: boolean('is_quls').notNull().default(false),
   jadwal: timestamp('jadwal', { withTimezone: true }),
   penguji: text('penguji'),
   catatan: text('catatan'),

@@ -645,6 +645,8 @@ export interface GuruProfile {
   lingkup_penugasan: LingkupPenugasan
   /** Rombongan guru (0053). null = belum ditetapkan SDM. */
   kategori_guru: KategoriGuru | null
+  /** Ditunjuk koor TPAIT/SMA sebagai pembina gukar (0106). Opsional sebelum migrasinya jalan. */
+  pembina_gukar?: boolean
   employment_type: TeacherEmployment | null
   /** TMT — terhitung mulai tanggal bertugas. Null = belum diisi (0044). */
   joined_at: string | null
@@ -1526,6 +1528,8 @@ export interface UjianSiswa {
 export interface UjianTahsin {
   id: string
   unit: UjianUnit
+  /** Ada anak QULS di kelompok ini (0105). Opsional selama migrasinya belum dijalankan. */
+  is_quls?: boolean
   nama_kelompok: string
   sesi: string
   level: string

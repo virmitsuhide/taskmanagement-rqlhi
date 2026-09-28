@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { AlertTriangle, CheckCircle2, ClipboardList } from 'lucide-react'
 import { getSession } from '@/lib/auth/session'
-import { canViewUnitAnalytics, getAnalyticsJenjang, JENJANG_LABELS } from '@/lib/auth/permissions'
+import { canViewUnitAnalytics, getAnalyticsJenjang, getAnalyticsProgramScope, JENJANG_LABELS } from '@/lib/auth/permissions'
 import { getKelengkapan } from '@/lib/data/kelengkapan'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { PeriodPicker } from '@/components/keuangan/PeriodPicker'
@@ -30,7 +30,7 @@ export default async function KelengkapanPage({ searchParams }: PageProps) {
   const period = isValidPeriod(params.periode ?? '') ? params.periode! : currentPeriod()
 
   const scope = getAnalyticsJenjang(session.role)
-  const { rows, trend } = await getKelengkapan(period, scope)
+  const { rows, trend } = await getKelengkapan(period, scope, getAnalyticsProgramScope(session.role))
 
   const aktif = rows.filter(r => r.totalSiswa > 0)
   const kosong = aktif.filter(r => r.terisi === 0)

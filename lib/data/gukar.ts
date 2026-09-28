@@ -1,5 +1,5 @@
 import { createServerClient } from '@/lib/supabase/server'
-import { canDoGukarPembinaan } from '@/lib/auth/permissions'
+import { canDoGukarPembinaan, type GuruPembinaGukar } from '@/lib/auth/permissions'
 import type { TeacherEmployment } from '@/types'
 import { type PeriodKey, periodsYearToDate, toPeriodDate } from '@/lib/finance/period'
 import type { TahapJilid } from '@/lib/rq/gukar-setoran'
@@ -256,22 +256,35 @@ export async function getGukarTrend(termId: string, upTo: PeriodKey): Promise<Gu
 }
 
 /**
- * Apakah guru ini boleh mengampu pembinaan gukar?
+ * Apakah guru ini boleh mengampu pembinaan gukar? Aturannya di
+ * canDoGukarPembinaan (lib/auth/permissions.ts).
  *
- * Dibaca dari database tiap kali, bukan dari sesi: status kepegawaian bisa
- * berubah di tengah masa sesi guru masih login, dan hak yang sudah dicabut
- * tidak boleh bertahan sampai ia logout.
+ * Dibaca dari database tiap kali, bukan dari sesi: status kepegawaian dan
+ * penunjukan bisa berubah di tengah masa sesi guru masih login, dan hak yang
+ * sudah dicabut tidak boleh bertahan sampai ia logout.
  */
 export async function bolehMengampuGukar(teacherId: string): Promise<boolean> {
   const supabase = createServerClient()
-  const { data } = await supabase
+  const baca = (kolom: string) => supabase
     .from('teachers')
-    .select('employment_type')
+    .select(kolom)
     .eq('id', teacherId)
     .is('deleted_at', null)
     .maybeSingle()
 
-  return canDoGukarPembinaan((data?.employment_type ?? null) as TeacherEmployment | null)
+  // Sebelum 0106 dijalankan kolom pembina_gukar belum ada: dibaca sebagai
+  // belum ditunjuk, supaya guru SD/SMP tetap bisa bekerja seperti biasa.
+  let hasil = await baca('employment_type, kategori_guru, unit, pembina_gukar')
+  if (hasil.error) hasil = await baca('employment_type, kategori_guru, unit')
+  const data = hasil.data as unknown as Partial<GuruPembinaGukar> | null
+  if (!data) return false
+
+  return canDoGukarPembinaan({
+    employment_type: (data.employment_type ?? null) as TeacherEmployment | null,
+    kategori_guru: data.kategori_guru ?? null,
+    unit: data.unit ?? null,
+    pembina_gukar: data.pembina_gukar ?? false,
+  })
 }
 
 // ─── Setoran terukur: metode, tahapan, & posisi bulan lalu (0061) ────────────

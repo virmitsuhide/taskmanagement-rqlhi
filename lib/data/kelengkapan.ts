@@ -28,6 +28,8 @@ export interface KelengkapanRow {
   halaqohId: string
   halaqohName: string
   jenjang: Jenjang
+  /** Program halaqoh — penyaring analitik koor QULS SD. */
+  program: string | null
   sesi: number | null
   pengampu: string
   totalSiswa: number
@@ -54,6 +56,8 @@ const EMPTY: KelengkapanData = { rows: [], trend: [] }
 export async function getKelengkapan(
   period: PeriodKey,
   jenjangScope: Jenjang[],
+  /** Penyempitan program halaqoh (koor QULS SD); kosong = seluruh program. */
+  program: readonly string[] | null = null,
 ): Promise<KelengkapanData> {
   if (jenjangScope.length === 0) return EMPTY
 
@@ -64,15 +68,17 @@ export async function getKelengkapan(
       .from('academic_terms').select('id').eq('is_current', true).maybeSingle()
     if (!term) return EMPTY
 
-    const { data: halaqohRows } = await supabase
+    let kueriHalaqoh = supabase
       .from('halaqoh')
-      .select('id, name, jenjang, sesi, wali_teacher:teachers!halaqoh_wali_teacher_id_fkey(full_name)')
+      .select('id, name, jenjang, program, sesi, wali_teacher:teachers!halaqoh_wali_teacher_id_fkey(full_name)')
       .eq('term_id', term.id)
       .eq('is_active', true)
       .in('jenjang', jenjangScope)
+    if (program) kueriHalaqoh = kueriHalaqoh.in('program', [...program])
+    const { data: halaqohRows } = await kueriHalaqoh
 
     const halaqoh = (halaqohRows ?? []) as unknown as {
-      id: string; name: string; jenjang: Jenjang; sesi: number | null
+      id: string; name: string; jenjang: Jenjang; program: string | null; sesi: number | null
       wali_teacher: { full_name: string } | null
     }[]
     if (halaqoh.length === 0) return EMPTY
@@ -151,6 +157,7 @@ export async function getKelengkapan(
         halaqohId: h.id,
         halaqohName: h.name,
         jenjang: h.jenjang,
+        program: h.program,
         sesi: h.sesi,
         pengampu: h.wali_teacher?.full_name ?? '—',
         totalSiswa: e.total,

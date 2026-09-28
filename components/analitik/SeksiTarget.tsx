@@ -1,7 +1,8 @@
 import Link from 'next/link'
 import { AlertTriangle, ListChecks, Target } from 'lucide-react'
 import { targetSemua } from '@/lib/data/analitik-cache'
-import type { RingkasStatus, StatusSiswa } from '@/lib/data/target-tahfidz'
+import { saringTargetTahfidz, type RingkasStatus, type StatusSiswa } from '@/lib/data/target-tahfidz'
+import { cocokProgram } from '@/lib/rq/programs'
 import { LABEL_ALASAN, RENCANA, TOLERANSI_PEKAN, type AlasanTanpaTarget, type KodeRencana } from '@/lib/rq/target-tahfidz'
 import { Panel, ActionRow } from '@/components/dashboard/kit'
 import { Seksi, Kunci, type InfoSeksi } from './seksi'
@@ -31,8 +32,18 @@ const RINCIAN = '/dashboard/analitik/target-tahfidz'
  * target akhir bulan, dan kalender pekan efektif tetap di halaman rincian:
  * ketiganya alat kerja koordinator, bukan bacaan pimpinan.
  */
-export async function SeksiTarget({ info, jenjang }: { info: InfoSeksi; jenjang: Jenjang | null }) {
-  const data = await targetSemua()
+export async function SeksiTarget({ info, jenjang, program = null }: {
+  info: InfoSeksi
+  jenjang: Jenjang | null
+  /** Penyempitan program (koor QULS SD). */
+  program?: readonly string[] | null
+}) {
+  const semua = await targetSemua()
+  // Rencana 'sd_quls' juga memuat anak SD Juara: dengan penyempitan program,
+  // ringkasan per rencana dihitung ulang dari siswa yang tersisa saja.
+  const data = program
+    ? saringTargetTahfidz(semua, s => (!jenjang || s.jenjang === jenjang) && cocokProgram(program, s.program))
+    : semua
   const rencana = data.perRencana.filter(r =>
     r.ringkas.total > 0 && (!jenjang || UNIT_RENCANA[r.kode].includes(jenjang)))
   const siswa = data.siswa.filter(s => !jenjang || s.jenjang === jenjang)

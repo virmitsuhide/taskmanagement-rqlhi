@@ -6,7 +6,7 @@ import {
 import {
   canViewFinance, canViewFinanceNotes, canViewGukarRecap, canViewHalaqoh, canViewHumasRequests, canViewKpi,
   canViewStudents, canViewTasks, canViewUnitAnalytics, canCreateNews, canManageHomepage, canManageRaporTemplate,
-  canPostToHome, getAnalyticsJenjang, getCreatableMeetingTypes, getManageableJenjang, getUjianUnits,
+  canPostToHome, getAnalyticsJenjang, getAnalyticsProgramScope, getCreatableMeetingTypes, getManageableJenjang, getUjianUnits, ujianHanyaQuls,
   getViewableMeetingTypes, ROLE_LABELS, getAccessibleDashboards, DASHBOARD_LABELS, canManageEkstra,
 } from '@/lib/auth/permissions'
 import {
@@ -155,10 +155,10 @@ const KONFIG: Record<HalamanDashboard, Konfig> = {
     tanya: 'Sampai mana siswa QULS, dan kelompok mana yang belum dinilai?',
     // Rapat koor SD ikut: kelompok QULS duduk di unit dan sesi yang sama.
     rapat: role => [...getCreatableMeetingTypes(role), 'koor_sd', 'kumik'],
-    // Tanpa panel ujian: pengajuan ujian SD masih dipegang koor SD
-    // (getUjianUnits), menampilkannya hanya menjanjikan tombol yang tak ada.
-    samping: ['rapat'],
-    baris: [['capaian']],
+    // Panel ujian sejak 2026-09-29: berbagi antrean SD dengan koor SD, tapi
+    // angkanya hanya ujian anak QULS (ujianHanyaQuls).
+    samping: ['ujian'],
+    baris: [['capaian', 'rapat']],
     pintasan: ['halaqoh', 'imporHalaqoh', 'imporSiswa', 'siswa'],
   },
   // Tiga koor unit 0099 meniru koor SD, termasuk antrean ujiannya sendiri
@@ -218,7 +218,7 @@ const PINTASAN: Record<KunciPintasan, Pintasan & { boleh: (r: UserRole) => boole
   ujian: { href: '/ujian/kelola', label: 'Pengajuan Ujian', ket: 'Jadwalkan & nilai ujian', ikon: <ScrollText className="h-4 w-4" />, boleh: r => getUjianUnits(r).length > 0 },
   templateRapor: { href: '/rapor-quran/template', label: 'Template Rapor', ket: 'Lembar rapor Qur’an unit', ikon: <LayoutTemplate className="h-4 w-4" />, boleh: r => canManageRaporTemplate(r) },
   kalenderQuran: { href: '/kalender-quran', label: 'Kalender Qur’an', ket: 'Hari aktif & jumlah TM', ikon: <CalendarRange className="h-4 w-4" />, boleh: r => canManageRaporTemplate(r) },
-  postBeranda: { href: '/home-post/baru', label: 'Post Beranda', ket: 'Pengumuman & tugas guru', ikon: <Megaphone className="h-4 w-4" />, boleh: canPostToHome },
+  postBeranda: { href: '/home-post/baru', label: 'Pengumuman Guru', ket: 'Tampil di dashboard guru Qur\'an', ikon: <Megaphone className="h-4 w-4" />, boleh: canPostToHome },
   beranda: { href: '/humas/beranda', label: 'Kelola Beranda', ket: 'Seksi, header & footer', ikon: <LayoutTemplate className="h-4 w-4" />, boleh: canManageHomepage },
   request: { href: '/humas-request', label: 'Request Humas', ket: 'Flyer, video, konten', ikon: <Inbox className="h-4 w-4" />, boleh: canViewHumasRequests },
   berita: { href: '/humas/berita', label: 'Berita', ket: 'Tulis & terbitkan', ikon: <Newspaper className="h-4 w-4" />, boleh: canCreateNews },
@@ -274,9 +274,13 @@ export async function DashboardPengurus({ halaman, session, searchParams, atas }
     !denganTugas ? Promise.resolve([]) : k.tim ? getTeamActiveTasks() : getSemuaTugasAktifSaya(session.userId),
     denganTugas ? getPendingVerifications(session.userId) : Promise.resolve([]),
     (async () => { const t = k.rapat(role); return ada('rapat') && t.length ? getRecentMeetings(t, 5) : [] })(),
-    ada('capaian') ? getRingkasanPembinaan(cakupanCapaian) : Promise.resolve(null),
+    ada('capaian') ? getRingkasanPembinaan(cakupanCapaian, getAnalyticsProgramScope(role)) : Promise.resolve(null),
     unitUjian.length
-      ? Promise.all([getUjianStats('tahsin', unitUjian), getUjianStats('tahfidz', unitUjian), getUjianBaruCount(session.userId, unitUjian)])
+      ? Promise.all([
+          getUjianStats('tahsin', unitUjian, ujianHanyaQuls(role)),
+          getUjianStats('tahfidz', unitUjian, ujianHanyaQuls(role)),
+          getUjianBaruCount(session.userId, unitUjian, ujianHanyaQuls(role)),
+        ])
       : Promise.resolve(null),
     ada('gukar') ? ambilGukar(periode) : Promise.resolve(null),
     ada('request') ? ambilRequest() : Promise.resolve(null),
@@ -288,7 +292,8 @@ export async function DashboardPengurus({ halaman, session, searchParams, atas }
   const fokus = ringkasFokus(tugas, saring, hariIni)
   const params = { tugas: saring === 'semua' ? undefined : saring, unit: unit ?? undefined }
   const href = (g: Record<string, string | undefined>) => hrefDengan(path, params, g)
-  const cakupanLabel = unit ? UNIT_LABELS[unit] : lingkup.length === 1 ? UNIT_LABELS[lingkup[0]] : 'Seluruh unit'
+  const cakupanLabel = getAnalyticsProgramScope(role) ? 'QULS SD'
+    : unit ? UNIT_LABELS[unit] : lingkup.length === 1 ? UNIT_LABELS[lingkup[0]] : 'Seluruh unit'
 
   const kpi = susunKpi({ halaman, denganTugas, tim: !!k.tim, fokus: fokus.hitung, review: review.length, capaian, ujian, gukar, request, href })
 
@@ -296,7 +301,7 @@ export async function DashboardPengurus({ halaman, session, searchParams, atas }
     capaian: cls => capaian && <PanelCapaian className={cls} data={capaian} cakupan={cakupanLabel} />,
     ujian: cls => ujian && (
       <PanelUjian className={cls} tahsin={ujian[0]} tahfidz={ujian[1]} baru={ujian[2]}
-        cakupan={unitUjian.length > 1 ? 'SD & SMP' : unitUjian[0] ?? ''} />
+        cakupan={ujianHanyaQuls(role) ? 'QULS SD' : unitUjian.length > 1 ? 'SD & SMP' : unitUjian[0] ?? ''} />
     ),
     rapat: cls => <PanelRapat className={cls} rapat={rapat} judul={k.rapatJudul} />,
     gukar: cls => <PanelGukar className={cls} perhatian={gukar} periode={periode} />,

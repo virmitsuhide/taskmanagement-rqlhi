@@ -5,6 +5,7 @@ import { JENJANG_LABELS } from '@/lib/auth/permissions'
 import { formatPeriod, monthName } from '@/lib/finance/period'
 import { Panel } from '@/components/dashboard/kit'
 import { Seksi, Kunci, type InfoSeksi } from './seksi'
+import { cocokProgram } from '@/lib/rq/programs'
 import type { Jenjang } from '@/types'
 
 const BATAS = 12
@@ -16,13 +17,15 @@ const BATAS = 12
  * bisa berarti anaknya tertinggal, bisa juga berarti gurunya belum mengisi.
  * Seksi inilah yang membedakan keduanya.
  */
-export async function SeksiKelengkapan({ info, jenjang, bulan }: {
+export async function SeksiKelengkapan({ info, jenjang, program = null, bulan }: {
   info: InfoSeksi
   jenjang: Jenjang | null
+  /** Penyempitan program halaqoh (koor QULS SD). */
+  program?: readonly string[] | null
   bulan: string
 }) {
   const { rows, trend } = await kelengkapanBulan(bulan)
-  const aktif = rows.filter(r => r.totalSiswa > 0 && (!jenjang || r.jenjang === jenjang))
+  const aktif = rows.filter(r => r.totalSiswa > 0 && (!jenjang || r.jenjang === jenjang) && cocokProgram(program, r.program))
   const kosong = aktif.filter(r => r.terisi === 0)
   const sebagian = aktif.filter(r => r.terisi > 0 && r.terisi < r.totalSiswa)
   const tagih = [...kosong, ...sebagian.sort((a, b) => a.percent - b.percent)]

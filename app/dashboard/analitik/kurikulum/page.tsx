@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/auth/session'
 import {
-  canViewAnalytics, canViewUnitAnalytics, getAnalyticsJenjang, JENJANG_LABELS,
+  canViewAnalytics, canViewUnitAnalytics, getAnalyticsJenjang, getAnalyticsProgramScope, JENJANG_LABELS,
 } from '@/lib/auth/permissions'
 import { getKurikulum } from '@/lib/data/kurikulum'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
@@ -29,7 +29,8 @@ export default async function KurikulumPage({ searchParams }: PageProps) {
   const period = isValidPeriod(params.periode ?? '') ? params.periode! : currentPeriod()
 
   const scope = getAnalyticsJenjang(session.role)
-  const { periods, rows } = await getKurikulum(period, scope)
+  const program = getAnalyticsProgramScope(session.role)
+  const { periods, rows } = await getKurikulum(period, scope, program)
 
   const semuaUnit = canViewAnalytics(session.role)
   const totalSiswa = rows.reduce((t, r) => t + r.totalSiswa, 0)
@@ -54,7 +55,7 @@ export default async function KurikulumPage({ searchParams }: PageProps) {
             <p className="text-xs font-bold uppercase tracking-[0.1em] text-warning">
               {semuaUnit
                 ? 'Seluruh Unit'
-                : `Unit ${scope.map(j => JENJANG_LABELS[j]).join(' · ')}`}
+                : program ? 'QULS SD' : `Unit ${scope.map(j => JENJANG_LABELS[j]).join(' · ')}`}
             </p>
             <h1 className="text-3xl leading-tight">Capaian Pembelajaran Al-Qur&apos;an</h1>
             <p className="text-sm text-muted-foreground mt-0.5">

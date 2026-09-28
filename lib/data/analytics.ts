@@ -1,8 +1,8 @@
 import { createServerClient } from '@/lib/supabase/server'
-import { UNIT_ORDER, UNIT_LABELS, PROGRAMS_BY_JENJANG, programLabel } from '@/lib/rq/programs'
+import { UNIT_ORDER, UNIT_LABELS, PROGRAMS_BY_JENJANG, programLabel, cocokProgram } from '@/lib/rq/programs'
 import { juzTerjauh, totalJuzHafalan } from '@/lib/rq/hafalan'
 import { getJuzUjianPerSiswa, juzGabunganPerSiswa } from '@/lib/data/hafalan'
-import { getPetaHalaman, getTargetTahfidzSemua } from '@/lib/data/target-tahfidz'
+import { getPetaHalaman, getTargetTahfidzSemua, ringkasSiswaTarget } from '@/lib/data/target-tahfidz'
 import { halamanRentang, jenisMurojaah } from '@/lib/rq/murojaah'
 import { getPredikatLabel, tanggalWIB } from '@/lib/rq/ujian'
 import type { Jenjang, UjianPredikat } from '@/types'
@@ -45,6 +45,8 @@ export interface SaringanAnalitik {
   bulan?: string | null
   /** Satu unit; kosong = seluruh RQ. */
   jenjang?: Jenjang | null
+  /** Penyempitan program (koor QULS SD); kosong = seluruh program. */
+  program?: readonly string[] | null
 }
 
 const JENJANG_ORDER: Jenjang[] = ['paud', 'sd', 'sd_juara', 'smp', 'sma']
@@ -71,24 +73,27 @@ export function rentangBulan(bulan?: string | null, geser = 0) {
  * Tiap tabel log/kenaikan hanya punya satu FK ke students, jadi embed-nya
  * tidak ambigu. Tanpa unit, query dibiarkan apa adanya.
  */
-function kolomUnit(kolom: string, jenjang?: Jenjang | null): string {
-  return jenjang ? `${kolom}, students!inner(jenjang)` : kolom
+function kolomUnit(kolom: string, jenjang?: Jenjang | null, program?: readonly string[] | null): string {
+  return jenjang || program ? `${kolom}, students!inner(jenjang, program)` : kolom
 }
-function saringUnit<Q>(q: Q, jenjang?: Jenjang | null): Q {
-  return jenjang ? (q as unknown as { eq(c: string, v: string): Q }).eq('students.jenjang', jenjang) : q
+function saringUnit<Q>(q: Q, jenjang?: Jenjang | null, program?: readonly string[] | null): Q {
+  type F = { eq(c: string, v: string): Q; in(c: string, v: string[]): Q }
+  let hasil = jenjang ? (q as unknown as F).eq('students.jenjang', jenjang) : q
+  if (program) hasil = (hasil as unknown as F).in('students.program', [...program])
+  return hasil
 }
 
 export async function getRqAnalytics(saring: SaringanAnalitik = {}): Promise<RqAnalytics> {
   const supabase = createServerClient()
-  const { jenjang } = saring
+  const { jenjang, program } = saring
   const bulan = rentangBulan(saring.bulan)
   const lalu = rentangBulan(bulan.key, -1)
 
   const hitung = (tabel: string, kolomTanggal: string, r: { startIso: string; endIso: string }) =>
     saringUnit(
-      supabase.from(tabel).select(kolomUnit('student_id', jenjang), { count: 'exact', head: true })
+      supabase.from(tabel).select(kolomUnit('student_id', jenjang, program), { count: 'exact', head: true })
         .gte(kolomTanggal, r.startIso).lte(kolomTanggal, r.endIso),
-      jenjang,
+      jenjang, program,
     )
 
   const [
@@ -96,9 +101,9 @@ export async function getRqAnalytics(saring: SaringanAnalitik = {}): Promise<RqA
     tahsinMonthRes, tahfidzMonthRes, jilidPromRes, juzPromRes, jilidLaluRes, juzLaluRes,
     juzUjianPerSiswa,
   ] = await Promise.all([
-    supabase.from('students').select('id, jenjang').eq('is_active', true),
+    supabase.from('students').select('id, jenjang, program').eq('is_active', true),
     supabase.from('teachers').select('*', { count: 'exact', head: true }).eq('is_active', true).is('deleted_at', null),
-    supabase.from('halaqoh').select('jenjang, wali_teacher_id').eq('is_active', true),
+    supabase.from('halaqoh').select('jenjang, program, wali_teacher_id').eq('is_active', true),
     hitung('tahsin_logs', 'setoran_date', bulan),
     hitung('tahfidz_logs', 'setoran_date', bulan),
     hitung('jilid_promotions', 'promotion_date', bulan),
@@ -108,7 +113,7 @@ export async function getRqAnalytics(saring: SaringanAnalitik = {}): Promise<RqA
     getJuzUjianPerSiswa(),
   ])
 
-  const semuaSiswa = (studentsRes.data ?? []) as { id: string; jenjang: Jenjang }[]
+  const semuaSiswa = (studentsRes.data ?? []) as { id: string; jenjang: Jenjang; program: string | null }[]
   const studentsByJenjangMap = new Map<Jenjang, number>()
   for (const s of semuaSiswa) {
     studentsByJenjangMap.set(s.jenjang, (studentsByJenjangMap.get(s.jenjang) ?? 0) + 1)
@@ -118,13 +123,13 @@ export async function getRqAnalytics(saring: SaringanAnalitik = {}): Promise<RqA
   const studentsByJenjang = JENJANG_ORDER
     .map(j => ({ jenjang: j, count: studentsByJenjangMap.get(j) ?? 0 }))
 
-  const siswa = jenjang ? semuaSiswa.filter(s => s.jenjang === jenjang) : semuaSiswa
-  const halaqoh = ((halaqohRes.data ?? []) as { jenjang: Jenjang; wali_teacher_id: string | null }[])
-    .filter(h => !jenjang || h.jenjang === jenjang)
+  const siswa = semuaSiswa.filter(s => (!jenjang || s.jenjang === jenjang) && cocokProgram(program, s.program))
+  const halaqoh = ((halaqohRes.data ?? []) as { jenjang: Jenjang; program: string | null; wali_teacher_id: string | null }[])
+    .filter(h => (!jenjang || h.jenjang === jenjang) && cocokProgram(program, h.program))
 
   // Juz teruji = juz yang diakui tuntas lewat ujian selesai. Menggantikan
   // hitungan centang "mutqin" di setoran harian, yang sudah dicabut.
-  const idUnit = jenjang ? new Set(siswa.map(s => s.id)) : null
+  const idUnit = jenjang || program ? new Set(siswa.map(s => s.id)) : null
   const juzTerujiTotal = [...juzUjianPerSiswa.entries()]
     .reduce((n, [id, j]) => (idUnit && !idUnit.has(id) ? n : n + j), 0)
 
@@ -132,7 +137,7 @@ export async function getRqAnalytics(saring: SaringanAnalitik = {}): Promise<RqA
     overview: {
       activeStudents: siswa.length,
       // Guru satu unit = pengampu halaqoh unit itu; tabel guru tidak berunit.
-      activeTeachers: jenjang
+      activeTeachers: jenjang || program
         ? new Set(halaqoh.map(h => h.wali_teacher_id).filter(Boolean)).size
         : teachersRes.count ?? 0,
       activeHalaqoh: halaqoh.length,
@@ -449,7 +454,8 @@ export interface UnitLearning {
   }
 }
 
-export async function getUnitLearning(): Promise<UnitLearning[]> {
+/** @param program penyempitan program (koor QULS SD); kosong = seluruh program. */
+export async function getUnitLearning(program: readonly string[] | null = null): Promise<UnitLearning[]> {
   const supabase = createServerClient()
 
   const [studentsRes, methodsRes, levelsRes, juzProgressRes, juzPromRes, tasmiRes, tahsinRes, tahfidzRes, halaqohRes, htRes, ujianTahfidzRes, peta] = await Promise.all([
@@ -461,7 +467,7 @@ export async function getUnitLearning(): Promise<UnitLearning[]> {
     supabase.from('tasmi_logs').select('student_id, scope_juz, juz_from, juz_to, status, setoran_date, nilai_tahfidz, nilai_sikap'),
     supabase.from('tahsin_logs').select('student_id, setoran_date, status, nilai_tahsin, nilai_sikap'),
     supabase.from('tahfidz_logs').select('student_id, setoran_date, kind, nilai_tahfidz, nilai_sikap, surat_id, ayat_dari, surat_ke_id, ayat_ke'),
-    supabase.from('halaqoh').select('id, jenjang, wali_teacher_id').eq('is_active', true),
+    supabase.from('halaqoh').select('id, jenjang, program, wali_teacher_id').eq('is_active', true),
     supabase.from('halaqoh_teachers').select('halaqoh_id, teacher_id'),
     supabase
       .from('ujian_tahfidz')
@@ -475,7 +481,7 @@ export async function getUnitLearning(): Promise<UnitLearning[]> {
   const students: S[] = (studentsRes.data ?? []).map((s): S => ({
     id: s.id, full_name: s.full_name, jenjang: s.jenjang as Jenjang, kelas: s.kelas,
     program: s.program, method: s.current_method_id, jilid: s.current_jilid_id,
-  }))
+  })).filter(s => cocokProgram(program, s.program))
   const stById = new Map(students.map(s => [s.id, s]))
 
   const methods = (methodsRes.data ?? []) as { id: string; name: string }[]
@@ -484,7 +490,8 @@ export async function getUnitLearning(): Promise<UnitLearning[]> {
   const terminalSet = new Set(levels.filter(l => l.is_terminal).map(l => l.id))
 
   // Halaqoh & pengampu per unit (pengampu = wali halaqoh + pengampu di halaqoh_teachers)
-  const halaqoh = (halaqohRes.data ?? []) as { id: string; jenjang: Jenjang; wali_teacher_id: string | null }[]
+  const halaqoh = ((halaqohRes.data ?? []) as { id: string; jenjang: Jenjang; program: string | null; wali_teacher_id: string | null }[])
+    .filter(h => cocokProgram(program, h.program))
   const halaqohUnit = new Map(halaqoh.map(h => [h.id, h.jenjang]))
   const teachersByUnit = new Map<Jenjang, Set<string>>()
   const addTeacher = (j: Jenjang, tid: string | null) => {
@@ -599,7 +606,7 @@ export async function getUnitLearning(): Promise<UnitLearning[]> {
     if (!hasPrograms) {
       programs = [toProg(jenjang, null, 'Tahsin & Tahfidz')]
     } else {
-      programs = defs.map(p => toProg(jenjang, p.code, p.label))
+      programs = defs.filter(p => cocokProgram(program, p.code)).map(p => toProg(jenjang, p.code, p.label))
       const untagged = buckets.get(bkey(jenjang, null))
       if (untagged && untagged.studentCount > 0) programs.push(toProg(jenjang, null, programLabel(jenjang, null)))
     }
@@ -709,15 +716,17 @@ export interface HafalanBoard {
   }
 }
 
-export async function getUnitHafalanBoards(): Promise<HafalanBoard[]> {
+/** @param program penyempitan program (koor QULS SD); kosong = seluruh program. */
+export async function getUnitHafalanBoards(program: readonly string[] | null = null): Promise<HafalanBoard[]> {
   const supabase = createServerClient()
   const [studentsRes, juzProgressRes, juzUjian, target] = await Promise.all([
-    supabase.from('students').select('id, full_name, jenjang, kelas').eq('is_active', true),
+    supabase.from('students').select('id, full_name, jenjang, kelas, program').eq('is_active', true),
     supabase.from('juz_progress').select('student_id, juz_number, ayat_hafal, mutqin'),
     getJuzUjianPerSiswa(),
     getTargetTahfidzSemua(),
   ])
-  const students = (studentsRes.data ?? []) as { id: string; full_name: string; jenjang: Jenjang; kelas: string | null }[]
+  const students = ((studentsRes.data ?? []) as { id: string; full_name: string; jenjang: Jenjang; kelas: string | null; program: string | null }[])
+    .filter(s => cocokProgram(program, s.program))
   const jpRows = (juzProgressRes.data ?? []) as { student_id: string; juz_number: number; ayat_hafal: number; mutqin: boolean }[]
 
   const totalAyat = new Map<string, number>()
@@ -755,7 +764,9 @@ export async function getUnitHafalanBoards(): Promise<HafalanBoard[]> {
     // Posisi vs target bulanan — dihitung di lib/data/target-tahfidz.ts,
     // di sini hanya diringkas per unit. Unit tanpa satu pun siswa bertarget
     // (PAUD, SMA) tidak berlaku, bukan "0 di bawah target".
-    const r = target.perUnit.find(u => u.jenjang === jenjang)?.ringkas
+    const r = program
+      ? ringkasSiswaTarget(target.siswa.filter(s => s.jenjang === jenjang && cocokProgram(program, s.program)))
+      : target.perUnit.find(u => u.jenjang === jenjang)?.ringkas
     const bertarget = r ? r.total - r.tanpa_target : 0
 
     return {
@@ -831,7 +842,11 @@ export interface SetoranTrend {
  * kedua sumber dijumlahkan, anak yang sudah dirangkum akan terhitung dua kali
  * selama bulan itu masih berjalan.
  */
-export async function getSetoranTrend(months = 12, jenjang?: Jenjang | null): Promise<SetoranTrend> {
+export async function getSetoranTrend(
+  months = 12,
+  jenjang?: Jenjang | null,
+  program?: readonly string[] | null,
+): Promise<SetoranTrend> {
   const supabase = createServerClient()
   const now = new Date()
 
@@ -859,10 +874,10 @@ export async function getSetoranTrend(months = 12, jenjang?: Jenjang | null): Pr
   const berjalan = ranges.find(r => r.isRunning)
   const hariIni = berjalan
     ? await Promise.all([
-        saringUnit(supabase.from('tahsin_logs').select(kolomUnit('student_id', jenjang))
-          .gte('setoran_date', berjalan.startIso).lte('setoran_date', berjalan.endIso), jenjang),
-        saringUnit(supabase.from('tahfidz_logs').select(kolomUnit('student_id', jenjang))
-          .gte('setoran_date', berjalan.startIso).lte('setoran_date', berjalan.endIso), jenjang),
+        saringUnit(supabase.from('tahsin_logs').select(kolomUnit('student_id', jenjang, program))
+          .gte('setoran_date', berjalan.startIso).lte('setoran_date', berjalan.endIso), jenjang, program),
+        saringUnit(supabase.from('tahfidz_logs').select(kolomUnit('student_id', jenjang, program))
+          .gte('setoran_date', berjalan.startIso).lte('setoran_date', berjalan.endIso), jenjang, program),
       ])
     : null
 
@@ -876,8 +891,8 @@ export async function getSetoranTrend(months = 12, jenjang?: Jenjang | null): Pr
   const bulanan = await Promise.all(
     lampau.map(r =>
       saringUnit(supabase.from('student_monthly')
-        .select(kolomUnit('student_id, halaman_akhir_tahsin, tahfidz_akhir', jenjang))
-        .eq('period', `${r.key}-01`), jenjang)
+        .select(kolomUnit('student_id, halaman_akhir_tahsin, tahfidz_akhir', jenjang, program))
+        .eq('period', `${r.key}-01`), jenjang, program)
         .then(res => res.data ?? []),
     ),
   )
@@ -972,10 +987,11 @@ export interface HafalanUjianUnit {
   top10: { id: string; name: string; kelas: string | null; juz: number }[]
 }
 
-export async function getHafalanUjianPerUnit(): Promise<HafalanUjianUnit[]> {
+/** @param program penyempitan program (koor QULS SD); kosong = seluruh program. */
+export async function getHafalanUjianPerUnit(program: readonly string[] | null = null): Promise<HafalanUjianUnit[]> {
   const supabase = createServerClient()
   const [siswaRes, ujianRes] = await Promise.all([
-    supabase.from('students').select('id, full_name, jenjang, kelas').eq('is_active', true),
+    supabase.from('students').select('id, full_name, jenjang, kelas, program').eq('is_active', true),
     // Hanya yang sudah selesai: pengajuan yang belum diuji bukan capaian.
     supabase
       .from('ujian_tahfidz')
@@ -984,9 +1000,9 @@ export async function getHafalanUjianPerUnit(): Promise<HafalanUjianUnit[]> {
       .eq('status', 'selesai'),
   ])
 
-  const siswa = (siswaRes.data ?? []) as {
-    id: string; full_name: string; jenjang: Jenjang; kelas: string | null
-  }[]
+  const siswa = ((siswaRes.data ?? []) as {
+    id: string; full_name: string; jenjang: Jenjang; kelas: string | null; program: string | null
+  }[]).filter(s => cocokProgram(program, s.program))
 
   const perSiswa = new Map<string, string[]>()
   for (const r of (ujianRes.data ?? []) as { student_id: string; juz: string }[]) {
@@ -1057,13 +1073,14 @@ export interface DrillUnit {
  * diajukan". Drill yang lama tanpa pengajuan berarti anak menunggu sesuatu
  * yang tidak sedang diurus siapa pun.
  */
-export async function getSiswaDrill(): Promise<DrillUnit[]> {
+/** @param program penyempitan program (koor QULS SD); kosong = seluruh program. */
+export async function getSiswaDrill(program: readonly string[] | null = null): Promise<DrillUnit[]> {
   const supabase = createServerClient()
   const [siswaRes, ujianRes] = await Promise.all([
     supabase
       .from('students')
       .select(
-        'id, full_name, jenjang, kelas, tahsin_drill_sejak,' +
+        'id, full_name, jenjang, kelas, program, tahsin_drill_sejak,' +
         ' jilid:jilid_levels!students_current_jilid_id_fkey(label),' +
         ' halaqoh:halaqoh!students_halaqoh_id_fkey(name)',
       )
@@ -1084,10 +1101,10 @@ export async function getSiswaDrill(): Promise<DrillUnit[]> {
   }
 
   const hariIni = new Date(new Date().toISOString().slice(0, 10)).getTime()
-  const rows = (siswaRes.data ?? []) as unknown as Array<{
-    id: string; full_name: string; jenjang: Jenjang; kelas: string | null; tahsin_drill_sejak: string
+  const rows = ((siswaRes.data ?? []) as unknown as Array<{
+    id: string; full_name: string; jenjang: Jenjang; kelas: string | null; program: string | null; tahsin_drill_sejak: string
     jilid: { label: string } | null; halaqoh: { name: string } | null
-  }>
+  }>).filter(r => cocokProgram(program, r.program))
 
   return UNIT_ORDER.map(jenjang => {
     const siswa = rows
@@ -1164,7 +1181,11 @@ function selisihHari(dari: string, ke: string): number {
  *
  * @param jenjangBoleh batasi ke unit tertentu (koordinator); kosong = semua.
  */
-export async function getDrillTahfidz(jenjangBoleh?: Jenjang[]): Promise<DrillTahfidzAnalitik> {
+export async function getDrillTahfidz(
+  jenjangBoleh?: Jenjang[],
+  /** Penyempitan program (koor QULS SD); kosong = seluruh program. */
+  program: readonly string[] | null = null,
+): Promise<DrillTahfidzAnalitik> {
   const kosong: DrillTahfidzAnalitik = { sedang: [], keseluruhan: statLama([]), perJuz: [], perUnit: [] }
   const supabase = createServerClient()
 
@@ -1172,7 +1193,7 @@ export async function getDrillTahfidz(jenjangBoleh?: Jenjang[]): Promise<DrillTa
     .from('tahfidz_juz_drill')
     .select(
       'student_id, juz_number, selesai_ziyadah, ujian_id,' +
-      ' siswa:students!tahfidz_juz_drill_student_id_fkey(full_name, jenjang, kelas, is_active,' +
+      ' siswa:students!tahfidz_juz_drill_student_id_fkey(full_name, jenjang, kelas, program, is_active,' +
       ' halaqoh:halaqoh!students_halaqoh_id_fkey(name))',
     )
   // Migrasi 0065 belum jalan → tabelnya tidak ada; papan cukup kosong.
@@ -1180,8 +1201,8 @@ export async function getDrillTahfidz(jenjangBoleh?: Jenjang[]): Promise<DrillTa
 
   const rows = (drillRows as unknown as Array<{
     student_id: string; juz_number: number; selesai_ziyadah: string; ujian_id: string | null
-    siswa: { full_name: string; jenjang: Jenjang; kelas: string | null; is_active: boolean; halaqoh: { name: string } | null } | null
-  }>).filter(r => r.siswa && (!jenjangBoleh || jenjangBoleh.includes(r.siswa.jenjang)))
+    siswa: { full_name: string; jenjang: Jenjang; kelas: string | null; program: string | null; is_active: boolean; halaqoh: { name: string } | null } | null
+  }>).filter(r => r.siswa && (!jenjangBoleh || jenjangBoleh.includes(r.siswa.jenjang)) && cocokProgram(program, r.siswa.program))
 
   const ujianIds = rows.map(r => r.ujian_id).filter((id): id is string => Boolean(id))
   const diajukan = new Map<string, string>()

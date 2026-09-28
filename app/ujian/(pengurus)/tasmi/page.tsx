@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { BookOpenCheck, Layers, Users, AlertTriangle } from 'lucide-react'
 import { getSession } from '@/lib/auth/session'
-import { canViewUjian, getUjianUnits } from '@/lib/auth/permissions'
+import { canViewUjian, getUjianProgramScope, getUjianUnits } from '@/lib/auth/permissions'
 import { getStatusHafalan, type StatusHafalanSiswa, type ButirUjian } from '@/lib/data/verifikasi-riwayat'
 import { labelKewajiban } from '@/lib/rq/hafalan'
 import { UNIT_LABELS } from '@/lib/rq/programs'
@@ -38,7 +38,7 @@ export default async function RekapTasmiPage({ searchParams }: PageProps) {
   if (!canViewUjian(session.role)) redirect('/dashboard')
 
   const sp = await searchParams
-  const { siswa: semua } = await getStatusHafalan(getUjianUnits(session.role))
+  const { siswa: semua } = await getStatusHafalan(getUjianUnits(session.role), getUjianProgramScope(session.role))
 
   const jenjangAda = URUT_JENJANG.filter(j => semua.some(s => s.jenjang === j))
   const unit = jenjangAda.includes(sp.unit as Jenjang) ? (sp.unit as Jenjang) : null

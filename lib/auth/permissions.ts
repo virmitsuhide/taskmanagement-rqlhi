@@ -393,7 +393,27 @@ export function canViewAnalytics(role: UserRole): boolean {
  * tertutup untuk koor.
  */
 export function canViewUnitAnalytics(role: UserRole): boolean {
-  return canViewAnalytics(role) || isKoorUnit(role)
+  return canViewAnalytics(role) || isKoorAnalitik(role)
+}
+
+/**
+ * Koordinator yang membuka Analitik BTHCQ — dikunci ke unitnya, tanpa pilihan
+ * "Semua" dan tanpa tabel target per angkatan (sudah terwakili matriks kelas).
+ *
+ * Koor QULS SD ikut: halamannya sama persis dengan koor SD, hanya isinya
+ * dipersempit ke anak QULS lewat getAnalyticsProgramScope().
+ */
+export function isKoorAnalitik(role: UserRole): boolean {
+  return isKoorUnit(role) || role === 'koor_qulssd'
+}
+
+/**
+ * Penyempitan program di atas getAnalyticsJenjang — null berarti tanpa
+ * penyempitan. Aturannya sama dengan daftar siswa (getViewableProgramScope):
+ * koor SD melihat seluruh SD termasuk QULS, koor QULS SD hanya QULS.
+ */
+export function getAnalyticsProgramScope(role: UserRole): readonly string[] | null {
+  return getListProgramScope(role, getAnalyticsJenjang(role))
 }
 
 /**
@@ -1455,23 +1475,63 @@ export function isAdmin(role: UserRole): boolean {
 
 // ── Pembinaan Gukar ────────────────────────────────────────────────
 
+/** Data guru yang menentukan hak mengampu pembinaan gukar. */
+export interface GuruPembinaGukar {
+  employment_type: TeacherEmployment | null
+  kategori_guru: KategoriGuru | null
+  unit: Jenjang | null
+  /** Ditunjuk koordinator unitnya (0106) — hanya berlaku di TPAIT & SMA. */
+  pembina_gukar: boolean | null
+}
+
+/**
+ * Unit yang pembina gukarnya DITUNJUK koordinator, beserta koordinatornya.
+ * Di TPAIT dan SMA hanya guru tertentu yang mengampu; aturan status + Guru RQ
+ * tidak berlaku di sana (keputusan 2026-09-29).
+ */
+const KOOR_PENUNJUK_PEMBINA: Partial<Record<UserRole, Jenjang>> = {
+  koor_tpait: 'paud',
+  koor_sma: 'sma',
+}
+
+/**
+ * Unit penunjukan seorang guru — 'paud'/'sma' bila unit atau kategorinya di
+ * sana, null bila ia mengikuti aturan umum. Kategori ikut dibaca karena unit
+ * guru lama sering masih kosong walau kategorinya sudah Guru TPAIT/SMA.
+ */
+export function unitPenunjukanGukar(guru: Pick<GuruPembinaGukar, 'unit' | 'kategori_guru'>): Jenjang | null {
+  const unit = guru.unit ?? (guru.kategori_guru ? KATEGORI_GURU_UNIT[guru.kategori_guru] ?? null : null)
+  return unit && Object.values(KOOR_PENUNJUK_PEMBINA).includes(unit) ? unit : null
+}
+
 /**
  * Boleh mengampu pembinaan Guru & Karyawan?
  *
- * Pembinaan gukar adalah amanah yayasan, jadi hanya guru yang terikat langsung
- * dengan yayasan yang mengampunya — Tetap Yayasan dan Kontrak Yayasan. Guru
- * Kontrak RQ (OS) tidak, sebab ikatannya lewat pihak ketiga.
+ * Dua aturan, menurut unit gurunya:
  *
- * Yang disaring PENGAMPU-nya, bukan peserta. Ke-161 peserta gukar adalah objek
- * pembinaan yang datang dari seluruh yayasan — PAUD, BPH, musyrif — dan status
- * kepegawaian mereka tidak menentukan apa pun di sini.
+ * - SD, SD Juara, SMP (dan guru tanpa unit): hanya GURU RQ berstatus Tetap
+ *   Yayasan atau Kontrak Yayasan. Guru Kontrak RQ (OS) tidak — ikatannya
+ *   lewat pihak ketiga; Guru QULS SD, Guru SD Juara, dan Musyrif/ah juga tidak,
+ *   walau berstatus yayasan.
+ * - TPAIT & SMA: hanya guru yang ditunjuk koordinatornya (pembina_gukar),
+ *   apa pun status dan kategorinya.
  *
- * employment_type null diperlakukan sebagai TIDAK boleh: lebih baik seorang
- * pengampu yang datanya belum lengkap kehilangan akses dan melapor, daripada
- * hak ini diberikan diam-diam karena datanya kebetulan kosong.
+ * Yang disaring PENGAMPU-nya, bukan peserta. Peserta gukar datang dari seluruh
+ * yayasan, dan status mereka tidak menentukan apa pun di sini.
+ *
+ * Data yang kosong diperlakukan sebagai TIDAK boleh: lebih baik pengampu yang
+ * datanya belum lengkap kehilangan akses dan melapor, daripada hak ini
+ * diberikan diam-diam karena datanya kebetulan kosong.
  */
-export function canDoGukarPembinaan(employment: TeacherEmployment | null | undefined): boolean {
-  return employment === 'tetap_yayasan' || employment === 'kontrak_yayasan'
+export function canDoGukarPembinaan(guru: GuruPembinaGukar): boolean {
+  if (unitPenunjukanGukar(guru)) return guru.pembina_gukar === true
+  const yayasan = guru.employment_type === 'tetap_yayasan' || guru.employment_type === 'kontrak_yayasan'
+  return yayasan && guru.kategori_guru === 'guru_rq'
+}
+
+/** Unit yang pembina gukarnya boleh ditunjuk peran ini; null = tidak boleh menunjuk. */
+export function getUnitPenunjukPembinaGukar(role: UserRole): Jenjang | null {
+  return KOOR_PENUNJUK_PEMBINA[role] ?? null
 }
 
 // ── Pengajuan ujian tahsin & tahfidz ───────────────────────────────
@@ -1490,6 +1550,9 @@ const SEMUA_UNIT_UJIAN: UjianUnit[] = ['TPAIT', 'SD', 'SD Juara', 'SMP', 'SMA']
 const KOOR_UNIT_UJIAN: Partial<Record<UserRole, UjianUnit>> = {
   koor_tpait: 'TPAIT',
   koor_sd: 'SD',
+  // Berbagi antrean SD dengan koor SD (keputusan 2026-09-29), tapi hanya
+  // baris anak QULS — lihat ujianHanyaQuls().
+  koor_qulssd: 'SD',
   koor_sdjuara: 'SD Juara',
   koor_smp: 'SMP',
   koor_sma: 'SMA',
@@ -1507,7 +1570,45 @@ export function getUjianUnits(role: UserRole): UjianUnit[] {
 
 /** Koordinator yang menerima kabar pengajuan baru di satu antrean. */
 export function getKoorUnitUjian(role: UserRole): UjianUnit | null {
-  return isKoorUnit(role) ? KOOR_UNIT_UJIAN[role] ?? null : null
+  return isKoorUjian(role) ? KOOR_UNIT_UJIAN[role] ?? null : null
+}
+
+/** Koor unit + koor QULS SD — pemegang (sebagian) satu antrean ujian. */
+function isKoorUjian(role: UserRole): boolean {
+  return isKoorUnit(role) || role === 'koor_qulssd'
+}
+
+/**
+ * Pengurus ini hanya menyentuh ujian anak QULS di antreannya?
+ *
+ * Koor QULS SD tidak punya antrean sendiri: ia memakai antrean SD bersama
+ * koor SD, dan bagiannya dibedakan oleh tanda is_quls pada tiap baris ujian
+ * (tahsin sejak 0105). Koor SD tetap memegang seluruh antrean SD.
+ */
+export function ujianHanyaQuls(role: UserRole): boolean {
+  return role === 'koor_qulssd'
+}
+
+/**
+ * Program siswa yang boleh diajukan/dicatat ujiannya oleh pengurus ini —
+ * null berarti seluruh siswa unitnya. Padanan ujianHanyaQuls untuk kueri
+ * yang membaca tabel students, bukan tabel ujian.
+ */
+export function getUjianProgramScope(role: UserRole): readonly string[] | null {
+  return ujianHanyaQuls(role) ? QULS_SD_PROGRAMS : null
+}
+
+/**
+ * Boleh menjadwalkan, menilai, dan menghapus SATU baris ujian — unitnya dan,
+ * bagi koor QULS SD, tanda QULS-nya. Keduanya dibaca dari baris di database,
+ * bukan dari kiriman form.
+ */
+export function canManageUjianBaris(
+  role: UserRole,
+  baris: { unit: UjianUnit; is_quls?: boolean | null },
+): boolean {
+  if (!canManageUjian(role, baris.unit)) return false
+  return !ujianHanyaQuls(role) || baris.is_quls === true
 }
 
 /**
@@ -1521,7 +1622,7 @@ export function getKoorUnitUjian(role: UserRole): UjianUnit | null {
  * unitnya sendiri.
  */
 export function getUnitBebanPenguji(role: UserRole): UjianUnit[] {
-  if (isKoorUnit(role)) return SEMUA_UNIT_UJIAN
+  if (isKoorUjian(role)) return SEMUA_UNIT_UJIAN
   return getUjianUnits(role)
 }
 

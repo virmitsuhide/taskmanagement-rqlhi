@@ -150,6 +150,8 @@ export interface SiswaTarget {
   id: string
   nama: string
   jenjang: Jenjang
+  /** Program siswa — penyaring analitik koor QULS SD. */
+  program: string | null
   kelas: string | null
   halaqoh: string | null
   asalSdLhi: boolean
@@ -194,6 +196,42 @@ function tambahRingkas(r: RingkasStatus, s: SiswaTarget) {
   r[s.status]++
   r.total++
   if (s.perluDiujikan) r.perluDiujikan++
+}
+
+/** Ringkasan status sekumpulan siswa — untuk cakupan yang lebih sempit dari unit. */
+export function ringkasSiswaTarget(siswa: SiswaTarget[]): RingkasStatus {
+  const r = ringkasKosong()
+  siswa.forEach(s => tambahRingkas(r, s))
+  return r
+}
+
+/**
+ * Hasil getTargetTahfidz yang dipersempit ke sebagian siswa, dengan
+ * ringkasan per unit dan per rencana dihitung ulang dari siswa yang tersisa.
+ *
+ * Dipakai saat cakupannya bukan satu unit utuh — koor QULS SD — sebab
+ * rencana 'sd_quls' juga memuat anak SD Juara, dan ringkasan per unitnya
+ * memuat anak SD reguler.
+ */
+export function saringTargetTahfidz(data: TargetTahfidzData, cocok: (s: SiswaTarget) => boolean): TargetTahfidzData {
+  const siswa = data.siswa.filter(cocok)
+  return {
+    ...data,
+    siswa,
+    perUnit: data.perUnit
+      .map(u => ({ ...u, ringkas: ringkasSiswaTarget(siswa.filter(s => s.jenjang === u.jenjang)) }))
+      .filter(u => u.ringkas.total > 0),
+    perRencana: data.perRencana
+      .map(r => {
+        const anggota = siswa.filter(s => s.rencana === r.kode)
+        return {
+          ...r,
+          ringkas: ringkasSiswaTarget(anggota),
+          perTingkat: r.perTingkat.map(t => ({ ...t, ringkas: ringkasSiswaTarget(anggota.filter(s => s.tingkat === t.tingkat)) })),
+        }
+      })
+      .filter(r => r.ringkas.total > 0),
+  }
 }
 
 export interface TargetTahfidzData {
@@ -271,7 +309,7 @@ export async function getTargetTahfidz(jenjangBoleh: Jenjang[], tanggal = tangga
   const siswa: SiswaTarget[] = siswaRows.rows.map(r => {
     const asalSdLhi = r.asal_sd_lhi === true
     const dasar = {
-      id: r.id, nama: r.full_name, jenjang: r.jenjang, kelas: r.kelas, halaqoh: r.halaqoh?.name ?? null, asalSdLhi,
+      id: r.id, nama: r.full_name, jenjang: r.jenjang, program: r.program, kelas: r.kelas, halaqoh: r.halaqoh?.name ?? null, asalSdLhi,
     }
     const pilihan = pilihRencana({ jenjang: r.jenjang, program: r.program, kelas: r.kelas, asal_sd_lhi: asalSdLhi })
     if ('alasan' in pilihan) {

@@ -51,6 +51,8 @@ const KOSONG: RingkasanPembinaan = {
 
 export async function getRingkasanPembinaan(
   jenjangScope: Jenjang[],
+  /** Penyempitan program (koor QULS SD); kosong = seluruh program. */
+  program: readonly string[] | null = null,
 ): Promise<RingkasanPembinaan> {
   if (jenjangScope.length === 0) return KOSONG
 
@@ -58,13 +60,14 @@ export async function getRingkasanPembinaan(
     const supabase = createServerClient()
     const period = currentPeriod()
 
+    const kueriSiswa = supabase.from('students')
+      .select('current_jilid_id')
+      .eq('is_active', true)
+      .in('jenjang', jenjangScope)
     const [siswaRes, levelRes, kelengkapan] = await Promise.all([
-      supabase.from('students')
-        .select('current_jilid_id')
-        .eq('is_active', true)
-        .in('jenjang', jenjangScope),
+      program ? kueriSiswa.in('program', [...program]) : kueriSiswa,
       supabase.from('jilid_levels').select('id, is_quran, is_terminal'),
-      getKelengkapan(period, jenjangScope),
+      getKelengkapan(period, jenjangScope, program),
     ])
 
     const level = new Map(
