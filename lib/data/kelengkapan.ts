@@ -10,11 +10,19 @@ import type { Jenjang } from '@/types'
  * kelengkapan administrasi, dan sengaja dibedakan antara "belum diisi sama
  * sekali" dengan "terisi sebagian", karena keduanya butuh tindakan berbeda.
  *
- * Yang dihitung sebagai TERISI adalah `halaman_akhir_tahsin`. Kolom awal
- * bisa terisi otomatis dari bulan sebelumnya lewat tombol salin, jadi
- * memakainya sebagai penanda akan membuat bulan yang belum dinilai sama
- * sekali terlihat sudah dikerjakan.
+ * Seorang siswa dihitung TERISI untuk sebuah bulan bila salah satu benar:
+ *   · capaian akhir bulannya (`halaman_akhir_tahsin`) sudah diisi, atau
+ *   · ia punya setoran tahsin / ziyadah tahfidz di bulan itu.
+ * Kolom awal bulanan tidak dipakai: ia bisa terisi otomatis dari bulan
+ * sebelumnya lewat tombol salin, dan memakainya sebagai penanda akan membuat
+ * bulan yang belum dinilai sama sekali terlihat sudah dikerjakan.
  */
+
+/** Tanggal terakhir sebuah bulan 'YYYY-MM', sebagai 'YYYY-MM-DD'. */
+function akhirBulan(p: PeriodKey): string {
+  const [y, m] = p.split('-').map(Number)
+  return new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10)
+}
 
 export interface KelengkapanRow {
   halaqohId: string
@@ -23,7 +31,7 @@ export interface KelengkapanRow {
   sesi: number | null
   pengampu: string
   totalSiswa: number
-  /** Siswa yang capaian akhir bulannya sudah diisi. */
+  /** Siswa yang capaian akhir bulannya sudah diisi, atau yang punya setoran bulan itu. */
   terisi: number
   percent: number
 }
@@ -101,14 +109,32 @@ export async function getKelengkapan(
         .in('period', periods.map(toPeriodDate)),
     )
 
+    // Setoran per sesi (tahsin & ziyadah) sepanjang rentang yang sama. Anak
+    // yang punya setoran di suatu bulan dihitung TERISI untuk bulan itu, walau
+    // gurunya belum menekan "Rangkum" — tabel capaian di Analitik sudah
+    // membaca setoran yang sama, jadi kedua bagian itu tidak boleh berselisih.
+    const dari = `${periods[0]}-01`
+    const sampai = akhirBulan(period)
+    const [logTahsin, logTahfidz] = await Promise.all([
+      fetchAll<{ student_id: string; setoran_date: string }>(() => supabase
+        .from('tahsin_logs').select('student_id, setoran_date')
+        .gte('setoran_date', dari).lte('setoran_date', sampai).order('id')),
+      fetchAll<{ student_id: string; setoran_date: string }>(() => supabase
+        .from('tahfidz_logs').select('student_id, setoran_date')
+        .gte('setoran_date', dari).lte('setoran_date', sampai).order('id')),
+    ])
+
+    /** Siswa yang dihitung terisi per bulan: capaian akhir bulanan ATAU ada setoran. */
+    const terisiPer = new Map<string, Set<string>>(periods.map(p => [p, new Set<string>()]))
+    for (const m of monthly) {
+      if (m.halaman_akhir_tahsin.trim()) terisiPer.get(m.period.slice(0, 7))?.add(m.student_id)
+    }
+    for (const l of [...logTahsin, ...logTahfidz]) terisiPer.get(l.setoran_date.slice(0, 7))?.add(l.student_id)
+
     const milikKita = new Set(studentIds)
 
     // Terisi untuk bulan yang diminta, dipetakan per halaqoh.
-    const terisiBulanIni = new Set(
-      monthly
-        .filter(m => m.period.slice(0, 7) === period && m.halaman_akhir_tahsin.trim() && milikKita.has(m.student_id))
-        .map(m => m.student_id),
-    )
+    const terisiBulanIni = new Set([...(terisiPer.get(period) ?? [])].filter(id => milikKita.has(id)))
 
     const perHalaqoh = new Map<string, { total: number; terisi: number }>()
     for (const s of students) {
@@ -143,9 +169,7 @@ export async function getKelengkapan(
     })
 
     const trend: KelengkapanBulan[] = periods.map(p => {
-      const terisi = monthly.filter(
-        m => m.period.slice(0, 7) === p && m.halaman_akhir_tahsin.trim() && halaqohOf.has(m.student_id),
-      ).length
+      const terisi = [...(terisiPer.get(p) ?? [])].filter(id => halaqohOf.has(id)).length
       return {
         period: p,
         totalSiswa: students.length,
