@@ -9,7 +9,7 @@ import {
   Users, UserCog, BookMarked, BarChart3, LayoutTemplate, Info, Wallet, CalendarRange, CalendarDays,
   ClipboardCheck, KeyRound, ScrollText, Repeat, IdCard, UsersRound, Briefcase, Stamp, Scale, ListChecks, Kanban,
   PanelLeftClose, PanelLeftOpen, CalendarHeart, Lock, UserRound,
-  Crosshair,
+  Crosshair, LibraryBig,
 } from 'lucide-react'
 import { DASHBOARD_LABELS, getAccessibleDashboards, ROLE_LABELS , canManageTeacherProfiles } from '@/lib/auth/permissions'
 import {
@@ -18,7 +18,7 @@ import {
   canViewStudents, canViewHalaqoh, canViewTeachers, canViewUnitAnalytics,
   canManageHomepage, canViewKpi, canCatatSetoranGuru, canManageAllAccounts, canManagePengurus, canManageEmployees, canViewUjian,
   canAccessKpiPublikasi, canManageRaporTemplate, canManageRiyadhoh, canViewRiyadhohAnalitik, canManageEkstra, canManageKaldik, canViewKpiBanding, canViewTasks, canViewRoutineBoard,
-  isAdmin, canViewLaporanKurikulum, canViewPapanRapat, canViewTargetBulanan,
+  isAdmin, canViewLaporanKurikulum, canViewPapanRapat, canViewTargetBulanan, canKelolaPanduanGuru,
 } from '@/lib/auth/permissions'
 import type { UserRole } from '@/types'
 import { logoutAction } from '@/app/actions/auth'
@@ -261,6 +261,10 @@ export function Sidebar({ role, displayName, username, lencanaKpi, ciutAwal = fa
                 <NavItem href="/tasks" icon={<CheckSquare className="h-4 w-4" />} label="Tugas" active={isActive('/tasks') && !pathname.startsWith('/tasks/board')} />
                 <NavItem href="/tasks/board" icon={<LayoutGrid className="h-4 w-4" />} label="Papan Tugas" active={pathname.startsWith('/tasks/board')} />
               </>
+            )}
+            {/* Panduan Guru (0104): SOP & dokumen PDF untuk portal guru. */}
+            {canKelolaPanduanGuru(role) && (
+              <NavItem href="/panduan-guru" icon={<LibraryBig className="h-4 w-4" />} label="Panduan Guru" active={isActive('/panduan-guru')} />
             )}
             {canViewHumasRequests(role) && (
               <NavItem href="/humas-request" icon={<ImageIcon className="h-4 w-4" />} label="Request Humas" active={isActive('/humas-request')} />

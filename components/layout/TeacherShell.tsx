@@ -2,8 +2,9 @@ import { punyaSlotEkstra } from '@/lib/data/ekstra'
 import {
   LayoutDashboard, Users, CalendarCheck,
   BarChart3, ScrollText, GraduationCap, IdCard, ClipboardCheck, ListChecks,
-  Table2, HeartHandshake, UserCheck,
+  Table2, UserCheck,
   FileText, CalendarHeart, Play, PieChart,
+  LibraryBig,
 } from 'lucide-react'
 import { cookies } from 'next/headers'
 import { getTeacherSession } from '@/lib/auth/teacher-session'
@@ -75,6 +76,7 @@ export async function TeacherShell({ children }: { children: React.ReactNode }) 
         // dimulai adalah melihat siapa yang datang (0081).
         // Satu layar yang merangkai hadir → setor → catatan untuk sesi yang sedang berjalan.
         { label: 'Mulai Sesi', href: '/guru/sesi', icon: <Play /> },
+        // Rekap sebulan kini tab di dalam Daftar Hadir (/guru/absensi/rekap).
         { label: 'Daftar Hadir', href: '/guru/absensi', icon: <UserCheck /> },
         // Setor tahsin/tahfidz satu anak dibuka dari profil anak (Siswa Saya →
         // nama anak → tombol Setor), bukan dari menu — sidebar guru terlalu panjang.
@@ -85,9 +87,8 @@ export async function TeacherShell({ children }: { children: React.ReactNode }) 
         // sudah ada tapi tak punya jalan masuk dari navigasi.
         { label: 'Sesi Tahsin', href: '/guru/setoran/tahsin/sesi', icon: <ListChecks /> },
         { label: 'Sesi Tahfidz', href: '/guru/setoran/tahfidz/sesi', icon: <ListChecks /> },
-        { label: 'Rekap Kehadiran', href: '/guru/absensi/rekap', icon: <Table2 /> },
-        { label: 'Progres per Sesi', href: '/guru/progres', icon: <Table2 /> },
-        { label: 'Catatan Adab', href: '/guru/adab', icon: <HeartHandshake /> },
+        // Catatan Adab kini tab di dalam Progres per Sesi (/guru/adab).
+        { label: 'Progres per Sesi', href: '/guru/progres', icon: <Table2 />, juga: ['/guru/adab'] },
         { label: 'Capaian Bulanan', href: '/guru/capaian', icon: <CalendarCheck /> },
         // Sebaran capaian seluruh halaqoh di unit guru — jumlah saja, tanpa nama siswa.
         { label: 'Capaian Unit', href: '/guru/capaian-unit', icon: <PieChart /> },
@@ -113,6 +114,8 @@ export async function TeacherShell({ children }: { children: React.ReactNode }) 
           : []),
         ...(pengampuEkstra ? [{ label: 'Ekstra', href: '/guru/ekstra', icon: <CalendarHeart /> }] : []),
         ...(bolehGukar ? [{ label: 'Pembinaan Gukar', href: '/guru/gukar', icon: <GraduationCap /> }] : []),
+        // SOP & dokumen PDF dari pengurus (0104).
+        { label: 'Panduan Guru', href: '/guru/panduan', icon: <LibraryBig /> },
         { label: 'Profil Saya', href: '/guru/profil', icon: <IdCard /> },
       ],
     },

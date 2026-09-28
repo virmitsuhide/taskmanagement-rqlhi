@@ -6,6 +6,7 @@ import { getCatatanAdab } from '@/lib/data/rekap-sesi'
 import { currentPeriod, formatPeriod, isValidPeriod } from '@/lib/finance/period'
 import { BINTANG_ADAB_RENDAH } from '@/lib/rq/bintang'
 import { FilterSesiBulan } from '@/components/setoran/FilterSesiBulan'
+import { TabProgresSesi } from '@/components/setoran/TabProgresSesi'
 
 interface PageProps {
   searchParams: Promise<{ halaqoh?: string; periode?: string }>
@@ -49,12 +50,13 @@ export default async function CatatanAdabPage({ searchParams }: PageProps) {
             className="text-3xl tracking-tight"
             style={{ fontFamily: 'var(--font-playfair), Georgia, serif' }}
           >
-            Catatan Adab
+            Progres per Sesi
           </h1>
           <p className="text-sm text-muted-foreground mt-0.5">
             Anak dengan nilai adab ≤ {BINTANG_ADAB_RENDAH.toLocaleString('id-ID')}★ saat setor tahsin atau tahfidz.
             Nilai adab tidak memengaruhi kenaikan halaman.
           </p>
+          <div className="mt-3"><TabProgresSesi aktif="adab" halaqoh={halaqoh} periode={periode} /></div>
         </div>
 
         {!data ? (

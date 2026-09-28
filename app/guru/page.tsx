@@ -233,15 +233,22 @@ export default async function TeacherHomePage() {
                 <h3 className="text-sm font-semibold mb-3">Halaqoh Saya</h3>
                 <div className="space-y-3">
                   {halaqohSummary.map(h => {
-                    const pct = h.studentCount > 0 ? Math.round((h.setorTodayCount / h.studentCount) * 100) : 0
+                    // Anak yang dicatat tidak hadir sudah "tercatat": 8 setor + 2 izin = 10/10.
+                    const tercatat = h.setorTodayCount + h.tidakHadirTodayCount
+                    const pct = h.studentCount > 0 ? Math.round((tercatat / h.studentCount) * 100) : 0
+                    const pctSetor = h.studentCount > 0 ? Math.round((h.setorTodayCount / h.studentCount) * 100) : 0
                     return (
                       <div key={h.id}>
                         <div className="flex items-center justify-between text-xs mb-1">
                           <span className="font-medium truncate">{h.name}</span>
-                          <span className="text-muted-foreground shrink-0 ml-2">{h.setorTodayCount}/{h.studentCount} setor</span>
+                          <span className="text-muted-foreground shrink-0 ml-2">
+                            {tercatat}/{h.studentCount} tercatat
+                            {h.tidakHadirTodayCount > 0 && ` · ${h.tidakHadirTodayCount} tidak hadir`}
+                          </span>
                         </div>
-                        <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-                          <div className="h-full rounded-full" style={{ width: `${pct}%`, background: pct === 100 ? 'var(--success)' : 'var(--primary)' }} />
+                        <div className="flex h-1.5 rounded-full bg-muted overflow-hidden">
+                          <div className="h-full" style={{ width: `${pctSetor}%`, background: pct === 100 ? 'var(--success)' : 'var(--primary)' }} />
+                          <div className="h-full" style={{ width: `${pct - pctSetor}%`, background: 'var(--muted-foreground)', opacity: 0.35 }} title="Tidak hadir" />
                         </div>
                       </div>
                     )

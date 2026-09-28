@@ -72,6 +72,8 @@ export interface HalaqohSummary {
   jenjang: string
   studentCount: number
   setorTodayCount: number
+  /** Siswa yang dicatat izin/sakit/alfa hari ini dan belum setor — dihitung tercatat. */
+  tidakHadirTodayCount: number
 }
 
 export async function getTeacherHalaqohSummary(teacherId: string): Promise<HalaqohSummary[]> {
@@ -81,11 +83,14 @@ export async function getTeacherHalaqohSummary(teacherId: string): Promise<Halaq
 
   const todayIso = isoDate(new Date())
 
-  const [halaqohRes, studentsRes, tahsinTodayRes, tahfidzTodayRes] = await Promise.all([
+  const [halaqohRes, studentsRes, tahsinTodayRes, tahfidzTodayRes, absenTodayRes] = await Promise.all([
     supabase.from('halaqoh').select('id, name, jenjang').in('id', halaqohIds).order('name'),
     supabase.from('students').select('id, halaqoh_id').in('halaqoh_id', halaqohIds).eq('is_active', true),
     supabase.from('tahsin_logs').select('student_id, halaqoh_id').in('halaqoh_id', halaqohIds).eq('setoran_date', todayIso),
     supabase.from('tahfidz_logs').select('student_id, halaqoh_id').in('halaqoh_id', halaqohIds).eq('setoran_date', todayIso),
+    // Kehadiran hari ini (0081): anak yang izin/sakit/alfa sudah "tercatat" —
+    // tidak setornya wajar, jadi ia tidak boleh menurunkan rekap harian.
+    supabase.from('absensi_harian').select('student_id, halaqoh_id').in('halaqoh_id', halaqohIds).eq('tanggal', todayIso).neq('status', 'hadir'),
   ])
 
   const studentCountByHalaqoh = new Map<string, number>()
@@ -107,5 +112,6 @@ export async function getTeacherHalaqohSummary(teacherId: string): Promise<Halaq
     jenjang: h.jenjang,
     studentCount: studentCountByHalaqoh.get(h.id) ?? 0,
     setorTodayCount: setorByHalaqoh.get(h.id)?.size ?? 0,
+    tidakHadirTodayCount: (absenTodayRes.data ?? []).filter(r => r.halaqoh_id === h.id && !setorByHalaqoh.get(h.id)?.has(r.student_id)).length,
   }))
 }

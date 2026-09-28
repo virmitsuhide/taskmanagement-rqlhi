@@ -1625,6 +1625,26 @@ export function canSusunLaporanKurikulum(role: UserRole): boolean {
   return role === 'kumik' || role === 'kepala_rq'
 }
 
+// ── Panduan Guru (0104) ──────────────────────────────────────────────────
+
+/** Sasaran pembaca dokumen panduan: seluruh guru, satu unit, atau guru QULS SD. */
+export type SasaranPanduan = 'semua' | Jenjang | 'quls_sd'
+
+/**
+ * Sasaran dokumen yang boleh diunggah & dikelola peran ini — null berarti
+ * tidak boleh. Lingkup global untuk pimpinan & divisi penopang; lokal untuk
+ * koordinator unit (hanya guru unitnya yang membaca).
+ */
+export function sasaranUnggahPanduan(role: UserRole): SasaranPanduan | null {
+  if (['kepala_rq', 'bendahara', 'sdm', 'kumik', 'koor_ekstra'].includes(role)) return 'semua'
+  if (role === 'koor_qulssd') return 'quls_sd'
+  return KOOR_UNIT[role] ?? null
+}
+
+export function canKelolaPanduanGuru(role: UserRole): boolean {
+  return sasaranUnggahPanduan(role) !== null
+}
+
 // ── Target bulanan tahsin & tahfidz (0103) ───────────────────────────────
 
 /**

@@ -52,6 +52,7 @@ export default async function MulaiSesiPage({ searchParams }: PageProps) {
   // Antrian setor: anak halaqoh ini yang hadir, paling lama belum setor di atas.
   const anak = semuaSiswa.filter(s => s.halaqoh_id === halaqoh?.id)
   const sudahSetor = anak.filter(s => s.last_setoran_date === hariIni)
+  const tidakHadirBelumSetor = anak.filter(s => tidakHadir.has(s.id) && s.last_setoran_date !== hariIni).length
   const antrian = anak
     .filter(s => s.last_setoran_date !== hariIni && !tidakHadir.has(s.id))
     .sort((a, b) => (a.last_setoran_date ?? '').localeCompare(b.last_setoran_date ?? ''))
@@ -70,6 +71,8 @@ export default async function MulaiSesiPage({ searchParams }: PageProps) {
             <p className="mt-1 text-sm text-muted-foreground">
               {halaqoh.sesi ? `Sesi ${halaqoh.sesi} · ${sesiJam(halaqoh.sesi)}` : 'Tanpa jam sesi'}
               {' · '}{anak.length} siswa · {sudahSetor.length} sudah setor hari ini
+              {/* Yang dicatat tidak hadir sudah tercatat — tidak menunggu setor. */}
+              {tidakHadirBelumSetor > 0 && ` · ${tidakHadirBelumSetor} tidak hadir (${sudahSetor.length + tidakHadirBelumSetor}/${anak.length} tercatat)`}
             </p>
           )}
         </header>

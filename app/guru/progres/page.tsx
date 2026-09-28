@@ -1,12 +1,11 @@
-import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { getTeacherSession } from '@/lib/auth/teacher-session'
 import { getHalaqohSesiGuru, pilihHalaqoh } from '@/lib/data/setoran-sesi'
 import { getProgresSesi, type JenisRekap } from '@/lib/data/rekap-sesi'
 import { currentPeriod, isValidPeriod } from '@/lib/finance/period'
-import { FilterSesiBulan, hrefRekap } from '@/components/setoran/FilterSesiBulan'
+import { FilterSesiBulan } from '@/components/setoran/FilterSesiBulan'
+import { TabProgresSesi } from '@/components/setoran/TabProgresSesi'
 import { TabelProgres } from '@/components/setoran/TabelProgres'
-import { cn } from '@/lib/utils'
 
 interface PageProps {
   searchParams: Promise<{ halaqoh?: string; periode?: string; jenis?: string }>
@@ -49,21 +48,7 @@ export default async function ProgresSesiPage({ searchParams }: PageProps) {
           </p>
         </div>
 
-        <div className="flex gap-2" role="group" aria-label="Jenis setoran">
-          {(['tahsin', 'tahfidz'] as const).map(j => (
-            <Link
-              key={j}
-              href={hrefRekap('/guru/progres', { halaqoh: halaqoh?.id, periode, jenis: j })}
-              aria-current={j === jenis ? 'page' : undefined}
-              className={cn(
-                'rounded-lg border px-3 py-1.5 text-sm transition-colors',
-                j === jenis ? 'border-primary bg-primary-wash font-semibold text-primary' : 'bg-card hover:bg-accent',
-              )}
-            >
-              {j === 'tahsin' ? 'Tahsin' : 'Tahfidz'}
-            </Link>
-          ))}
-        </div>
+        <TabProgresSesi aktif={jenis} halaqoh={halaqoh?.id} periode={periode} />
 
         {!halaqoh || !data ? (
           <div className="rounded-2xl border border-dashed bg-muted/30 py-10 text-center text-sm text-muted-foreground">

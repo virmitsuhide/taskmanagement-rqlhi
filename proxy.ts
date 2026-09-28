@@ -24,6 +24,9 @@ const ADMIN_PREFIXES = [
   '/ujian/penguji',
   // Laporan bulanan Kurikulum (Bab 02 BPH) — Kumik & Kepala RQ.
   '/laporan-kurikulum',
+  // Target bulanan (0103) & kelola Panduan Guru (0104).
+  '/target-bulanan',
+  '/panduan-guru',
   // Sisi koordinator Ekstra. Pendaftaran orang tua ada di /daftar-ekstra (publik).
   '/ekstra',
 ]
@@ -112,6 +115,8 @@ export const config: ProxyConfig = {
     '/ujian/riwayat/:path*',
     '/ujian/penguji/:path*',
     '/laporan-kurikulum/:path*',
+    '/target-bulanan/:path*',
+    '/panduan-guru/:path*',
     '/guru/:path*',
   ],
 }

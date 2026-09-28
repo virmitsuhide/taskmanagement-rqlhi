@@ -5,7 +5,7 @@ import { getHalaqohSesiGuru, pilihHalaqoh } from '@/lib/data/setoran-sesi'
 import { getAbsensiTanggal, getSiswaSesi, getTanggalTerabsen } from '@/lib/data/absensi'
 import { labelTanggalPanjang } from '@/lib/rq/absensi'
 import { tanggalWIB } from '@/lib/rq/ujian'
-import { CalendarRange } from 'lucide-react'
+import { TabDaftarHadir } from '@/components/guru/TabDaftarHadir'
 import { Slicer, hrefDengan } from '@/components/dashboard/kit'
 import { AbsensiSesi } from '@/components/guru/AbsensiSesi'
 import type { StatusAbsensi } from '@/lib/rq/absensi'
@@ -58,12 +58,7 @@ export default async function AbsensiPage({ searchParams }: PageProps) {
           {/* Layar ini menjawab "siapa yang datang hari ini"; rekap sebulan
               menjawab "bagaimana bulan ini", termasuk pertemuan yang terlewat
               diabsen — yang tidak meninggalkan jejak apa pun di sini. */}
-          <Link
-            href="/guru/absensi/rekap"
-            className="mt-3 inline-flex items-center gap-1.5 rounded-lg border bg-card px-3 py-1.5 text-sm hover:bg-accent"
-          >
-            <CalendarRange className="h-4 w-4" /> Rekap sebulan
-          </Link>
+          <div className="mt-3"><TabDaftarHadir aktif="harian" /></div>
         </div>
 
         {!sesi ? (

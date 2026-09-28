@@ -1,6 +1,5 @@
 import { redirect } from 'next/navigation'
-import Link from 'next/link'
-import { ArrowLeft } from 'lucide-react'
+import { TabDaftarHadir } from '@/components/guru/TabDaftarHadir'
 import { getTeacherSession } from '@/lib/auth/teacher-session'
 import { getHalaqohSesiGuru, pilihHalaqoh } from '@/lib/data/setoran-sesi'
 import { getAbsensiBulan } from '@/lib/data/absensi'
@@ -39,15 +38,14 @@ export default async function RekapAbsensiPage({ searchParams }: PageProps) {
     <div className="min-h-screen" style={{ background: 'var(--secondary)' }}>
       <div className="mx-auto max-w-6xl space-y-4 px-4 py-6 md:px-6">
         <div>
-          <Link href="/guru/absensi" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-            <ArrowLeft className="h-4 w-4" /> Daftar hadir harian
-          </Link>
-          <h1 className="mt-1 text-3xl tracking-tight" style={{ fontFamily: 'var(--font-playfair), Georgia, serif' }}>
-            Rekap Kehadiran
+          <p className="text-xs font-bold uppercase tracking-[0.1em] text-warning">Setoran</p>
+          <h1 className="text-3xl tracking-tight" style={{ fontFamily: 'var(--font-playfair), Georgia, serif' }}>
+            Daftar Hadir
           </h1>
           <p className="mt-0.5 text-sm text-muted-foreground">
             Kehadiran tiap anak sepanjang bulan. Arahkan kursor ke sel untuk keterangannya, atau ketuk nama anak untuk profilnya.
           </p>
+          <div className="mt-3"><TabDaftarHadir aktif="rekap" /></div>
         </div>
 
         {!halaqoh || !data ? (

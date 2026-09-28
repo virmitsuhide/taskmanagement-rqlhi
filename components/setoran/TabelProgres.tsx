@@ -25,8 +25,35 @@ function tanggalPanjang(iso: string): string {
   })
 }
 
-function Sel({ isi, onSunting }: { isi: SelProgres[] | undefined; onSunting?: (s: SuntingSetoran) => void }) {
-  if (!isi || isi.length === 0) return <span className="text-muted-foreground/40">·</span>
+const HURUF_ABSEN = { izin: 'I', sakit: 'S', alfa: 'A' } as const
+
+function Sel({ isi, absen, hadirTanpaSetor, onSunting }: {
+  isi: SelProgres[] | undefined
+  absen?: 'izin' | 'sakit' | 'alfa'
+  hadirTanpaSetor?: boolean
+  onSunting?: (s: SuntingSetoran) => void
+}) {
+  if (!isi || isi.length === 0) {
+    // Tidak hadir = sudah tercatat, bukan lubang: ditandai tenang.
+    if (absen) {
+      return (
+        <span title={`Tidak hadir — ${absen}`} className={cn(
+          'inline-flex min-w-6 justify-center rounded px-1 py-0.5 text-[10px] font-semibold',
+          absen === 'alfa' ? 'bg-destructive-wash text-destructive' : 'bg-muted text-muted-foreground',
+        )}>{HURUF_ABSEN[absen]}</span>
+      )
+    }
+    // Hadir tapi tidak setor apa pun — yang perlu ditanyakan guru.
+    if (hadirTanpaSetor) {
+      return (
+        <span title="Hadir, tapi tidak setor (tahsin maupun tahfidz)"
+          className="inline-flex min-w-6 justify-center rounded border border-dashed border-warning px-1 py-0.5 text-[10px] font-semibold text-warning">
+          H
+        </span>
+      )
+    }
+    return <span className="text-muted-foreground/40">·</span>
+  }
   return (
     <span className="flex flex-col items-center gap-0.5">
       {isi.map((s, i) => {
@@ -119,8 +146,18 @@ export function TabelProgres({
                   </Link>
                   <span className="mt-0.5 block text-[11px] text-muted-foreground">
                     {b.jumlahHari.toLocaleString('id-ID')} hari setor
+                    {Object.keys(b.absen).length > 0 && <> · {Object.keys(b.absen).length} tidak hadir</>}
                     {b.adabRendah > 0 && <span className="text-destructive"> · adab rendah {b.adabRendah}×</span>}
                   </span>
+                  {b.hadirTanpaSetor.length > 0 && (
+                    <span className="block text-[11px] font-medium text-warning">Hadir tanpa setor {b.hadirTanpaSetor.length}×</span>
+                  )}
+                  {b.pekanKurang.map(p => (
+                    <span key={p.senin} className="block text-[11px] font-medium text-destructive"
+                      title={`Pekan ${tanggalPanjang(p.senin)}: setor ${p.setor} dari ${p.hadir} hari yang bisa hadir`}>
+                      ⚠ Pekan {new Date(`${p.senin}T00:00:00`).getDate()}/{new Date(`${p.senin}T00:00:00`).getMonth() + 1}: hanya {p.setor}× setor
+                    </span>
+                  ))}
                   {b.akhir && (
                     <span className="block text-[11px] text-muted-foreground">
                       {b.awal && b.awal !== b.akhir ? `${b.awal} → ${b.akhir}` : b.akhir}
@@ -136,7 +173,12 @@ export function TabelProgres({
                       t === hariIni && 'bg-primary-wash/40',
                     )}
                   >
-                    <Sel isi={b.sel[t]} onSunting={bisaSunting ? s => setSunting({ s, nama: b.nama }) : undefined} />
+                    <Sel
+                      isi={b.sel[t]}
+                      absen={b.absen[t]}
+                      hadirTanpaSetor={b.hadirTanpaSetor.includes(t)}
+                      onSunting={bisaSunting ? s => setSunting({ s, nama: b.nama }) : undefined}
+                    />
                   </td>
                 ))}
               </tr>
@@ -159,6 +201,9 @@ export function TabelProgres({
           </>
         )}
         <span><b className="text-warning">kuning</b> = ulang</span>
+        <span><b>I</b> / <b>S</b> / <b className="text-destructive">A</b> = izin / sakit / alfa (tercatat, bukan lubang)</span>
+        <span><b className="text-warning">H</b> = hadir tapi tidak setor</span>
+        <span><b className="text-destructive">⚠</b> = pekan dengan setor ≤ 2 hari</span>
         <span className="inline-flex items-center gap-1">
           <span className="h-2 w-2 rounded-full bg-destructive" /> adab ≤ 2,5★
         </span>

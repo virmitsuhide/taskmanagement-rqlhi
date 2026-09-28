@@ -131,7 +131,16 @@ export interface BarisProgres {
   awal: string | null
   akhir: string | null
   adabRendah: number
+  /** Tanggal → status tidak hadir yang dicatat di Daftar Hadir (0081). */
+  absen: Record<string, 'izin' | 'sakit' | 'alfa'>
+  /** Tanggal yang dicatat HADIR tapi tanpa setoran apa pun (tahsin maupun tahfidz). */
+  hadirTanpaSetor: string[]
+  /** Pekan yang sudah lewat dengan setoran ≤ BATAS_SETOR_PEKANAN hari, padahal anaknya bisa hadir ≥ 3 hari. */
+  pekanKurang: { senin: string; setor: number; hadir: number }[]
 }
+
+/** Setoran sebanyak ini atau kurang dalam sepekan ditandai. */
+export const BATAS_SETOR_PEKANAN = 2
 
 export interface ProgresSesi {
   /** Senin–Jumat bulan itu (+ akhir pekan yang ternyata ada setorannya), urut naik. */
@@ -316,7 +325,38 @@ export async function getProgresSesi(halaqohId: string, periode: string, jenis: 
     }
   }
 
-  const semuaTanggal = new Set<string>(hariSekolah(periode))
+  // Kehadiran & hari setor (dua jenis sekaligus): anak yang izin tidak
+  // semestinya tampak "tidak setor", dan anak yang hadir tapi tak setor —
+  // tahsin maupun tahfidz — itulah yang perlu ditanyakan gurunya.
+  const [absensiRows, hariTahsin, hariTahfidz] = await Promise.all([
+    ambilSemua<{ student_id: string; tanggal: string; status: string }>((dari, sampai) => supabase
+      .from('absensi_harian').select('student_id, tanggal, status')
+      .in('student_id', ids).gte('tanggal', awal).lt('tanggal', akhir).order('tanggal').range(dari, sampai)),
+    ambilSemua<{ student_id: string; setoran_date: string }>((dari, sampai) => supabase
+      .from('tahsin_logs').select('student_id, setoran_date')
+      .in('student_id', ids).gte('setoran_date', awal).lt('setoran_date', akhir).order('setoran_date').range(dari, sampai)),
+    ambilSemua<{ student_id: string; setoran_date: string }>((dari, sampai) => supabase
+      .from('tahfidz_logs').select('student_id, setoran_date')
+      .in('student_id', ids).gte('setoran_date', awal).lt('setoran_date', akhir).order('setoran_date').range(dari, sampai)),
+  ])
+  const statusHari = new Map<string, string>()
+  for (const a of absensiRows) statusHari.set(`${a.student_id}|${a.tanggal}`, a.status)
+  const hariSetor = new Set([...hariTahsin, ...hariTahfidz].map(l => `${l.student_id}|${l.setoran_date}`))
+  // Hari sesi benar-benar berjalan: ada setoran atau absensi siapa pun. Pekan
+  // sebelum halaqoh mulai mencatat, dan hari libur di tengah pekan, tidak
+  // boleh menuduh anak "tidak setor".
+  const hariAktif = new Set([...hariTahsin, ...hariTahfidz].map(l => l.setoran_date).concat(absensiRows.map(a => a.tanggal)))
+  const hariIni = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta' }).format(new Date())
+  const sekolah = hariSekolah(periode)
+  // Pekan (kunci: Senin) → hari sekolah di bulan ini yang sudah lewat.
+  const pekan = new Map<string, string[]>()
+  for (const t of sekolah) {
+    const d = new Date(`${t}T00:00:00Z`)
+    const senin = new Date(d.getTime() - ((d.getUTCDay() + 6) % 7) * 86_400_000).toISOString().slice(0, 10)
+    pekan.set(senin, [...(pekan.get(senin) ?? []), t])
+  }
+
+  const semuaTanggal = new Set<string>(sekolah)
   const baris: BarisProgres[] = siswa.map(s => {
     const daftar = perSiswa.get(s.id) ?? []
     const sel: Record<string, SelProgres[]> = {}
@@ -325,6 +365,23 @@ export async function getProgresSesi(halaqohId: string, periode: string, jenis: 
       ;(sel[d.tanggal] ??= []).push(d.sel)
     }
     const posisi = daftar.map(d => d.posisi).filter((p): p is string => Boolean(p))
+
+    const absen: BarisProgres['absen'] = {}
+    const hadirTanpaSetor: string[] = []
+    for (const t of sekolah) {
+      const st = statusHari.get(`${s.id}|${t}`)
+      if (st === 'izin' || st === 'sakit' || st === 'alfa') absen[t] = st
+      else if (st === 'hadir' && t <= hariIni && !hariSetor.has(`${s.id}|${t}`)) hadirTanpaSetor.push(t)
+    }
+    // Hanya pekan yang sudah selesai: pekan berjalan belum adil dinilai.
+    const pekanKurang: BarisProgres['pekanKurang'] = []
+    for (const [senin, hari] of pekan) {
+      if (hari[hari.length - 1] >= hariIni) continue
+      const bisaHadir = hari.filter(t => hariAktif.has(t) && !absen[t]).length
+      const setor = hari.filter(t => hariSetor.has(`${s.id}|${t}`)).length
+      if (bisaHadir >= 3 && setor <= BATAS_SETOR_PEKANAN) pekanKurang.push({ senin, setor, hadir: bisaHadir })
+    }
+
     return {
       id: s.id,
       nama: s.full_name,
@@ -334,6 +391,9 @@ export async function getProgresSesi(halaqohId: string, periode: string, jenis: 
       awal: posisi[0] ?? null,
       akhir: posisi[posisi.length - 1] ?? null,
       adabRendah: daftar.filter(d => d.sel.adabRendah).length,
+      absen,
+      hadirTanpaSetor,
+      pekanKurang,
     }
   })
 
