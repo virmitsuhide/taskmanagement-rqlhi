@@ -50,7 +50,7 @@ export default async function AnalitikUnitPage() {
               <>
                 {' · '}
                 <Link href="/dashboard/analitik" className="text-primary hover:underline">
-                  ← Analitik RQ umum
+                  ← Analitik BTHCQ umum
                 </Link>
               </>
             ) : null}

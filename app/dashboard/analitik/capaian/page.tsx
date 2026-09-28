@@ -131,7 +131,7 @@ export default async function CapaianKelasPage({ searchParams }: PageProps) {
               Urutan hafalan RQ: Juz 30 → 26, lalu Juz 1 dan seterusnya. &ldquo;3 juz&rdquo; / &ldquo;5 juz&rdquo; = sudah menuntaskan
               tiga / lima juz bloknya (lewat kenaikan juz atau ujian) dan belum mulai menyetor juz berikutnya.
               Kolom &ldquo;Belum&rdquo; = siswa aktif yang belum pernah setor di aplikasi — bukan dianggap Jilid 1 atau Juz 30.
-              {canViewAnalytics(session.role) && <> <Link href="/dashboard/analitik" className="text-primary hover:underline">← Analitik RQ</Link></>}
+              {canViewAnalytics(session.role) && <> <Link href="/dashboard/analitik" className="text-primary hover:underline">← Analitik BTHCQ</Link></>}
             </p>
           </>
         )}

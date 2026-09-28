@@ -214,6 +214,13 @@ export function halamanSelesaiDalamJuz(juz: number, surat: number, ayat: number)
   if (hlm === null || hlm < b.mulai) return 0
   if (hlm > b.selesai) return halamanPerJuz(juz)
 
+  // Ayat terakhir juz = juz tuntas, walau halamannya dibagi dengan juz
+  // berikutnya. Halaman bersama (mis. 502: ujung Al-Jasiyah + awal Al-Ahqaf)
+  // jatuh ke juz yang membuka halaman itu; tanpa cabang ini, yang hafalannya
+  // sampai Al-Jasiyah 37 tidak pernah tercatat menuntaskan juz 25.
+  const akhir = akhirJuzMushaf(juz)
+  if (akhir && bandingPosisi({ surat, ayat }, akhir) >= 0) return halamanPerJuz(juz)
+
   // Ayat terakhir sebuah halaman = satu ayat sebelum awal halaman berikutnya.
   //
   // Halaman 604 tidak punya halaman sesudahnya, jadi ia perlu patokannya
@@ -232,18 +239,38 @@ export function halamanSelesaiDalamJuz(juz: number, surat: number, ayat: number)
 }
 
 /**
+ * Jumlah ayat tiap surah (1-114), total 6236 — sama dengan
+ * surat_master.total_ayat (dicocokkan 2026-09-28).
+ */
+export const AYAT_PER_SURAT: readonly number[] = [
+  7, 286, 200, 176, 120, 165, 206, 75, 129, 109, 123, 111, 43, 52, 99, 128, 111, 110, 98, 135,
+  112, 78, 118, 64, 77, 227, 93, 88, 69, 60, 34, 30, 73, 54, 45, 83, 182, 88, 75, 85,
+  54, 53, 89, 59, 37, 35, 38, 29, 18, 45, 60, 49, 62, 55, 78, 96, 29, 22, 24, 13,
+  14, 11, 11, 18, 12, 12, 30, 52, 52, 44, 28, 28, 20, 56, 40, 31, 50, 40, 46, 42,
+  29, 19, 36, 25, 22, 17, 19, 26, 30, 20, 15, 21, 11, 8, 8, 19, 5, 8, 8, 11,
+  11, 8, 3, 9, 5, 4, 7, 3, 6, 3, 5, 4, 5, 6,
+]
+
+/** Ayat terakhir sebuah juz menurut batas mushaf RQ (AWAL_JUZ_MUSHAF). */
+export function akhirJuzMushaf(juz: number): PosisiMushaf | null {
+  if (juz === 30) return AKHIR_MUSHAF
+  const awalBerikut = AWAL_JUZ_MUSHAF[juz]
+  if (!awalBerikut || juz < 1) return null
+  const [s, a] = awalBerikut
+  return a > 1 ? { surat: s, ayat: a - 1 } : { surat: s - 1, ayat: AYAT_PER_SURAT[s - 2] }
+}
+
+/**
  * Apakah `a` tepat satu ayat sebelum `b`?
  *
- * Dijawab tanpa memuat panjang surah: bila keduanya di surah yang sama,
- * cukup selisih nomor ayat; bila berpindah surah, `b` harus ayat pertama
- * surah berikutnya — dan berapa pun panjang surah `a`, ayat terakhirnya
- * adalah yang tepat sebelum itu. Yang tidak bisa dipastikan di sini hanyalah
- * apakah `a` memang ayat TERAKHIR surahnya; itu diserahkan ke pemanggil yang
- * punya surat_master.
+ * Bila keduanya di surah yang sama, cukup selisih nomor ayat. Bila berpindah
+ * surah, `b` harus ayat pertama surah berikutnya DAN `a` harus ayat terakhir
+ * surahnya — tanpa syarat kedua, Al-Baqarah 283 terbaca "tepat sebelum"
+ * Ali 'Imran 1 dan halaman 49 dihitung tuntas padahal belum.
  */
 function sePosisiTepatSebelum(a: PosisiMushaf, b: PosisiMushaf): boolean {
   if (a.surat === b.surat) return a.ayat + 1 === b.ayat
-  return b.surat === a.surat + 1 && b.ayat === 1
+  return b.surat === a.surat + 1 && b.ayat === 1 && a.ayat >= AYAT_PER_SURAT[a.surat - 1]
 }
 
 /**

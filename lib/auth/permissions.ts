@@ -226,7 +226,9 @@ export function getCreatableMeetingTypes(role: UserRole): MeetingType[] {
  * Jadi tanpa fungsi ini, membatasi peran baru cuma berarti menyembunyikan
  * tautannya, sementara alamatnya tetap terbuka bagi yang mengetiknya langsung.
  */
-const TANPA_MODUL_TUGAS: UserRole[] = ['div_quran_bpa', 'div_quran_bpi', 'admin']
+// Tiga koor unit 0099 (TPAIT, SD Juara, SMA) juga tanpa modul tugas — amanahnya
+// pembinaan Qur'an unit: siswa, halaqoh, ujian, dan rapat.
+const TANPA_MODUL_TUGAS: UserRole[] = ['div_quran_bpa', 'div_quran_bpi', 'admin', 'koor_tpait', 'koor_sdjuara', 'koor_sma']
 
 export function canViewTasks(role: UserRole): boolean {
   return !TANPA_MODUL_TUGAS.includes(role)
@@ -251,8 +253,8 @@ export function canViewRoutineBoard(role: UserRole): boolean {
 }
 
 const TASK_ASSIGN_TO: Record<UserRole, UserRole[]> = {
-  kepala_rq: ['kepala_rq', 'kumik', 'sdm', 'bendahara', 'koor_ekstra', 'koor_sd', 'koor_smp', 'koor_qulssd', 'koor_tpait', 'koor_sdjuara', 'koor_sma', 'humas', 'div_training', 'new_squad'],
-  kumik: ['koor_sd', 'koor_smp', 'koor_qulssd', 'koor_tpait', 'koor_sdjuara', 'koor_sma', 'koor_ekstra', 'humas', 'bendahara'],
+  kepala_rq: ['kepala_rq', 'kumik', 'sdm', 'bendahara', 'koor_ekstra', 'koor_sd', 'koor_smp', 'koor_qulssd', 'humas', 'div_training', 'new_squad'],
+  kumik: ['koor_sd', 'koor_smp', 'koor_qulssd', 'koor_ekstra', 'humas', 'bendahara'],
   sdm: ['new_squad', 'div_training', 'humas', 'bendahara'],
   // Para koor menugasi divisinya sendiri, plus Humas. Humas ikut karena keempat
   // koor memang sudah memantau papan Humas (getBoardDivisions di bawah) — tanpa
@@ -261,11 +263,11 @@ const TASK_ASSIGN_TO: Record<UserRole, UserRole[]> = {
   koor_sd: ['koor_sd', 'humas'],
   koor_smp: ['koor_smp', 'humas'],
   koor_qulssd: ['koor_qulssd', 'humas'],
-  // Tiga koor unit 0099 tidak memakai antrean Humas — tugasnya hanya ke
-  // jabatannya sendiri.
-  koor_tpait: ['koor_tpait'],
-  koor_sdjuara: ['koor_sdjuara'],
-  koor_sma: ['koor_sma'],
+  // Tiga koor unit 0099 tidak memegang modul tugas (TANPA_MODUL_TUGAS):
+  // tidak menugasi dan tidak ditugasi.
+  koor_tpait: [],
+  koor_sdjuara: [],
+  koor_sma: [],
   koor_ekstra: ['humas'],
   bendahara: [],
   humas: [],
@@ -295,24 +297,20 @@ export function canAssignAnyTask(role: UserRole): boolean {
 // Divisi sebuah task = role penerima (assignee).
 const ALL_ROLES: UserRole[] = [
   'kepala_rq', 'kumik', 'sdm', 'bendahara', 'koor_sd', 'koor_smp', 'koor_qulssd',
-  'koor_tpait', 'koor_sdjuara', 'koor_sma',
   'koor_ekstra', 'humas', 'div_training', 'new_squad',
 ]
 
-/** Seluruh jabatan koordinator — yang papan tugasnya saling terbuka. */
-const KOOR_PAPAN: UserRole[] = [
-  'koor_sd', 'koor_smp', 'koor_qulssd', 'koor_tpait', 'koor_sdjuara', 'koor_sma', 'koor_ekstra',
-]
-const KOOR_UNIT_BARU: UserRole[] = ['koor_tpait', 'koor_sdjuara', 'koor_sma']
+/**
+ * Jabatan koordinator yang papan tugasnya saling terbuka. Tiga koor unit
+ * 0099 (TPAIT, SD Juara, SMA) di luar: mereka tanpa modul tugas.
+ */
+const KOOR_PAPAN: UserRole[] = ['koor_sd', 'koor_smp', 'koor_qulssd', 'koor_ekstra']
 
 export function getBoardDivisions(role: UserRole): UserRole[] {
+  if (!canViewTasks(role)) return []
   if (role === 'kepala_rq' || role === 'kumik' || role === 'sdm') return ALL_ROLES
-  // Sesama koor saling melihat papan tugasnya. Koor lama (SD, SMP, QULS SD,
-  // Ekstra) tetap memantau New Squad & Humas; tiga koor unit 0099 (TPAIT,
-  // SD Juara, SMA) tidak — mereka tidak terlibat urusan kedua divisi itu.
-  if (KOOR_PAPAN.includes(role)) {
-    return KOOR_UNIT_BARU.includes(role) ? KOOR_PAPAN : [...KOOR_PAPAN, 'new_squad', 'humas']
-  }
+  // Sesama koor saling melihat papan tugasnya, plus New Squad & Humas.
+  if (KOOR_PAPAN.includes(role)) return [...KOOR_PAPAN, 'new_squad', 'humas']
   // Humas memantau papannya sendiri plus New Squad.
   if (role === 'humas') return ['humas', 'new_squad']
   return []

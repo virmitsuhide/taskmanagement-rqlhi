@@ -146,7 +146,7 @@ export function Sidebar({ role, displayName, username, lencanaKpi, ciutAwal = fa
               <NavItem
                 href="/dashboard/analitik"
                 icon={<BarChart3 className="h-4 w-4" />}
-                label="Analitik RQ"
+                label="Analitik BTHCQ"
                 active={isActive('/dashboard/analitik') && !pathname.startsWith('/dashboard/analitik/gukar')}
               />
             )}

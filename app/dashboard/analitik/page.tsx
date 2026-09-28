@@ -138,7 +138,7 @@ export default async function AnalitikPage({ searchParams }: PageProps) {
 
   return (
     <div>
-      <DashboardHeader displayName={session.displayName} role={session.role} title="Analitik RQ" showBack ownH1 />
+      <DashboardHeader displayName={session.displayName} role={session.role} title="Analitik BTHCQ" showBack ownH1 />
       <div className="mx-auto max-w-7xl space-y-7 p-4 md:p-8">
 
         {/* ── Z · garis atas halaman: judul ► filter ── */}

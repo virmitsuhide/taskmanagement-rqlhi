@@ -208,7 +208,7 @@ const KONFIG: Record<HalamanDashboard, Konfig> = {
 
 /** Pintasan hanya ditawarkan bila penggunanya lolos aturan akses yang sama dengan sidebar. */
 const PINTASAN: Record<KunciPintasan, Pintasan & { boleh: (r: UserRole) => boolean }> = {
-  analitik: { href: '/dashboard/analitik', label: 'Analitik RQ', ket: 'Capaian, target, ujian, kelengkapan', ikon: <BarChart3 className="h-4 w-4" />, boleh: canViewUnitAnalytics },
+  analitik: { href: '/dashboard/analitik', label: 'Analitik BTHCQ', ket: 'Capaian, target, ujian, kelengkapan', ikon: <BarChart3 className="h-4 w-4" />, boleh: canViewUnitAnalytics },
   gukar: { href: '/dashboard/analitik/gukar', label: 'Analitik Gukar', ket: 'Halaqoh guru & karyawan', ikon: <BookMarked className="h-4 w-4" />, boleh: canViewGukarRecap },
   papanTugas: { href: '/tasks/board', label: 'Papan Tugas', ket: 'Kanban seluruh divisi', ikon: <LayoutGrid className="h-4 w-4" />, boleh: canViewTasks },
   tugasBaru: { href: '/tasks/baru', label: 'Buat Tugas', ket: 'Tugaskan ke pengurus', ikon: <Plus className="h-4 w-4" />, boleh: canViewTasks },
@@ -250,13 +250,13 @@ export async function DashboardPengurus({ halaman, session, searchParams, atas }
   const periode = currentPeriod()
 
   const denganTugas = canViewTasks(role)
-  // Tanpa modul tugas (Div Quran BPA/BPI) tidak ada baris fokus, jadi panel
+  // Tanpa modul tugas (Div Quran BPA/BPI, koor TPAIT/SD Juara/SMA) tidak ada baris fokus, jadi panel
   // samping naik menjadi baris biasa — didahului antrian ujian, satu-satunya
   // pekerjaan harian mereka yang tercatat di aplikasi.
   const samping: KunciPanel[] = denganTugas ? k.samping : []
   const baris: KunciPanel[][] = denganTugas
     ? k.baris
-    : [[...(getUjianUnits(role).length ? ['ujian' as const] : []), ...k.samping], ...k.baris].filter(b => b.length > 0)
+    : [[...(getUjianUnits(role).length && !k.samping.includes('ujian') ? ['ujian' as const] : []), ...k.samping], ...k.baris].filter(b => b.length > 0)
   const ada = (p: KunciPanel) => samping.includes(p) || baris.some(b => b.includes(p))
   const unitUjian = ada('ujian') || !denganTugas ? getUjianUnits(role) : []
   const pintasan = k.pintasan.map(p => PINTASAN[p]).filter(p => p.boleh(role)).slice(0, 4)
@@ -574,10 +574,11 @@ function susunKpi({ halaman, denganTugas, tim, fokus, review, capaian, ujian, gu
     case 'manajemen': return [k.tugasAktif(), k.terlambat(), k.review(), k.penilaian()]
     case 'kumik': return [k.tugasAktif(), k.terlambat(), k.ujianAntri(), k.penilaian()]
     case 'koor-sd':
+    case 'koor-smp': return [k.siswa(), k.penilaian(), k.ujianAntri(), k.terlambat()]
+    // Tanpa modul tugas: KPI "terlambat" diganti halaqoh yang belum dinilai.
     case 'koor-tpait':
     case 'koor-sdjuara':
-    case 'koor-sma':
-    case 'koor-smp': return [k.siswa(), k.penilaian(), k.ujianAntri(), k.terlambat()]
+    case 'koor-sma': return [k.siswa(), k.penilaian(), k.ujianAntri(), k.halaqohKosong()]
     case 'koor-qulssd': return [k.siswa(), k.penilaian(), k.halaqohKosong(), k.terlambat()]
     case 'sdm': return [k.gukarPeserta(), k.gukarPerhatian(), k.tugasAktif(), k.terlambat()]
     case 'humas': return [k.requestBaru(), k.requestProses(), k.tugasAktif(), k.terlambat()]
