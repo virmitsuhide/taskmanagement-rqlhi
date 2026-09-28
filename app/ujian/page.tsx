@@ -11,7 +11,7 @@ import { canViewUjian } from '@/lib/auth/permissions'
 
 export const metadata: Metadata = {
   title: "Antrian Ujian — Rumah Qur'an LHI",
-  description: 'Cek antrian dan jadwal ujian tahsin & tahfidz SDIT dan SMPIT LHI tanpa perlu masuk akun.',
+  description: 'Cek antrian dan jadwal ujian tahsin & tahfidz TPAIT, SDIT, SD Juara, SMPIT, dan SMA LHI tanpa perlu masuk akun.',
 }
 
 const ALUR = [
@@ -42,7 +42,7 @@ export default async function AntrianUjianPage() {
               Kapan anak saya <span className="italic text-primary">diuji?</span>
             </h1>
             <p className="mt-3 max-w-xl text-[15.5px] leading-relaxed text-muted-foreground">
-              Cek antrian dan jadwal ujian SDIT &amp; SMPIT LHI tanpa perlu masuk akun.
+              Cek antrian dan jadwal ujian seluruh unit LHI tanpa perlu masuk akun.
             </p>
           </div>
           {bolehKelola && (

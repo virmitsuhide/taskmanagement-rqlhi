@@ -33,13 +33,13 @@ export default async function UjianGuruPage() {
     >
         <TandaiUjianGuruDilihat aktif={notif.baruCount > 0} />
 
-        {/* Antrian ujian hanya berjalan di SDIT & SMPIT. Guru unit lain
+        {/* Guru tanpa unit maupun halaqoh aktif
             diberi tahu alasannya, bukan sekadar disodori halaman kosong. */}
         {!unit ? (
           <div className="rounded-2xl border border-dashed p-6 text-center bg-muted/30">
-            <p className="text-sm font-medium">Akun Anda belum terhubung ke unit SD atau SMP</p>
+            <p className="text-sm font-medium">Akun Anda belum terhubung ke unit mana pun</p>
             <p className="mx-auto mt-1.5 max-w-md text-xs text-muted-foreground">
-              Pengajuan ujian tahsin &amp; tahfidz baru berjalan di SDIT dan SMPIT LHI, dan
+              Pengajuan ujian tahsin &amp; tahfidz masuk ke antrean unit tempat Anda mengajar, dan
               dijadwalkan oleh koordinator masing-masing unit. Hubungi koordinator bila unit
               pada akun Anda perlu diperbarui.
             </p>

@@ -6,6 +6,7 @@ import type {
   UjianTahfidz,
   UjianTahsin,
   UjianUnit,
+  Jenjang,
 } from '@/types'
 
 /**
@@ -15,22 +16,69 @@ import type {
  * bisa dipakai server component maupun komponen klien tanpa perantara.
  */
 
-export const UJIAN_UNITS: UjianUnit[] = ['SD', 'SMP']
+/** Urutan tampil: mengikuti jenjang, dari TPAIT sampai SMA. */
+export const UJIAN_UNITS: UjianUnit[] = ['TPAIT', 'SD', 'SD Juara', 'SMP', 'SMA']
+
+/**
+ * Jenjang siswa yang diuji di tiap antrean. Satu lawan satu — SD Juara punya
+ * antreannya sendiri sejak 0100, tidak lagi menumpang SD.
+ */
+export const UJIAN_UNIT_JENJANG: Record<UjianUnit, Jenjang> = {
+  TPAIT: 'paud',
+  SD: 'sd',
+  'SD Juara': 'sd_juara',
+  SMP: 'smp',
+  SMA: 'sma',
+}
+
+export function unitUjianDariJenjang(j: Jenjang | null | undefined): UjianUnit | null {
+  if (!j) return null
+  return UJIAN_UNITS.find(u => UJIAN_UNIT_JENJANG[u] === j) ?? null
+}
+
+/** Label pendek untuk chip penyaring, kolom tabel, dan lencana. */
+export const UJIAN_UNIT_LABEL: Record<UjianUnit, string> = {
+  TPAIT: 'TPAIT',
+  SD: 'SDIT',
+  'SD Juara': 'SD Juara',
+  SMP: 'SMPIT',
+  SMA: 'SMA',
+}
+
+/** Nama sekolah untuk pilihan di formulir. */
+export const UJIAN_UNIT_SEKOLAH: Record<UjianUnit, string> = {
+  TPAIT: 'TPAIT LHI',
+  SD: 'SDIT LHI',
+  'SD Juara': 'SD LHI Juara',
+  SMP: 'SMPIT LHI',
+  SMA: 'SMA LHI',
+}
 
 export const BULAN_ID = [
   'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
   'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
 ]
 
+const JILID = (n: number, awalan = 'Jilid') => Array.from({ length: n }, (_, i) => `${awalan} ${i + 1}`)
+
 /**
- * Level tahsin yang bisa dipilih saat mengajukan, per unit.
+ * Level tahsin yang bisa dipilih saat mengajukan, per unit — mengikuti metode
+ * tiap unit:
  *
- * SMP berhenti di Jilid 5: anak SMP yang tuntas jilid melanjutkan ke program
- * tahfidz, bukan ke gharib/tajwid seperti di SD.
+ * - TPAIT    : UMMI, Jilid 1-6 lalu Al-Qur'an.
+ * - SD       : UMMI/KIBAR, sampai Gharib & Tajwid.
+ * - SD Juara : kelas 1 KIBAR (3 jilid), kelas 2-6 Iqro' (6 jilid), lalu
+ *              Al-Qur'an. Jilid kedua metode itu diberi nama metodenya, sebab
+ *              "Jilid 3" KIBAR dan "Jilid 3" Iqro' bukan tahap yang sama.
+ * - SMP, SMA : Syajaroh, berhenti di Jilid 5 — anak yang tuntas jilid
+ *              melanjutkan ke program tahfidz.
  */
 export const TAHSIN_LEVELS: Record<UjianUnit, string[]> = {
-  SD: ['Jilid 1', 'Jilid 2', 'Jilid 3', 'Jilid 4', 'Jilid 5', 'Jilid 6', "Al-Qur'an", 'Gharib', 'Tajwid'],
-  SMP: ['Jilid 1', 'Jilid 2', 'Jilid 3', 'Jilid 4', 'Jilid 5'],
+  TPAIT: [...JILID(6), "Al-Qur'an"],
+  SD: [...JILID(6), "Al-Qur'an", 'Gharib', 'Tajwid'],
+  'SD Juara': [...JILID(3, 'KIBAR Jilid'), ...JILID(6, "Iqro' Jilid"), "Al-Qur'an"],
+  SMP: JILID(5),
+  SMA: JILID(5),
 }
 
 export const PREDIKAT_OPTIONS: { value: UjianPredikat; label: string }[] = [
@@ -274,8 +322,11 @@ Info terkait PPDB TPAIT, SDIT, SMPIT, SMA, QULS LHI :
 📍Jl Karanglo, Jogoragan, Banguntapan, Bantul, D.I.Yogyakarta`
 
 const NAMA_UNIT_LENGKAP: Record<UjianUnit, string> = {
+  TPAIT: 'TPAIT LHI',
   SD: 'SDIT LHI Banguntapan',
+  'SD Juara': 'SD LHI Juara',
   SMP: 'SMPIT LHI Banguntapan',
+  SMA: 'SMA LHI',
 }
 
 const DOA_PENUTUP = 'ونسأل الله أن يجعل القرآن رببع قلوبنا ونور صدورنا وجلاء أحزاننا وذهاب همومنا وغمومنا. اللهم آمين'
@@ -382,13 +433,22 @@ export interface TahapLevel {
  * menaikkan anak ke tahap yang keliru jauh lebih merugikan daripada tidak
  * menaikkannya sama sekali — yang kedua ketahuan dan bisa dibetulkan.
  */
-export function cocokkanLevelUjian(tahapan: TahapLevel[], level: string): TahapLevel | null {
+export function cocokkanLevelUjian(tahapan: TahapLevel[], level: string, metode?: string | null): TahapLevel | null {
   const rapikan = (t: string) => t.toLowerCase().replace(/['’]/g, '').replace(/\s+/g, ' ').trim()
-  const l = rapikan(level)
+  let l = rapikan(level)
   if (!l) return null
 
   const persis = tahapan.find(t => rapikan(t.label) === l)
   if (persis) return persis
+
+  // Level yang menyebut metodenya — "KIBAR Jilid 2", "Iqro' Jilid 3" di SD
+  // Juara — hanya berlaku bagi anak bermetode itu. Jilid 3 KIBAR dan jilid 3
+  // IQRO bukan tahap yang sama; anak yang metodenya tercatat lain ditinggal.
+  const awalan = /^(ummi|kibar|iqro|syajaroh)\s+/.exec(l)
+  if (awalan) {
+    if (metode && rapikan(metode) !== awalan[1]) return null
+    l = l.slice(awalan[0].length)
+  }
 
   const jilid = /jilid\s*(\d+)/.exec(l)
   if (jilid) return tahapan.find(t => rapikan(t.label) === `jilid ${jilid[1]}`) ?? null

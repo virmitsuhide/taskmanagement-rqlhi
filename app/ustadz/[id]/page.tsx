@@ -1,7 +1,7 @@
 import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
 import { getSession } from '@/lib/auth/session'
-import { canManageTeachers, canViewTeachers, getManageableJenjang, JENJANG_LABELS } from '@/lib/auth/permissions'
+import { canManageTeachers, canViewTeachers, getManageableJenjang, isKoorUnit, JENJANG_LABELS } from '@/lib/auth/permissions'
 import { createServerClient } from '@/lib/supabase/server'
 import { resetTeacherPasswordAction } from '@/app/actions/teachers'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
@@ -46,7 +46,7 @@ export default async function TeacherDetailPage({ params, searchParams }: PagePr
     .order('name')
 
   // Koor hanya boleh membuka guru di unitnya — cegah akses lintas unit via URL.
-  if (session.role === 'koor_sd' || session.role === 'koor_smp') {
+  if (isKoorUnit(session.role)) {
     const unitScope = getManageableJenjang(session.role)
     const { data: unitHalaqoh } = await supabase
       .from('halaqoh')

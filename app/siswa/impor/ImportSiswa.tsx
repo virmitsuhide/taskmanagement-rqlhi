@@ -416,7 +416,7 @@ function programVarian(
   const varian = boleh.map(code => ({
     code,
     suffix: code ? ` (${programLabel(jenjang, code)})` : '',
-    metode: methodsForJenjang(jenjang, [{ name: 'UMMI' }, { name: 'KIBAR' }, { name: 'Syajaroh' }], code)
+    metode: methodsForJenjang(jenjang, [{ name: 'UMMI' }, { name: 'KIBAR' }, { name: 'Syajaroh' }, { name: 'IQRO' }], code)
       .map(m => m.name)
       .join(','),
   }))

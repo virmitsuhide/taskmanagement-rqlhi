@@ -1705,9 +1705,9 @@ ALTER TABLE public.tasmi_logs ADD CONSTRAINT tasmi_logs_scope_juz_check CHECK ((
 ALTER TABLE public.ujian_tahfidz ADD CONSTRAINT ujian_tahfidz_predikat_check CHECK ((predikat = ANY (ARRAY['mumtaz'::text, 'jayyid_jiddan'::text, 'jayyid'::text, 'maqbul'::text, 'mengulang'::text])));
 ALTER TABLE public.ujian_tahfidz ADD CONSTRAINT ujian_tahfidz_status_check CHECK ((status = ANY (ARRAY['diajukan'::text, 'dijadwalkan'::text, 'selesai'::text])));
 ALTER TABLE public.ujian_tahfidz ADD CONSTRAINT ujian_tahfidz_tipe_check CHECK ((tipe = ANY (ARRAY['1_juz'::text, '3_juz'::text, '5_juz'::text])));
-ALTER TABLE public.ujian_tahfidz ADD CONSTRAINT ujian_tahfidz_unit_check CHECK ((unit = ANY (ARRAY['SD'::text, 'SMP'::text])));
+ALTER TABLE public.ujian_tahfidz ADD CONSTRAINT ujian_tahfidz_unit_check CHECK ((unit = ANY (ARRAY['TPAIT'::text, 'SD'::text, 'SD Juara'::text, 'SMP'::text, 'SMA'::text])));
 ALTER TABLE public.ujian_tahsin ADD CONSTRAINT ujian_tahsin_status_check CHECK ((status = ANY (ARRAY['diajukan'::text, 'dijadwalkan'::text, 'selesai'::text])));
-ALTER TABLE public.ujian_tahsin ADD CONSTRAINT ujian_tahsin_unit_check CHECK ((unit = ANY (ARRAY['SD'::text, 'SMP'::text])));
+ALTER TABLE public.ujian_tahsin ADD CONSTRAINT ujian_tahsin_unit_check CHECK ((unit = ANY (ARRAY['TPAIT'::text, 'SD'::text, 'SD Juara'::text, 'SMP'::text, 'SMA'::text])));
 ALTER TABLE public.verifikasi_riwayat_tahfidz ADD CONSTRAINT verifikasi_riwayat_tahfidz_hasil_check CHECK ((hasil = ANY (ARRAY['sudah'::text, 'belum'::text])));
 ALTER TABLE public.verifikasi_riwayat_tahfidz ADD CONSTRAINT verifikasi_riwayat_tahfidz_tipe_check CHECK ((tipe = ANY (ARRAY['1_juz'::text, '3_juz'::text, '5_juz'::text])));
 ALTER TABLE public.about_rq ADD CONSTRAINT about_rq_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE SET NULL;

@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Segmen } from './Segmen'
-import { TAHSIN_LEVELS, getTahfidzLabel } from '@/lib/rq/ujian'
+import { TAHSIN_LEVELS, UJIAN_UNIT_SEKOLAH, getTahfidzLabel } from '@/lib/rq/ujian'
 import { juzTersedia, ringkasHafalan } from '@/lib/rq/hafalan'
 import { PilihSiswa } from './PilihSiswa'
 import type { SaranSiswa, SiswaHalaqoh, UstadzHalaqoh } from '@/app/actions/ujian'
@@ -57,13 +57,13 @@ export function FormPengajuan({ units, redirectTo }: Props) {
             className={SELECT_CLASS}
           >
             {units.map(u => (
-              <option key={u} value={u}>{u === 'SD' ? 'SDIT LHI' : 'SMPIT LHI'}</option>
+              <option key={u} value={u}>{UJIAN_UNIT_SEKOLAH[u]}</option>
             ))}
           </select>
         </div>
       ) : (
         <p className="rounded-lg bg-muted px-3 py-2 text-sm text-muted-foreground">
-          Unit: <span className="font-medium text-foreground">{unit}</span> — sesuai akun Anda.
+          Unit: <span className="font-medium text-foreground">{UJIAN_UNIT_SEKOLAH[unit]}</span> — sesuai akun Anda.
         </p>
       )}
 

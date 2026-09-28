@@ -52,7 +52,7 @@ export function PratinjauBab({ m }: { m: LaporanModel }) {
       ))}
 
       <section className="space-y-3">
-        <h3 className="font-heading text-xl font-semibold text-primary">2.9&nbsp;&nbsp;Identifikasi Masalah &amp; Rekomendasi Tindak Lanjut</h3>
+        <h3 className="font-heading text-xl font-semibold text-primary">{m.nomorMasalah}&nbsp;&nbsp;Identifikasi Masalah &amp; Rekomendasi Tindak Lanjut</h3>
         {m.masalah.length === 0 ? (
           <p className="italic text-muted-foreground">Tidak ada masalah yang dicatat bulan ini.</p>
         ) : (

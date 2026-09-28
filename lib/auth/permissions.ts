@@ -16,6 +16,9 @@ const DASHBOARD_ACCESS: Record<string, UserRole[]> = {
   'koor-sd': ['koor_sd'],
   'koor-smp': ['koor_smp'],
   'koor-qulssd': ['koor_qulssd'],
+  'koor-tpait': ['koor_tpait'],
+  'koor-sdjuara': ['koor_sdjuara'],
+  'koor-sma': ['koor_sma'],
   'koor-ekstra': ['koor_ekstra'],
   humas: ['humas'],
   'div-training': ['div_training'],
@@ -48,11 +51,14 @@ const MEETING_CREATE: Record<MeetingType, UserRole[]> = {
   humas_yayasan: ['humas'],
   tahsin_rekomendasi: ['koor_sd'],
   quls_sd: ['koor_qulssd'],
+  koor_tpait: ['koor_tpait'],
+  koor_sdjuara: ['koor_sdjuara'],
+  koor_sma: ['koor_sma'],
 }
 
 const MEETING_EDIT: Record<MeetingType, UserRole[]> = {
   manajemen: ['kepala_rq', 'kumik', 'sdm', 'bendahara'],
-  kumik: ['kumik', 'koor_sd', 'koor_smp', 'koor_ekstra'],
+  kumik: ['kumik', 'koor_sd', 'koor_smp', 'koor_tpait', 'koor_sdjuara', 'koor_sma', 'koor_ekstra'],
   new_squad: ['sdm'],
   koor_sd: ['koor_sd'],
   koor_smp: ['koor_smp'],
@@ -65,6 +71,9 @@ const MEETING_EDIT: Record<MeetingType, UserRole[]> = {
   humas_yayasan: ['humas'],
   tahsin_rekomendasi: ['koor_sd'],
   quls_sd: ['koor_qulssd'],
+  koor_tpait: ['koor_tpait'],
+  koor_sdjuara: ['koor_sdjuara'],
+  koor_sma: ['koor_sma'],
 }
 
 const MEETING_DELETE: Record<MeetingType, UserRole[]> = {
@@ -80,12 +89,16 @@ const MEETING_DELETE: Record<MeetingType, UserRole[]> = {
   humas_yayasan: ['humas'],
   tahsin_rekomendasi: ['koor_sd'],
   quls_sd: ['koor_qulssd'],
+  koor_tpait: ['koor_tpait'],
+  koor_sdjuara: ['koor_sdjuara'],
+  koor_sma: ['koor_sma'],
 }
 
 const MEETING_VIEW: Record<MeetingType, UserRole[]> = {
   manajemen: ['kepala_rq', 'kumik', 'sdm', 'bendahara'],
-  kumik: ['kepala_rq', 'kumik', 'sdm', 'bendahara', 'koor_sd', 'koor_smp', 'koor_ekstra', 'koor_qulssd'],
-  // Para koor & Humas ikut memantau notulen New Squad.
+  kumik: ['kepala_rq', 'kumik', 'sdm', 'bendahara', 'koor_sd', 'koor_smp', 'koor_tpait', 'koor_sdjuara', 'koor_sma', 'koor_ekstra', 'koor_qulssd'],
+  // Para koor & Humas ikut memantau notulen New Squad — kecuali tiga koor unit
+  // 0099 (TPAIT, SD Juara, SMA), yang tidak terlibat urusan New Squad.
   new_squad: ['kepala_rq', 'kumik', 'sdm', 'bendahara', 'div_training', 'new_squad', 'koor_sd', 'koor_smp', 'koor_ekstra', 'koor_qulssd', 'humas'],
   // Koor QULS SD ikut membaca: kelompoknya duduk di sesi & unit yang sama,
   // jadi keputusan rapat koor SD kerap menyangkut anak-anaknya juga.
@@ -108,6 +121,11 @@ const MEETING_VIEW: Record<MeetingType, UserRole[]> = {
   // di sesi & unit yang sama, tapi forum pembinaan tim sendiri tidak dibuka,
   // sama seperti rapat koor SMP yang tertutup bagi koor SD.
   quls_sd: ['kepala_rq', 'kumik', 'sdm', 'bendahara', 'koor_qulssd'],
+  // Rapat internal tiga koor unit baru (0099) — dipantau manajemen, sama
+  // seperti rapat koor SD & SMP.
+  koor_tpait: ['kepala_rq', 'kumik', 'sdm', 'bendahara', 'koor_tpait'],
+  koor_sdjuara: ['kepala_rq', 'kumik', 'sdm', 'bendahara', 'koor_sdjuara'],
+  koor_sma: ['kepala_rq', 'kumik', 'sdm', 'bendahara', 'koor_sma'],
 }
 
 export function canCreateMeeting(role: UserRole, type: MeetingType): boolean {
@@ -224,8 +242,8 @@ export function canViewRoutineBoard(role: UserRole): boolean {
 }
 
 const TASK_ASSIGN_TO: Record<UserRole, UserRole[]> = {
-  kepala_rq: ['kepala_rq', 'kumik', 'sdm', 'bendahara', 'koor_ekstra', 'koor_sd', 'koor_smp', 'koor_qulssd', 'humas', 'div_training', 'new_squad'],
-  kumik: ['koor_sd', 'koor_smp', 'koor_qulssd', 'koor_ekstra', 'humas', 'bendahara'],
+  kepala_rq: ['kepala_rq', 'kumik', 'sdm', 'bendahara', 'koor_ekstra', 'koor_sd', 'koor_smp', 'koor_qulssd', 'koor_tpait', 'koor_sdjuara', 'koor_sma', 'humas', 'div_training', 'new_squad'],
+  kumik: ['koor_sd', 'koor_smp', 'koor_qulssd', 'koor_tpait', 'koor_sdjuara', 'koor_sma', 'koor_ekstra', 'humas', 'bendahara'],
   sdm: ['new_squad', 'div_training', 'humas', 'bendahara'],
   // Para koor menugasi divisinya sendiri, plus Humas. Humas ikut karena keempat
   // koor memang sudah memantau papan Humas (getBoardDivisions di bawah) — tanpa
@@ -234,6 +252,11 @@ const TASK_ASSIGN_TO: Record<UserRole, UserRole[]> = {
   koor_sd: ['koor_sd', 'humas'],
   koor_smp: ['koor_smp', 'humas'],
   koor_qulssd: ['koor_qulssd', 'humas'],
+  // Tiga koor unit 0099 tidak memakai antrean Humas — tugasnya hanya ke
+  // jabatannya sendiri.
+  koor_tpait: ['koor_tpait'],
+  koor_sdjuara: ['koor_sdjuara'],
+  koor_sma: ['koor_sma'],
   koor_ekstra: ['humas'],
   bendahara: [],
   humas: [],
@@ -263,16 +286,24 @@ export function canAssignAnyTask(role: UserRole): boolean {
 // Divisi sebuah task = role penerima (assignee).
 const ALL_ROLES: UserRole[] = [
   'kepala_rq', 'kumik', 'sdm', 'bendahara', 'koor_sd', 'koor_smp', 'koor_qulssd',
+  'koor_tpait', 'koor_sdjuara', 'koor_sma',
   'koor_ekstra', 'humas', 'div_training', 'new_squad',
 ]
 
+/** Seluruh jabatan koordinator — yang papan tugasnya saling terbuka. */
+const KOOR_PAPAN: UserRole[] = [
+  'koor_sd', 'koor_smp', 'koor_qulssd', 'koor_tpait', 'koor_sdjuara', 'koor_sma', 'koor_ekstra',
+]
+const KOOR_UNIT_BARU: UserRole[] = ['koor_tpait', 'koor_sdjuara', 'koor_sma']
+
 export function getBoardDivisions(role: UserRole): UserRole[] {
   if (role === 'kepala_rq' || role === 'kumik' || role === 'sdm') return ALL_ROLES
-  // Para koor memantau divisinya sendiri plus New Squad & Humas.
-  if (role === 'koor_sd') return ['koor_sd', 'new_squad', 'humas']
-  if (role === 'koor_smp') return ['koor_smp', 'new_squad', 'humas']
-  if (role === 'koor_qulssd') return ['koor_qulssd', 'new_squad', 'humas']
-  if (role === 'koor_ekstra') return ['koor_ekstra', 'new_squad', 'humas']
+  // Sesama koor saling melihat papan tugasnya. Koor lama (SD, SMP, QULS SD,
+  // Ekstra) tetap memantau New Squad & Humas; tiga koor unit 0099 (TPAIT,
+  // SD Juara, SMA) tidak — mereka tidak terlibat urusan kedua divisi itu.
+  if (KOOR_PAPAN.includes(role)) {
+    return KOOR_UNIT_BARU.includes(role) ? KOOR_PAPAN : [...KOOR_PAPAN, 'new_squad', 'humas']
+  }
   // Humas memantau papannya sendiri plus New Squad.
   if (role === 'humas') return ['humas', 'new_squad']
   return []
@@ -355,7 +386,7 @@ export function canViewAnalytics(role: UserRole): boolean {
  * tertutup untuk koor.
  */
 export function canViewUnitAnalytics(role: UserRole): boolean {
-  return canViewAnalytics(role) || role === 'koor_sd' || role === 'koor_smp'
+  return canViewAnalytics(role) || isKoorUnit(role)
 }
 
 /**
@@ -520,11 +551,15 @@ export function canRequestToHumas(role: UserRole): boolean {
   // dan itulah yang terjadi pada Div Quran BPA & BPI sampai baris ini ada.
   //
   // Humas melayani publikasi RQ LHI; pembinaan Quran santri asrama berjalan
-  // di unit yang berbeda dan tidak memesan lewat antrean itu.
+  // di unit yang berbeda dan tidak memesan lewat antrean itu. Tiga koor unit
+  // 0099 (TPAIT, SD Juara, SMA) juga tidak memesan ke Humas.
   return role !== 'new_squad'
     && role !== 'humas'
     && role !== 'div_quran_bpa'
     && role !== 'div_quran_bpi'
+    && role !== 'koor_tpait'
+    && role !== 'koor_sdjuara'
+    && role !== 'koor_sma'
 }
 
 
@@ -735,7 +770,10 @@ export function programScopeFor(
  */
 export function canManageStudents(role: UserRole, jenjang?: Jenjang | null, program?: ProgramArg): boolean {
   if (role === 'kepala_rq' || role === 'kumik') return true
-  if (role === 'koor_smp') return !jenjang || jenjang === 'smp'
+  // koor_smp dan tiga koor unit 0099 (TPAIT, SD Juara, SMA): satu jenjang utuh.
+  if (role === 'koor_smp' || role === 'koor_tpait' || role === 'koor_sdjuara' || role === 'koor_sma') {
+    return !jenjang || jenjang === KOOR_UNIT[role]
+  }
   if (role === 'koor_sd' || role === 'koor_qulssd') {
     if (!jenjang) return true
     if (jenjang !== 'sd') return false
@@ -782,7 +820,7 @@ export function canManageTerms(role: UserRole): boolean {
 
 /** Boleh membuka panel tahun ajaran (baca). */
 export function canViewTerms(role: UserRole): boolean {
-  return canManageTerms(role) || role === 'koor_sd' || role === 'koor_smp' || role === 'koor_qulssd' || role === 'sdm'
+  return canManageTerms(role) || isKoorUnit(role) || role === 'koor_qulssd' || role === 'sdm'
 }
 
 /**
@@ -827,7 +865,7 @@ export function canManageTeacherProfiles(role: UserRole): boolean {
  * untuk assign ke halaqoh.
  */
 export function canViewTeachers(role: UserRole): boolean {
-  return ['kepala_rq', 'sdm', 'kumik', 'koor_sd', 'koor_smp', 'koor_qulssd'].includes(role)
+  return ['kepala_rq', 'sdm', 'kumik', 'koor_qulssd'].includes(role) || isKoorUnit(role)
 }
 
 /**
@@ -839,12 +877,31 @@ export function canViewTeachers(role: UserRole): boolean {
  */
 export function getManageableJenjang(role: UserRole): Jenjang[] {
   if (role === 'kepala_rq') return ['paud', 'sd', 'sd_juara', 'smp', 'sma']
-  if (role === 'koor_sd')   return ['sd']
+  const unit = KOOR_UNIT[role]
+  if (unit) return [unit]
   // Koor QULS SD berbagi unit dengan koor SD; yang memisahkan keduanya adalah
   // program, disaring lewat canManageStudents / getViewableProgramScope.
   if (role === 'koor_qulssd') return ['sd']
-  if (role === 'koor_smp')  return ['smp']
   return []
+}
+
+/**
+ * Koordinator yang memegang satu unit sekolah utuh, beserta jenjangnya.
+ *
+ * Koor QULS SD sengaja di luar: unitnya SD juga, tapi wewenangnya dipotong
+ * per program, bukan per jenjang — tiap tempat yang memeriksa "koor unit"
+ * akan salah kalau ia ikut masuk tanpa saringan programnya.
+ */
+const KOOR_UNIT: Partial<Record<UserRole, Jenjang>> = {
+  koor_sd: 'sd',
+  koor_smp: 'smp',
+  koor_tpait: 'paud',
+  koor_sdjuara: 'sd_juara',
+  koor_sma: 'sma',
+}
+
+export function isKoorUnit(role: UserRole): boolean {
+  return role in KOOR_UNIT
 }
 
 export const JENJANG_LABELS: Record<Jenjang, string> = {
@@ -969,6 +1026,9 @@ export const ROLE_LABELS: Record<UserRole, string> = {
   koor_sd: 'Koor SD',
   koor_smp: 'Koor SMP',
   koor_qulssd: 'Koor QULS SD',
+  koor_tpait: 'Koor TPAIT',
+  koor_sdjuara: 'Koor SD Juara',
+  koor_sma: 'Koor SMA',
   humas: 'Humas',
   div_training: 'Div Training',
   new_squad: 'New Squad',
@@ -997,6 +1057,9 @@ export const AMANAH_LABELS: Record<UserRole, string> = {
   koor_sd:     "Koordinator Qur’an unit SD",
   koor_smp:    "Koordinator Qur’an unit SMP",
   koor_qulssd: "Koordinator QULS SD",
+  koor_tpait:  "Koordinator Qur’an unit TPAIT",
+  koor_sdjuara:"Koordinator Qur’an unit SD Juara",
+  koor_sma:    "Koordinator Qur’an unit SMA",
   koor_ekstra: "Koordinator Ekstra RQ LHI",
   humas:       "Humas RQ LHI",
   div_training:"Divisi Training",
@@ -1013,7 +1076,8 @@ export const AMANAH_LABELS: Record<UserRole, string> = {
  */
 export const JABATAN_ORDER: UserRole[] = [
   "kepala_rq", "kumik", "sdm", "bendahara",
-  "koor_sd", "koor_smp", "koor_qulssd", "koor_ekstra",
+  "koor_sd", "koor_smp", "koor_qulssd",
+  "koor_tpait", "koor_sdjuara", "koor_sma", "koor_ekstra",
   "div_quran_bpa", "div_quran_bpi",
   "humas", "div_training", "new_squad",
 ]
@@ -1069,6 +1133,9 @@ export const MEETING_TYPE_LABELS: Record<MeetingType, string> = {
   humas_yayasan: 'Rapat Humas Yayasan',
   tahsin_rekomendasi: 'Rapat Tahsin Rekomendasi',
   quls_sd: 'Rapat QULS SD',
+  koor_tpait: 'Rapat Koor TPAIT',
+  koor_sdjuara: 'Rapat Koor SD Juara',
+  koor_sma: 'Rapat Koor SMA',
 }
 
 export const DASHBOARD_LABELS: Record<string, string> = {
@@ -1078,6 +1145,9 @@ export const DASHBOARD_LABELS: Record<string, string> = {
   'koor-sd': 'Koor SD',
   'koor-smp': 'Koor SMP',
   'koor-qulssd': 'Koor QULS SD',
+  'koor-tpait': 'Koor TPAIT',
+  'koor-sdjuara': 'Koor SD Juara',
+  'koor-sma': 'Koor SMA',
   'koor-ekstra': 'Koor Ekstra',
   humas: 'Humas',
   'div-training': 'Div Training',
@@ -1093,6 +1163,9 @@ export const DEFAULT_DASHBOARD: Record<UserRole, string> = {
   koor_sd: 'koor-sd',
   koor_smp: 'koor-smp',
   koor_qulssd: 'koor-qulssd',
+  koor_tpait: 'koor-tpait',
+  koor_sdjuara: 'koor-sdjuara',
+  koor_sma: 'koor-sma',
   koor_ekstra: 'koor-ekstra',
   humas: 'humas',
   div_training: 'div-training',
@@ -1172,7 +1245,9 @@ export function canInputKpi(role: UserRole): boolean {
  * karena merekalah yang menjalankan tindak lanjut pada level 1-4.
  */
 export function canViewKpi(role: UserRole): boolean {
-  return canInputKpi(role) || role === 'kumik' || role === 'koor_sd' || role === 'koor_smp'
+  // Koor SD Juara ikut: SD LHI Juara punya rubrik KPI sendiri. Koor TPAIT &
+  // SMA belum — unitnya tidak ada di KPI_UNITS (lib/data/kpi.ts).
+  return canInputKpi(role) || role === 'kumik' || role === 'koor_sd' || role === 'koor_smp' || role === 'koor_sdjuara'
 }
 
 /**
@@ -1204,15 +1279,16 @@ export function canPrintKpiRapor(role: UserRole): boolean {
 /**
  * Koordinator yang menaungi tiap unit — penanda tangan rapornya.
  *
- * Guru QULS SD ikut di bawah Koor SD: unitnya memang sd/sd_juara, dan
- * pemisahan pembinaan QULS SD belum sampai ke jalur pengesahan KPI. Kalau
- * kelak Koor QULS SD yang mengesahkan anak buahnya sendiri, cukup peta ini
+ * Guru QULS SD ikut di bawah Koor SD: unitnya memang sd, dan pemisahan
+ * pembinaan QULS SD belum sampai ke jalur pengesahan KPI. SD LHI Juara
+ * disahkan koordinatornya sendiri sejak unit itu punya koor (0099).
+ * Kalau kelak Koor QULS SD yang mengesahkan anak buahnya sendiri, cukup peta ini
  * yang berubah — lib/data/kpi-rapor.ts membacanya lewat koorPengesah(), tidak
  * memelihara petanya sendiri.
  */
 const KOOR_PENGESAH: Partial<Record<Jenjang, UserRole>> = {
   sd: 'koor_sd',
-  sd_juara: 'koor_sd',
+  sd_juara: 'koor_sdjuara',
   smp: 'koor_smp',
 }
 
@@ -1273,7 +1349,7 @@ export function canPublishKpiRapor(
  * halamannya, melainkan baris mana yang bisa ia terbitkan di dalamnya.
  */
 export function canAccessKpiPublikasi(role: UserRole): boolean {
-  return role === 'koor_sd' || role === 'koor_smp' || role === 'kepala_rq'
+  return role === 'koor_sd' || role === 'koor_smp' || role === 'koor_sdjuara' || role === 'kepala_rq'
 }
 
 /**
@@ -1373,26 +1449,44 @@ export function canDoGukarPembinaan(employment: TeacherEmployment | null | undef
  * cakupannya di getManageableJenjang(). Daftar kosong berarti menu ujian
  * tidak muncul sama sekali untuk role itu.
  */
-export function getUjianUnits(role: UserRole): UjianUnit[] {
-  if (role === 'kepala_rq' || role === 'kumik') return ['SD', 'SMP']
-  if (role === 'koor_sd') return ['SD']
+const SEMUA_UNIT_UJIAN: UjianUnit[] = ['TPAIT', 'SD', 'SD Juara', 'SMP', 'SMA']
+
+/** Antrean ujian milik tiap koordinator unit — satu lawan satu (0100). */
+const KOOR_UNIT_UJIAN: Partial<Record<UserRole, UjianUnit>> = {
+  koor_tpait: 'TPAIT',
+  koor_sd: 'SD',
+  koor_sdjuara: 'SD Juara',
+  koor_smp: 'SMP',
+  koor_sma: 'SMA',
   // BPA & BPI membina santri asrama SMPIT LHI, jadi cakupan ujiannya sama
   // persis dengan koor SMP.
-  if (role === 'koor_smp' || role === 'div_quran_bpa' || role === 'div_quran_bpi') return ['SMP']
-  return []
+  div_quran_bpa: 'SMP',
+  div_quran_bpi: 'SMP',
+}
+
+export function getUjianUnits(role: UserRole): UjianUnit[] {
+  if (role === 'kepala_rq' || role === 'kumik') return SEMUA_UNIT_UJIAN
+  const unit = KOOR_UNIT_UJIAN[role]
+  return unit ? [unit] : []
+}
+
+/** Koordinator yang menerima kabar pengajuan baru di satu antrean. */
+export function getKoorUnitUjian(role: UserRole): UjianUnit | null {
+  return isKoorUnit(role) ? KOOR_UNIT_UJIAN[role] ?? null : null
 }
 
 /**
  * Unit yang ujiannya dihitung dalam panel "Beban penguji".
  *
- * Penguji SDIT LHI dan SMPIT LHI bisa saling menguji lintas unit, jadi koor
- * SD dan koor SMP perlu melihat beban dari kedua unit — tanpa itu penguji
- * yang sudah penuh di unit sebelah tampak longgar. Ini hanya penglihatan:
- * mengelola pengajuan tetap dibatasi getUjianUnits/canManageUjian. Peran lain
- * (BPA/BPI) tidak menguji lintas unit, jadi cakupannya tetap unitnya sendiri.
+ * Daftar penguji satu untuk seluruh unit dan mereka saling menguji lintas
+ * unit, jadi tiap koor unit perlu melihat beban dari semua antrean — tanpa
+ * itu penguji yang sudah penuh di unit sebelah tampak longgar. Ini hanya
+ * penglihatan: mengelola pengajuan tetap dibatasi getUjianUnits/canManageUjian.
+ * Peran lain (BPA/BPI) tidak menguji lintas unit, jadi cakupannya tetap
+ * unitnya sendiri.
  */
 export function getUnitBebanPenguji(role: UserRole): UjianUnit[] {
-  if (role === 'koor_sd' || role === 'koor_smp') return ['SD', 'SMP']
+  if (isKoorUnit(role)) return SEMUA_UNIT_UJIAN
   return getUjianUnits(role)
 }
 
@@ -1516,6 +1610,9 @@ export const KETERANGAN_PUBLIK_JABATAN: Record<UserRole, string> = {
   koor_sd: 'Koordinator SD',
   koor_smp: 'Koordinator SMP',
   koor_qulssd: 'Koordinator QULS',
+  koor_tpait: 'Koordinator TPAIT',
+  koor_sdjuara: 'Koordinator SD Juara',
+  koor_sma: 'Koordinator SMA',
   koor_ekstra: 'Koordinator Ekstra',
   humas: 'Humas RQ',
   div_training: 'Divisi Training RQ',

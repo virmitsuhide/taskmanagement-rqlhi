@@ -2,7 +2,7 @@ import { Suspense } from 'react'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { getSession } from '@/lib/auth/session'
-import { canViewAnalytics, canViewGukarRecap, canViewUnitAnalytics, getAnalyticsJenjang } from '@/lib/auth/permissions'
+import { canViewAnalytics, canViewGukarRecap, canViewUnitAnalytics, getAnalyticsJenjang, isKoorUnit } from '@/lib/auth/permissions'
 import { UNIT_LABELS, UNIT_ORDER } from '@/lib/rq/programs'
 import {
   getRqAnalytics, getUnitHafalanBoards, getSetoranTrend, getHafalanUjianPerUnit, getSiswaDrill,
@@ -300,7 +300,7 @@ export default async function AnalitikPage({ searchParams }: PageProps) {
         <Suspense fallback={<SeksiMemuat info={S.capaian} judul="Capaian per Kelas" />}>
           <SeksiCapaian info={S.capaian} jenjang={jenjang} fokus={fokus} bulan={a.monthKey}
             unitCapaian={sp.cunit} hrefUnit={u => href({ cunit: u })}
-            tanpaTargetAngkatan={session.role === 'koor_sd' || session.role === 'koor_smp'} />
+            tanpaTargetAngkatan={isKoorUnit(session.role)} />
         </Suspense>
 
         {tampilTahfidz && (

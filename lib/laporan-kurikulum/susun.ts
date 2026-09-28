@@ -1,6 +1,6 @@
 import { BELUM_TERCATAT as BELUM_TERCATAT_LAPORAN } from '@/lib/data/capaian-kelas'
 import {
-  labelTarget, namaPeriode,
+  labelTarget, namaPeriode, nomorBab,
   type IsiLaporan, type KelompokLaporan, type KotakAnalisis, type MatriksLaporan, type NarasiLaporan, type BarisMasalah,
 } from '@/lib/data/laporan-kurikulum'
 import { svgBatang, type GrafikBatang } from './grafik'
@@ -41,6 +41,8 @@ export interface LaporanModel {
   perhatian: string[]
   sub: SubBabModel[]
   masalah: BarisMasalah[]
+  /** Nomor bagian Identifikasi Masalah — 2.9, atau 2.10 bila ada SD Juara. */
+  nomorMasalah: string
   kesimpulan: string[]
 }
 
@@ -90,8 +92,8 @@ function grafikMatriks(m: MatriksLaporan, judul: string): { judul: string; svg: 
   return { judul, svg: svgBatang(g) }
 }
 
-/** SMP: tahsin reguler & QULS dalam satu tabel, baris = kelas × program. */
-function tabelSmpTahsin(reg: KelompokLaporan | undefined, quls: KelompokLaporan | undefined, lalu: IsiLaporan | null): TabelModel | null {
+/** Tahsin reguler & QULS satu unit (SMP, SD Juara) dalam satu tabel, baris = kelas × program. */
+function tabelGabunganTahsin(reg: KelompokLaporan | undefined, quls: KelompokLaporan | undefined, lalu: IsiLaporan | null): TabelModel | null {
   const kel = [reg, quls].filter((k): k is KelompokLaporan => !!k && k.siswa > 0)
   if (kel.length === 0) return null
   const kolom: string[] = []
@@ -149,7 +151,7 @@ export function susunLaporan(isi: IsiLaporan, narasi: NarasiLaporan, lalu: IsiLa
   bagianSd('sd:quls', '2.2 Kelas QULS', '2.2', 'QULS')
 
   const smpReg = k('smp:reguler'), smpQuls = k('smp:quls')
-  const tSmp = tabelSmpTahsin(smpReg, smpQuls, lalu)
+  const tSmp = tabelGabunganTahsin(smpReg, smpQuls, lalu)
   sub.push({
     kunci: '2.3', nomor: '2.3', judul: 'Progres Tahsin SMP',
     pengantar: lalu ? 'Angka dalam kurung = perubahan dari laporan bulan lalu.' : undefined,
@@ -167,9 +169,36 @@ export function susunLaporan(isi: IsiLaporan, narasi: NarasiLaporan, lalu: IsiLa
     analisis: an('2.4'),
   })
 
-  // 2.5 Keaktifan
+  // 2.5 SD LHI Juara — unit sendiri sejak 0099. Nomor bagian sesudahnya ikut
+  // bergeser (lihat nomorBab); kuncinya tidak, supaya narasi edisi lama tetap
+  // menempel ke bagian yang sama. Edisi sebelum SD Juara ikut dihitung tidak
+  // punya kelompoknya, jadi bagian ini dilewati dan penomorannya tetap.
+  const sdjReg = k('sd_juara:reguler'), sdjQuls = k('sd_juara:quls')
+  if (sdjReg || sdjQuls) {
+    const sdj = [sdjReg, sdjQuls].filter((x): x is KelompokLaporan => !!x && x.siswa > 0)
+    const jalur = (x: KelompokLaporan) => (x.jalur === 'quls' ? 'QULS' : 'Reguler')
+    const tSdj = tabelGabunganTahsin(sdjReg, sdjQuls, lalu)
+    sub.push({
+      kunci: 'sdj.1', nomor: '2.5.1', induk: '2.5 SD LHI Juara', judul: 'Progres Tahsin SD LHI Juara',
+      pengantar: sdj.length === 0 ? 'Belum ada siswa SD LHI Juara di aplikasi.'
+        : 'Kelas 1 memakai KIBAR, kelas 2–6 memakai IQRO.' + (lalu ? ' Angka dalam kurung = perubahan dari laporan bulan lalu.' : ''),
+      tabel: tSdj ? [tSdj] : [],
+      grafik: sdj.map(x => grafikMatriks(x.tahsin, `Tahsin SD Juara ${jalur(x)} — ${bulan}`)),
+      analisis: an('sdj.1'),
+    })
+    sub.push({
+      kunci: 'sdj.2', nomor: '2.5.2', judul: `Progres Hafalan (Tahfidz) SD LHI Juara — ${bulan}`,
+      tabel: sdj.flatMap(x => x.tahfidz.map(m =>
+        tabelMatriks(m, kl(x.kode)?.tahfidz.find(y => y.judul === m.judul), { target: false, judul: `${jalur(x)} — ${m.judul}` }))),
+      grafik: sdj.map(x => grafikMatriks(x.tahfidz[0], `Tahfidz SD Juara ${jalur(x)} — ${bulan}`)),
+      analisis: an('sdj.2'),
+    })
+  }
+  const no = (kunci: string) => nomorBab(isi, kunci)
+
+  // 2.5 Keaktifan (2.6 bila ada SD Juara)
   sub.push({
-    kunci: '2.5', nomor: '2.5', judul: 'Keaktifan Setoran',
+    kunci: '2.5', nomor: no('2.5'), judul: 'Keaktifan Setoran',
     pengantar: `Siswa yang tercatat setor di aplikasi selama ${bulan}.`,
     tabel: [
       {
@@ -193,7 +222,7 @@ export function susunLaporan(isi: IsiLaporan, narasi: NarasiLaporan, lalu: IsiLa
 
   // 2.6 Ujian
   sub.push({
-    kunci: '2.6', nomor: '2.6', judul: 'Ujian Bulan Ini',
+    kunci: '2.6', nomor: no('2.6'), judul: 'Ujian Bulan Ini',
     tabel: [{
       header: ['Unit', 'Peserta ujian tahsin', "Juz'iyyah", "Tasmi' 3 juz", "Tasmi' 5 juz", 'Mengulang', 'Menunggu jadwal*'],
       baris: isi.ujian.map(u => [u.label, angka(u.tahsinPeserta), angka(u.juziyyah), angka(u.tasmi3), angka(u.tasmi5), angka(u.mengulang), angka(u.antrean)]),
@@ -205,7 +234,7 @@ export function susunLaporan(isi: IsiLaporan, narasi: NarasiLaporan, lalu: IsiLa
 
   // 2.7 Target tahfidz
   sub.push({
-    kunci: '2.7', nomor: '2.7', judul: 'Ketercapaian Target Tahfidz',
+    kunci: '2.7', nomor: no('2.7'), judul: 'Ketercapaian Target Tahfidz',
     pengantar: 'Posisi hafalan tiap siswa dibandingkan rencana target programnya.',
     tabel: isi.target.map(r => ({
       judul: r.label,
@@ -219,7 +248,7 @@ export function susunLaporan(isi: IsiLaporan, narasi: NarasiLaporan, lalu: IsiLa
 
   // 2.8 Kelengkapan
   sub.push({
-    kunci: '2.8', nomor: '2.8', judul: 'Kelengkapan Data',
+    kunci: '2.8', nomor: no('2.8'), judul: 'Kelengkapan Data',
     pengantar: 'Siswa yang posisi tahsin & tahfidznya sudah tercatat dari setoran di aplikasi.',
     tabel: [
       {
@@ -242,7 +271,7 @@ export function susunLaporan(isi: IsiLaporan, narasi: NarasiLaporan, lalu: IsiLa
     subjudul: `Curriculum & Qur'an Learning Report — ${bulan}`,
     acuan: `Posisi siswa per ${isi.sampai.split('-').reverse().join('-')}, dihitung dari setoran, kenaikan, dan ujian yang tercatat di aplikasi RQ LHI.`,
     kpi: [
-      { label: 'Siswa SDIT & SMPIT', nilai: angka(isi.kpi.siswa), keterangan: 'siswa aktif' },
+      { label: 'Siswa SDIT, SD Juara & SMPIT', nilai: angka(isi.kpi.siswa), keterangan: 'siswa aktif' },
       { label: 'Capai target tahsin', nilai: pct(ct, dt), keterangan: `${angka(ct)} dari ${angka(dt)} siswa` },
       { label: 'Capai target tahfidz', nilai: pct(cf, df), keterangan: `${angka(cf)} dari ${angka(df)} siswa` },
       { label: 'Setor bulan ini', nilai: angka(isi.kpi.setorBulanIni), keterangan: 'siswa, tahsin atau tahfidz' },
@@ -252,6 +281,7 @@ export function susunLaporan(isi: IsiLaporan, narasi: NarasiLaporan, lalu: IsiLa
     perhatian: baris(narasi.perhatian),
     sub,
     masalah: narasi.masalah.filter(m => m.area.trim() || m.masalah.trim()),
+    nomorMasalah: nomorBab(isi, '2.9'),
     kesimpulan: baris(narasi.kesimpulan),
   }
 }

@@ -5,7 +5,8 @@ import { createServerClient } from '@/lib/supabase/server'
 import { getSession } from '@/lib/auth/session'
 import { canManageUjian } from '@/lib/auth/permissions'
 import { kewajibanUjian } from '@/lib/rq/hafalan'
-import { normalJuz, unitDariJenjang } from '@/lib/data/verifikasi-riwayat'
+import { normalJuz } from '@/lib/data/verifikasi-riwayat'
+import { unitUjianDariJenjang } from '@/lib/rq/ujian'
 import { tautkanUjianKeDrill } from '@/lib/data/drill-tahfidz'
 import type { Jenjang } from '@/types'
 
@@ -58,7 +59,7 @@ export async function simpanVerifikasiAction(input: {
     halaqoh: { program: string | null } | null
   } | null
   if (!s) return { error: 'Siswa tidak ditemukan.' }
-  const unit = unitDariJenjang(s.jenjang)
+  const unit = unitUjianDariJenjang(s.jenjang)
   if (!unit || !canManageUjian(session.role, unit)) {
     return { error: 'Hanya koordinator unit siswa ini yang bisa memverifikasi riwayat ujiannya.' }
   }

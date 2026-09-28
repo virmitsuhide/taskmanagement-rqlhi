@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react'
 import { CalendarClock, Hourglass, Search } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { formatTahsinLevels, getTahfidzLabel, namaPublik, tanggalWIB } from '@/lib/rq/ujian'
+import { formatTahsinLevels, getTahfidzLabel, namaPublik, tanggalWIB, UJIAN_UNIT_LABEL, UJIAN_UNITS } from '@/lib/rq/ujian'
 import type { UjianTahfidz, UjianTahsin, UjianUnit } from '@/types'
 
 interface Props {
@@ -106,7 +106,7 @@ export function AntrianUjian({ tahfidz, tahsin }: Props) {
           />
         </div>
         <div role="group" aria-label="Unit" className="mt-3 flex flex-wrap gap-2">
-          {([['semua', 'Semua unit'], ['SD', 'SDIT'], ['SMP', 'SMPIT']] as const).map(([v, l]) => (
+          {([['semua', 'Semua unit'], ...UJIAN_UNITS.filter(u => semua.some(b => b.unit === u)).map(u => [u, UJIAN_UNIT_LABEL[u]] as const)] as const).map(([v, l]) => (
             <button
               key={v}
               type="button"

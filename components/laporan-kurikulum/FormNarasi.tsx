@@ -14,10 +14,11 @@ const KOSONG = { analisis: '', masalah: '', rekomendasi: '' }
  * Kumik menyunting, menambah identifikasi masalah & rekomendasi, dan
  * menulis kesimpulan. Satu tombol simpan untuk seluruh isian.
  */
-export function FormNarasi({ periode, awal, sub, bisaUbah }: {
+export function FormNarasi({ periode, awal, sub, nomorMasalah, bisaUbah }: {
   periode: string
   awal: NarasiLaporan
   sub: SubBab[]
+  nomorMasalah: string
   bisaUbah: boolean
 }) {
   const [n, setN] = useState<NarasiLaporan>(awal)
@@ -66,7 +67,7 @@ export function FormNarasi({ periode, awal, sub, bisaUbah }: {
         )
       })}
 
-      <Bagian judul="2.9  Identifikasi Masalah & Rekomendasi Tindak Lanjut" ket="Baris usulan diisi otomatis dari angka; hapus yang tidak relevan.">
+      <Bagian judul={`${nomorMasalah}  Identifikasi Masalah & Rekomendasi Tindak Lanjut`} ket="Baris usulan diisi otomatis dari angka; hapus yang tidak relevan.">
         <div className="space-y-3">
           {n.masalah.map((m, i) => (
             <div key={i} className="grid gap-2 rounded-xl border p-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)_minmax(0,1.3fr)_120px_auto]">

@@ -28,7 +28,7 @@ export const KPI_UNITS: { key: Jenjang; label: string }[] = [
  * URL tidak bisa membuka unit lain.
  */
 export function kpiUnitsFor(role: UserRole): typeof KPI_UNITS {
-  if (role === 'koor_sd' || role === 'koor_smp') {
+  if (role === 'koor_sd' || role === 'koor_smp' || role === 'koor_sdjuara') {
     const milik = KPI_UNITS.filter(u => canPublishKpiRapor(role, u.key))
     return milik.length ? milik : KPI_UNITS.filter(u => getManageableJenjang(role).includes(u.key))
   }

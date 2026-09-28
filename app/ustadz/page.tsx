@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { getSession } from '@/lib/auth/session'
 import {
-  canManageTeachers, canViewTeachers, getManageableJenjang, JENJANG_LABELS,
+  canManageTeachers, canViewTeachers, getManageableJenjang, isKoorUnit, JENJANG_LABELS,
   canManageTeacherProfiles, KATEGORI_GURU_LABELS, KATEGORI_GURU_ORDER,
 } from '@/lib/auth/permissions'
 import { createServerClient } from '@/lib/supabase/server'
@@ -85,7 +85,7 @@ export default async function UstadzListPage({ searchParams }: PageProps) {
   // sebagai wali (halaqoh.wali_teacher_id) atau pengampu (halaqoh_teachers).
   // Manajemen (kepala RQ, SDM, kumik) tidak dibatasi.
   const unitScope = getManageableJenjang(session.role)
-  const restrictToUnit = session.role === 'koor_sd' || session.role === 'koor_smp'
+  const restrictToUnit = isKoorUnit(session.role)
   let unitTeacherIds: string[] | null = null
 
   if (restrictToUnit) {

@@ -58,6 +58,7 @@ import type { ContentRequest, Jenjang, MeetingType, SessionData, UjianStats, Use
 
 export type HalamanDashboard =
   | 'manajemen' | 'kumik' | 'sdm' | 'koor-sd' | 'koor-smp' | 'koor-qulssd'
+  | 'koor-tpait' | 'koor-sdjuara' | 'koor-sma'
   | 'koor-ekstra' | 'humas' | 'div-training' | 'pribadi'
 
 type KunciPanel = 'capaian' | 'ujian' | 'rapat' | 'gukar' | 'request'
@@ -84,6 +85,18 @@ interface Konfig {
   /** Baris panel INFORMASI di bawahnya; dua panel = 7/5, satu = penuh. */
   baris: KunciPanel[][]
   pintasan: KunciPintasan[]
+}
+
+function koorUnitBaru(unit: string): Konfig {
+  return {
+    judul: `Dashboard Koordinator ${unit}`,
+    // Pertanyaan jabatan — tampil sebagai judul halaman.
+    tanya: `Sampai mana siswa ${unit}, apakah penilaian lengkap, dan ujian apa yang menunggu?`,
+    rapat: role => [...getCreatableMeetingTypes(role), 'kumik'],
+    samping: ['ujian'],
+    baris: [['capaian', 'rapat']],
+    pintasan: ['halaqoh', 'siswa', 'imporSiswa', 'kalenderQuran'],
+  }
 }
 
 const KONFIG: Record<HalamanDashboard, Konfig> = {
@@ -148,6 +161,11 @@ const KONFIG: Record<HalamanDashboard, Konfig> = {
     baris: [['capaian']],
     pintasan: ['halaqoh', 'imporHalaqoh', 'imporSiswa', 'siswa'],
   },
+  // Tiga koor unit 0099 meniru koor SD, termasuk antrean ujiannya sendiri
+  // (0100). Impor ada di pintasan karena data siswanya baru akan masuk.
+  'koor-tpait': koorUnitBaru('TPAIT'),
+  'koor-sdjuara': koorUnitBaru('SD Juara'),
+  'koor-sma': koorUnitBaru('SMA'),
   'koor-ekstra': {
     judul: 'Dashboard Koordinator Ekstra',
     // Pertanyaan jabatan — tampil sebagai judul halaman.
@@ -556,6 +574,9 @@ function susunKpi({ halaman, denganTugas, tim, fokus, review, capaian, ujian, gu
     case 'manajemen': return [k.tugasAktif(), k.terlambat(), k.review(), k.penilaian()]
     case 'kumik': return [k.tugasAktif(), k.terlambat(), k.ujianAntri(), k.penilaian()]
     case 'koor-sd':
+    case 'koor-tpait':
+    case 'koor-sdjuara':
+    case 'koor-sma':
     case 'koor-smp': return [k.siswa(), k.penilaian(), k.ujianAntri(), k.terlambat()]
     case 'koor-qulssd': return [k.siswa(), k.penilaian(), k.halaqohKosong(), k.terlambat()]
     case 'sdm': return [k.gukarPeserta(), k.gukarPerhatian(), k.tugasAktif(), k.terlambat()]

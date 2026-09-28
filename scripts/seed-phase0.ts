@@ -73,6 +73,19 @@ const METHODS: MethodSeed[] = [
       { label: 'Lulus Tahsin', order_num: 7, total_pages: null, is_quran: false, is_terminal: true },
     ],
   },
+  // IQRO — 6 jilid (32 hal) → Talaqqi Al-Qur'an → Lulus. SD Juara kelas 2-6 (0101).
+  { name: 'IQRO', description: '6 jilid (32 hal) → Talaqqi Al-Qur’an',
+    levels: [
+      { label: 'Jilid 1', order_num: 1, total_pages: 32, is_quran: false },
+      { label: 'Jilid 2', order_num: 2, total_pages: 32, is_quran: false },
+      { label: 'Jilid 3', order_num: 3, total_pages: 32, is_quran: false },
+      { label: 'Jilid 4', order_num: 4, total_pages: 32, is_quran: false },
+      { label: 'Jilid 5', order_num: 5, total_pages: 32, is_quran: false },
+      { label: 'Jilid 6', order_num: 6, total_pages: 32, is_quran: false },
+      { label: 'Talaqqi Al-Qur’an', order_num: 7, total_pages: null, is_quran: true },
+      { label: 'Lulus Tahsin', order_num: 8, total_pages: null, is_quran: false, is_terminal: true },
+    ],
+  },
 ]
 
 // ─── SURAT MASTER (114 surat) ────────────────────────────────────

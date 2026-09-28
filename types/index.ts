@@ -8,6 +8,12 @@ export type UserRole =
   | 'koor_smp'
   /** Koor QULS SD — siswa SD berprogram QULS, seluruhnya metode KIBAR. */
   | 'koor_qulssd'
+  /** Koor TPAIT LHI — jenjang 'paud'. Wewenang meniru koor SD (0099). */
+  | 'koor_tpait'
+  /** Koor SD LHI Juara — jenjang 'sd_juara' (0099). */
+  | 'koor_sdjuara'
+  /** Koor SMA LHI — jenjang 'sma' (0099). */
+  | 'koor_sma'
   | 'humas'
   | 'div_training'
   | 'new_squad'
@@ -41,6 +47,10 @@ export type MeetingType =
   | 'tahsin_rekomendasi'
   /** Rapat internal seluruh guru QULS SD — lihat migrasi 0045. */
   | 'quls_sd'
+  /** Rapat internal koor TPAIT / SD Juara / SMA — padanan Rapat Koor SD (0099). */
+  | 'koor_tpait'
+  | 'koor_sdjuara'
+  | 'koor_sma'
 
 export type AgendaTag = 'keputusan' | 'informasi' | 'perlu_diskusi' | 'tindak_lanjut' | 'approval'
 
@@ -1450,11 +1460,12 @@ export interface TeacherUnitMove {
 // ─── Pengajuan ujian tahsin & tahfidz ────────────────────────────────────────
 
 /**
- * Unit penyelenggara ujian. Sengaja bukan Jenjang: hanya SD & SMP yang
- * menjalankan antrian ujian, jadi tipe lima nilai justru membuka baris yang
- * tidak punya koordinator.
+ * Unit penyelenggara ujian — satu per koordinator unit. Nilainya yang
+ * tersimpan di kolom `unit` tabel ujian; padanan jenjangnya ada di
+ * UJIAN_UNIT_JENJANG (lib/rq/ujian.ts). TPAIT, 'SD Juara', dan SMA sejak 0100 —
+ * sebelumnya SD Juara menumpang antrean SD.
  */
-export type UjianUnit = 'SD' | 'SMP'
+export type UjianUnit = 'TPAIT' | 'SD' | 'SD Juara' | 'SMP' | 'SMA'
 
 export type UjianStatus = 'diajukan' | 'dijadwalkan' | 'selesai'
 

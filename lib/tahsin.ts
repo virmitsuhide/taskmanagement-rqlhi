@@ -14,19 +14,20 @@ export const METHOD = {
   UMMI: 'UMMI',
   KIBAR: 'KIBAR',
   SYAJAROH: 'Syajaroh',
+  IQRO: 'IQRO',
 } as const
 
 /**
  * Metode tahsin yang berlaku per jenjang/unit (kebijakan RQ LHI):
  *  - PAUD          : UMMI
  *  - SD LHI        : UMMI + KIBAR
- *  - SD LHI Juara  : KIBAR
+ *  - SD LHI Juara  : KIBAR (kelas 1) + IQRO (kelas 2-6, sejak 0101)
  *  - SMP / SMA     : Syajaroh
  */
 export const JENJANG_METHODS: Record<Jenjang, string[]> = {
   paud: [METHOD.UMMI],
   sd: [METHOD.UMMI, METHOD.KIBAR],
-  sd_juara: [METHOD.KIBAR],
+  sd_juara: [METHOD.KIBAR, METHOD.IQRO],
   smp: [METHOD.SYAJAROH],
   sma: [METHOD.SYAJAROH],
 }

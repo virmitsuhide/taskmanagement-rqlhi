@@ -124,7 +124,7 @@ export const KOLOM_IMPOR: Kolom[] = [
   {
     key: 'current_method_id', header: 'Metode', lebar: 12,
     contoh: 'UMMI',
-    petunjuk: 'UMMI / KIBAR / Syajaroh, sesuai jenjang. Boleh kosong.',
+    petunjuk: 'UMMI / KIBAR / IQRO / Syajaroh, sesuai jenjang. Boleh kosong.',
     alias: ['metode', 'metodetahsin'],
   },
   {

@@ -5,8 +5,8 @@ import { createServerClient } from '@/lib/supabase/server'
 import { getSession } from '@/lib/auth/session'
 import { getTeacherSession } from '@/lib/auth/teacher-session'
 import { canManageUjian, canSubmitUjian, getUjianUnits } from '@/lib/auth/permissions'
-import { getUnitUjianGuru } from '@/lib/data/ujian'
-import { cocokkanLevelUjian, getTahfidzLabel, type TahapLevel } from '@/lib/rq/ujian'
+import { getUnitsUjianGuru } from '@/lib/data/ujian'
+import { cocokkanLevelUjian, getTahfidzLabel, UJIAN_UNIT_JENJANG, type TahapLevel } from '@/lib/rq/ujian'
 import { getTeacherHalaqohIds, getTeacherStudents } from '@/lib/data/teacher'
 import { tautkanUjianKeDrill } from '@/lib/data/drill-tahfidz'
 import { totalJuzHafalan } from '@/lib/rq/hafalan'
@@ -59,9 +59,10 @@ interface Pengaju {
 async function guardPengaju(unitDiminta?: UjianUnit): Promise<Pengaju | { error: string }> {
   const guru = await getTeacherSession()
   if (guru) {
-    const unit = await getUnitUjianGuru(guru.teacherId)
+    const units = await getUnitsUjianGuru(guru.teacherId)
+    const unit = unitDiminta && units.includes(unitDiminta) ? unitDiminta : units[0]
     if (!unit) {
-      return { error: 'Akun Anda belum punya unit SD/SMP, jadi belum bisa mengajukan ujian. Hubungi koordinator.' }
+      return { error: 'Akun Anda belum punya unit mengajar, jadi belum bisa mengajukan ujian. Hubungi koordinator.' }
     }
     return { unit, teacherId: guru.teacherId, userId: null }
   }
@@ -389,12 +390,13 @@ async function terapkanKelulusanTahsin(ujianId: string): Promise<string[]> {
 
   const { data: siswaRows } = await supabase
     .from('students')
-    .select('id, current_method_id, current_jilid_id')
+    .select('id, current_method_id, current_jilid_id, metode:tahsin_methods!students_current_method_id_fkey(name)')
     .in('id', lulus.map(s => s.student_id as string))
 
   const posisi = new Map(
-    ((siswaRows ?? []) as {
+    ((siswaRows ?? []) as unknown as {
       id: string; current_method_id: string | null; current_jilid_id: string | null
+      metode: { name: string } | null
     }[]).map(s => [s.id, s]),
   )
 
@@ -421,7 +423,7 @@ async function terapkanKelulusanTahsin(ujianId: string): Promise<string[]> {
       lebih tinggi.
     */
     const levelUjian = (anak.level ?? ujianLevel ?? '').trim()
-    const diuji = cocokkanLevelUjian(tahapan, levelUjian)
+    const diuji = cocokkanLevelUjian(tahapan, levelUjian, s.metode?.name)
     if (!diuji) {
       // Level ujian tidak punya padanan di metode anak ini — misal ujian
       // "Jilid 6" untuk anak Syajaroh yang jilidnya hanya sampai 5. Ditinggal
@@ -687,8 +689,7 @@ export async function cariSiswaUjianAction(
   if (q.length < 2) return []
 
   const supabase = createServerClient()
-  // 'SD' mencakup SD reguler dan SD Juara; keduanya diuji di antrean yang sama.
-  const jenjang = pengaju.unit === 'SD' ? ['sd', 'sd_juara'] : ['smp']
+  const jenjang = [UJIAN_UNIT_JENJANG[pengaju.unit]]
 
   /*
     GURU HANYA BOLEH MENGAJUKAN ANAK HALAQOHNYA SENDIRI.
@@ -773,7 +774,7 @@ export async function catatRiwayatTahfidzAction(input: InputRiwayatTahfidz & { u
 
   const hasil = await simpanRiwayatTahfidz(pengurus.userId, input, {
     unit: input.unit,
-    jenjang: input.unit === 'SD' ? ['sd', 'sd_juara'] : ['smp'],
+    jenjang: [UJIAN_UNIT_JENJANG[input.unit]],
     catatanBawaan: 'Riwayat ujian sebelum sistem',
   })
   if (hasil.error) return hasil
@@ -999,7 +1000,7 @@ export async function daftarHalaqohUjianTahsinAction(unit: UjianUnit): Promise<U
   if ('error' in pengaju) return []
 
   const supabase = createServerClient()
-  const jenjang = pengaju.unit === 'SD' ? ['sd', 'sd_juara'] : ['smp']
+  const jenjang = [UJIAN_UNIT_JENJANG[pengaju.unit]]
 
   let kueri = supabase
     .from('halaqoh')

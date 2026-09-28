@@ -1,6 +1,6 @@
 import { cache } from 'react'
 import { createServerClient } from '@/lib/supabase/server'
-import { tanggalWIB } from '@/lib/rq/ujian'
+import { tanggalWIB, unitUjianDariJenjang } from '@/lib/rq/ujian'
 import { totalJuzHafalan } from '@/lib/rq/hafalan'
 import { getTeacherHalaqohIds } from '@/lib/data/teacher'
 import type {
@@ -224,27 +224,40 @@ async function bacaUjianGuru(teacherId: string): Promise<UjianGuru> {
 // ─── Unit seorang guru ───────────────────────────────────────────────────────
 
 /**
- * Unit ujian seorang guru, atau null kalau ia tidak mengajukan ujian.
+ * Antrean ujian yang boleh diisi seorang guru: unit penempatannya
+ * (teachers.unit) ditambah unit tiap halaqoh aktif yang ia ampu.
  *
- * Yang menjalankan antrian ujian hanya SDIT & SMPIT. Guru SD Juara, PAUD, dan
- * SMA sengaja dijawab null — menunya tidak muncul dan server action menolak
- * pengajuannya, sebab tidak ada koordinator yang akan menjadwalkannya.
+ * Halaqoh ikut dihitung sejak SD Juara punya antrean sendiri (0100). Guru RQ
+ * berunit SD kerap juga mengampu kelompok SD Juara; sebelumnya anak-anak itu
+ * masuk antrean SD yang sama, dan tanpa ini mereka tidak bisa diajukan sama
+ * sekali. Unit penempatan tetap didahulukan — itulah pilihan bawaan formulir.
+ *
+ * Daftar kosong berarti guru ini tidak mengajukan ujian: menunya tidak muncul
+ * dan server action menolak pengajuannya.
  */
-export async function getUnitUjianGuru(teacherId: string): Promise<UjianUnit | null> {
+export const getUnitsUjianGuru = cache(async (teacherId: string): Promise<UjianUnit[]> => {
   try {
     const supabase = createServerClient()
-    const { data } = await supabase
-      .from('teachers')
-      .select('unit')
-      .eq('id', teacherId)
-      .maybeSingle()
+    const [{ data: guru }, halaqohIds] = await Promise.all([
+      supabase.from('teachers').select('unit').eq('id', teacherId).maybeSingle(),
+      getTeacherHalaqohIds(teacherId),
+    ])
+    const { data: halaqoh } = halaqohIds.length
+      ? await supabase.from('halaqoh').select('jenjang').in('id', halaqohIds).eq('is_active', true)
+      : { data: [] }
 
-    if (data?.unit === 'sd') return 'SD'
-    if (data?.unit === 'smp') return 'SMP'
-    return null
+    const units = [guru?.unit, ...(halaqoh ?? []).map(h => h.jenjang)]
+      .map(j => unitUjianDariJenjang(j as Jenjang | null))
+      .filter((u): u is UjianUnit => u !== null)
+    return [...new Set(units)]
   } catch {
-    return null
+    return []
   }
+})
+
+/** Unit bawaan seorang guru — yang pertama dari getUnitsUjianGuru. */
+export async function getUnitUjianGuru(teacherId: string): Promise<UjianUnit | null> {
+  return (await getUnitsUjianGuru(teacherId))[0] ?? null
 }
 
 // ─── Daftar penguji ──────────────────────────────────────────────────────────

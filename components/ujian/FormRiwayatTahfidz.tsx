@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { PilihSiswa } from './PilihSiswa'
-import { PREDIKAT_OPTIONS, getTahfidzLabel } from '@/lib/rq/ujian'
+import { PREDIKAT_OPTIONS, UJIAN_UNIT_SEKOLAH, getTahfidzLabel } from '@/lib/rq/ujian'
 import { ringkasHafalan } from '@/lib/rq/hafalan'
 import { catatRiwayatTahfidzAction, type SaranSiswa } from '@/app/actions/ujian'
 import type { TahfidzTipe, UjianPredikat, UjianUnit } from '@/types'
@@ -82,7 +82,7 @@ export function FormRiwayatTahfidz({ units }: { units: UjianUnit[] }) {
             onChange={e => { setUnit(e.target.value as UjianUnit); setSiswa(null) }}
             className={SELECT_CLASS}
           >
-            {units.map(u => <option key={u} value={u}>{u === 'SD' ? 'SDIT LHI' : 'SMPIT LHI'}</option>)}
+            {units.map(u => <option key={u} value={u}>{UJIAN_UNIT_SEKOLAH[u]}</option>)}
           </select>
         </div>
       )}

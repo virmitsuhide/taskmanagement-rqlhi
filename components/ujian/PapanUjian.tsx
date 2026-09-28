@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import {
   formatTahsinLevels, getPredikatClass, getPredikatLabel, getTahfidzKategori,
   getTahfidzLabel, tanggalWIB,
+  UJIAN_UNIT_LABEL,
 } from '@/lib/rq/ujian'
 import type { UjianStatus, UjianTahfidz, UjianTahsin, UjianUnit } from '@/types'
 
@@ -296,8 +297,6 @@ function LihatSemua({ jumlah, onClick }: { jumlah: number; onClick: () => void }
  */
 export const BATAS_TASMI_PEKANAN = 4
 
-/** Nama unit ujian untuk panel beban — SD & SMP di sini berarti SDIT & SMPIT LHI. */
-const NAMA_UNIT_UJIAN: Record<UjianUnit, string> = { SD: 'SDIT', SMP: 'SMPIT' }
 
 /** Di luar komponen agar render tetap murni (react-hooks/purity). */
 const kiniMs = () => Date.now()
@@ -345,7 +344,7 @@ export function BebanPenguji({ tahfidz, tahsin, units }: {
       <h3 className="font-display text-lg leading-tight">Beban penguji</h3>
       <p className="mt-0.5 text-xs text-muted-foreground">
         Ujian terjadwal dua pekan ke depan
-        {lintasUnit && <> · gabungan {units.map(u => NAMA_UNIT_UJIAN[u]).join(' & ')} LHI</>}
+        {lintasUnit && <> · gabungan {units.map(u => UJIAN_UNIT_LABEL[u]).join(' & ')} LHI</>}
       </p>
       {baris.length === 0 ? (
         <p className="mt-4 text-sm text-muted-foreground">Belum ada penguji yang terjadwal.</p>
@@ -371,7 +370,7 @@ export function BebanPenguji({ tahfidz, tahsin, units }: {
                     <p className="mt-1 flex flex-wrap gap-1">
                       {units.filter(u => b.perUnit.get(u)).map(u => (
                         <span key={u} className="rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
-                          {NAMA_UNIT_UJIAN[u]} {b.perUnit.get(u)}
+                          {UJIAN_UNIT_LABEL[u]} {b.perUnit.get(u)}
                         </span>
                       ))}
                     </p>
@@ -392,7 +391,7 @@ export function BebanPenguji({ tahfidz, tahsin, units }: {
         <p className="font-semibold text-foreground">Catatan jadwal</p>
         Penguji berwarna oranye sudah memegang {BATAS_TASMI_PEKANAN} tasmi&apos; atau lebih pekan ini.
         Ini hanya penanda — penjadwalan tetap bisa dilakukan.
-        {lintasUnit && <> Beban dihitung dari kedua unit karena penguji SDIT dan SMPIT bisa saling menguji.</>}
+        {lintasUnit && <> Beban dihitung dari semua unit karena penguji bisa saling menguji lintas unit.</>}
       </div>
     </section>
   )

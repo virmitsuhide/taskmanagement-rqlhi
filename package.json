@@ -49,6 +49,7 @@
     "rapikan:halaqoh": "tsx scripts/rapikan-nama-halaqoh.ts",
     "seed:div-quran-boarding": "tsx scripts/seed-div-quran-boarding.ts",
     "seed:admin": "tsx scripts/seed-admin.ts",
+    "seed:koor-unit": "tsx scripts/seed-koor-unit.ts",
     "impor:tmt": "tsx scripts/impor-tmt-guru.ts"
   },
   "dependencies": {

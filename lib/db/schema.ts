@@ -9,6 +9,7 @@ import type { FooterLink, FooterUnit, HomeSection } from '@/types'
 export const userRoleEnum = pgEnum('user_role', [
   'kepala_rq', 'kumik', 'sdm', 'bendahara',
   'koor_ekstra', 'koor_sd', 'koor_smp', 'koor_qulssd',
+  'koor_tpait', 'koor_sdjuara', 'koor_sma',
   'humas', 'div_training', 'new_squad',
   'div_quran_bpa', 'div_quran_bpi',
   'admin',
@@ -17,6 +18,7 @@ export const meetingTypeEnum = pgEnum('meeting_type', [
   'manajemen', 'kumik', 'new_squad', 'koor_sd', 'koor_smp',
   'koor_x_sd', 'koor_x_smp', 'koor_x_boarding', 'rq_x_quls', 'humas_yayasan',
   'tahsin_rekomendasi', 'quls_sd',
+  'koor_tpait', 'koor_sdjuara', 'koor_sma',
 ])
 export const agendaTagEnum = pgEnum('agenda_tag', [
   'keputusan', 'informasi', 'perlu_diskusi', 'tindak_lanjut', 'approval',
@@ -1532,7 +1534,7 @@ export const ujianPengujis = pgTable('ujian_pengujis', {
 
 export const ujianTahfidz = pgTable('ujian_tahfidz', {
   id: uuid('id').primaryKey().defaultRandom(),
-  /** 'SD' | 'SMP' — hanya dua unit ini yang menjalankan ujian. */
+  /** UjianUnit: 'TPAIT' | 'SD' | 'SD Juara' | 'SMP' | 'SMA' (0100). */
   unit: text('unit').notNull(),
   /** '1_juz' | '3_juz' | '5_juz' */
   tipe: text('tipe').notNull(),

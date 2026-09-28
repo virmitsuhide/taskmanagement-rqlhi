@@ -1,6 +1,7 @@
 import { createServerClient } from '@/lib/supabase/server'
 import { UNIT_LABELS } from '@/lib/rq/programs'
 import { juzTerjauh, kewajibanUjian, posisiJuz, totalJuzHafalan, type KewajibanUjian } from '@/lib/rq/hafalan'
+import { UJIAN_UNIT_JENJANG, unitUjianDariJenjang } from '@/lib/rq/ujian'
 import type { Jenjang, UjianUnit } from '@/types'
 
 /**
@@ -58,12 +59,6 @@ export interface HasilStatusHafalan {
   tabelVerifikasiAda: boolean
 }
 
-const JENJANG_UNIT: Record<UjianUnit, Jenjang[]> = { SD: ['sd', 'sd_juara'], SMP: ['smp'] }
-
-export function unitDariJenjang(j: Jenjang): UjianUnit | null {
-  return j === 'smp' ? 'SMP' : j === 'sd' || j === 'sd_juara' ? 'SD' : null
-}
-
 function tingkatDari(kelas: string | null): number | null {
   const n = Number(String(kelas ?? '').match(/\d+/)?.[0])
   return Number.isInteger(n) && n >= 1 && n <= 12 ? n : null
@@ -95,7 +90,7 @@ async function ambilSemua<T>(buat: (dari: number, ke: number) => PromiseLike<{ d
 }
 
 export async function getStatusHafalan(units: UjianUnit[]): Promise<HasilStatusHafalan> {
-  const jenjang = units.flatMap(u => JENJANG_UNIT[u])
+  const jenjang = units.map(u => UJIAN_UNIT_JENJANG[u])
   if (jenjang.length === 0) return { siswa: [], tabelVerifikasiAda: true }
   const supabase = createServerClient()
 
@@ -128,7 +123,7 @@ export async function getStatusHafalan(units: UjianUnit[]): Promise<HasilStatusH
 
   const siswa: StatusHafalanSiswa[] = []
   for (const s of siswaRows) {
-    const unit = unitDariJenjang(s.jenjang)
+    const unit = unitUjianDariJenjang(s.jenjang)
     if (!unit) continue
     const juzSetoran = juzTerjauh(setoranPer.get(s.id) ?? [])
     const posSetoran = juzSetoran === null ? 0 : (posisiJuz(juzSetoran) ?? 1) - 1

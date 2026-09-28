@@ -124,7 +124,7 @@ export async function buatDocx(m: LaporanModel): Promise<Buffer> {
     isi.push(...kotakAnalisis(s.analisis))
   }
 
-  isi.push(new Paragraph({ heading: HeadingLevel.HEADING_2, children: [teks('2.9  Identifikasi Masalah & Rekomendasi Tindak Lanjut')] }))
+  isi.push(new Paragraph({ heading: HeadingLevel.HEADING_2, children: [teks(`${m.nomorMasalah}  Identifikasi Masalah & Rekomendasi Tindak Lanjut`)] }))
   if (m.masalah.length) {
     isi.push(...tabel({
       header: ['No', 'Area Fokus', 'Masalah Utama', 'Rekomendasi Tindak Lanjut', 'Prioritas'],

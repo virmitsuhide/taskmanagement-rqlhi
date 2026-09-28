@@ -1,4 +1,5 @@
 import { createServerClient } from '@/lib/supabase/server'
+import { getKoorUnitUjian } from '@/lib/auth/permissions'
 import { getUjianGuru } from '@/lib/data/ujian'
 import { getTahfidzLabel, formatTahsinLevels } from '@/lib/rq/ujian'
 import type { TahfidzTipe, UjianSiswa, UjianUnit, UserRole } from '@/types'
@@ -157,12 +158,8 @@ export async function getNotifUjianGuru(teacherId: string): Promise<NotifUjianGu
  * Sengaja hanya koordinator unit — merekalah yang menjadwalkan. Kepala RQ,
  * Kumik, dan BPA/BPI memang boleh mengelola antrian, tapi memberi tahu semua
  * yang berwenang berarti setiap pengajuan membunyikan lima lonceng untuk satu
- * pekerjaan yang cukup dikerjakan satu orang.
+ * pekerjaan yang cukup dikerjakan satu orang. Petanya: getKoorUnitUjian.
  */
-const PENERIMA_PENGAJUAN: Partial<Record<UserRole, UjianUnit>> = {
-  koor_sd: 'SD',
-  koor_smp: 'SMP',
-}
 
 export interface NotifUjianKoor {
   items: NotifUjian[]
@@ -172,7 +169,7 @@ export interface NotifUjianKoor {
 
 export async function getNotifUjianKoor(userId: string, role: UserRole): Promise<NotifUjianKoor> {
   const kosong: NotifUjianKoor = { items: [], baruCount: 0 }
-  const unit = PENERIMA_PENGAJUAN[role]
+  const unit = getKoorUnitUjian(role)
   if (!unit) return kosong
 
   try {
