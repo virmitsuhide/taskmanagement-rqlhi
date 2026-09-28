@@ -169,6 +169,15 @@ export function getViewableMeetingTypes(role: UserRole): MeetingType[] {
 // ─── Papan Rapat (0077) ──────────────────────────────────────────────────────
 // Yang melihat papan = yang boleh membaca notulennya (canViewMeeting per jenis).
 
+/**
+ * Boleh membuka Papan Rapat. Tiga koor unit 0099 (TPAIT, SD Juara, SMA)
+ * tidak: mereka cukup membaca notulen di Rapat & Notulen.
+ */
+export function canViewPapanRapat(role: UserRole): boolean {
+  return role !== 'koor_tpait' && role !== 'koor_sdjuara' && role !== 'koor_sma'
+    && getViewableMeetingTypes(role).length > 0
+}
+
 /** Menyetujui / menolak poin Approval. Keputusan anggaran & SDM ada di Kepala RQ. */
 export function canDecideRapatApproval(role: UserRole): boolean {
   return role === 'kepala_rq'

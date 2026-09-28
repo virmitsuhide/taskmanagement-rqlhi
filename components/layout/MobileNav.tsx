@@ -17,7 +17,7 @@ import {
   canViewStudents, canViewHalaqoh, canViewTeachers, canViewUnitAnalytics,
   canManageHomepage,
   canViewKpi, canCatatSetoranGuru, canManageAllAccounts, canManagePengurus, canManageEmployees, canViewUjian, canManageTeacherProfiles,
-  canAccessKpiPublikasi, canManageRaporTemplate, canManageRiyadhoh, canViewRiyadhohAnalitik, canManageEkstra, canManageKaldik, canViewKpiBanding, canViewTasks, canViewRoutineBoard, isAdmin, canViewLaporanKurikulum } from '@/lib/auth/permissions'
+  canAccessKpiPublikasi, canManageRaporTemplate, canManageRiyadhoh, canViewRiyadhohAnalitik, canManageEkstra, canManageKaldik, canViewKpiBanding, canViewTasks, canViewRoutineBoard, isAdmin, canViewLaporanKurikulum, canViewPapanRapat } from '@/lib/auth/permissions'
 import type { UserRole } from '@/types'
 import { logoutAction } from '@/app/actions/auth'
 import { Logo } from '@/components/brand/Logo'
@@ -284,7 +284,9 @@ export function MobileNav({ role, displayName, username, lencanaKpi }: Props) {
                 <DrawerLink href="/humas/tentang" icon={<Info className="h-4 w-4" />} label="Tentang RQ" active={isActive('/humas/tentang')} onNavigate={close} />
               )}
               <DrawerLink href="/rapat" icon={<BookOpen className="h-4 w-4" />} label="Rapat & Notulen" active={isActive('/rapat') && !pathname.startsWith('/rapat/papan')} onNavigate={close} />
-              <DrawerLink href="/rapat/papan" icon={<Kanban className="h-4 w-4" />} label="Papan Rapat" active={pathname.startsWith('/rapat/papan')} onNavigate={close} />
+              {canViewPapanRapat(role) && (
+                <DrawerLink href="/rapat/papan" icon={<Kanban className="h-4 w-4" />} label="Papan Rapat" active={pathname.startsWith('/rapat/papan')} onNavigate={close} />
+              )}
               {canViewTasks(role) && (
                 <>
                   <DrawerLink href="/tugas-rutin" icon={<Repeat className="h-4 w-4" />} label="Tugas Rutin" active={isActive('/tugas-rutin') && !pathname.startsWith('/tugas-rutin/papan')} onNavigate={close} />

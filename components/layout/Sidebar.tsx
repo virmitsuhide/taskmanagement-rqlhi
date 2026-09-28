@@ -17,7 +17,7 @@ import {
   canViewStudents, canViewHalaqoh, canViewTeachers, canViewUnitAnalytics,
   canManageHomepage, canViewKpi, canCatatSetoranGuru, canManageAllAccounts, canManagePengurus, canManageEmployees, canViewUjian,
   canAccessKpiPublikasi, canManageRaporTemplate, canManageRiyadhoh, canViewRiyadhohAnalitik, canManageEkstra, canManageKaldik, canViewKpiBanding, canViewTasks, canViewRoutineBoard,
-  isAdmin, canViewLaporanKurikulum,
+  isAdmin, canViewLaporanKurikulum, canViewPapanRapat,
 } from '@/lib/auth/permissions'
 import type { UserRole } from '@/types'
 import { logoutAction } from '@/app/actions/auth'
@@ -237,7 +237,9 @@ export function Sidebar({ role, displayName, username, lencanaKpi, ciutAwal = fa
               <NavItem href="/humas/tentang" icon={<Info className="h-4 w-4" />} label="Tentang RQ" active={isActive('/humas/tentang')} />
             )}
             <NavItem href="/rapat" icon={<BookOpen className="h-4 w-4" />} label="Rapat & Notulen" active={isActive('/rapat') && !pathname.startsWith('/rapat/papan')} />
-            <NavItem href="/rapat/papan" icon={<Kanban className="h-4 w-4" />} label="Papan Rapat" active={pathname.startsWith('/rapat/papan')} />
+            {canViewPapanRapat(role) && (
+              <NavItem href="/rapat/papan" icon={<Kanban className="h-4 w-4" />} label="Papan Rapat" active={pathname.startsWith('/rapat/papan')} />
+            )}
             {/* Menempel di bawah Rapat & Notulen: keduanya irama kerja yang
                 berulang menurut kalender, bukan pekerjaan yang ditugaskan. */}
             {canViewTasks(role) && (

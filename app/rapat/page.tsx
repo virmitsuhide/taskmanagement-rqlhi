@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { getSession } from '@/lib/auth/session'
-import { getViewableMeetingTypes, canCreateMeeting, canPurgeMeeting, MEETING_TYPE_LABELS } from '@/lib/auth/permissions'
+import { getViewableMeetingTypes, canCreateMeeting, canViewPapanRapat, canPurgeMeeting, MEETING_TYPE_LABELS } from '@/lib/auth/permissions'
 import { createServerClient } from '@/lib/supabase/server'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { MeetingRowActions } from '@/components/rapat/MeetingRowActions'
@@ -182,9 +182,11 @@ export default async function RapatPage({ searchParams }: PageProps) {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <Button asChild size="sm" variant="outline">
-              <Link href="/rapat/papan"><Kanban className="h-4 w-4 mr-1" />Papan Rapat</Link>
-            </Button>
+            {canViewPapanRapat(session.role) && (
+              <Button asChild size="sm" variant="outline">
+                <Link href="/rapat/papan"><Kanban className="h-4 w-4 mr-1" />Papan Rapat</Link>
+              </Button>
+            )}
             {bolehLihatSampah && (trashCount ?? 0) > 0 && (
               <Button asChild size="sm" variant="outline">
                 <Link href="/rapat/sampah">

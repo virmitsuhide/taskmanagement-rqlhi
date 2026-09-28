@@ -1,7 +1,7 @@
 import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
 import { getSession } from '@/lib/auth/session'
-import { canEditMeeting, canDeleteMeeting, canViewMeeting, MEETING_TYPE_LABELS, AGENDA_TAG_LABELS } from '@/lib/auth/permissions'
+import { canEditMeeting, canDeleteMeeting, canViewMeeting, canViewPapanRapat, MEETING_TYPE_LABELS, AGENDA_TAG_LABELS } from '@/lib/auth/permissions'
 import { createServerClient } from '@/lib/supabase/server'
 import { deleteMeetingAction } from '@/app/actions/meetings'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
@@ -140,7 +140,7 @@ export default async function RapatDetailPage({ params }: { params: Promise<{ id
                               : 'bg-warning-wash text-warning'}`}>
                             <b>{item.approval_status === 'disetujui' ? 'Disetujui' : item.approval_status === 'ditolak' ? 'Ditolak' : 'Menunggu keputusan'}</b>
                             {item.butuh_biaya && <span>· {item.biaya != null ? `biaya ${formatRupiah(item.biaya)}` : 'butuh biaya'}</span>}
-                            <Link href="/rapat/papan" className="font-semibold underline-offset-2 hover:underline print:hidden">· Papan Rapat →</Link>
+                            {canViewPapanRapat(session.role) && <Link href="/rapat/papan" className="font-semibold underline-offset-2 hover:underline print:hidden">· Papan Rapat →</Link>}
                           </div>
                         )}
                         {item.follow_up && (

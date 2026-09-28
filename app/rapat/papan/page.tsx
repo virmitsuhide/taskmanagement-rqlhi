@@ -5,7 +5,7 @@ import {
 } from 'lucide-react'
 import { getSession } from '@/lib/auth/session'
 import {
-  canDecideRapatApproval, canIsiBiayaRapat, canKelolaPapanRapat, getViewableMeetingTypes, MEETING_TYPE_LABELS,
+  canDecideRapatApproval, canIsiBiayaRapat, canKelolaPapanRapat, canViewPapanRapat, getViewableMeetingTypes, MEETING_TYPE_LABELS,
 } from '@/lib/auth/permissions'
 import { getPapanRapat, type PoinPapan } from '@/lib/data/papan-rapat'
 import { menungguBiaya, sudahTuntas, LABEL_STATUS_TUGAS, WARNA_STATUS_TUGAS } from '@/lib/rapat/papan'
@@ -55,7 +55,7 @@ export default async function PapanRapatPage({ searchParams }: PageProps) {
   const session = await getSession()
   if (!session) redirect('/login')
   const bolehJenis = getViewableMeetingTypes(session.role)
-  if (bolehJenis.length === 0) redirect('/rapat')
+  if (!canViewPapanRapat(session.role)) redirect('/rapat')
 
   const sp = await searchParams
   const arsip = sp.tampil === 'arsip'
