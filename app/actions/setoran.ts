@@ -648,6 +648,7 @@ async function simpanSetoranTahfidz(teacherId: string, input: InputSetoranTahfid
       surat_id: suratId,
       ayat_dari: ayatDari,
       ayat_ke: ayatKe,
+      surat_ke_id: suratKeId ?? null,
       setoran_date: input.setoran_date,
     })
   }

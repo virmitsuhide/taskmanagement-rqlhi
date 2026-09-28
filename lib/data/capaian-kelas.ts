@@ -6,6 +6,7 @@ import { getInfoSurat } from '@/lib/data/nama-surat'
 import { posisiJuz, totalJuzHafalan, URUTAN_JUZ } from '@/lib/rq/hafalan'
 import { mencapaiTarget } from '@/lib/rq/level'
 import { UNIT_LABELS, UNIT_ORDER } from '@/lib/rq/programs'
+import { JENJANG_METHODS, methodsForProgram } from '@/lib/tahsin'
 import type { Jenjang } from '@/types'
 
 /**
@@ -476,9 +477,14 @@ export async function getCapaianKelas(jenjangBoleh: Jenjang[], opsi: { sampai?: 
     const target = tingkat ? targetTahsin.get(`${s.jenjang}|${tingkat}`) : undefined
     // Jilid diambil dari posisi siswa yang digerakkan setoran (termasuk
     // kenaikan jilid), tapi hanya bila memang ada setorannya.
+    //
+    // Kecuali Lulus Tahsin: anak yang sudah lulus tidak lagi setor tahsin
+    // (ia sudah di tahfidz), jadi menuntut setoran berarti ia terkunci di
+    // kolom "Belum" selamanya.
     const jilidKini = jilidSiswa(s)
-    const lv = log ? (jilidKini ? levelById.get(jilidKini) : undefined)
-      ?? (log.jilid_id ? levelById.get(log.jilid_id) : undefined) : undefined
+    const lvKini = jilidKini ? levelById.get(jilidKini) : undefined
+    const lv = log ? lvKini ?? (log.jilid_id ? levelById.get(log.jilid_id) : undefined)
+      : lvKini?.is_terminal ? lvKini : undefined
     const kolom = lv ? kolomTahsin(lv) : BELUM_TERCATAT
 
     let posisi: string | null = null
@@ -544,13 +550,21 @@ export async function getCapaianKelas(jenjangBoleh: Jenjang[], opsi: { sampai?: 
       const nama = NAMA_JALUR[jenjang]?.[jalur]
       const pisah = UNIT_BERJALUR.has(jenjang) || siswaUnit.some(s => jalurOf(s.program) === 'quls')
 
-      // Tangga metode yang dipakai kelompok ini ditampilkan utuh — Jilid 5
-      // yang kosong tetap satu kolom, karena kosongnya itu sendiri informasi.
+      // Tangga metode RESMI unit ini (JENJANG_METHODS / methodsForProgram)
+      // ditampilkan utuh — Jilid 5 yang kosong tetap satu kolom, karena
+      // kosongnya itu sendiri informasi. Bukan metode yang tercatat pada
+      // siswa: kelas 9 SMP yang menamatkan UMMI semasa SD akan menyeret
+      // Jilid 6, Gharib, dan Tajwid ke tabel Syajaroh. Siswa seperti itu
+      // tetap terhitung — kolomnya muncul hanya bila memang ada isinya.
       const metodeIds = new Set(
         siswa.map(s => { const j = jilidSiswa(s); return j ? levelById.get(j)?.method_id : undefined })
           .filter((x): x is string => Boolean(x)),
       )
-      const tetapTahsin = new Set([...levels.filter(l => metodeIds.has(l.method_id)).map(kolomTahsin), BELUM_TERCATAT])
+      const metodeResmi = new Set(methodsForProgram(jenjang, jalur === 'quls' ? siswa[0]?.program : null) ?? JENJANG_METHODS[jenjang])
+      const tetapTahsin = new Set([
+        ...levels.filter(l => metodeResmi.has(namaMetode.get(l.method_id) ?? '')).map(kolomTahsin),
+        BELUM_TERCATAT,
+      ])
 
       const tahfidzEntri = siswa.map(entriTahfidz)
       const blokTerisi = new Set(tahfidzEntri.map(e => e.blok))

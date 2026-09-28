@@ -1,7 +1,7 @@
 import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
 import { getSession } from '@/lib/auth/session'
-import { canPostToHome } from '@/lib/auth/permissions'
+import { canPostPengumuman, canPostToHome, canPostTugasGuru } from '@/lib/auth/permissions'
 import { createServerClient } from '@/lib/supabase/server'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { Button } from '@/components/ui/button'
@@ -39,7 +39,7 @@ export default async function EditHomePostPage({ params }: { params: Promise<{ i
           <p className="text-sm text-muted-foreground mb-6">
             Perubahan langsung tampil di beranda publik setelah disimpan.
           </p>
-          <PublicPostForm post={post} />
+          <PublicPostForm post={post} izin={{ pengumuman: canPostPengumuman(session.role), tugas_guru: canPostTugasGuru(session.role) }} />
         </div>
       </div>
     </div>

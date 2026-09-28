@@ -14,25 +14,47 @@ import { PilihBerkas } from '@/components/rapor/kontrol'
 import { gantiDenganFotoKompres } from '@/lib/profil/kompres-foto'
 import { POST_ICONS, POST_ICON_ORDER, DEFAULT_POST_ICON, postIconOf } from '@/lib/home/post-icons'
 import { labelTanggalPost } from '@/lib/home/post-tanggal'
-import type { PublicPost, PublicPostType } from '@/types'
+import type { PublicPost, PublicPostType, PublicTarget } from '@/types'
 
 const CONTENT_PLACEHOLDER =
   'Isi pengumuman atau tugas yang akan tampil di beranda publik...\n\nGunakan **tebal**, *miring*, ~~coret~~, daftar, dan emoji 😊'
 
+/** Sasaran yang boleh dipilih per jenis post — dari canPostPengumuman/canPostTugasGuru. */
+export interface IzinPost {
+  pengumuman: PublicTarget | null
+  tugas_guru: PublicTarget | null
+}
+
+const LABEL_TARGET: Record<PublicTarget, string> = { all: 'Semua', sd: 'SD', smp: 'SMP' }
+const LABEL_JENIS: Record<PublicPostType, string> = { pengumuman: 'Pengumuman', tugas_guru: 'Tugas Guru' }
+
+/** Pilihan sasaran untuk satu jenis: 'all' membuka ketiganya, selain itu terkunci ke unitnya. */
+function targetBoleh(izin: PublicTarget | null): PublicTarget[] {
+  if (!izin) return []
+  return izin === 'all' ? ['all', 'sd', 'smp'] : [izin]
+}
+
 /**
  * Formulir post beranda — membuat post baru, atau menyunting `post` bila
- * diberikan (semua isian terisi dari post itu, termasuk flyernya).
+ * diberikan (semua isian terisi dari post itu, termasuk flyernya). Jenis &
+ * sasaran yang tampil hanya yang boleh diposting peran ini; server tetap
+ * memeriksa ulang.
  */
-export function PublicPostForm({ post }: { post?: PublicPost } = {}) {
+export function PublicPostForm({ post, izin }: { post?: PublicPost; izin: IzinPost }) {
   const [state, action, isPending] = useActionState(
     post ? updatePublicPostAction.bind(null, post.id) : createPublicPostAction,
     null,
   )
   const [content, setContent] = useState(post?.content ?? '')
   const [preview, setPreview] = useState(false)
+  const jenisBoleh = (['pengumuman', 'tugas_guru'] as const).filter(j => izin[j] !== null)
   // Dikendalikan agar label kolom tanggal ikut berganti: tenggat untuk tugas,
   // waktu pelaksanaan untuk pengumuman.
-  const [jenis, setJenis] = useState<PublicPostType>(post?.type ?? 'pengumuman')
+  const [jenis, setJenis] = useState<PublicPostType>(post?.type ?? jenisBoleh[0] ?? 'pengumuman')
+  const pilihanTarget = targetBoleh(izin[jenis])
+  const [target, setTarget] = useState<PublicTarget>(post?.target ?? pilihanTarget[0] ?? 'all')
+  // Berganti jenis bisa mengubah sasaran yang sah — koor tetap di unitnya.
+  const targetSah = pilihanTarget.includes(target) ? target : (pilihanTarget[0] ?? 'all')
 
   return (
     <form action={action} className="space-y-5">
@@ -51,23 +73,22 @@ export function PublicPostForm({ post }: { post?: PublicPost } = {}) {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="pengumuman">Pengumuman</SelectItem>
-                  <SelectItem value="tugas_guru">Tugas Guru</SelectItem>
+                  {jenisBoleh.map(j => <SelectItem key={j} value={j}>{LABEL_JENIS[j]}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="target">Target</Label>
-              <Select name="target" defaultValue={post?.target ?? 'all'} required>
+              <Select name="target" value={targetSah} onValueChange={v => setTarget(v as PublicTarget)} disabled={pilihanTarget.length < 2} required>
                 <SelectTrigger id="target" className="w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Semua</SelectItem>
-                  <SelectItem value="sd">SD</SelectItem>
-                  <SelectItem value="smp">SMP</SelectItem>
+                  {pilihanTarget.map(t => <SelectItem key={t} value={t}>{LABEL_TARGET[t]}</SelectItem>)}
                 </SelectContent>
               </Select>
+              {/* Select yang dinonaktifkan tidak ikut terkirim bersama formulir. */}
+              {pilihanTarget.length < 2 && <input type="hidden" name="target" value={targetSah} />}
             </div>
           </div>
         </CardContent>

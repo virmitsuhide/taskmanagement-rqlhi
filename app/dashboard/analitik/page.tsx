@@ -29,7 +29,7 @@ import {
 type Fokus = 'semua' | 'tahsin' | 'tahfidz'
 
 interface PageProps {
-  searchParams: Promise<{ bulan?: string; unit?: string; fokus?: string; cunit?: string }>
+  searchParams: Promise<{ bulan?: string; unit?: string; fokus?: string; cunit?: string; tunit?: string }>
 }
 
 const PATH = '/dashboard/analitik'
@@ -132,7 +132,12 @@ export default async function AnalitikPage({ searchParams }: PageProps) {
   const naikLalu = (tampilTahsin ? a.prevMonthly.jilidPromotions : 0) + (tampilTahfidz ? a.prevMonthly.juzPromotions : 0)
   const drillTahsinTotal = semuaDrill.filter(u => !jenjang || u.jenjang === jenjang).reduce((n, u) => n + u.siswa.length, 0)
 
-  const top = papanTeratas(boards)
+  // 10 besar: manajemen yang melihat "Semua unit" bisa memilih unit di dalam
+  // panelnya sendiri (?tunit=), tanpa mengubah cakupan halaman lainnya.
+  const tabTeratas = penuh && !jenjang ? semuaBoards.filter(b => b.studentCount > 0) : []
+  const unitTeratas = tabTeratas.find(b => b.jenjang === sp.tunit)?.jenjang ?? null
+  const top = papanTeratas(unitTeratas ? boards.filter(b => b.jenjang === unitTeratas) : boards)
+  const cakupanTeratas = unitTeratas ? UNIT_LABELS[unitTeratas] : cakupan
   const seksi = Object.values(S).filter(s =>
     s.id !== 'target' || tampilTahfidz)
 
@@ -267,10 +272,29 @@ export default async function AnalitikPage({ searchParams }: PageProps) {
             <Panel
               title="10 Besar Hafalan"
               icon={<Trophy className="h-4 w-4" />}
-              sub={`${cakupan} · juz dari setoran atau ujian, yang terjauh`}
+              sub={`${cakupanTeratas} · juz dari setoran atau ujian, yang terjauh`}
             >
+              {tabTeratas.length > 1 && (
+                <div className="mb-3 flex flex-wrap gap-1.5" role="tablist" aria-label="Unit 10 besar hafalan">
+                  {[{ kode: null, label: 'Semua' }, ...tabTeratas.map(b => ({ kode: b.jenjang, label: b.label }))].map(t => (
+                    <Link
+                      key={t.kode ?? 'semua'}
+                      href={href({ tunit: t.kode ?? undefined })}
+                      scroll={false}
+                      role="tab"
+                      aria-selected={unitTeratas === t.kode}
+                      className={cn(
+                        'rounded-full border px-2.5 py-0.5 text-xs font-medium transition-colors',
+                        unitTeratas === t.kode ? 'border-primary bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground',
+                      )}
+                    >
+                      {t.label}
+                    </Link>
+                  ))}
+                </div>
+              )}
               {top.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Belum ada data hafalan di {cakupan}.</p>
+                <p className="text-sm text-muted-foreground">Belum ada data hafalan di {cakupanTeratas}.</p>
               ) : (
                 <ol className="divide-y lg:columns-2 lg:gap-x-8 [&>li]:break-inside-avoid">
                   {top.map((s, i) => (
@@ -281,7 +305,7 @@ export default async function AnalitikPage({ searchParams }: PageProps) {
                         <span className="min-w-0 flex-1">
                           <span className="block truncate text-sm font-medium">{s.name}</span>
                           <span className="block truncate text-[11px] text-muted-foreground">
-                            {[!jenjang ? s.unit : null, s.kelas ? `Kelas ${s.kelas}` : null].filter(Boolean).join(' · ') || '—'}
+                            {[!jenjang && !unitTeratas ? s.unit : null, s.kelas ? `Kelas ${s.kelas}` : null].filter(Boolean).join(' · ') || '—'}
                           </span>
                         </span>
                         <span className="hidden h-1.5 w-16 shrink-0 overflow-hidden rounded-full bg-muted sm:block">

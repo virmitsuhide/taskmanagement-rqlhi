@@ -66,8 +66,11 @@ function bacaIsian(formData: FormData, role: UserRole) {
   if (!VALID_TYPES.includes(type)) return { error: 'Jenis post tidak dikenal.' } as const
   if (!VALID_TARGETS.includes(target)) return { error: 'Target tidak dikenal.' } as const
 
-  if (type === 'pengumuman' && !canPostPengumuman(role)) {
-    return { error: 'Tidak memiliki izin untuk posting pengumuman.' } as const
+  if (type === 'pengumuman') {
+    const allowed = canPostPengumuman(role)
+    if (!allowed) return { error: 'Tidak memiliki izin untuk posting pengumuman.' } as const
+    // Koor SD/SMP terkunci ke unitnya, apa pun yang dikirim formulir.
+    if (allowed !== 'all') target = allowed
   }
   if (type === 'tugas_guru') {
     const allowed = canPostTugasGuru(role)

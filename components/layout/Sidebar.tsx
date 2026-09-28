@@ -9,6 +9,7 @@ import {
   Users, UserCog, BookMarked, BarChart3, LayoutTemplate, Info, Wallet, CalendarRange, CalendarDays,
   ClipboardCheck, KeyRound, ScrollText, Repeat, IdCard, UsersRound, Briefcase, Stamp, Scale, ListChecks, Kanban,
   PanelLeftClose, PanelLeftOpen, CalendarHeart, Lock, UserRound,
+  Crosshair,
 } from 'lucide-react'
 import { DASHBOARD_LABELS, getAccessibleDashboards, ROLE_LABELS , canManageTeacherProfiles } from '@/lib/auth/permissions'
 import {
@@ -17,7 +18,7 @@ import {
   canViewStudents, canViewHalaqoh, canViewTeachers, canViewUnitAnalytics,
   canManageHomepage, canViewKpi, canCatatSetoranGuru, canManageAllAccounts, canManagePengurus, canManageEmployees, canViewUjian,
   canAccessKpiPublikasi, canManageRaporTemplate, canManageRiyadhoh, canViewRiyadhohAnalitik, canManageEkstra, canManageKaldik, canViewKpiBanding, canViewTasks, canViewRoutineBoard,
-  isAdmin, canViewLaporanKurikulum, canViewPapanRapat,
+  isAdmin, canViewLaporanKurikulum, canViewPapanRapat, canViewTargetBulanan,
 } from '@/lib/auth/permissions'
 import type { UserRole } from '@/types'
 import { logoutAction } from '@/app/actions/auth'
@@ -166,6 +167,15 @@ export function Sidebar({ role, displayName, username, lencanaKpi, ciutAwal = fa
                 icon={<FileText className="h-4 w-4" />}
                 label="Laporan Kurikulum"
                 active={isActive('/laporan-kurikulum')}
+              />
+            )}
+            {/* Acuan analisis capaian tiap unit — ditetapkan Kumik per bulan. */}
+            {canViewTargetBulanan(role) && (
+              <NavItem
+                href="/target-bulanan"
+                icon={<Crosshair className="h-4 w-4" />}
+                label="Target Bulanan"
+                active={isActive('/target-bulanan')}
               />
             )}
             {/* Ditaruh menempel di bawah Analitik RQ: KPI adalah penilaian

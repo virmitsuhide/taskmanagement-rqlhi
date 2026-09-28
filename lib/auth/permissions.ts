@@ -527,24 +527,35 @@ export function isAwaitingMyReview(
 //
 // Kepala RQ sengaja tidak termasuk (2026-09): Home Publik dilepas dari
 // Kepala RQ bersama Program RQ, Kelola Beranda, dan modul keuangan.
-const HOME_POST_ROLES: Record<string, UserRole[]> = {
-  pengumuman: ['sdm', 'bendahara'],
-  tugas_guru_sd: ['koor_sd'],
-  tugas_guru_smp: ['koor_smp'],
+//
+// Tiap jenis post dipetakan ke sasaran yang boleh dipilih peran itu:
+// 'all' = bebas memilih Semua/SD/SMP; 'sd'/'smp' = terkunci ke unit itu.
+// Koor SD & SMP memposting pengumuman dan tugas guru untuk unitnya saja.
+// Koor unit lain (TPAIT, SD Juara, SMA) tidak — beranda publik baru memuat
+// sasaran SD & SMP.
+const PENGUMUMAN_TARGET: Partial<Record<UserRole, PublicTarget>> = {
+  sdm: 'all',
+  bendahara: 'all',
+  koor_sd: 'sd',
+  koor_smp: 'smp',
+}
+const TUGAS_GURU_TARGET: Partial<Record<UserRole, PublicTarget>> = {
+  koor_sd: 'sd',
+  koor_smp: 'smp',
 }
 
 export function canPostToHome(role: UserRole): boolean {
-  return Object.values(HOME_POST_ROLES).some(roles => roles.includes(role))
+  return canPostPengumuman(role) !== null || canPostTugasGuru(role) !== null
 }
 
-export function canPostPengumuman(role: UserRole): boolean {
-  return HOME_POST_ROLES.pengumuman.includes(role)
+/** Sasaran pengumuman peran ini — 'all' bebas memilih, null tidak boleh. */
+export function canPostPengumuman(role: UserRole): PublicTarget | null {
+  return PENGUMUMAN_TARGET[role] ?? null
 }
 
+/** Sasaran tugas guru peran ini — 'all' bebas memilih, null tidak boleh. */
 export function canPostTugasGuru(role: UserRole): PublicTarget | null {
-  if (HOME_POST_ROLES.tugas_guru_sd.includes(role)) return 'sd'
-  if (HOME_POST_ROLES.tugas_guru_smp.includes(role)) return 'smp'
-  return null
+  return TUGAS_GURU_TARGET[role] ?? null
 }
 
 // Humas request
@@ -1003,6 +1014,19 @@ export const KATEGORI_GURU_KETERANGAN: Record<KategoriGuru, string> = {
 export const KATEGORI_GURU_ORDER: KategoriGuru[] = [
   'guru_rq', 'guru_quls_sd', 'musyrif_smp', 'guru_tpait', 'guru_sd_juara', 'guru_sma',
 ]
+
+/**
+ * Unit yang tersirat dari sebuah kategori. Buat KPI dan Setoran Guru menyaring
+ * guru menurut `unit`, bukan kategori — tanpa peta ini, SDM yang memilih
+ * "Guru SD Juara" di halaman Ustadz mengira gurunya sudah masuk tab SD Juara,
+ * padahal unitnya masih kosong. Hanya tiga kategori unit (0102); Guru RQ,
+ * Guru QULS SD, dan Musyrif/ah SMP tidak otomatis masuk daftar KPI unit.
+ */
+export const KATEGORI_GURU_UNIT: Partial<Record<KategoriGuru, Jenjang>> = {
+  guru_tpait: 'paud',
+  guru_sd_juara: 'sd_juara',
+  guru_sma: 'sma',
+}
 
 /**
  * Punya profil pengurus lengkap (data diri, pendidikan, kompetensi, riwayat).
@@ -1599,6 +1623,21 @@ export function canViewLaporanKurikulum(role: UserRole): boolean {
  */
 export function canSusunLaporanKurikulum(role: UserRole): boolean {
   return role === 'kumik' || role === 'kepala_rq'
+}
+
+// ── Target bulanan tahsin & tahfidz (0103) ───────────────────────────────
+
+/**
+ * Menetapkan rentang target bulanan & ambang kategorinya: Kumik pemiliknya;
+ * Kepala RQ ikut supaya target tidak tertahan bila Kumik berhalangan.
+ */
+export function canKelolaTargetBulanan(role: UserRole): boolean {
+  return role === 'kumik' || role === 'kepala_rq'
+}
+
+/** Membaca target bulanan: pengelolanya, plus para koordinator unit (baca saja). */
+export function canViewTargetBulanan(role: UserRole): boolean {
+  return canKelolaTargetBulanan(role) || isKoorUnit(role) || role === 'koor_qulssd'
 }
 
 /** Menyetujui atau mengembalikan edisi yang diajukan — Kepala RQ saja. */

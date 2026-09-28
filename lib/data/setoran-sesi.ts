@@ -134,6 +134,8 @@ export interface SiswaSesiTahfidz {
   id: string
   full_name: string
   kelas: string | null
+  /** Unit siswa — menentukan arah juz 30 (akhirJuzArah). */
+  jenjang: Jenjang | null
   /** Setoran ziyadah terakhir — dasar isian awal surat & ayat berikutnya. */
   terakhir: { surat_id: number; surat: string; ayat_ke: number } | null
   /** Juz yang ziyadahnya tuntas tapi ujiannya belum diajukan (0065). */
@@ -144,11 +146,11 @@ export async function getSiswaSesiTahfidz(sasaran: SasaranSesi): Promise<SiswaSe
   const supabase = createServerClient()
   const { data: siswa } = await supabase
     .from('students')
-    .select('id, full_name, kelas')
+    .select('id, full_name, kelas, jenjang')
     .or(saringSasaran(sasaran))
     .eq('is_active', true)
     .order('full_name')
-  const rows = (siswa ?? []) as { id: string; full_name: string; kelas: string | null }[]
+  const rows = (siswa ?? []) as { id: string; full_name: string; kelas: string | null; jenjang: Jenjang | null }[]
   if (rows.length === 0) return []
 
   const drill = await getJuzDrillPerSiswa(rows.map(r => r.id))

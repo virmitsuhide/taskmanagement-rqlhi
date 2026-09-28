@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { createServerClient } from '@/lib/supabase/server'
 import { getSession } from '@/lib/auth/session'
 import { getTeacherSession } from '@/lib/auth/teacher-session'
-import { canManageTeacherProfiles, KATEGORI_GURU_ORDER } from '@/lib/auth/permissions'
+import { canManageTeacherProfiles, KATEGORI_GURU_ORDER, KATEGORI_GURU_UNIT } from '@/lib/auth/permissions'
 import type { KategoriGuru } from '@/types'
 import { bacaDataDiri, teks, unggahFotoProfil } from '@/lib/profil/data-diri'
 
@@ -89,6 +89,8 @@ export async function updateGuruProfileBySdmAction(_: unknown, formData: FormDat
   // akibatnya bukan galat melainkan diam: pilihan yang tidak dikenal jatuh ke
   // null, tersimpan, dan melapor berhasil.
   const pilihanKategori = formData.get('kategori_guru') as string
+  // Unit dikosongkan tapi kategorinya per unit → unit diambil dari kategori.
+  const unitTersirat = KATEGORI_GURU_UNIT[pilihanKategori as KategoriGuru] ?? null
 
   const patch = {
     ...bacaDataDiri(formData),
@@ -97,7 +99,7 @@ export async function updateGuruProfileBySdmAction(_: unknown, formData: FormDat
     // TMT boleh dikosongkan: lebih baik kosong daripada tanggal yang tidak
     // pernah dimasukkan siapa pun — lihat migrasi 0044.
     joined_at: (formData.get('joined_at') as string) || null,
-    unit: unit && ['paud', 'sd', 'sd_juara', 'smp', 'sma'].includes(unit) ? unit : null,
+    unit: unit && ['paud', 'sd', 'sd_juara', 'smp', 'sma'].includes(unit) ? unit : unitTersirat,
     lingkup_penugasan: lingkupYayasan ? 'yayasan' : 'unit',
     kategori_guru: KATEGORI_GURU_ORDER.includes(pilihanKategori as KategoriGuru)
       ? pilihanKategori

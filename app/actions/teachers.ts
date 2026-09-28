@@ -6,7 +6,7 @@ import bcrypt from 'bcryptjs'
 import { createServerClient } from '@/lib/supabase/server'
 import { getSession } from '@/lib/auth/session'
 import {
-  canManageTeachers, canManageTeacherProfiles, KATEGORI_GURU_ORDER,
+  canManageTeachers, canManageTeacherProfiles, KATEGORI_GURU_ORDER, KATEGORI_GURU_UNIT,
 } from '@/lib/auth/permissions'
 import type { KategoriGuru } from '@/types'
 
@@ -276,10 +276,13 @@ export async function setKategoriGuruAction(id: string, kategori: string | null)
   // mengenal nilai kosong, dan NULL itulah yang dibaca tab daftar kerja SDM.
   const nilai = KATEGORI_GURU_ORDER.includes(kategori as KategoriGuru) ? kategori : null
 
+  // Kategori per unit ikut menetapkan unitnya — lihat KATEGORI_GURU_UNIT.
+  const unitTersirat = nilai ? KATEGORI_GURU_UNIT[nilai as KategoriGuru] : undefined
+
   const supabase = createServerClient()
   const { error } = await supabase
     .from('teachers')
-    .update({ kategori_guru: nilai, updated_at: new Date().toISOString() })
+    .update({ kategori_guru: nilai, ...(unitTersirat ? { unit: unitTersirat } : {}), updated_at: new Date().toISOString() })
     .eq('id', id)
 
   if (error) {

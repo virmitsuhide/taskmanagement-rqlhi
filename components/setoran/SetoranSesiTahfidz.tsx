@@ -10,6 +10,7 @@ import { Stepper } from '@/components/setoran/Stepper'
 import { cn } from '@/lib/utils'
 import { TAHFIDZ_KIND_META } from '@/lib/tahsin'
 import { bolehLintasSurat, periksaRentang } from '@/lib/rq/rentang-surat'
+import { juzTuntasDiAyat } from '@/lib/rq/target-tahfidz'
 import { createTahfidzLogSesiAction, type InputSetoranTahfidz } from '@/app/actions/setoran'
 import { PerbandinganSetoranDialog } from '@/components/setoran/PerbandinganSetoranDialog'
 import type { SetoranGanda } from '@/lib/data/setoran-ganda'
@@ -200,6 +201,11 @@ export function SetoranSesiTahfidz({ siswa, surat, tanggalTetap, ekstraSlotId }:
           const lintas = bolehLintasSurat(v.kind)
           const suratKe = lintas && v.surat_ke_id && v.surat_ke_id !== v.surat_id ? Number(v.surat_ke_id) : null
           const infoAkhir = suratKe ? surat.find(x => x.id === suratKe) : info
+          // Ayat terakhir juz menurut arah hafalan unit anak → drill juz itu.
+          const juzTuntas = v.kind === 'ziyadah' && infoAkhir && Number.isFinite(ayatAkhir(v))
+            ? juzTuntasDiAyat(infoAkhir.id, ayatAkhir(v), s.jenjang)
+            : null
+          const masukDrill = juzTuntas !== null && !s.drill.some(d => d.juz === juzTuntas)
           const galatRentang = info && v.ayat_dari && Number.isFinite(ayatAkhir(v))
             ? periksaRentang(
                 { surat_id: info.id, ayat_dari: Number(v.ayat_dari), surat_ke_id: suratKe, ayat_ke: ayatAkhir(v) },
@@ -353,6 +359,9 @@ export function SetoranSesiTahfidz({ siswa, surat, tanggalTetap, ekstraSlotId }:
                     </div>
                   )}
                   {galatRentang && <p className="text-xs text-destructive">{galatRentang}</p>}
+                  {!galatRentang && masukDrill && (
+                    <p className="text-xs text-primary">Ayat terakhir juz {juzTuntas} — setelah disimpan anak masuk DRILL sampai lulus ujian juz {juzTuntas}.</p>
+                  )}
 
                   <div className="grid gap-2 sm:grid-cols-2">
                     <div key={`t-${v.versi}`}>

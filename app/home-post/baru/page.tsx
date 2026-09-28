@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { getSession } from '@/lib/auth/session'
-import { canPostToHome } from '@/lib/auth/permissions'
+import { canPostPengumuman, canPostToHome, canPostTugasGuru } from '@/lib/auth/permissions'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { Button } from '@/components/ui/button'
 import { ArrowLeft } from 'lucide-react'
@@ -31,7 +31,7 @@ export default async function BuatHomePostPage() {
           <p className="text-sm text-muted-foreground mb-6">
             Tampil di beranda publik — bisa dibaca tanpa login.
           </p>
-          <PublicPostForm />
+          <PublicPostForm izin={{ pengumuman: canPostPengumuman(session.role), tugas_guru: canPostTugasGuru(session.role) }} />
         </div>
       </div>
     </div>

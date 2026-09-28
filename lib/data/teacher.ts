@@ -1,4 +1,5 @@
 import { createServerClient } from '@/lib/supabase/server'
+import { getJuzDrillPerSiswa } from '@/lib/data/drill-tahfidz'
 
 /**
  * Ambil semua halaqoh_id yang diampu seorang guru.
@@ -53,6 +54,8 @@ export interface TeacherStudentRow {
   current_jilid_page: number | null
   /** Tanggal masuk drill tahsin (0064); null = tidak sedang drill. */
   tahsin_drill_sejak: string | null
+  /** Juz tahfidz yang sedang drill (ziyadah tuntas, ujian 1 juz belum diajukan — 0065). */
+  tahfidz_drill_juz: number[]
   last_setoran_date: string | null
   /** Sesi halaqoh (1-3). Null kalau halaqohnya belum punya sesi. */
   sesi: number | null
@@ -100,6 +103,8 @@ export async function getTeacherStudents(teacherId: string): Promise<TeacherStud
 
   if (rows.length === 0) return []
 
+  const drillTahfidz = await getJuzDrillPerSiswa(rows.map(r => r.id))
+
   // Tanggal setoran tahsin terakhir per siswa (satu query, lalu map)
   const studentIds = rows.map(r => r.id)
   const { data: lastLogs } = await supabase
@@ -143,6 +148,7 @@ export async function getTeacherStudents(teacherId: string): Promise<TeacherStud
     lulus_tahsin: Boolean(r.current_jilid?.is_terminal),
     current_jilid_page: r.current_jilid_page,
     tahsin_drill_sejak: r.tahsin_drill_sejak,
+    tahfidz_drill_juz: (drillTahfidz.get(r.id) ?? []).map(d => d.juz).sort((a, b) => b - a),
     // Anak yang sudah Lulus Tahsin tidak setor tahsin lagi: setoran
     // terakhirnya adalah tahfidz. Tanpa ini ia terus menumpuk di antrian
     // sebagai "sekian hari belum setor".

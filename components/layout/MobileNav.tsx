@@ -8,6 +8,7 @@ import {
   ImageIcon, Megaphone, FileText, User, LogOut, GraduationCap, Newspaper, LayoutGrid,
   Users, UserCog, BookMarked, BarChart3, LayoutTemplate, Info, Wallet, CalendarRange, CalendarDays,
   ClipboardCheck, KeyRound, ScrollText, Repeat, IdCard, UsersRound, Briefcase, Stamp, Scale, ListChecks, Kanban, CalendarHeart, Lock, UserRound,
+  Crosshair,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
@@ -17,7 +18,7 @@ import {
   canViewStudents, canViewHalaqoh, canViewTeachers, canViewUnitAnalytics,
   canManageHomepage,
   canViewKpi, canCatatSetoranGuru, canManageAllAccounts, canManagePengurus, canManageEmployees, canViewUjian, canManageTeacherProfiles,
-  canAccessKpiPublikasi, canManageRaporTemplate, canManageRiyadhoh, canViewRiyadhohAnalitik, canManageEkstra, canManageKaldik, canViewKpiBanding, canViewTasks, canViewRoutineBoard, isAdmin, canViewLaporanKurikulum, canViewPapanRapat } from '@/lib/auth/permissions'
+  canAccessKpiPublikasi, canManageRaporTemplate, canManageRiyadhoh, canViewRiyadhohAnalitik, canManageEkstra, canManageKaldik, canViewKpiBanding, canViewTasks, canViewRoutineBoard, isAdmin, canViewLaporanKurikulum, canViewPapanRapat, canViewTargetBulanan } from '@/lib/auth/permissions'
 import type { UserRole } from '@/types'
 import { logoutAction } from '@/app/actions/auth'
 import { Logo } from '@/components/brand/Logo'
@@ -218,6 +219,15 @@ export function MobileNav({ role, displayName, username, lencanaKpi }: Props) {
                   icon={<FileText className="h-4 w-4" />}
                   label="Laporan Kurikulum"
                   active={isActive('/laporan-kurikulum')}
+                  onNavigate={close}
+                />
+              )}
+              {canViewTargetBulanan(role) && (
+                <DrawerLink
+                  href="/target-bulanan"
+                  icon={<Crosshair className="h-4 w-4" />}
+                  label="Target Bulanan"
+                  active={isActive('/target-bulanan')}
                   onNavigate={close}
                 />
               )}

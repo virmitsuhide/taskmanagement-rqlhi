@@ -1,5 +1,5 @@
 import { TOTAL_HALAMAN, halamanDariAyat } from '@/lib/rq/batas-halaman'
-import { AWAL_JUZ_MUSHAF, capaian, juzMushafDariAyat, type CapaianHafalan } from '@/lib/rq/halaman'
+import { AWAL_JUZ_MUSHAF, akhirJuzMushaf, capaian, juzMushafDariAyat, type CapaianHafalan } from '@/lib/rq/halaman'
 import { URUTAN_JUZ, posisiJuz } from '@/lib/rq/hafalan'
 import { SURAH } from '@/lib/rq/quran'
 import type { Jenjang } from '@/types'
@@ -588,6 +588,28 @@ export function tindakLanjutMurojaah(
  */
 export function juz30Mundur(jenjang: Jenjang | null | undefined): boolean {
   return jenjang === 'paud' || jenjang === 'sd' || jenjang === 'sd_juara'
+}
+
+/**
+ * Ayat terakhir sebuah juz MENURUT ARAH HAFALAN unitnya — ayat yang, begitu
+ * disetor, membuat anak masuk drill juz itu.
+ *
+ *   juz 30, TPAIT / SD / SD Juara (An-Nas → An-Naba) : An-Naba 40
+ *   juz 30, SMP / SMA (An-Naba → An-Nas)             : An-Nas 6
+ *   juz lain (urut mushaf, batas mushaf RQ)          : ayat terakhir juz itu
+ */
+export function akhirJuzArah(juz: number, jenjang: Jenjang | null | undefined): { surat: number; ayat: number } | null {
+  if (juz === 30 && juz30Mundur(jenjang)) return { surat: 78, ayat: 40 }
+  return akhirJuzMushaf(juz)
+}
+
+/** Juz yang TUNTAS bila ziyadah berakhir di (surat, ayat) — null bila bukan ayat terakhir juz mana pun. */
+export function juzTuntasDiAyat(surat: number, ayat: number, jenjang: Jenjang | null | undefined): number | null {
+  for (let juz = 1; juz <= 30; juz++) {
+    const akhir = akhirJuzArah(juz, jenjang)
+    if (akhir && akhir.surat === surat && akhir.ayat === ayat) return juz
+  }
+  return null
 }
 
 /**

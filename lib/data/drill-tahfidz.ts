@@ -1,6 +1,8 @@
 import { createServerClient } from '@/lib/supabase/server'
 import { batasJuz } from '@/lib/rq/batas-juz'
 import { cakupanJuz, juzTersentuh, type SetoranAyat } from '@/lib/rq/cakupan-juz'
+import { juzTuntasDiAyat } from '@/lib/rq/target-tahfidz'
+import type { Jenjang } from '@/types'
 
 /**
  * Drill tahfidz per juz (0065): dari ziyadah tuntas sampai ujian 1 juz diajukan.
@@ -11,15 +13,30 @@ import { cakupanJuz, juzTersentuh, type SetoranAyat } from '@/lib/rq/cakupan-juz
  * gagal, setoran guru tetap tersimpan seperti biasa.
  */
 
-/** Dipanggil setelah setoran ziyadah tersimpan. */
+/**
+ * Dipanggil setelah setoran ziyadah tersimpan.
+ *
+ * Sebuah juz masuk drill bila salah satu benar:
+ *   • setoran ini berakhir di AYAT TERAKHIR juz menurut arah hafalan unit
+ *     anak (akhirJuzArah — juz 30 SD/TPAIT/SD Juara selesai di An-Naba 40,
+ *     SMP/SMA di An-Nas 6), atau
+ *   • seluruh ayat juz itu sudah tercatat di setoran (cakupanJuz).
+ * Yang pertama menampung anak yang setorannya baru tercatat di tengah juz:
+ * tanpa itu, juz yang jelas sudah ia tamatkan tidak pernah tertandai drill.
+ */
 export async function catatDrillSetelahZiyadah(
   studentId: string,
-  log: SetoranAyat & { id: string | null; setoran_date: string },
+  log: SetoranAyat & { id: string | null; setoran_date: string; surat_ke_id?: number | null },
 ): Promise<void> {
   try {
     const supabase = createServerClient()
 
-    for (const juz of juzTersentuh(log)) {
+    const { data: siswa } = await supabase.from('students').select('jenjang').eq('id', studentId).maybeSingle()
+    const jenjang = (siswa?.jenjang ?? null) as Jenjang | null
+    const juzAkhir = log.ayat_ke ? juzTuntasDiAyat(log.surat_ke_id ?? log.surat_id, log.ayat_ke, jenjang) : null
+    const calon = new Set([...juzTersentuh(log), ...(juzAkhir ? [juzAkhir] : [])])
+
+    for (const juz of calon) {
       const batas = batasJuz(juz)
       if (!batas) continue
 
@@ -30,6 +47,11 @@ export async function catatDrillSetelahZiyadah(
         .eq('juz_number', juz)
         .maybeSingle()
       if (galatAda || ada) continue
+
+      if (juz === juzAkhir) {
+        await simpanDrill(studentId, juz, log)
+        continue
+      }
 
       const [{ data: logs }, { data: surat }] = await Promise.all([
         supabase
@@ -49,29 +71,34 @@ export async function catatDrillSetelahZiyadah(
       const panjang = new Map((surat ?? []).map(s => [s.id as number, s.total_ayat as number]))
       if (!cakupanJuz(juz, (logs ?? []) as SetoranAyat[], panjang).tuntas) continue
 
-      // Ujian 1 juz bisa saja sudah diajukan lebih dulu — guru yang
-      // mengajukan sebelum ziyadahnya tercatat lengkap. Langsung ditautkan,
-      // dan lama persiapannya terbaca nol, bukan dibiarkan "sedang drill".
-      const { data: ujian } = await supabase
-        .from('ujian_tahfidz')
-        .select('id')
-        .eq('student_id', studentId)
-        .eq('tipe', '1_juz')
-        .eq('juz', String(juz))
-        .order('created_at', { ascending: false })
-        .limit(1)
-
-      await supabase.from('tahfidz_juz_drill').insert({
-        student_id: studentId,
-        juz_number: juz,
-        selesai_ziyadah: log.setoran_date,
-        source_log_id: log.id,
-        ujian_id: ujian?.[0]?.id ?? null,
-      })
+      await simpanDrill(studentId, juz, log)
     }
   } catch {
     // Lihat catatan di atas berkas.
   }
+}
+
+async function simpanDrill(studentId: string, juz: number, log: { id: string | null; setoran_date: string }): Promise<void> {
+  const supabase = createServerClient()
+  // Ujian 1 juz bisa saja sudah diajukan lebih dulu — guru yang
+  // mengajukan sebelum ziyadahnya tercatat lengkap. Langsung ditautkan,
+  // dan lama persiapannya terbaca nol, bukan dibiarkan "sedang drill".
+  const { data: ujian } = await supabase
+    .from('ujian_tahfidz')
+    .select('id')
+    .eq('student_id', studentId)
+    .eq('tipe', '1_juz')
+    .eq('juz', String(juz))
+    .order('created_at', { ascending: false })
+    .limit(1)
+
+  await supabase.from('tahfidz_juz_drill').insert({
+    student_id: studentId,
+    juz_number: juz,
+    selesai_ziyadah: log.setoran_date,
+    source_log_id: log.id,
+    ujian_id: ujian?.[0]?.id ?? null,
+  })
 }
 
 /** Dipanggil setelah pengajuan / riwayat ujian 1 juz tersimpan. */

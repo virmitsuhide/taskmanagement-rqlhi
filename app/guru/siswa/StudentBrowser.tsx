@@ -169,6 +169,15 @@ export function StudentBrowser({ students }: Props) {
                                   DRILL
                                 </span>
                               )}
+                              {s.tahfidz_drill_juz.map(juz => (
+                                <span
+                                  key={juz}
+                                  className="shrink-0 rounded-full bg-warning-wash px-1.5 py-px text-[10px] font-semibold text-warning"
+                                  title={`Ziyadah juz ${juz} tuntas — ajukan ujian 1 juz`}
+                                >
+                                  JUZ {juz} DRILL
+                                </span>
+                              ))}
                             </p>
                             <p className="truncate text-xs text-muted-foreground">
                               {s.current_method_name
