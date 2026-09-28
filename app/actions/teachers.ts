@@ -286,8 +286,8 @@ export async function setKategoriGuruAction(id: string, kategori: string | null)
     // Tanpa pesan ini, memilih kategori pada pemasangan yang 0053-nya belum
     // dijalankan hanya gagal diam-diam — dan yang kurang adalah satu kolom,
     // bukan pilihan yang keliru.
-    if (error.message.includes('guru_unit_lain')) {
-      return { error: 'Kategori "Guru Unit Lain" belum aktif: jalankan drizzle/0054_kategori_unit_lain_dan_penguji_guru_PASTE_TO_SUPABASE.sql di Supabase.' }
+    if (error.message.includes('guru_tpait')) {
+      return { error: 'Kategori guru per unit belum aktif: jalankan drizzle/0102_kategori_guru_per_unit_PASTE_TO_SUPABASE.sql di Supabase.' }
     }
     return {
       error: error.message.includes('kategori_guru')

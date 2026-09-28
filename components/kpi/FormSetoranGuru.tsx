@@ -16,7 +16,7 @@ export interface GuruFormSetoran {
   id: string
   nama: string
   /** Setoran tahfidz terakhir (sepanjang waktu) — untuk melanjutkan isian. */
-  tahfidz: { surat_id: number; ayat_ke: number; juz_selesai: number } | null
+  tahfidz: { surat_id: number; ayat_ke: number } | null
   /** Bait terakhir Tuhfatul Athfal. */
   tuhfatul: { bait_ke: number } | null
 }
@@ -26,26 +26,23 @@ interface Isian {
   surat_id: string
   ayat_dari: string
   ayat_ke: string
-  juz_selesai: string
   bait_dari: string
   bait_ke: string
   nilai: number | null
   catatan: string
 }
 
-/** Lanjut dari setoran terakhir: surat & ayat sesudahnya, bait sesudahnya, juz selesai yang sama. */
+/** Lanjut dari setoran terakhir: surat & ayat sesudahnya, bait sesudahnya. */
 function isianAwal(g: GuruFormSetoran, surat: SuratSetoran[]): Isian {
   const t = g.tahfidz
   const info = t ? surat.find(s => s.id === t.surat_id) : undefined
   const lanjut = t && info && t.ayat_ke < info.total_ayat
-  const juzSelesai = t ? posisiHafalan(t).juz : 0
   const baitLanjut = g.tuhfatul && g.tuhfatul.bait_ke < 61 ? g.tuhfatul.bait_ke + 1 : null
   return {
     dipilih: false,
     surat_id: lanjut ? String(t.surat_id) : '',
     ayat_dari: lanjut ? String(t.ayat_ke + 1) : '',
     ayat_ke: '',
-    juz_selesai: String(juzSelesai),
     bait_dari: baitLanjut ? String(baitLanjut) : g.tuhfatul ? '' : '1',
     bait_ke: '',
     nilai: null,
@@ -86,7 +83,7 @@ export function FormSetoranGuru({ guru, surat, tanggalAwal, tanggalMaks }: {
         if (!v.surat_id || !v.ayat_dari) { toast.error(`${g.nama}: pilih surat dan ayat awal.`); return }
         baris.push({
           teacher_id: g.id, tanggal, jenis, surat_id: Number(v.surat_id), ayat_dari: Number(v.ayat_dari),
-          ayat_ke: Number(v.ayat_ke || v.ayat_dari), juz_selesai: Number(v.juz_selesai || 0), nilai: v.nilai, catatan: v.catatan,
+          ayat_ke: Number(v.ayat_ke || v.ayat_dari), nilai: v.nilai, catatan: v.catatan,
         })
       } else {
         if (!v.bait_dari) { toast.error(`${g.nama}: isi nomor bait.`); return }
@@ -107,7 +104,7 @@ export function FormSetoranGuru({ guru, surat, tanggalAwal, tanggalMaks }: {
         for (const b of baris) {
           const g = guru.find(x => x.id === b.teacher_id)!
           const baru: GuruFormSetoran = jenis === 'tahfidz'
-            ? { ...g, tahfidz: { surat_id: b.surat_id!, ayat_ke: b.ayat_ke!, juz_selesai: b.juz_selesai! } }
+            ? { ...g, tahfidz: { surat_id: b.surat_id!, ayat_ke: b.ayat_ke! } }
             : { ...g, tuhfatul: { bait_ke: b.bait_ke! } }
           next[b.teacher_id] = isianAwal(baru, surat)
         }
@@ -149,7 +146,7 @@ export function FormSetoranGuru({ guru, surat, tanggalAwal, tanggalMaks }: {
           const v = isian[g.id]
           const info = surat.find(s => String(s.id) === v.surat_id)
           const pratinjau = jenis === 'tahfidz' && v.surat_id && (v.ayat_ke || v.ayat_dari)
-            ? labelPosisi(posisiHafalan({ surat_id: Number(v.surat_id), ayat_ke: Number(v.ayat_ke || v.ayat_dari), juz_selesai: Number(v.juz_selesai || 0) }))
+            ? labelPosisi(posisiHafalan({ surat_id: Number(v.surat_id), ayat_ke: Number(v.ayat_ke || v.ayat_dari) }))
             : null
           const terakhir = jenis === 'tahfidz'
             ? g.tahfidz ? `terakhir ${surat.find(s => s.id === g.tahfidz!.surat_id)?.name_latin ?? ''} ayat ${g.tahfidz.ayat_ke} · ${labelPosisi(posisiHafalan(g.tahfidz))}` : 'belum pernah setor'
@@ -178,9 +175,6 @@ export function FormSetoranGuru({ guru, surat, tanggalAwal, tanggalMaks }: {
                       </label>
                       <label className="flex w-20 flex-col gap-1 text-xs text-muted-foreground">s.d. ayat
                         <input type="number" min={1} max={info?.total_ayat} value={v.ayat_ke} placeholder={v.ayat_dari} onChange={e => ubah(g.id, { ayat_ke: e.target.value })} className={KELAS_INPUT} />
-                      </label>
-                      <label className="flex w-24 flex-col gap-1 text-xs text-muted-foreground" title="Jumlah juz yang sudah selesai sebelum juz yang sedang dihafal">Juz selesai
-                        <input type="number" min={0} max={30} value={v.juz_selesai} onChange={e => ubah(g.id, { juz_selesai: e.target.value })} className={KELAS_INPUT} />
                       </label>
                     </div>
                   ) : (

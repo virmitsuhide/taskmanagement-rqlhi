@@ -38,8 +38,8 @@ function pesanGalat(message: string | undefined): string {
   if (message?.includes('lingkup_penugasan')) {
     return 'Lingkup penugasan belum aktif: jalankan drizzle/0052_lingkup_penugasan_guru_PASTE_TO_SUPABASE.sql di Supabase.'
   }
-  if (message?.includes('guru_unit_lain')) {
-    return 'Kategori "Guru Unit Lain" belum aktif: jalankan drizzle/0054_kategori_unit_lain_dan_penguji_guru_PASTE_TO_SUPABASE.sql di Supabase.'
+  if (message?.includes('guru_tpait')) {
+    return 'Kategori guru per unit belum aktif: jalankan drizzle/0102_kategori_guru_per_unit_PASTE_TO_SUPABASE.sql di Supabase.'
   }
   if (message?.includes('kategori_guru')) {
     return 'Kategori guru belum aktif: jalankan drizzle/0053_kategori_guru_PASTE_TO_SUPABASE.sql di Supabase.'

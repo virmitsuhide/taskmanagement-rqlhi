@@ -571,13 +571,15 @@ export type LingkupPenugasan = 'unit' | 'yayasan'
  * - guru_rq      : di bawah RQ; bisa ditugaskan ke QULS SD, QULS SMP, SD Juara.
  * - guru_quls_sd : hanya QULS SD, dan berada di bawah unit SD — bukan RQ.
  * - musyrif_smp  : guru Qur'an jam asrama SMPIT LHI, mengampu halaqoh boarding.
- * - guru_unit_lain : guru Qur'an di unit selain SD & SMP — TPAIT LHI, SD LHI
- *                    Juara, SMA LHI. Unit persisnya dibaca dari `unit` (0054).
+ * - guru_tpait / guru_sd_juara / guru_sma : guru Qur'an unit TPAIT LHI, SD LHI
+ *                    Juara, SMA LHI — satu per koordinator unit (0102; dulu
+ *                    tergabung sebagai guru_unit_lain).
  *
  * QULS SMP tidak punya nilainya sendiri: gurunya guru RQ yang ditugaskan ke SMP.
  * null = belum ditetapkan SDM.
  */
-export type KategoriGuru = 'guru_rq' | 'guru_quls_sd' | 'musyrif_smp' | 'guru_unit_lain'
+export type KategoriGuru =
+  | 'guru_rq' | 'guru_quls_sd' | 'musyrif_smp' | 'guru_tpait' | 'guru_sd_juara' | 'guru_sma'
 export type TahsinStatus = 'lulus' | 'ulang'
 // Jenis setoran tahfidz (semantik RQ LHI):
 //  - ziyadah        : menambah hafalan baru (dihitung ke progress juz)

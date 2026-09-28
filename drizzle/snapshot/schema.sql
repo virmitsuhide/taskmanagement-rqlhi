@@ -28,7 +28,7 @@ CREATE TYPE public.gender AS ENUM ('L', 'P');
 CREATE TYPE public.gukar_kind AS ENUM ('guru', 'karyawan');
 CREATE TYPE public.gukar_status_pegawai AS ENUM ('tetap', 'calon_tetap', 'kontrak');
 CREATE TYPE public.jenjang AS ENUM ('paud', 'sd', 'smp', 'sma', 'sd_juara');
-CREATE TYPE public.kategori_guru AS ENUM ('guru_rq', 'guru_quls_sd', 'musyrif_smp', 'guru_unit_lain');
+CREATE TYPE public.kategori_guru AS ENUM ('guru_rq', 'guru_quls_sd', 'musyrif_smp', 'guru_tpait', 'guru_sd_juara', 'guru_sma');
 CREATE TYPE public.kpi_banding_status AS ENUM ('diajukan', 'diterima', 'diterima_sebagian', 'ditolak', 'kedaluwarsa');
 CREATE TYPE public.kpi_rapor_status AS ENUM ('draft', 'diajukan', 'dikembalikan', 'terbit', 'banding', 'selesai');
 CREATE TYPE public.kpi_riwayat_aksi AS ENUM ('diajukan', 'dikembalikan', 'terbit', 'ttd_guru', 'banding_diajukan', 'banding_diputus', 'banding_eskalasi', 'direset', 'final_tenggat');

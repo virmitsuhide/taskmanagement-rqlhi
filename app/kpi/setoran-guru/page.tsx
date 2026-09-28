@@ -116,7 +116,7 @@ export default async function SetoranGuruPage({ searchParams }: {
                 guru={data.guru.map(g => ({
                   id: g.id, nama: g.nama,
                   tahfidz: g.terakhirTahfidz?.surat_id && g.terakhirTahfidz.ayat_ke
-                    ? { surat_id: g.terakhirTahfidz.surat_id, ayat_ke: g.terakhirTahfidz.ayat_ke, juz_selesai: g.terakhirTahfidz.juz_selesai ?? 0 }
+                    ? { surat_id: g.terakhirTahfidz.surat_id, ayat_ke: g.terakhirTahfidz.ayat_ke }
                     : null,
                   tuhfatul: g.terakhirTuhfatul?.bait_ke ? { bait_ke: g.terakhirTuhfatul.bait_ke } : null,
                 }))}

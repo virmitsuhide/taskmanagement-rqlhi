@@ -554,7 +554,7 @@ export const lingkupPenugasanEnum = pgEnum('lingkup_penugasan', ['unit', 'yayasa
  * yang sedang ditugaskan ke SMP.
  */
 export const kategoriGuruEnum = pgEnum('kategori_guru', [
-  'guru_rq', 'guru_quls_sd', 'musyrif_smp', 'guru_unit_lain',
+  'guru_rq', 'guru_quls_sd', 'musyrif_smp', 'guru_tpait', 'guru_sd_juara', 'guru_sma',
 ])
 export const tahsinStatusEnum = pgEnum('tahsin_status', ['lulus', 'ulang'])
 /**

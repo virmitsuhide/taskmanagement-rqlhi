@@ -5,7 +5,7 @@ import { createServerClient } from '@/lib/supabase/server'
 import { getSession } from '@/lib/auth/session'
 import { canCatatSetoranGuru } from '@/lib/auth/permissions'
 import { terkunci } from '@/lib/kpi/alur'
-import { getIsianKpiSetoran, type JenisSetoranGuru } from '@/lib/data/setoran-guru'
+import { getIsianKpiSetoran, posisiHafalan, type JenisSetoranGuru } from '@/lib/data/setoran-guru'
 import type { Jenjang, KpiRaporStatus } from '@/types'
 
 export interface InputSetoranGuru {
@@ -15,6 +15,7 @@ export interface InputSetoranGuru {
   surat_id?: number | null
   ayat_dari?: number | null
   ayat_ke?: number | null
+  /** Diabaikan — dihitung dari surat & ayat (urutan hafalan RQ). */
   juz_selesai?: number | null
   bait_dari?: number | null
   bait_ke?: number | null
@@ -98,8 +99,9 @@ export async function simpanSetoranGuruAction(baris: InputSetoranGuru[]): Promis
       const total = surat ? panjang.get(surat) ?? 286 : 0
       const ke = bulat(b.ayat_ke, 1, total)
       const dari = b.ayat_dari == null ? ke : bulat(b.ayat_dari, 1, total)
-      const juz = bulat(b.juz_selesai, 0, 30)
-      if (!surat || !ke || !dari || juz === null) return { error: 'Setoran tahfidz perlu surat, ayat, dan jumlah juz selesai yang sah.' }
+      if (!surat || !ke || !dari) return { error: 'Setoran tahfidz perlu surat dan ayat yang sah.' }
+      // juz_selesai kini hasil hitungan urutan hafalan RQ, bukan isian SDM.
+      const juz = posisiHafalan({ surat_id: surat, ayat_ke: Math.max(dari, ke) }).juz
       rows.push({ ...dasar, surat_id: surat, ayat_dari: Math.min(dari, ke), ayat_ke: Math.max(dari, ke), juz_selesai: juz })
     } else if (b.jenis === 'tuhfatul') {
       const ke = bulat(b.bait_ke, 1, 61)

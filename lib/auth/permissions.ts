@@ -978,7 +978,9 @@ export const KATEGORI_GURU_LABELS: Record<KategoriGuru, string> = {
   guru_rq:        'Guru RQ',
   guru_quls_sd:   'Guru QULS SD',
   musyrif_smp:    'Musyrif/ah SMP',
-  guru_unit_lain: 'Guru Unit Lain',
+  guru_tpait:     'Guru TPAIT',
+  guru_sd_juara:  'Guru SD Juara',
+  guru_sma:       'Guru SMA',
 }
 
 /**
@@ -992,12 +994,14 @@ export const KATEGORI_GURU_KETERANGAN: Record<KategoriGuru, string> = {
   guru_rq:        'Di bawah RQ. Bisa ditugaskan ke QULS SD, QULS SMP, maupun SD Juara.',
   guru_quls_sd:   'Hanya mengajar di QULS SD, dan berada di bawah unit SD — bukan RQ.',
   musyrif_smp:    'Guru Qur’an jam asrama SMPIT LHI; mengampu halaqoh santri boarding.',
-  guru_unit_lain: 'Guru Qur’an di unit selain SD & SMP — TPAIT LHI, SD LHI Juara, SMA LHI.',
+  guru_tpait:     'Guru Qur’an TPAIT LHI; di bawah Koordinator TPAIT.',
+  guru_sd_juara:  'Guru Qur’an SD LHI Juara; di bawah Koordinator SD Juara.',
+  guru_sma:       'Guru Qur’an SMA LHI; di bawah Koordinator SMA.',
 }
 
 /** Urutan tampil kategori — mengikuti besarnya rombongan, bukan abjad. */
 export const KATEGORI_GURU_ORDER: KategoriGuru[] = [
-  'guru_rq', 'guru_quls_sd', 'musyrif_smp', 'guru_unit_lain',
+  'guru_rq', 'guru_quls_sd', 'musyrif_smp', 'guru_tpait', 'guru_sd_juara', 'guru_sma',
 ]
 
 /**
