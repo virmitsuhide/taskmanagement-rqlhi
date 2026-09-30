@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation'
 import { createServerClient } from '@/lib/supabase/server'
 import { getSession } from '@/lib/auth/session'
 import { canCreateNews } from '@/lib/auth/permissions'
+import { fromWibInputValue, hasStatusColumns } from '@/lib/data/news-status'
 
 const BUCKET = 'news-images'
 
@@ -27,6 +28,36 @@ async function uploadThumbnail(
   } catch {
     return null
   }
+}
+
+// ─── Status tayang (Draf / Terbitkan sekarang / Jadwalkan) ───────────────────
+// Kolom status & publish_at baru ada setelah migrasi 0107. Field form
+// `publish_mode` bersifat opsional: bila tidak dikirim, perilaku lama berlaku
+// persis (langsung terbit, tanpa menyentuh kolom baru).
+
+type PublishMode = 'draf' | 'sekarang' | 'jadwal'
+type Publishing = { mode: PublishMode; scheduledAt: string | null }
+
+const MIGRATION_HINT =
+  'Draf & jadwal terbit belum aktif — jalankan migrasi drizzle/0107_berita_status_dan_dibaca di Supabase dulu.'
+
+function parsePublishing(formData: FormData): Publishing | { error: string } | null {
+  const raw = (formData.get('publish_mode') as string | null)?.trim()
+  if (!raw) return null
+  if (raw !== 'draf' && raw !== 'sekarang' && raw !== 'jadwal') return null
+  if (raw !== 'jadwal') return { mode: raw, scheduledAt: null }
+  const iso = fromWibInputValue(formData.get('publish_at') as string | null)
+  if (!iso) return { error: 'Tanggal & jam tayang wajib diisi untuk berita terjadwal.' }
+  if (new Date(iso).getTime() <= Date.now()) {
+    return { error: 'Waktu tayang sudah lewat — pilih "Terbitkan sekarang" atau atur waktu yang akan datang.' }
+  }
+  return { mode: 'jadwal', scheduledAt: iso }
+}
+
+function isMissingColumnError(error: { code?: string; message?: string } | null) {
+  if (!error) return false
+  if (error.code === 'PGRST204' || error.code === '42703') return true
+  return /(status|publish_at).*(column|schema cache)|column.*(status|publish_at)/i.test(error.message ?? '')
 }
 
 export async function createNewsAction(_: unknown, formData: FormData) {
@@ -55,7 +86,10 @@ export async function createNewsAction(_: unknown, formData: FormData) {
     thumbnailUrl = await uploadThumbnail(supabase, thumbnailFile)
   }
 
-  const { error } = await supabase.from('news_articles').insert({
+  const publishing = parsePublishing(formData)
+  if (publishing && 'error' in publishing) return { error: publishing.error }
+
+  const base = {
     title,
     excerpt,
     content,
@@ -64,7 +98,26 @@ export async function createNewsAction(_: unknown, formData: FormData) {
     type,
     author_id: session.userId,
     is_active: true,
-  })
+  }
+  const statusFields = publishing
+    ? {
+        status: publishing.mode === 'draf' ? 'draf' : 'terbit',
+        publish_at:
+          publishing.mode === 'jadwal' ? publishing.scheduledAt
+          : publishing.mode === 'sekarang' ? new Date().toISOString()
+          : null,
+      }
+    : null
+
+  let { error } = await supabase
+    .from('news_articles')
+    .insert(statusFields ? { ...base, ...statusFields } : base)
+
+  // Sebelum migrasi 0107: kolom status/publish_at belum ada.
+  if (error && statusFields && isMissingColumnError(error)) {
+    if (publishing?.mode !== 'sekarang') return { error: MIGRATION_HINT }
+    ;({ error } = await supabase.from('news_articles').insert(base))
+  }
 
   if (error) return { error: error.message || 'Gagal membuat berita.' }
 
@@ -108,6 +161,9 @@ export async function updateNewsAction(newsId: string, _: unknown, formData: For
     updated_at: new Date().toISOString(),
   }
 
+  const publishing = parsePublishing(formData)
+  if (publishing && 'error' in publishing) return { error: publishing.error }
+
   if (thumbnailFile && thumbnailFile.size > 0) {
     const url = await uploadThumbnail(supabase, thumbnailFile)
     if (url) update.thumbnail_url = url
@@ -115,10 +171,46 @@ export async function updateNewsAction(newsId: string, _: unknown, formData: For
     update.thumbnail_url = null
   }
 
-  const { error } = await supabase
+  // Kolom status hanya ikut disimpan bila barisnya sudah memilikinya
+  // (migrasi 0107 sudah dijalankan).
+  let statusFields: Record<string, unknown> | null = null
+  if (publishing) {
+    const { data: existing } = await supabase
+      .from('news_articles')
+      .select('*')
+      .eq('id', newsId)
+      .maybeSingle()
+    const current = existing as { status?: string | null; publish_at?: string | null } | null
+    if (current && hasStatusColumns(current)) {
+      if (publishing.mode === 'draf') {
+        statusFields = { status: 'draf', publish_at: null }
+      } else if (publishing.mode === 'jadwal') {
+        statusFields = { status: 'terbit', publish_at: publishing.scheduledAt }
+      } else {
+        // Terbitkan sekarang: tanggal tayang lama dipertahankan bila berita
+        // memang sudah tayang; draf/terjadwal mendapat waktu terbit = sekarang.
+        const alreadyLive =
+          current.status !== 'draf' &&
+          (!current.publish_at || new Date(current.publish_at).getTime() <= Date.now())
+        statusFields = {
+          status: 'terbit',
+          publish_at: alreadyLive ? current.publish_at ?? null : new Date().toISOString(),
+        }
+      }
+    } else if (publishing.mode !== 'sekarang') {
+      return { error: MIGRATION_HINT }
+    }
+  }
+
+  let { error } = await supabase
     .from('news_articles')
-    .update(update)
+    .update(statusFields ? { ...update, ...statusFields } : update)
     .eq('id', newsId)
+
+  if (error && statusFields && isMissingColumnError(error)) {
+    if (publishing?.mode !== 'sekarang') return { error: MIGRATION_HINT }
+    ;({ error } = await supabase.from('news_articles').update(update).eq('id', newsId))
+  }
 
   if (error) return { error: error.message || 'Gagal menyimpan perubahan.' }
 

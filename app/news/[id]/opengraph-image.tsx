@@ -1,5 +1,6 @@
 import { ImageResponse } from 'next/og'
 import { createServerClient } from '@/lib/supabase/server'
+import { isNewsPublic, type NewsRow } from '@/lib/data/news-status'
 import type { NewsCategory } from '@/types'
 import { getOgLogo } from '@/lib/og/logo'
 
@@ -32,11 +33,13 @@ export default async function Image({ params }: Props) {
     const supabase = createServerClient()
     const { data } = await supabase
       .from('news_articles')
-      .select('title, category, type, thumbnail_url, author:users!news_articles_author_id_fkey(display_name)')
+      // select('*') supaya kolom status/publish_at (migrasi 0107) ikut bila ada.
+      .select('*, author:users!news_articles_author_id_fkey(display_name)')
       .eq('id', id)
       .maybeSingle()
 
-    if (data) {
+    // Draf / terjadwal / nonaktif: pakai gambar bawaan, jangan bocorkan judul.
+    if (data && isNewsPublic(data as unknown as NewsRow)) {
       title = data.title ?? title
       category = (data.category as NewsCategory) ?? null
       type = data.type ?? 'berita'

@@ -1,17 +1,19 @@
 import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, Printer } from 'lucide-react'
 import { getTeacherSession } from '@/lib/auth/teacher-session'
 import { getTeacherHalaqohIds } from '@/lib/data/teacher'
 import { createServerClient } from '@/lib/supabase/server'
 import { getBahanRaporSesi, type Semester } from '@/lib/data/rapor-quran'
 import { getRaporTemplates, bacaJenisRapor, LABEL_JENIS_RAPOR } from '@/lib/data/rapor-template'
 import { getTerms } from '@/lib/data/terms'
-import { LembarRapor } from '@/components/rapor/LembarRapor'
 import { IsiRapor } from '@/components/guru/IsiRapor'
+import { LembarRapor } from '@/components/rapor/LembarRapor'
+import { PratinjauRaporLangsung, RaporLangsung } from '@/components/guru/PratinjauRaporLangsung'
 import type { HalaqohSesi } from '@/lib/data/setoran-sesi'
 import { slotIsianGuru, type KodeMedan } from '@/lib/rapor/medan'
 import type { AcademicTerm } from '@/types'
+import { cn } from '@/lib/utils'
 
 interface PageProps {
   params: Promise<{ studentId: string }>
@@ -87,23 +89,51 @@ export default async function IsiRaporPage({ params, searchParams }: PageProps) 
     { label: 'Level tahsin', nilai: anak.nilai.level_tahsin },
   ]
 
+  const terisi = bahan.filter(b => b.selesai).length
+  const labelSemester = `${term.semester === 'ganjil' ? 'Ganjil' : 'Genap'} ${term.year_label}`
+  const adaAts = jenis === 'ats' || templates.some(t => t.aktif && t.jenis === 'ats')
+  const keJenis = (j: string) => `/guru/rapor-quran/${anak.student.id}?term=${term.id}&jenis=${j}`
+
   return (
     <div className="min-h-screen" style={{ background: 'var(--secondary)' }}>
-      <div className="mx-auto max-w-5xl space-y-4 px-4 py-6 md:px-6 print:max-w-none print:p-0">
-        <div className="print:hidden">
-          <Link href={kembali} className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-            <ArrowLeft className="h-4 w-4" /> {halaqohRow.name}
-          </Link>
-          <h1 className="mt-1 text-3xl tracking-tight" style={{ fontFamily: 'var(--font-playfair), Georgia, serif' }}>
-            {anak.student.nama}
-          </h1>
-          <p className="mt-0.5 text-sm text-muted-foreground">
-            {LABEL_JENIS_RAPOR[jenis]} · {anak.student.kelas ?? 'tanpa kelas'} · semester {term.semester === 'ganjil' ? 'Ganjil' : 'Genap'} {term.year_label}
-            {anak.sepi && ' · belum ada setoran semester ini'}
-          </p>
+      <div className="mx-auto max-w-6xl space-y-5 px-4 py-6 md:px-8 md:py-8 print:max-w-none print:p-0">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between print:hidden">
+          <div className="min-w-0">
+            <Link href={kembali} className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+              <ArrowLeft className="h-4 w-4" /> {halaqohRow.name}
+            </Link>
+            <p className="mt-2 text-xs font-bold uppercase tracking-[0.12em] text-accent-warm">
+              Rapor Qur&apos;an · {LABEL_JENIS_RAPOR[jenis]} {labelSemester}
+            </p>
+            <h1 className="mt-1.5 font-heading text-3xl leading-tight tracking-tight md:text-[34px]">{anak.student.nama}</h1>
+            <p className="mt-1 text-sm text-muted-foreground md:text-base">
+              Kelas {anak.student.kelas ?? '—'} · {halaqohRow.name} · {terisi} dari {bahan.length} rapor sudah selesai diisi
+              {anak.sepi && ' · belum ada setoran semester ini'}
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2 lg:shrink-0">
+            {adaAts && (
+              <nav aria-label="Jenis rapor" className="flex gap-1 rounded-xl bg-muted p-1">
+                {(['ats', 'semester'] as const).map(j => (
+                  <Link key={j} href={keJenis(j)} aria-current={j === jenis ? 'page' : undefined}
+                    className={cn(
+                      'rounded-lg px-3 py-1.5 text-sm font-bold transition-colors',
+                      j === jenis ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
+                    )}>
+                    {LABEL_JENIS_RAPOR[j]}
+                  </Link>
+                ))}
+              </nav>
+            )}
+            <Link href={`/guru/rapor-quran/cetak?sesi=${halaqohRow.id}&term=${term.id}&jenis=${jenis}`}
+              className="inline-flex h-11 items-center gap-1.5 rounded-xl border bg-card px-4 text-sm font-bold hover:bg-accent">
+              <Printer className="size-4" /> Cetak satu sesi
+            </Link>
+          </div>
         </div>
 
-        <div className="grid gap-5 lg:grid-cols-[minmax(0,26rem)_minmax(0,1fr)] print:block">
+        <RaporLangsung key={`${anak.student.id}-${term.id}-${jenis}`}>
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,27rem)_minmax(0,1fr)] print:block">
           <div className="print:hidden">
             <IsiRapor
               studentId={anak.student.id}
@@ -126,12 +156,29 @@ export default async function IsiRaporPage({ params, searchParams }: PageProps) 
           </div>
 
           <div className="space-y-2">
-            <p className="text-sm text-muted-foreground print:hidden">Pratinjau lembar — inilah yang tercetak.</p>
+            <div className="flex items-center justify-between gap-2 print:hidden">
+              <p className="text-sm font-bold text-muted-foreground">Pratinjau lembar</p>
+              <span className="rounded-md bg-primary-wash px-2 py-0.5 text-xs font-bold text-primary">
+                {LABEL_JENIS_RAPOR[jenis]} {term.semester}
+              </span>
+            </div>
+            <p className="text-xs text-muted-foreground print:hidden">Pratinjau ikut berubah selagi Anda mengetik — belum tersimpan sebelum menekan Simpan. Tombol Cetak selalu mencetak versi tersimpan.</p>
             {anak.template ? (
-              <div className="overflow-x-auto rounded-xl border bg-muted/40 p-2 sm:p-4 print:overflow-visible print:rounded-none print:border-0 print:bg-transparent print:p-0">
-                <LembarRapor blok={anak.template.blok} pemetaan={anak.template.pemetaan} nilai={anak.nilai} ttd={anak.ttd} latar={anak.latar} muat
-                  isian={anak.isian} riyadhoh={anak.riyadhoh} />
-              </div>
+              <>
+                {/* Layar saja: pratinjau langsung, ikut ketikan yang belum disimpan. */}
+                <div className="overflow-x-auto rounded-2xl border bg-card p-2 shadow-sm sm:p-4 print:hidden">
+                  <PratinjauRaporLangsung blok={anak.template.blok} pemetaan={anak.template.pemetaan} nilai={anak.nilai} asli={anak.asli}
+                    ttd={anak.ttd} latar={anak.latar} isian={anak.isian} riyadhoh={anak.riyadhoh} />
+                </div>
+                {/* Cetak saja: persis data tersimpan dari server. Tanpa `muat` —
+                    pengecil layar mengukur lembar yang tampil, dan lembar yang
+                    tersembunyi di layar tak terukur (lembarnya jadi tak terlihat).
+                    Di kertas `muat` memang tak berpengaruh. */}
+                <div className="hidden print:block">
+                  <LembarRapor blok={anak.template.blok} pemetaan={anak.template.pemetaan} nilai={anak.nilai} ttd={anak.ttd} latar={anak.latar}
+                    isian={anak.isian} riyadhoh={anak.riyadhoh} />
+                </div>
+              </>
             ) : (
               <div className="rounded-2xl border border-dashed bg-muted/30 p-5 text-sm text-muted-foreground print:hidden">
                 Belum ada template {LABEL_JENIS_RAPOR[jenis]} untuk kelas {anak.student.kelas ?? '—'}. Deskripsi yang Anda tulis tetap
@@ -140,6 +187,7 @@ export default async function IsiRaporPage({ params, searchParams }: PageProps) 
             )}
           </div>
         </div>
+        </RaporLangsung>
       </div>
     </div>
   )

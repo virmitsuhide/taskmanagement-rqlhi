@@ -12,6 +12,7 @@ import { bintangDariNilai } from '@/lib/rq/bintang'
 import { sapaanName } from '@/lib/auth/permissions'
 import { PilihSabtu } from '@/components/riyadhoh/PilihSabtu'
 import { SalinLaporan } from '@/components/riyadhoh/SalinLaporan'
+import { LangkahRingkas } from '@/components/riyadhoh/LangkahRiyadhoh'
 import { cn } from '@/lib/utils'
 
 /** Keterangan satu anak di laporan — satu kata yang langsung terbaca. */
@@ -104,17 +105,19 @@ export default async function LaporanRiyadhohPage({ searchParams }: { searchPara
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--secondary)' }}>
-      <div className="mx-auto max-w-3xl space-y-4 px-4 py-6 md:px-6">
-        <div>
-          <Link href={`/guru/riyadhoh?tanggal=${tanggal}`} className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:underline">
-            <ChevronLeft className="size-4" /> Riyadhoh
+      <div className="mx-auto max-w-3xl space-y-4 px-4 pb-6 pt-3 md:px-6 md:pt-6">
+        <header className="flex items-center gap-2">
+          <Link href={`/guru/riyadhoh?tanggal=${tanggal}`} aria-label="Kembali ke Riyadhoh"
+            className="-ml-2 flex size-11 shrink-0 items-center justify-center rounded-xl hover:bg-accent">
+            <ChevronLeft className="size-5" />
           </Link>
-          <p className="mt-1 text-xs font-bold uppercase tracking-[0.1em] text-warning">Langkah 3 · Laporan</p>
-          <h1 className="text-3xl tracking-tight" style={{ fontFamily: 'var(--font-playfair), Georgia, serif' }}>
-            Laporan Riyadhoh {LABEL_KELOMPOK[kelompok]}
-          </h1>
-          <p className="text-sm text-muted-foreground">{tanggalTeks} · Kelompok {namaGuru}</p>
-        </div>
+          <div className="min-w-0">
+            <h1 className="text-base font-bold leading-tight md:text-lg">Laporan Riyadhoh {LABEL_KELOMPOK[kelompok]}</h1>
+            <p className="truncate text-xs text-muted-foreground">{tanggalTeks} · Kelompok {namaGuru}</p>
+          </div>
+        </header>
+
+        <LangkahRingkas tanggal={tanggal} aktif={3} />
 
         <PilihSabtu daftar={sabtu.daftar} terpilih={tanggal} hariIni={sabtu.hariIni} basePath="/guru/riyadhoh/laporan" />
 
@@ -126,7 +129,7 @@ export default async function LaporanRiyadhohPage({ searchParams }: { searchPara
           <>
             <div className="flex flex-wrap gap-2">
               {ringkas.map(x => (
-                <span key={x.l} className="rounded-full border bg-card px-3 py-1 text-xs">
+                <span key={x.l} className="rounded-full border bg-card px-3 py-1.5 text-xs font-semibold">
                   {x.l} <b className="tabular-nums">{x.n}{'dari' in x && x.dari ? `/${x.dari}` : ''}</b>
                 </span>
               ))}
@@ -138,7 +141,7 @@ export default async function LaporanRiyadhohPage({ searchParams }: { searchPara
                   <span className="w-5 shrink-0 pt-0.5 text-right text-sm tabular-nums text-muted-foreground">{i + 1}.</span>
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-baseline justify-between gap-x-2">
-                      <p className="text-sm font-semibold">{b.nama} <span className="font-normal text-muted-foreground">{b.kelas ?? ''}</span></p>
+                      <p className="text-sm font-bold">{b.nama} <span className="font-normal text-muted-foreground">{b.kelas ?? ''}</span></p>
                       {b.ket !== 'setor' && (
                         <span className={cn('rounded-full px-2 py-0.5 text-[11px] font-semibold', WARNA_KET[b.ket])}>{LABEL_KET[b.ket]}</span>
                       )}
@@ -167,7 +170,7 @@ export default async function LaporanRiyadhohPage({ searchParams }: { searchPara
               </p>
             )}
 
-            <div className="sticky bottom-0 flex justify-end rounded-2xl border bg-card/95 p-3 backdrop-blur">
+            <div className="sticky bottom-0 -mx-4 flex justify-end border-t bg-background/95 px-4 py-3 backdrop-blur md:mx-0 md:rounded-2xl md:border">
               <SalinLaporan teks={teks} />
             </div>
           </>

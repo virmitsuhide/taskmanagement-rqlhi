@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Markdown } from '@/components/ui/markdown'
 import { PrintButton } from '@/components/rapat/PrintButton'
+import { NotulenStatusButton } from '@/components/rapat/NotulenStatusButton'
 import { ArrowLeft, Calendar, CheckCircle2, CheckSquare, Circle, Edit, MapPin, Trash2, Users, ExternalLink, FileText } from 'lucide-react'
 import { agendaTagStyle } from '@/lib/rapat/agenda-tags'
 import { LABEL_STATUS_TUGAS, WARNA_STATUS_TUGAS } from '@/lib/rapat/papan'
@@ -60,6 +61,21 @@ export default async function RapatDetailPage({ params }: { params: Promise<{ id
   const hadir = m.participants ?? []
   const izin = m.peserta_izin ?? []
 
+  // Status notulen Draf/Terbit (migrasi 0108). Sebelum migrasi kolomnya tidak
+  // ada → null, dan halaman tampil seperti sebelumnya.
+  const ns = meeting as { notulen_status?: string | null; notulen_terbit_at?: string | null; notulen_terbit_by?: string | null }
+  const statusNotulen: 'draf' | 'terbit' | null =
+    ns.notulen_status === 'draf' || ns.notulen_status === 'terbit' ? ns.notulen_status : null
+  const bolehSunting = canEditMeeting(session.role, m.type)
+  let penerbit: string | null = null
+  if (statusNotulen === 'terbit' && ns.notulen_terbit_by) {
+    const { data: u } = await supabase.from('users').select('display_name').eq('id', ns.notulen_terbit_by).maybeSingle()
+    penerbit = (u as { display_name?: string | null } | null)?.display_name ?? null
+  }
+  const tanggalTerbit = statusNotulen === 'terbit' && ns.notulen_terbit_at
+    ? new Date(ns.notulen_terbit_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Jakarta' })
+    : null
+
   return (
     <div>
       <DashboardHeader
@@ -76,7 +92,7 @@ export default async function RapatDetailPage({ params }: { params: Promise<{ id
           </Button>
           <div className="flex gap-2">
             <PrintButton />
-            {canEditMeeting(session.role, m.type) && (
+            {bolehSunting && (
               <Button asChild>
                 <Link href={`/rapat/${id}/edit`}><Edit className="h-4 w-4" />Sunting notulen</Link>
               </Button>
@@ -109,13 +125,32 @@ export default async function RapatDetailPage({ params }: { params: Promise<{ id
         <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-12">
           {/* ── Notulen per poin ── */}
           <section className="rounded-2xl border bg-card p-5 md:p-6 lg:col-span-8">
-            <div className="mb-1 flex items-center gap-2.5">
+            <div className="mb-1 flex flex-wrap items-center gap-2.5">
               <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary-wash text-primary"><FileText className="h-4 w-4" /></span>
-              <div>
-                <h2 className="font-heading text-xl font-medium leading-tight">Notulen</h2>
-                <p className="text-[13px] text-muted-foreground">{items.length} poin{jumlahTindakLanjut > 0 && ` · ${jumlahTindakLanjut} tindak lanjut`}</p>
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="font-heading text-xl font-medium leading-tight">Notulen</h2>
+                  {statusNotulen && (
+                    <span className={`inline-flex whitespace-nowrap rounded-md px-2 py-0.5 text-[11px] font-bold ${statusNotulen === 'terbit' ? 'bg-success-wash text-success' : 'bg-warning-wash text-warning'}`}>
+                      {statusNotulen === 'terbit' ? 'Terbit' : 'Draf'}
+                    </span>
+                  )}
+                </div>
+                <p className="text-[13px] text-muted-foreground">
+                  {items.length} poin{jumlahTindakLanjut > 0 && ` · ${jumlahTindakLanjut} tindak lanjut`}
+                  {statusNotulen === 'terbit' && (tanggalTerbit || penerbit) && (
+                    <> · Terbit{tanggalTerbit && ` ${tanggalTerbit}`}{penerbit && ` oleh ${penerbit}`}</>
+                  )}
+                </p>
               </div>
+              {statusNotulen && bolehSunting && <NotulenStatusButton meetingId={id} status={statusNotulen} />}
             </div>
+
+            {statusNotulen === 'draf' && !bolehSunting && items.length > 0 && (
+              <p className="mt-3 rounded-xl bg-warning-wash px-4 py-2.5 text-[13px] text-warning print:hidden">
+                Notulen masih draf — isinya bisa berubah.
+              </p>
+            )}
 
             {items.length === 0 ? (
               <div className="mt-4 rounded-2xl border border-dashed py-12 text-center bg-muted/30">

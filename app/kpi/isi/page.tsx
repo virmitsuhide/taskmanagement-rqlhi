@@ -24,6 +24,11 @@ const num = (v: unknown): number => {
   return Number.isFinite(n) ? n : 0
 }
 
+function inisial(nama: string): string {
+  const kata = nama.replace(/^(ust(z|zh|adz|adzah)?\.?\s+)/i, '').split(/\s+/).filter(Boolean)
+  return ((kata[0]?.[0] ?? '') + (kata[1]?.[0] ?? '')).toUpperCase() || '?'
+}
+
 export default async function IsiKpiPage({ searchParams }: PageProps) {
   const session = await getSession()
   if (!session) redirect('/login')
@@ -98,14 +103,26 @@ export default async function IsiKpiPage({ searchParams }: PageProps) {
 
   return (
     <div>
-      <DashboardHeader displayName={session.displayName} role={session.role} title="Isi KPI" showBack />
-      <div className="p-4 md:p-8 max-w-4xl mx-auto">
+      <DashboardHeader displayName={session.displayName} role={session.role} title="Isi KPI" showBack ownH1 />
+      <div className="mx-auto max-w-6xl p-4 md:p-8">
         <Link
           href={backHref}
-          className="mb-4 inline-flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
+          className="mb-4 inline-flex items-center gap-1.5 text-[13px] font-bold text-primary transition-colors hover:underline"
         >
-          <ArrowLeft className="h-3.5 w-3.5" />Kembali ke rekap KPI
+          <ArrowLeft className="h-3.5 w-3.5" />Buat KPI · kembali ke rekap
         </Link>
+
+        <div className="mb-5 flex items-center gap-4">
+          <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-primary-wash text-lg font-bold text-primary">
+            {inisial(teacher.full_name)}
+          </span>
+          <div className="min-w-0">
+            <h1 className="truncate font-heading text-3xl leading-tight">{teacher.full_name}</h1>
+            <p className="text-[13px] text-muted-foreground">
+              Guru RQ{teacher.unit ? ` · ${String(teacher.unit).toUpperCase()}` : ''} · KPI {MONTH_NAMES[month - 1]} {year}
+            </p>
+          </div>
+        </div>
 
         {/*
           Alasan pengembalian koordinator, di atas formulir dan bukan di dalamnya.
@@ -118,7 +135,7 @@ export default async function IsiKpiPage({ searchParams }: PageProps) {
           keberatannya.
         */}
         {existing?.status === 'dikembalikan' && (
-          <div className="mb-4 flex items-start gap-2.5 rounded-lg border border-destructive/30 bg-destructive-wash px-3.5 py-3">
+          <div className="mb-4 flex items-start gap-2.5 rounded-2xl border border-destructive/30 bg-destructive-wash px-4 py-3">
             <Undo2 className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
             <div className="text-sm">
               <p className="font-semibold text-destructive">

@@ -2,8 +2,8 @@ import Link from 'next/link'
 import Image from 'next/image'
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
+import { after } from 'next/server'
 import { ArrowLeft, Calendar, User as UserIcon } from 'lucide-react'
-import { Newsreader } from 'next/font/google'
 import { createServerClient } from '@/lib/supabase/server'
 import { getSession } from '@/lib/auth/session'
 import { canCreateNews } from '@/lib/auth/permissions'
@@ -13,9 +13,10 @@ import { Markdown } from '@/components/ui/markdown'
 import { ShareButton } from './ShareButton'
 import { DetailEditorBar } from './DetailEditorBar'
 import type { NewsArticle, NewsCategory, NewsType } from '@/types'
+import { newsDisplayStatus, isNewsPublic, newsPublishedAt, publicNews, type NewsRow } from '@/lib/data/news-status'
+import { incrementNewsView } from '@/lib/data/news-extra'
 
 // Huruf judul Teduh; nama variabel lama dipertahankan agar pemakainya tak perlu diubah.
-const playfair = Newsreader({ subsets: ['latin'], variable: '--font-playfair', display: 'swap', style: ['normal', 'italic'] })
 
 const DAY_ID   = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu']
 const MONTH_ID = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember']
@@ -64,10 +65,11 @@ async function getRelated(current: NewsArticle): Promise<NewsArticle[]> {
       .eq('is_active', true)
       .neq('id', current.id)
       .order('created_at', { ascending: false })
-      .limit(4)
+      .limit(16)
     if (current.category) query.eq('category', current.category)
     const { data } = await query
-    return (data ?? []) as NewsArticle[]
+    // Draf / terjadwal disaring di JS supaya tetap jalan sebelum migrasi 0107.
+    return publicNews((data ?? []) as NewsRow[]).slice(0, 4)
   } catch {
     return []
   }
@@ -100,7 +102,8 @@ interface PageProps {
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { id } = await params
   const article = await getArticle(id)
-  if (!article) return { title: 'Berita tidak ditemukan — RQ LHI' }
+  // Draf / terjadwal / nonaktif tidak membocorkan judulnya lewat metadata.
+  if (!article || !isNewsPublic(article as NewsRow)) return { title: 'Berita tidak ditemukan — RQ LHI' }
 
   const description =
     article.excerpt?.trim() ||
@@ -115,7 +118,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       title: article.title,
       description,
       type: 'article',
-      publishedTime: article.created_at,
+      publishedTime: newsPublishedAt(article as NewsRow),
       authors: article.author ? [article.author.display_name] : undefined,
     },
     twitter: {
@@ -131,7 +134,17 @@ export default async function NewsDetailPage({ params }: PageProps) {
   const [article, session] = await Promise.all([getArticle(id), getSession()])
   const isEditor = session && canCreateNews(session.role)
   if (!article) notFound()
-  if (!article.is_active && !isEditor) notFound()
+  const row = article as NewsRow
+  const displayStatus = newsDisplayStatus(row)
+  // Publik hanya melihat yang sudah terbit (bukan draf, bukan terjadwal yang
+  // belum waktunya, bukan nonaktif). Editor tetap bisa pratinjau.
+  if (displayStatus !== 'terbit' && !isEditor) notFound()
+
+  // Hitung dibaca sekali per render halaman, sesudah respons terkirim.
+  // Pratinjau editor tidak dihitung. No-op sebelum migrasi 0107.
+  if (displayStatus === 'terbit' && !isEditor) {
+    after(() => incrementNewsView(article.id))
+  }
 
   const related = await getRelated(article)
 
@@ -140,7 +153,7 @@ export default async function NewsDetailPage({ params }: PageProps) {
 
   return (
     <div
-      className={`${playfair.variable} min-h-screen bg-background`}
+      className="min-h-screen bg-background"
       style={{ fontSize: 15, lineHeight: 1.65 }}
     >
       <PublicHeader />
@@ -166,9 +179,15 @@ export default async function NewsDetailPage({ params }: PageProps) {
           {isEditor && <DetailEditorBar newsId={article.id} isActive={article.is_active} />}
         </div>
 
-        {!article.is_active && (
+        {displayStatus !== 'terbit' && (
           <div className="mb-5 px-3 py-2 rounded-md bg-muted text-xs text-muted-foreground">
-            Status: <span className="font-semibold">Non-aktif</span> — hanya editor yang bisa melihat halaman ini.
+            Status:{' '}
+            <span className="font-semibold">
+              {displayStatus === 'draf' ? 'Draf'
+                : displayStatus === 'terjadwal' ? `Terjadwal — tayang ${formatFullDate(row.publish_at!)}`
+                : 'Non-aktif'}
+            </span>{' '}
+            — hanya editor yang bisa melihat halaman ini.
           </div>
         )}
 
@@ -202,7 +221,7 @@ export default async function NewsDetailPage({ params }: PageProps) {
           )}
           <span className="inline-flex items-center gap-1.5">
             <Calendar className="h-3 w-3" />
-            {formatFullDate(article.created_at)}
+            {formatFullDate(newsPublishedAt(row))}
           </span>
           <ShareButton title={article.title} />
         </div>

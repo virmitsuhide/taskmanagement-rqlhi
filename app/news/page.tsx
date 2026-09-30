@@ -1,7 +1,6 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { ArrowLeft, Settings2 } from 'lucide-react'
-import { Newsreader } from 'next/font/google'
 import { createServerClient } from '@/lib/supabase/server'
 import { getSession } from '@/lib/auth/session'
 import { canCreateNews } from '@/lib/auth/permissions'
@@ -12,11 +11,11 @@ import { Button } from '@/components/ui/button'
 import { SearchInput } from '@/components/ui/search-input'
 import { Pagination } from '@/components/ui/pagination'
 import type { NewsArticle, NewsCategory, NewsType } from '@/types'
+import { publicNews, type NewsRow } from '@/lib/data/news-status'
 
 const PAGE_SIZE = 12
 
 // Huruf judul Teduh; nama variabel lama dipertahankan agar pemakainya tak perlu diubah.
-const playfair = Newsreader({ subsets: ['latin'], variable: '--font-playfair', display: 'swap', style: ['normal', 'italic'] })
 
 const MONTH_ID = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des']
 
@@ -90,7 +89,9 @@ export default async function NewsPage({ searchParams }: PageProps) {
 
   // Halaman ini murni tampilan publik: draft/nonaktif tidak pernah ikut,
   // termasuk untuk editor. Arsip lengkapnya ada di /humas/berita.
-  let filtered = news.filter(n => n.is_active)
+  // Draf dan berita terjadwal yang belum waktunya juga tidak ikut (lihat
+  // lib/data/news-status.ts — aman sebelum kolom status ada).
+  let filtered: NewsArticle[] = publicNews(news as NewsRow[])
   if (activeType) filtered = filtered.filter(n => n.type === activeType)
   if (activeCategory) filtered = filtered.filter(n => n.category === activeCategory)
   if (queryLower) {
@@ -129,7 +130,7 @@ export default async function NewsPage({ searchParams }: PageProps) {
 
   return (
     <div
-      className={`${playfair.variable} min-h-screen bg-background`}
+      className="min-h-screen bg-background"
       style={{ fontSize: 14, lineHeight: 1.5 }}
     >
       <PublicHeader />

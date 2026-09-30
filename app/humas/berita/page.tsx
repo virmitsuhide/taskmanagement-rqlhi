@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
-import { Plus, Newspaper, Eye, EyeOff, FileText, ExternalLink, ImageOff } from 'lucide-react'
+import { Plus, ExternalLink, ImageOff } from 'lucide-react'
 import { getSession } from '@/lib/auth/session'
 import { canCreateNews } from '@/lib/auth/permissions'
 import { createServerClient } from '@/lib/supabase/server'
@@ -10,7 +10,15 @@ import { Button } from '@/components/ui/button'
 import { SearchInput } from '@/components/ui/search-input'
 import { Pagination } from '@/components/ui/pagination'
 import { RowActions } from './RowActions'
-import type { NewsArticle, NewsCategory, NewsType } from '@/types'
+import type { NewsCategory, NewsType } from '@/types'
+import {
+  newsDisplayStatus,
+  newsPublishedAt,
+  NEWS_STATUS_LABEL,
+  type NewsDisplayStatus,
+  type NewsRow,
+} from '@/lib/data/news-status'
+import { getNewsReadStats } from '@/lib/data/news-extra'
 
 const PAGE_SIZE = 15
 
@@ -26,13 +34,40 @@ const CATEGORY_META: Record<NewsCategory, { label: string; color: string }> = {
 
 const ALL_CATEGORIES = Object.keys(CATEGORY_META) as NewsCategory[]
 
-type StatusFilter = 'semua' | 'terbit' | 'nonaktif'
-const VALID_STATUS: StatusFilter[] = ['semua', 'terbit', 'nonaktif']
+type StatusFilter = 'semua' | NewsDisplayStatus
+const VALID_STATUS: StatusFilter[] = ['semua', 'terbit', 'terjadwal', 'draf', 'nonaktif']
+
+const STATUS_CHIP: Record<NewsDisplayStatus, string> = {
+  terbit: 'bg-success-wash text-primary',
+  terjadwal: 'bg-info-wash text-info',
+  draf: 'bg-muted text-muted-foreground',
+  nonaktif: 'bg-accent-warm-wash text-accent-warm',
+}
 
 function formatDate(dateStr: string) {
   const d = new Date(dateStr)
   return `${d.getDate()} ${MONTH_ID[d.getMonth()]} ${d.getFullYear()}`
 }
+
+/** "1 Okt, 07.00" — jam tayang dalam WIB, apa pun zona waktu server. */
+function formatWibDateTime(dateStr: string) {
+  const d = new Date(new Date(dateStr).getTime() + 7 * 3600_000)
+  const hh = String(d.getUTCHours()).padStart(2, '0')
+  const mm = String(d.getUTCMinutes()).padStart(2, '0')
+  return `${d.getUTCDate()} ${MONTH_ID[d.getUTCMonth()]} ${d.getUTCFullYear()}, ${hh}.${mm}`
+}
+
+function daysAgo(dateStr: string, now: Date) {
+  return Math.max(0, Math.floor((now.getTime() - new Date(dateStr).getTime()) / 86_400_000))
+}
+
+function relativeDays(dateStr: string, now: Date) {
+  const n = daysAgo(dateStr, now)
+  return n === 0 ? 'hari ini' : n === 1 ? 'kemarin' : `${n} hari lalu`
+}
+
+const compactId = new Intl.NumberFormat('id-ID', { notation: 'compact', maximumFractionDigits: 1 })
+const plainId = new Intl.NumberFormat('id-ID')
 
 /**
  * next/image menolak host yang tidak terdaftar di next.config remotePatterns
@@ -48,14 +83,14 @@ function isOptimizable(url: string) {
   }
 }
 
-async function getAllNews(): Promise<NewsArticle[]> {
+async function getAllNews(): Promise<NewsRow[]> {
   try {
     const supabase = createServerClient()
     const { data } = await supabase
       .from('news_articles')
       .select('*, author:users!news_articles_author_id_fkey(id, display_name, role)')
       .order('created_at', { ascending: false })
-    return (data ?? []) as NewsArticle[]
+    return (data ?? []) as NewsRow[]
   } catch {
     return []
   }
@@ -86,20 +121,57 @@ export default async function KelolaBeritaPage({ searchParams }: PageProps) {
   const queryLower = query.toLowerCase()
   const page = Math.max(1, parseInt(params.page ?? '1', 10) || 1)
 
-  const all = await getAllNews()
+  const [all, readStats] = await Promise.all([getAllNews(), getNewsReadStats()])
+  const now = new Date()
+
+  // Status tayang tiap baris (Draf / Terjadwal / Terbit / Nonaktif). Sebelum
+  // migrasi 0107 semua baris aktif terbaca 'terbit', persis perilaku lama.
+  const statusOf = new Map<string, NewsDisplayStatus>(all.map(n => [n.id, newsDisplayStatus(n, now)]))
+  const st = (n: NewsRow) => statusOf.get(n.id) ?? 'terbit'
+  // view_count hanya ada setelah migrasi; sebelumnya tampil "—".
+  const hasViews = all.some(n => typeof n.view_count === 'number')
 
   // Statistik dihitung dari seluruh arsip, bukan dari hasil filter — angkanya
   // harus tetap sama apa pun tab yang sedang dibuka.
   const stats = {
     total: all.length,
-    terbit: all.filter(n => n.is_active).length,
-    nonaktif: all.filter(n => !n.is_active).length,
+    terbit: all.filter(n => st(n) === 'terbit').length,
+    terjadwal: all.filter(n => st(n) === 'terjadwal').length,
+    draf: all.filter(n => st(n) === 'draf').length,
+    nonaktif: all.filter(n => st(n) === 'nonaktif').length,
     artikel: all.filter(n => n.type === 'artikel').length,
   }
 
+  // Terbit bulan ini (zona waktu server), menurut tanggal tayangnya.
+  const bulanIni = all.filter(n => {
+    const d = new Date(newsPublishedAt(n))
+    return st(n) === 'terbit' && d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth()
+  })
+  const bulanIniArtikel = bulanIni.filter(n => n.type === 'artikel').length
+
+  const nextScheduled = all
+    .filter(n => st(n) === 'terjadwal' && n.publish_at)
+    .map(n => n.publish_at as string)
+    .sort()[0]
+  const oldestDraft = all
+    .filter(n => st(n) === 'draf')
+    .map(n => n.updated_at || n.created_at)
+    .sort()[0]
+
+  let readHint = 'aktif setelah migrasi 0107'
+  if (readStats) {
+    if (readStats.prev30 > 0) {
+      const pct = Math.round(((readStats.last30 - readStats.prev30) / readStats.prev30) * 100)
+      readHint = `${pct >= 0 ? '+' : ''}${pct}% dari 30 hari sebelumnya`
+    } else {
+      readHint = 'kunjungan halaman berita'
+    }
+  }
+
+  const pending = stats.terjadwal + stats.draf
+
   let filtered = all
-  if (status === 'terbit') filtered = filtered.filter(n => n.is_active)
-  if (status === 'nonaktif') filtered = filtered.filter(n => !n.is_active)
+  if (status !== 'semua') filtered = filtered.filter(n => st(n) === status)
   if (activeType) filtered = filtered.filter(n => n.type === activeType)
   if (activeCategory) filtered = filtered.filter(n => n.category === activeCategory)
   if (queryLower) {
@@ -139,76 +211,108 @@ export default async function KelolaBeritaPage({ searchParams }: PageProps) {
         ownH1
       />
 
-      <div className="p-4 md:p-6 max-w-6xl">
+      <div className="mx-auto max-w-7xl space-y-5 p-4 md:p-8">
         {/* Judul + aksi utama */}
-        <div className="flex items-start justify-between gap-4 mb-6 flex-wrap">
-          <div>
-            <h1 className="text-3xl leading-tight">Kelola Berita</h1>
-            <p className="text-sm text-muted-foreground mt-0.5">
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div className="min-w-0 max-w-3xl">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-accent-warm">
+              Publikasi · Kelola berita
+            </p>
+            <h1 className="mt-1 font-heading text-3xl leading-tight md:text-[38px]">
+              Berita &amp; artikel —{' '}
+              <em>
+                {pending > 0
+                  ? `${pending} tulisan belum tayang.`
+                  : `${stats.terbit} tulisan tampil di halaman publik.`}
+              </em>
+            </h1>
+            <p className="mt-2 text-sm text-muted-foreground">
               Tulis, terbitkan, dan sunting berita &amp; artikel yang tampil di halaman publik.
             </p>
           </div>
-          <div className="flex items-center gap-2 pt-0.5">
+          <div className="flex flex-wrap items-center gap-2">
             <Link
               href="/news"
               target="_blank"
-              className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline px-1"
+              className="inline-flex h-10 items-center gap-2 rounded-xl border bg-card px-4 text-sm font-bold hover:bg-muted"
             >
-              Lihat halaman publik <ExternalLink className="h-3 w-3" />
+              <ExternalLink className="h-4 w-4" />Lihat halaman publik
             </Link>
-            <Button asChild size="sm">
-              <Link href="/news/baru">
-                <Plus className="h-4 w-4 mr-1" />Tulis Berita
-              </Link>
-            </Button>
+            <Link
+              href="/news/baru"
+              className="inline-flex h-10 items-center gap-2 rounded-xl bg-primary px-4 text-sm font-bold text-primary-foreground hover:bg-primary/90"
+            >
+              <Plus className="h-4 w-4" />Tulis baru
+            </Link>
           </div>
         </div>
 
         {/* Ringkasan */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-          <StatTile icon={<Newspaper className="h-4 w-4" />} label="Total" value={stats.total} />
-          <StatTile icon={<Eye className="h-4 w-4" />} label="Terbit" value={stats.terbit} tone="success" />
-          <StatTile icon={<EyeOff className="h-4 w-4" />} label="Nonaktif" value={stats.nonaktif} tone="muted" />
-          <StatTile icon={<FileText className="h-4 w-4" />} label="Artikel" value={stats.artikel} />
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <StatTile
+            label="Terbit bulan ini"
+            value={bulanIni.length}
+            hint={`${bulanIni.length - bulanIniArtikel} berita · ${bulanIniArtikel} artikel`}
+            tone="primary"
+          />
+          <StatTile
+            label="Terjadwal"
+            value={stats.terjadwal}
+            hint={nextScheduled ? `berikutnya ${formatWibDateTime(nextScheduled)}` : 'tidak ada jadwal tayang'}
+            tone="warm"
+          />
+          <StatTile
+            label="Draf"
+            value={stats.draf}
+            hint={oldestDraft ? `terlama ${daysAgo(oldestDraft, now)} hari` : 'tidak ada draf'}
+          />
+          <StatTile
+            label="Dibaca 30 hari"
+            value={readStats ? compactId.format(readStats.last30) : '—'}
+            hint={readHint}
+          />
         </div>
 
-        {/* Pencarian */}
-        <div className="mb-4 max-w-md">
-          <SearchInput placeholder="Cari judul atau ringkasan…" />
-        </div>
-
-        {/* Filter */}
-        <div className="flex flex-wrap items-center gap-1.5 mb-3">
-          <FilterChip href={filterHref({ status: '' })} active={status === 'semua'}>Semua status</FilterChip>
-          <FilterChip href={filterHref({ status: 'terbit' })} active={status === 'terbit'}>Terbit</FilterChip>
-          <FilterChip href={filterHref({ status: 'nonaktif' })} active={status === 'nonaktif'}>Nonaktif</FilterChip>
-          <span className="w-px h-5 bg-border mx-1" />
-          <FilterChip href={filterHref({ type: '', category: '' })} active={!activeType && !activeCategory}>
-            Semua jenis
-          </FilterChip>
-          <FilterChip href={filterHref({ type: 'berita', category: '' })} active={activeType === 'berita' && !activeCategory}>
-            Berita
-          </FilterChip>
-          <FilterChip href={filterHref({ type: 'artikel', category: '' })} active={activeType === 'artikel'}>
-            Artikel
-          </FilterChip>
-        </div>
-        <div className="flex flex-wrap items-center gap-1.5 mb-6">
-          {ALL_CATEGORIES.map(cat => (
-            <FilterChip
-              key={cat}
-              href={filterHref({ category: activeCategory === cat ? '' : cat, type: 'berita' })}
-              active={activeCategory === cat}
-              color={CATEGORY_META[cat].color}
-            >
-              {CATEGORY_META[cat].label}
+        {/* Filter + pencarian */}
+        <div className="space-y-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <FilterChip href={filterHref({ status: '' })} active={status === 'semua'} count={stats.total}>Semua</FilterChip>
+            <FilterChip href={filterHref({ status: 'terbit' })} active={status === 'terbit'} count={stats.terbit}>Terbit</FilterChip>
+            <FilterChip href={filterHref({ status: 'terjadwal' })} active={status === 'terjadwal'} count={stats.terjadwal}>Terjadwal</FilterChip>
+            <FilterChip href={filterHref({ status: 'draf' })} active={status === 'draf'} count={stats.draf}>Draf</FilterChip>
+            <FilterChip href={filterHref({ status: 'nonaktif' })} active={status === 'nonaktif'} count={stats.nonaktif}>Nonaktif</FilterChip>
+            <span className="mx-1 hidden h-6 w-px bg-border sm:block" />
+            <FilterChip href={filterHref({ type: '', category: '' })} active={!activeType && !activeCategory}>
+              Semua jenis
             </FilterChip>
-          ))}
+            <FilterChip href={filterHref({ type: 'berita', category: '' })} active={activeType === 'berita' && !activeCategory}>
+              Berita
+            </FilterChip>
+            <FilterChip href={filterHref({ type: 'artikel', category: '' })} active={activeType === 'artikel'}>
+              Artikel
+            </FilterChip>
+            <div className="w-full sm:ml-auto sm:w-64">
+              <SearchInput placeholder="Cari judul atau ringkasan…" />
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-1.5">
+            {ALL_CATEGORIES.map(cat => (
+              <FilterChip
+                key={cat}
+                href={filterHref({ category: activeCategory === cat ? '' : cat, type: 'berita' })}
+                active={activeCategory === cat}
+                color={CATEGORY_META[cat].color}
+                small
+              >
+                {CATEGORY_META[cat].label}
+              </FilterChip>
+            ))}
+          </div>
         </div>
 
         {/* Daftar */}
         {visible.length === 0 ? (
-          <div className="rounded-xl border border-dashed py-16 text-center">
+          <div className="rounded-2xl border border-dashed bg-card py-16 text-center">
             <p className="text-sm text-muted-foreground">
               {all.length === 0
                 ? 'Belum ada berita. Mulai dengan menulis berita pertama.'
@@ -223,136 +327,121 @@ export default async function KelolaBeritaPage({ searchParams }: PageProps) {
             )}
           </div>
         ) : (
-          <div className="rounded-2xl border bg-card overflow-hidden">
-            {/* Kepala tabel — hanya di layar lebar; di mobile tiap baris jadi kartu. */}
-            <div className="hidden md:grid grid-cols-[1fr_130px_110px_130px_150px] gap-3 px-4 py-2.5 border-b bg-muted/30 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-              <span>Judul</span>
-              <span>Kategori</span>
-              <span>Status</span>
-              <span>Tanggal</span>
-              <span className="text-right">Aksi</span>
-            </div>
-
+          <div className="overflow-hidden rounded-2xl border bg-card">
             <ul className="divide-y">
               {visible.map(item => (
                 <li
                   key={item.id}
-                  className="grid md:grid-cols-[1fr_130px_110px_130px_150px] gap-3 px-4 py-3 items-center hover:bg-muted/20 transition-colors"
+                  className="flex flex-col gap-3 px-4 py-3.5 transition-colors hover:bg-muted/20 sm:flex-row sm:items-center sm:gap-4 md:px-5"
                 >
-                  {/* Judul + thumbnail */}
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="relative shrink-0 w-14 h-14 rounded-md overflow-hidden border bg-muted">
+                  <div className="flex min-w-0 flex-1 items-center gap-4">
+                    {/* Thumbnail */}
+                    <div className="relative h-16 w-24 shrink-0 overflow-hidden rounded-xl bg-muted">
                       {!item.thumbnail_url ? (
                         <span className="flex h-full items-center justify-center text-muted-foreground/40">
-                          <ImageOff className="h-4 w-4" />
+                          <ImageOff className="h-5 w-5" />
                         </span>
                       ) : isOptimizable(item.thumbnail_url) ? (
-                        <Image src={item.thumbnail_url} alt="" fill className="object-cover" sizes="56px" />
+                        <Image src={item.thumbnail_url} alt="" fill className="object-cover" sizes="96px" />
                       ) : (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img src={item.thumbnail_url} alt="" className="h-full w-full object-cover" />
                       )}
                     </div>
+
+                    {/* Judul + meta */}
                     <div className="min-w-0">
                       <Link
                         href={`/news/${item.id}/edit`}
-                        className="block font-medium text-sm leading-snug line-clamp-2 hover:underline"
+                        className="line-clamp-2 font-heading text-lg leading-snug hover:underline"
                       >
                         {item.title}
                       </Link>
-                      <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
-                        {item.author?.display_name ?? 'Tanpa penulis'}
-                        <span className="md:hidden"> · {formatDate(item.created_at)}</span>
+                      <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-xs text-muted-foreground">
+                        {item.type === 'artikel' ? (
+                          <span className="font-semibold text-foreground">Artikel</span>
+                        ) : item.category ? (
+                          <span className="inline-flex items-center gap-1 font-semibold" style={{ color: CATEGORY_META[item.category].color }}>
+                            <span className="h-1.5 w-1.5 rounded-full bg-current" />
+                            {CATEGORY_META[item.category].label}
+                          </span>
+                        ) : (
+                          <span>Berita</span>
+                        )}
+                        <span>·</span>
+                        <span>{item.author?.display_name ?? 'Tanpa penulis'}</span>
+                        <span>·</span>
+                        {st(item) === 'terjadwal' && item.publish_at ? (
+                          <span>tayang {formatWibDateTime(item.publish_at)}</span>
+                        ) : st(item) === 'draf' ? (
+                          <span>diubah {relativeDays(item.updated_at || item.created_at, now)}</span>
+                        ) : (
+                          <span>{formatDate(newsPublishedAt(item))}</span>
+                        )}
                       </p>
                     </div>
                   </div>
 
-                  {/* Kategori / jenis */}
-                  <div className="md:block">
-                    {item.type === 'artikel' ? (
-                      <span className="inline-block text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-foreground text-background">
-                        Artikel
-                      </span>
-                    ) : item.category ? (
-                      <span
-                        className="inline-block text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded"
-                        style={{
-                          backgroundColor: `${CATEGORY_META[item.category].color}1A`,
-                          color: CATEGORY_META[item.category].color,
-                        }}
-                      >
-                        {CATEGORY_META[item.category].label}
-                      </span>
-                    ) : (
-                      <span className="text-xs text-muted-foreground">—</span>
-                    )}
-                  </div>
-
-                  {/* Status */}
-                  <div>
-                    {item.is_active ? (
-                      <span className="inline-flex items-center gap-1 text-[11px] font-medium text-success bg-success-wash px-2 py-0.5 rounded-full">
-                        <span className="h-1.5 w-1.5 rounded-full bg-current" />Terbit
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
-                        <span className="h-1.5 w-1.5 rounded-full bg-current" />Nonaktif
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Tanggal */}
-                  <span className="hidden md:block text-xs text-muted-foreground">
-                    {formatDate(item.created_at)}
-                  </span>
-
-                  {/* Aksi */}
-                  <div className="md:justify-self-end">
+                  <div className="flex shrink-0 items-center justify-between gap-4 sm:justify-end">
+                    <span className={`rounded-md px-2 py-1 text-[11px] font-bold ${STATUS_CHIP[st(item)]}`}>
+                      {NEWS_STATUS_LABEL[st(item)]}
+                    </span>
+                    <span className="w-24 text-right text-xs tabular-nums text-muted-foreground">
+                      {hasViews && st(item) !== 'draf' && st(item) !== 'terjadwal' && typeof item.view_count === 'number'
+                        ? `${plainId.format(item.view_count)} dibaca`
+                        : '—'}
+                    </span>
                     <RowActions newsId={item.id} title={item.title} isActive={item.is_active} />
                   </div>
                 </li>
               ))}
             </ul>
+            <div className="border-t px-4 py-3 md:px-5">
+              {totalPages <= 1 ? (
+                <p className="text-xs text-muted-foreground">1–{total} dari {total}</p>
+              ) : (
+                <Pagination
+                  className="pt-0"
+                  page={safePage}
+                  pageSize={PAGE_SIZE}
+                  total={total}
+                  basePath="/humas/berita"
+                  searchParams={{
+                    status: status !== 'semua' ? status : undefined,
+                    type: activeType,
+                    category: activeCategory,
+                    q: query || undefined,
+                  }}
+                />
+              )}
+            </div>
           </div>
         )}
-
-        <Pagination
-          page={safePage}
-          pageSize={PAGE_SIZE}
-          total={total}
-          basePath="/humas/berita"
-          searchParams={{
-            status: status !== 'semua' ? status : undefined,
-            type: activeType,
-            category: activeCategory,
-            q: query || undefined,
-          }}
-        />
       </div>
     </div>
   )
 }
 
 function StatTile({
-  icon,
   label,
   value,
+  hint,
   tone,
 }: {
-  icon: React.ReactNode
   label: string
-  value: number
-  tone?: 'success' | 'muted'
+  value: number | string
+  hint: string
+  tone?: 'primary' | 'warm'
 }) {
-  const valueColor =
-    tone === 'success' ? 'text-success' : tone === 'muted' ? 'text-muted-foreground' : 'text-foreground'
   return (
-    <div className="rounded-2xl border bg-card px-4 py-3">
-      <span className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-        {icon}
-        {label}
-      </span>
-      <p className={`text-2xl font-bold mt-1 tabular-nums ${valueColor}`}>{value}</p>
+    <div className="rounded-2xl border bg-card p-4">
+      <p className="text-[13px] text-muted-foreground">{label}</p>
+      <p className={`mt-1 font-heading text-3xl leading-none tabular-nums md:text-[34px] ${
+        tone === 'primary' ? 'text-primary' : tone === 'warm' ? 'text-accent-warm' : ''
+      }`}>
+        {value}
+      </p>
+      <p className="mt-2 text-xs text-muted-foreground">{hint}</p>
     </div>
   )
 }
@@ -361,26 +450,35 @@ function FilterChip({
   href,
   active,
   color,
+  count,
+  small,
   children,
 }: {
   href: string
   active: boolean
   color?: string
+  count?: number
+  small?: boolean
   children: React.ReactNode
 }) {
   return (
     <Link
       href={href}
-      className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+      className={`inline-flex items-center gap-1.5 rounded-full border font-bold transition-colors ${
+        small ? 'h-7 px-3 text-xs' : 'h-9 px-3.5 text-[13px]'
+      } ${
         active
-          ? 'border-transparent bg-primary text-primary-foreground'
-          : 'bg-card text-muted-foreground hover:text-foreground hover:bg-muted'
+          ? 'border-primary bg-primary text-primary-foreground'
+          : 'bg-card text-foreground hover:bg-muted'
       }`}
     >
       {color && !active && (
         <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: color }} />
       )}
       {children}
+      {count !== undefined && (
+        <span className={`tabular-nums ${active ? 'opacity-80' : 'text-muted-foreground'}`}>{count}</span>
+      )}
     </Link>
   )
 }

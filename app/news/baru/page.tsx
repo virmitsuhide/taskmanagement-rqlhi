@@ -1,23 +1,23 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { Newsreader } from 'next/font/google'
 import { getSession } from '@/lib/auth/session'
 import { canCreateNews } from '@/lib/auth/permissions'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { Button } from '@/components/ui/button'
 import { ArrowLeft } from 'lucide-react'
 import { NewsForm } from './NewsForm'
+import { newsStatusColumnsReady } from '@/lib/data/news-extra'
 
 // Huruf judul Teduh; nama variabel lama dipertahankan agar pemakainya tak perlu diubah.
-const playfair = Newsreader({ subsets: ['latin'], variable: '--font-playfair', display: 'swap', style: ['normal', 'italic'] })
 
 export default async function BuatBeritaPage() {
   const session = await getSession()
   if (!session) redirect('/login')
   if (!canCreateNews(session.role)) redirect('/news')
+  const scheduleReady = await newsStatusColumnsReady()
 
   return (
-    <div className={playfair.variable}>
+    <div>
       <DashboardHeader
         displayName={session.displayName}
         role={session.role}
@@ -38,9 +38,11 @@ export default async function BuatBeritaPage() {
           Buat Berita Baru
         </h1>
         <p className="text-sm text-muted-foreground mb-8">
-          Berita akan langsung tampil di halaman publik dan carousel homepage.
+          {scheduleReady
+            ? 'Simpan sebagai draf, terbitkan sekarang, atau jadwalkan tayangnya.'
+            : 'Berita akan langsung tampil di halaman publik dan carousel homepage.'}
         </p>
-        <NewsForm />
+        <NewsForm scheduleReady={scheduleReady} />
       </div>
     </div>
   )

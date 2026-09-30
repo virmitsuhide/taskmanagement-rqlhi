@@ -10,9 +10,11 @@ import { createServerClient } from '@/lib/supabase/server'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { SearchInput } from '@/components/ui/search-input'
 import { Button } from '@/components/ui/button'
-import { Plus, Mail, CircleAlert } from 'lucide-react'
+import { Plus, CircleAlert, ChevronRight } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import { RestoreTeacherButton, KategoriPicker, PembinaGukarToggle } from './TeacherActions'
 import { contractDaysLeft } from '@/lib/auth/contract'
+import { getBarisHitungGuru, getWaliHalaqohAktif, ringkas, statusBaris, type BarisHitungGuru } from '@/lib/data/ustadz-extra'
 import type { KategoriGuru, Teacher, TeacherEmployment } from '@/types'
 
 interface PageProps {
@@ -222,57 +224,93 @@ export default async function UstadzListPage({ searchParams }: PageProps) {
     for (const slot of sesiSlotMap.values()) slot.sort((a, b) => a - b)
   }
 
+  // ── Angka chip & kartu ringkasan: dihitung atas SELURUH guru dalam lingkup
+  // penglihat (unit), bukan hanya daftar yang sedang tersaring. Satu select
+  // kolom ringan; bila ada pencarian, chip mengikuti pencarian sedangkan kartu
+  // ringkasan tetap atas seluruh guru berstatus yang sama.
+  const lingkup = { unitTeacherIds, unitScope: unitScope as string[], denganKategori: !perluMigrasi }
+  const [barisCari, barisSemua, waliAktif] = await Promise.all([
+    getBarisHitungGuru({ ...lingkup, query }),
+    query ? getBarisHitungGuru({ ...lingkup, query: '' }) : Promise.resolve(null),
+    getWaliHalaqohAktif(),
+  ])
+  const cocokKategori = (b: BarisHitungGuru, k: KategoriFilter) =>
+    k === 'semua' || (k === 'belum' ? !b.kategori_guru : b.kategori_guru === k)
+  const hitungStatus = (st: TeacherListStatus) =>
+    barisCari.filter(b => statusBaris(b) === st && cocokKategori(b, kategoriAktif)).length
+  const hitungKategori = (k: KategoriFilter) =>
+    barisCari.filter(b => statusBaris(b) === status && cocokKategori(b, k)).length
+  const ring = ringkas((barisSemua ?? barisCari).filter(b => statusBaris(b) === status), waliAktif)
+  const jumlahTetap = ring.tetap
+  const kontrakYys = ring.kontrakYys
+  const kontrakRq = ring.kontrakRq
+  const kontrakMendesak = ring.kontrakMendesak
+  const belumMengampu = ring.belumMengampu
+  const belumKategori = perluMigrasi ? 0 : ring.belumKategori
+  const persenDari = (n: number) => (ring.total ? Math.round((n / ring.total) * 100) : 0)
+  const labelSemua = `semua guru ${STATUS_LABELS[status].toLowerCase()}`
+
+  const judulMiring: string[] = []
+  if (status !== 'deleted') {
+    if (kontrakMendesak > 0) judulMiring.push(`${kontrakMendesak} kontrak habis dalam 60 hari`)
+    if (belumKategori > 0 && kategoriAktif !== 'belum') judulMiring.push(`${belumKategori} belum berkategori`)
+  }
+
+  // Lebar kolom kategori mengikuti isinya: pemilih kategori (SDM) jauh lebih lebar dari chip.
+  const lebarKategori = bolehSortir ? 'lg:w-[236px]' : 'lg:w-[150px]'
+
   return (
     <div>
       <DashboardHeader displayName={session.displayName} role={session.role} title="Ustadz / Guru" showBack ownH1 />
-      <div className="p-4 md:p-8 max-w-5xl mx-auto">
-        <div className="flex items-end justify-between gap-3 flex-wrap mb-5">
-          <div>
-            <h1 className="text-3xl leading-tight">Ustadz / Guru</h1>
-            <p className="text-sm text-muted-foreground mt-0.5">
+      <div className="mx-auto max-w-6xl space-y-5 p-4 md:p-8">
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div className="min-w-0">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-accent-warm">Pembinaan Qur&rsquo;an · ustadz / guru</p>
+            <h1 className="mt-1 max-w-3xl font-heading text-3xl leading-tight md:text-[34px]">
               {teachers.length} guru {STATUS_LABELS[status].toLowerCase()}
               {kategoriAktif !== 'semua' && ` · ${labelKategori(kategoriAktif)}`}
-            </p>
+              {judulMiring.length > 0 ? <> — <i>{judulMiring.join(', ')}.</i></> : '.'}
+            </h1>
           </div>
           {canCreate && (
             <Button asChild size="sm">
-              <Link href="/ustadz/baru"><Plus className="h-4 w-4 mr-1" />Tambah Guru</Link>
+              <Link href="/ustadz/baru"><Plus className="mr-1 h-4 w-4" />Tambah guru</Link>
             </Button>
           )}
         </div>
 
-        <div className="flex gap-2 mb-3 items-center flex-wrap">
-          <div className="flex-1 min-w-[200px]">
-            <SearchInput placeholder="Cari nama, username, atau NIP..." />
-          </div>
-          <div className="flex gap-1 border rounded-lg p-0.5 bg-card">
-            <TabChip href={hrefDaftar(query, 'active', kategoriAktif)} active={status === 'active'}>Aktif</TabChip>
-            <TabChip href={hrefDaftar(query, 'inactive', kategoriAktif)} active={status === 'inactive'}>Nonaktif</TabChip>
+        {/* Status & kategori menyaring pada sumbu berbeda dan berlaku bersamaan —
+            dua kelompok chip yang terpisah jelas, bukan satu deret. */}
+        <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
+          <nav aria-label="Status akun" className="flex flex-wrap gap-1.5">
+            <Chip href={hrefDaftar(query, 'active', kategoriAktif)} active={status === 'active'} count={hitungStatus('active')}>Aktif</Chip>
+            <Chip href={hrefDaftar(query, 'inactive', kategoriAktif)} active={status === 'inactive'} count={hitungStatus('inactive')}>Nonaktif</Chip>
             {canCreate && (
-              <TabChip href={hrefDaftar(query, 'deleted', kategoriAktif)} active={status === 'deleted'}>Terhapus</TabChip>
+              <Chip href={hrefDaftar(query, 'deleted', kategoriAktif)} active={status === 'deleted'} count={hitungStatus('deleted')}>Terhapus</Chip>
             )}
+          </nav>
+          {!perluMigrasi && (
+            <nav aria-label="Kategori guru" className="flex flex-wrap gap-1.5 xl:border-l xl:pl-3">
+              {KATEGORI_FILTERS.map(k => (
+                <Chip
+                  key={k.value}
+                  href={hrefDaftar(query, status, k.value)}
+                  active={kategoriAktif === k.value}
+                  warm={k.value === 'belum' && kategoriAktif !== 'belum'}
+                  count={k.value === 'semua' ? undefined : hitungKategori(k.value)}
+                >
+                  {k.value === 'semua' ? 'Semua kategori' : k.label}
+                </Chip>
+              ))}
+            </nav>
+          )}
+          <div className="xl:ml-auto xl:w-60">
+            <SearchInput placeholder="Cari nama, username, atau NIP" />
           </div>
         </div>
 
-        {/* Baris kategori berdiri sendiri, bukan bersanding dengan tab status:
-            keduanya menyaring pada sumbu yang berbeda dan berlaku bersamaan,
-            jadi menaruhnya dalam satu deret akan terbaca seolah saling meniadakan. */}
-        {!perluMigrasi && (
-          <div className="flex gap-1 mb-4 border rounded-lg p-0.5 bg-card overflow-x-auto">
-            {KATEGORI_FILTERS.map(k => (
-              <TabChip
-                key={k.value}
-                href={hrefDaftar(query, status, k.value)}
-                active={kategoriAktif === k.value}
-              >
-                {k.label}
-              </TabChip>
-            ))}
-          </div>
-        )}
-
         {perluMigrasi && (
-          <div className="mb-4 flex items-start gap-2 rounded-lg border border-warning/30 bg-warning-wash px-4 py-2.5 text-sm text-warning">
+          <div className="flex items-start gap-2 rounded-xl border border-warning/30 bg-warning-wash px-4 py-2.5 text-sm text-warning">
             <CircleAlert className="mt-0.5 h-4 w-4 shrink-0" />
             <p>
               Kategori guru belum ada di database. Jalankan{' '}
@@ -284,12 +322,12 @@ export default async function UstadzListPage({ searchParams }: PageProps) {
 
         {unitPenunjuk && (
           perluMigrasiPembina ? (
-            <div className="mb-4 flex items-start gap-2 rounded-lg border border-warning/30 bg-warning-wash px-4 py-2.5 text-sm text-warning">
+            <div className="flex items-start gap-2 rounded-xl border border-warning/30 bg-warning-wash px-4 py-2.5 text-sm text-warning">
               <CircleAlert className="mt-0.5 h-4 w-4 shrink-0" />
               <p>Penunjukan pembina GuKar belum aktif. Jalankan <b>drizzle/0106_pembina_gukar_PASTE_TO_SUPABASE.sql</b> di Supabase.</p>
             </div>
           ) : (
-            <p className="mb-4 rounded-lg border bg-card px-4 py-2.5 text-sm text-muted-foreground">
+            <p className="rounded-xl border bg-card px-4 py-2.5 text-sm text-muted-foreground">
               <b className="text-foreground">Pembina GuKar {JENJANG_LABELS[unitPenunjuk]}:</b>{' '}
               hanya guru yang Anda tunjuk yang bisa mengampu pembinaan guru &amp; karyawan dari portal guru.
               Tekan tombol di baris guru untuk menunjuk atau mencabut. {jumlahPembina} guru ditunjuk.
@@ -297,8 +335,22 @@ export default async function UstadzListPage({ searchParams }: PageProps) {
           )
         )}
 
+        {status !== 'deleted' && ring.total > 0 && (
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <StatTile label="Tetap yayasan" value={jumlahTetap} note={`${persenDari(jumlahTetap)}% dari ${labelSemua}`} />
+            <StatTile label="Kontrak" value={kontrakYys + kontrakRq} note={`YYS ${kontrakYys} · RQ ${kontrakRq}`} />
+            <StatTile label="Kontrak habis ≤ 60 hari" value={kontrakMendesak} note="perpanjang atau akhiri" warm={kontrakMendesak > 0} />
+            <StatTile label="Belum mengampu" value={belumMengampu} note="tidak menjadi wali halaqoh aktif" warm={belumMengampu > 0} />
+            {(query || kategoriAktif !== 'semua') && (
+              <p className="col-span-2 -mt-1 text-xs text-muted-foreground lg:col-span-4">
+                Ringkasan di atas menghitung {labelSemua}, bukan hanya hasil saringan.
+              </p>
+            )}
+          </div>
+        )}
+
         {teachers.length === 0 ? (
-          <div className="rounded-2xl border border-dashed py-12 text-center text-sm text-muted-foreground bg-muted/30">
+          <div className="rounded-2xl border border-dashed bg-card py-12 text-center text-sm text-muted-foreground">
             {query
               ? `Tidak ada hasil untuk "${query}"`
               : status === 'deleted'
@@ -312,88 +364,132 @@ export default async function UstadzListPage({ searchParams }: PageProps) {
                     : 'Belum ada guru terdaftar'}
           </div>
         ) : (
-          <div className="rounded-lg border divide-y bg-card">
-            {teachers.map(t => {
-              const identity = (
-                <>
-                  <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center text-sm font-semibold shrink-0">
-                    {t.full_name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase()}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <p className="font-medium text-sm">{t.full_name}</p>
-                      <code className="text-[10px] bg-muted px-1.5 py-0.5 rounded">@{t.username}</code>
-                    </div>
-                    <div className="flex gap-3 mt-0.5 text-xs text-muted-foreground flex-wrap">
-                      {t.employment_type && (
-                        <span className="rounded bg-muted px-1.5 py-0.5 font-medium">
-                          {EMPLOYMENT_SHORT[t.employment_type]}
-                        </span>
-                      )}
-                      {t.kategori_guru && (
-                        <span className="rounded bg-primary/10 px-1.5 py-0.5 font-medium text-primary">
-                          {KATEGORI_GURU_LABELS[t.kategori_guru]}
-                        </span>
-                      )}
-                      {t.unit && <span>{JENJANG_LABELS[t.unit]}</span>}
-                      {t.nip && <span>NIP {t.nip}</span>}
-                      {t.email && <span className="inline-flex items-center gap-1"><Mail className="h-3 w-3" />{t.email}</span>}
-                      <ContractHint contractEnd={t.contract_end} />
-                    </div>
-                  </div>
-                </>
-              )
+          <div className="overflow-hidden rounded-2xl border bg-card">
+            {/* Kepala kolom — hanya di layar lebar; di ponsel tiap baris membawa keterangannya sendiri. */}
+            <div className="hidden items-center gap-4 border-b px-5 py-3 text-[11px] font-bold uppercase tracking-[0.08em] text-muted-foreground lg:flex">
+              <span className="min-w-0 flex-1">Guru</span>
+              <span className="w-24">Unit</span>
+              <span className={lebarKategori}>Kategori</span>
+              <span className="w-28">Status</span>
+              {status === 'deleted' ? <span className="w-[230px]" /> : <span className="w-36">Mengampu</span>}
+              {unitPenunjuk && !perluMigrasiPembina && status !== 'deleted' && <span className="w-[150px]" />}
+              {status !== 'deleted' && <span className="w-4" />}
+            </div>
+            <ul className="divide-y">
+              {teachers.map(t => {
+                const inisial = t.full_name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase()
+                const halaqohN = halaqohCountMap.get(t.id) ?? 0
+                const slot = sesiSlotMap.get(t.id) ?? []
+                const hrefGuru = keProfil ? `/ustadz/profil?unit=${t.unit ?? 'sd'}&guru=${t.id}` : `/ustadz/${t.id}`
+                const kategoriChip = t.kategori_guru ? (
+                  <span className="inline-flex rounded-md bg-muted px-2 py-0.5 text-[11px] font-semibold">
+                    {KATEGORI_GURU_LABELS[t.kategori_guru]}
+                  </span>
+                ) : !perluMigrasi ? (
+                  <span className="inline-flex rounded-md bg-accent-warm-wash px-2 py-0.5 text-[11px] font-semibold text-accent-warm">
+                    Belum ditentukan
+                  </span>
+                ) : null
+                const statusChip = t.employment_type ? (
+                  <span className={cn('inline-flex rounded-md px-2 py-0.5 text-[11px] font-semibold',
+                    t.employment_type === 'tetap_yayasan' ? 'bg-primary-wash text-primary' : 'bg-info-wash text-info')}>
+                    {EMPLOYMENT_SHORT[t.employment_type]}
+                  </span>
+                ) : <span className="text-xs text-muted-foreground">—</span>
+                // Tanpa halaqoh tidak ada slot — ditiadakan, bukan diisi "sesi -".
+                const mengampu = `${halaqohN} halaqoh${slot.length > 0 ? ` · sesi ${slot.join(', ')}` : ''}`
 
-              // Baris terhapus tidak dibungkus tautan: tombol Pulihkan di
-              // dalam tautan membuat sebagian baris jadi jebakan salah klik.
-              if (t.deleted_at) {
-                return (
-                  <div key={t.id} className="flex items-center gap-3 p-3">
-                    {identity}
-                    <div className="flex items-center gap-2 shrink-0">
-                      <span className="text-xs text-muted-foreground">
-                        Dihapus {new Date(t.deleted_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                const identitas = (
+                  <>
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary-wash font-heading text-base font-semibold text-primary">
+                      {inisial}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-bold">{t.full_name}</span>
+                      <span className="block truncate text-xs text-muted-foreground">
+                        @{t.username}
+                        {t.nip && ` · NIP ${t.nip}`}
+                        {t.email && ` · ${t.email}`}
                       </span>
-                      <RestoreTeacherButton id={t.id} name={t.full_name} />
-                    </div>
-                  </div>
+                      <ContractHint contractEnd={t.contract_end} />
+                      {/* Keterangan ringkas untuk layar sempit, tempat kolom-kolomnya disembunyikan. */}
+                      <span className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground lg:hidden">
+                        {t.unit && <span className="font-semibold text-foreground">{JENJANG_LABELS[t.unit]}</span>}
+                        {!bolehSortir && kategoriChip}
+                        {t.employment_type && statusChip}
+                        {!t.deleted_at && <span>{mengampu}</span>}
+                      </span>
+                    </span>
+                  </>
                 )
-              }
 
-              // Pemilih kategori berdiri di LUAR tautan, bukan di dalamnya. Select
-              // yang bersarang dalam <a> akan ikut menavigasi begitu disentuh, dan
-              // baris ini justru ada supaya SDM tidak berpindah halaman.
-              return (
-                <div
-                  key={t.id}
-                  className="flex items-center gap-3 p-3 hover:bg-muted/30 transition-colors"
-                >
-                  <Link
-                    href={keProfil ? `/ustadz/profil?unit=${t.unit ?? 'sd'}&guru=${t.id}` : `/ustadz/${t.id}`}
-                    className="flex min-w-0 flex-1 items-center gap-3"
-                  >
-                    {identity}
-                    <div className="text-right text-xs text-muted-foreground shrink-0">
-                      <div>{halaqohCountMap.get(t.id) ?? 0} halaqoh</div>
-                      {/* Tanpa halaqoh tidak ada slot — barisnya ditiadakan, bukan
-                          diisi "sesi -" yang menyerupai data yang belum diisi. */}
-                      {(sesiSlotMap.get(t.id)?.length ?? 0) > 0 && (
-                        <div className="tabular-nums">sesi {sesiSlotMap.get(t.id)!.join(', ')}</div>
-                      )}
-                    </div>
-                  </Link>
-                  {bolehSortir && (
-                    <KategoriPicker id={t.id} name={t.full_name} current={t.kategori_guru ?? null} />
-                  )}
-                  {bisaDitunjuk(t) && (
-                    <PembinaGukarToggle id={t.id} name={t.full_name} current={pembinaMap.get(t.id) ?? false} />
-                  )}
-                </div>
-              )
-            })}
+                const kolomLebar = (
+                  <>
+                    <span className="hidden w-24 text-sm font-bold lg:block">{t.unit ? JENJANG_LABELS[t.unit] : '—'}</span>
+                    {!bolehSortir && <span className={cn('hidden lg:block', lebarKategori)}>{kategoriChip ?? '—'}</span>}
+                  </>
+                )
+
+                // Baris terhapus tidak dibungkus tautan: tombol Pulihkan di
+                // dalam tautan membuat sebagian baris jadi jebakan salah klik.
+                if (t.deleted_at) {
+                  return (
+                    <li key={t.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 lg:px-5">
+                      <div className="flex min-w-0 flex-1 basis-60 items-center gap-3">{identitas}</div>
+                      {kolomLebar}
+                      <span className="hidden w-28 lg:block">{statusChip}</span>
+                      <div className="flex shrink-0 items-center gap-2 lg:w-[230px] lg:justify-end">
+                        <span className="text-xs text-muted-foreground">
+                          Dihapus {new Date(t.deleted_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                        </span>
+                        <RestoreTeacherButton id={t.id} name={t.full_name} />
+                      </div>
+                    </li>
+                  )
+                }
+
+                // Pemilih kategori & tombol pembina berdiri di LUAR tautan: select
+                // yang bersarang dalam <a> akan ikut menavigasi begitu disentuh.
+                return (
+                  <li key={t.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 transition-colors hover:bg-muted/30 lg:px-5">
+                    <Link href={hrefGuru} className="flex min-w-0 flex-1 basis-60 items-center gap-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                      {identitas}
+                    </Link>
+                    {kolomLebar}
+                    {bolehSortir && (
+                      <div className={cn('pl-[52px] lg:pl-0', lebarKategori)}>
+                        <KategoriPicker id={t.id} name={t.full_name} current={t.kategori_guru ?? null} />
+                      </div>
+                    )}
+                    <span className="hidden w-28 lg:block">{statusChip}</span>
+                    <span className="hidden w-36 text-[13px] text-muted-foreground tabular-nums lg:block">{mengampu}</span>
+                    {unitPenunjuk && !perluMigrasiPembina && (
+                      <div className="pl-[52px] lg:w-[150px] lg:pl-0">
+                        {bisaDitunjuk(t) && (
+                          <PembinaGukarToggle id={t.id} name={t.full_name} current={pembinaMap.get(t.id) ?? false} />
+                        )}
+                      </div>
+                    )}
+                    <Link href={hrefGuru} aria-label={`Buka ${t.full_name}`} className="hidden w-4 text-muted-foreground/60 hover:text-foreground lg:block">
+                      <ChevronRight className="h-4 w-4" />
+                    </Link>
+                  </li>
+                )
+              })}
+            </ul>
           </div>
         )}
       </div>
+    </div>
+  )
+}
+
+function StatTile({ label, value, note, warm }: { label: string; value: number; note: string; warm?: boolean }) {
+  return (
+    <div className="rounded-2xl border bg-card px-4 py-3.5 md:px-5 md:py-4">
+      <p className="text-[13px] text-muted-foreground">{label}</p>
+      <p className={cn('mt-1 font-heading text-[34px] leading-none tabular-nums', warm && 'text-accent-warm')}>{value}</p>
+      <p className="mt-1.5 text-xs text-muted-foreground">{note}</p>
     </div>
   )
 }
@@ -417,15 +513,20 @@ function labelKategori(kategori: KategoriFilter): string {
   return KATEGORI_FILTERS.find(k => k.value === kategori)?.label ?? 'Semua'
 }
 
-function TabChip({ href, active, children }: { href: string; active: boolean; children: React.ReactNode }) {
+function Chip({
+  href, active, count, warm, children,
+}: { href: string; active: boolean; count?: number; warm?: boolean; children: React.ReactNode }) {
   return (
     <Link
       href={href}
-      className={`px-3 py-1 rounded-md text-xs font-medium whitespace-nowrap transition-colors ${
-        active ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
-      }`}
+      aria-current={active ? 'page' : undefined}
+      className={cn('inline-flex h-[34px] items-center gap-1 whitespace-nowrap rounded-full border px-3.5 text-[12.5px] font-semibold transition-colors',
+        active ? 'border-primary bg-primary text-primary-foreground'
+          : warm ? 'bg-card text-accent-warm hover:bg-accent-warm-wash'
+            : 'bg-card text-muted-foreground hover:bg-muted hover:text-foreground')}
     >
       {children}
+      {count !== undefined && <span className="tabular-nums opacity-70">{count}</span>}
     </Link>
   )
 }
@@ -447,11 +548,11 @@ function ContractHint({ contractEnd }: { contractEnd: string | null }) {
   if (daysLeft === null || daysLeft > 60) return null
 
   if (daysLeft < 0) {
-    return <span className="font-medium text-destructive">Kontrak habis</span>
+    return <span className="block text-xs font-bold text-destructive">Kontrak habis</span>
   }
   return (
-    <span className="font-medium text-warning">
-      Kontrak {daysLeft} hari lagi
+    <span className="block text-xs font-bold text-accent-warm">
+      Kontrak habis {daysLeft} hari lagi
     </span>
   )
 }

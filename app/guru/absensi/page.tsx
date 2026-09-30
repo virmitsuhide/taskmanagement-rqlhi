@@ -1,20 +1,40 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
+import { ChevronLeft } from 'lucide-react'
 import { getTeacherSession } from '@/lib/auth/teacher-session'
 import { getHalaqohSesiGuru, pilihHalaqoh } from '@/lib/data/setoran-sesi'
 import { getAbsensiTanggal, getSiswaSesi, getTanggalTerabsen } from '@/lib/data/absensi'
-import { labelTanggalPanjang } from '@/lib/rq/absensi'
 import { tanggalWIB } from '@/lib/rq/ujian'
 import { TabDaftarHadir } from '@/components/guru/TabDaftarHadir'
-import { Slicer, hrefDengan } from '@/components/dashboard/kit'
-import { AbsensiSesi } from '@/components/guru/AbsensiSesi'
+import { hrefDengan } from '@/components/dashboard/kit'
+import { DaftarHadirHarian } from './DaftarHadirHarian'
 import type { StatusAbsensi } from '@/lib/rq/absensi'
+import { cn } from '@/lib/utils'
 
 interface PageProps {
   searchParams: Promise<{ sesi?: string; tgl?: string }>
 }
 
 const PATH = '/guru/absensi'
+
+const tglWIB = (iso: string, o: Intl.DateTimeFormatOptions) =>
+  new Date(`${iso}T00:00:00+07:00`).toLocaleDateString('id-ID', { ...o, timeZone: 'Asia/Jakarta' })
+
+/** Kepingan pilihan (sesi, tanggal) — satu bentuk untuk semua baris pilihan. */
+function Keping({ href, aktif, children }: { href: string; aktif: boolean; children: React.ReactNode }) {
+  return (
+    <Link
+      href={href}
+      aria-current={aktif ? 'page' : undefined}
+      className={cn(
+        'inline-flex h-[34px] shrink-0 items-center whitespace-nowrap rounded-full border px-3.5 text-[12.5px] font-semibold transition-colors',
+        aktif ? 'border-primary bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:bg-accent',
+      )}
+    >
+      {children}
+    </Link>
+  )
+}
 
 /**
  * Daftar hadir per pertemuan.
@@ -44,72 +64,76 @@ export default async function AbsensiPage({ searchParams }: PageProps) {
     absensi.baris.map(b => [b.student_id, { status: b.status as StatusAbsensi, catatan: b.catatan }]),
   )
 
+  // Pertemuan yang sudah diabsen — jalan pintas membetulkan absensi kemarin.
+  // Tanggal yang sedang dibuka selalu ikut tampil, walau belum pernah diabsen.
+  const tanggalLain = [...new Set([...(tanggal !== hariIni ? [tanggal] : []), ...riwayat.filter(t => t !== hariIni)])]
+    .sort((a, b) => b.localeCompare(a))
+    .slice(0, 5)
+
+  const labelSesi = (h: (typeof semuaSesi)[number]) =>
+    h.sesi && semuaSesi.filter(x => x.sesi === h.sesi).length === 1 ? `Sesi ${h.sesi}` : h.name
+
   return (
     <div className="min-h-screen" style={{ background: 'var(--secondary)' }}>
-      <div className="mx-auto max-w-2xl space-y-5 px-4 py-6 md:px-6">
-        <div>
-          <p className="text-xs font-bold uppercase tracking-[0.1em] text-warning">Setoran</p>
-          <h1 className="text-3xl tracking-tight" style={{ fontFamily: 'var(--font-playfair), Georgia, serif' }}>
-            Daftar Hadir
-          </h1>
-          <p className="mt-0.5 text-sm text-muted-foreground">
-            Kehadiran satu pertemuan. Angkanya dipakai rapor semester — hadir, izin, sakit, alfa.
-          </p>
+      <div className="mx-auto max-w-2xl px-4 pb-6 pt-3 md:px-6 md:pt-6">
+        <header className="flex items-center gap-2">
+          <Link href="/guru" aria-label="Kembali ke beranda" className="-ml-2 flex size-11 shrink-0 items-center justify-center rounded-xl hover:bg-accent">
+            <ChevronLeft className="size-5" />
+          </Link>
+          <div className="min-w-0">
+            <h1 className="text-base font-bold leading-tight md:text-lg">Daftar hadir</h1>
+            <p className="truncate text-xs text-muted-foreground">
+              {sesi ? `${sesi.name} · ` : ''}{tglWIB(tanggal, { weekday: 'long', day: 'numeric', month: 'long' })}
+            </p>
+          </div>
+        </header>
+
+        <div className="mt-2 space-y-[18px]">
           {/* Layar ini menjawab "siapa yang datang hari ini"; rekap sebulan
               menjawab "bagaimana bulan ini", termasuk pertemuan yang terlewat
               diabsen — yang tidak meninggalkan jejak apa pun di sini. */}
-          <div className="mt-3"><TabDaftarHadir aktif="harian" /></div>
-        </div>
+          <TabDaftarHadir aktif="harian" />
 
-        {!sesi ? (
-          <div className="rounded-2xl border border-dashed bg-muted/30 py-10 text-center text-sm text-muted-foreground">
-            Anda belum mengampu halaqoh aktif.
-          </div>
-        ) : !absensi.tabelAda ? (
-          <div className="rounded-2xl border border-dashed bg-muted/30 p-5 text-sm text-muted-foreground">
-            Tabel absensi belum ada di basis data. Jalankan{' '}
-            <code className="rounded bg-muted px-1 py-0.5 text-xs">drizzle/0081_absensi_harian_PASTE_TO_SUPABASE.sql</code>{' '}
-            di Supabase SQL Editor lebih dulu.
-          </div>
-        ) : (
-          <>
-            <div className="space-y-3 rounded-2xl border bg-card p-4">
+          {!sesi ? (
+            <div className="rounded-2xl border border-dashed bg-muted/30 py-10 text-center text-sm text-muted-foreground">
+              Anda belum mengampu halaqoh aktif.
+            </div>
+          ) : !absensi.tabelAda ? (
+            <div className="rounded-2xl border border-dashed bg-muted/30 p-5 text-sm text-muted-foreground">
+              Tabel absensi belum ada di basis data. Jalankan{' '}
+              <code className="rounded bg-muted px-1 py-0.5 text-xs">drizzle/0081_absensi_harian_PASTE_TO_SUPABASE.sql</code>{' '}
+              di Supabase SQL Editor lebih dulu.
+            </div>
+          ) : (
+            <>
               {semuaSesi.length > 1 && (
-                <Slicer label="Sesi" options={semuaSesi.map(h => ({
-                  label: h.sesi && semuaSesi.filter(x => x.sesi === h.sesi).length === 1 ? `Sesi ${h.sesi}` : h.name,
-                  href: href({ sesi: h.id }), active: h.id === sesi.id,
-                }))} />
+                <nav aria-label="Pilih sesi" className="-mx-4 flex gap-1.5 overflow-x-auto px-4 md:mx-0 md:px-0">
+                  {semuaSesi.map(h => (
+                    <Keping key={h.id} href={href({ sesi: h.id })} aktif={h.id === sesi.id}>{labelSesi(h)}</Keping>
+                  ))}
+                </nav>
               )}
 
-              <div>
-                <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Tanggal</p>
-                <p className="mt-0.5 font-semibold">{labelTanggalPanjang(tanggal)}</p>
-                {/* Pertemuan yang sudah diabsen — jalan pintas membetulkan absensi kemarin. */}
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {tanggal !== hariIni && (
-                    <Link href={href({ tgl: undefined })} className="rounded-lg border bg-card px-3 py-1.5 text-sm hover:bg-accent">
-                      Hari ini
-                    </Link>
-                  )}
-                  {riwayat.filter(t => t !== tanggal).slice(0, 5).map(t => (
-                    <Link key={t} href={href({ tgl: t })} className="rounded-lg border bg-card px-3 py-1.5 text-sm hover:bg-accent">
-                      {new Date(`${t}T00:00:00+07:00`).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', timeZone: 'Asia/Jakarta' })}
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            </div>
+              <nav aria-label="Pilih tanggal" className="-mx-4 flex gap-1.5 overflow-x-auto px-4 md:mx-0 md:px-0">
+                <Keping href={href({ tgl: undefined })} aktif={tanggal === hariIni}>Hari ini</Keping>
+                {tanggalLain.map(t => (
+                  <Keping key={t} href={href({ tgl: t })} aktif={t === tanggal}>
+                    {tglWIB(t, { weekday: 'short', day: 'numeric' })}
+                  </Keping>
+                ))}
+              </nav>
 
-            {siswa.length === 0 ? (
-              <div className="rounded-2xl border border-dashed bg-muted/30 py-10 text-center text-sm text-muted-foreground">
-                Belum ada siswa aktif di sesi ini.
-              </div>
-            ) : (
-              // key: berganti sesi/tanggal = daftar baru, bukan sisa centang pertemuan sebelumnya.
-              <AbsensiSesi key={`${sesi.id}|${tanggal}`} halaqohId={sesi.id} tanggal={tanggal} siswa={siswa} awal={awal} />
-            )}
-          </>
-        )}
+              {siswa.length === 0 ? (
+                <div className="rounded-2xl border border-dashed bg-muted/30 py-10 text-center text-sm text-muted-foreground">
+                  Belum ada siswa aktif di sesi ini.
+                </div>
+              ) : (
+                // key: berganti sesi/tanggal = daftar baru, bukan sisa centang pertemuan sebelumnya.
+                <DaftarHadirHarian key={`${sesi.id}|${tanggal}`} halaqohId={sesi.id} tanggal={tanggal} siswa={siswa} awal={awal} />
+              )}
+            </>
+          )}
+        </div>
       </div>
     </div>
   )

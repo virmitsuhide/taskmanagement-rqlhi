@@ -1,15 +1,15 @@
 import { notFound } from 'next/navigation'
 import type { Metadata } from 'next'
-import { Lora, Playfair_Display } from 'next/font/google'
+import { Lora } from 'next/font/google'
 import { verifyLaporanToken } from '@/lib/rapor-token'
 import { createServerClient } from '@/lib/supabase/server'
 import { getLaporanOrtu } from '@/lib/data/laporan-ortu'
 import { rentangLaporan, type LaporanOrtu } from '@/lib/rq/laporan-ortu'
 import { LembarLaporanOrtu } from '@/components/rapor/LembarLaporanOrtu'
+import { LaporanHP } from './LaporanHP'
 import type { HalaqohSesi } from '@/lib/data/setoran-sesi'
 
 const lora = Lora({ subsets: ['latin'], variable: '--font-lora', display: 'swap' })
-const playfair = Playfair_Display({ subsets: ['latin'], variable: '--font-playfair', display: 'swap' })
 
 interface PageProps {
   params: Promise<{ token: string }>
@@ -61,11 +61,17 @@ export default async function LaporanPublikPage({ params }: PageProps) {
 
   return (
     <div
-      className={`${lora.variable} ${playfair.variable} min-h-screen px-4 py-8`}
+      className={`${lora.variable} min-h-screen px-4 py-6 sm:py-8`}
       style={{ background: 'var(--secondary)', fontFamily: 'var(--font-lora), Georgia, serif' }}
     >
       <div className="mx-auto max-w-3xl">
-        <LembarLaporanOrtu l={laporan} />
+        {/* HP: kartu per ananda. Layar lebar & cetak: lembar A4 yang sama dengan layar guru. */}
+        <div className="sm:hidden print:hidden">
+          <LaporanHP l={laporan} />
+        </div>
+        <div className="hidden sm:block print:block">
+          <LembarLaporanOrtu l={laporan} />
+        </div>
         <p className="mt-6 text-center text-xs text-muted-foreground print:hidden">
           Laporan digital Rumah Qur&apos;an LHI · Dibagikan oleh pengampu sesi.
         </p>

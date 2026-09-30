@@ -3,10 +3,11 @@ import type { Metadata } from 'next'
 import { verifyRaporToken } from '@/lib/rapor-token'
 import { getStudentRaporData } from '@/lib/data/rapor'
 import { RaporDocument } from '@/components/rapor/RaporDocument'
-import { Lora, Playfair_Display } from 'next/font/google'
+import { RaporHP } from './RaporHP'
+import { TombolCetak } from './TombolCetak'
+import { Lora } from 'next/font/google'
 
 const lora = Lora({ subsets: ['latin'], variable: '--font-lora', display: 'swap' })
-const playfair = Playfair_Display({ subsets: ['latin'], variable: '--font-playfair', display: 'swap' })
 
 interface PageProps {
   params: Promise<{ token: string }>
@@ -43,11 +44,20 @@ export default async function PublicRaporPage({ params }: PageProps) {
 
   return (
     <div
-      className={`${lora.variable} ${playfair.variable} min-h-screen py-8 px-4`}
+      className={`${lora.variable} min-h-screen py-6 sm:py-8 px-4`}
       style={{ background: 'var(--secondary)', fontFamily: 'var(--font-lora), Georgia, serif' }}
     >
       <div className="max-w-3xl mx-auto">
-        <RaporDocument data={data} />
+        {/* HP: kartu ringkas. Layar lebar & cetak: lembar A4 yang sama dengan layar guru. */}
+        <div className="sm:hidden print:hidden">
+          <RaporHP data={data} />
+        </div>
+        <div className="hidden sm:block print:block">
+          <RaporDocument data={data} />
+        </div>
+        <div className="mx-auto mt-5 max-w-xs print:hidden">
+          <TombolCetak />
+        </div>
         <p className="text-center text-xs text-muted-foreground mt-6 print:hidden">
           Rapor digital Rumah Qur&apos;an LHI · Dibagikan oleh wali halaqoh.
         </p>

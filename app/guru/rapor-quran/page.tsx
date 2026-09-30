@@ -54,13 +54,15 @@ export default async function RaporQuranPage({ searchParams }: PageProps) {
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--secondary)' }}>
-      <div className="mx-auto max-w-3xl space-y-5 px-4 py-6 md:px-6">
+      <div className="mx-auto max-w-3xl space-y-5 px-4 py-6 md:px-6 md:py-8">
         <div>
-          <p className="text-xs font-bold uppercase tracking-[0.1em] text-warning">Laporan</p>
-          <h1 className="text-3xl tracking-tight" style={{ fontFamily: 'var(--font-playfair), Georgia, serif' }}>
-            Rapor Qur&apos;an
+          <p className="text-xs font-bold uppercase tracking-[0.12em] text-accent-warm">
+            Rapor Qur&apos;an{term ? ` · ${LABEL_JENIS_RAPOR[jenis]} ${LABEL_SEMESTER(term)}` : ''}
+          </p>
+          <h1 className="mt-1.5 font-heading text-3xl leading-tight tracking-tight md:text-[34px]">
+            {sesi ? sesi.name : 'Rapor Qur\u2019an'}
           </h1>
-          <p className="mt-0.5 text-sm text-muted-foreground">
+          <p className="mt-1 text-sm text-muted-foreground">
             Satu lembar per anak, memakai format yang ditetapkan koordinator. Angkanya terisi sendiri dari setoran dan
             daftar hadir — yang Anda tulis adalah deskripsi perkembangannya.
           </p>
@@ -102,13 +104,17 @@ export default async function RaporQuranPage({ searchParams }: PageProps) {
               </div>
             ) : (
               <>
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="text-sm text-muted-foreground">
-                    {terisi} dari {bahan.length} selesai diisi · format <b>{template.nama}</b>
-                  </p>
+                <div className="flex flex-col gap-3 rounded-2xl border bg-card p-4 sm:flex-row sm:items-center">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-bold">{terisi} dari {bahan.length} rapor sudah selesai diisi</p>
+                    <div className="mt-2 h-2 overflow-hidden rounded-full bg-muted">
+                      <div className="h-full rounded-full bg-primary" style={{ width: `${bahan.length ? Math.round((terisi / bahan.length) * 100) : 0}%` }} />
+                    </div>
+                    <p className="mt-1.5 text-xs text-muted-foreground">format <b>{template.nama}</b></p>
+                  </div>
                   <Link
                     href={`${PATH}/cetak?sesi=${sesi.id}&term=${term.id}&jenis=${jenis}`}
-                    className="inline-flex items-center gap-1.5 rounded-lg border bg-card px-3 py-1.5 text-sm hover:bg-accent"
+                    className="inline-flex h-11 shrink-0 items-center justify-center gap-1.5 rounded-xl border bg-card px-4 text-sm font-bold hover:bg-accent"
                   >
                     <Printer className="h-4 w-4" /> Cetak satu sesi
                   </Link>
@@ -119,10 +125,10 @@ export default async function RaporQuranPage({ searchParams }: PageProps) {
                     <li key={b.student.id}>
                       <Link
                         href={`${PATH}/${b.student.id}?term=${term.id}&jenis=${jenis}`}
-                        className="flex items-center justify-between gap-3 rounded-2xl border bg-card p-3 hover:bg-accent"
+                        className="flex items-center justify-between gap-3 rounded-2xl border bg-card px-4 py-3 hover:bg-accent"
                       >
                         <div className="min-w-0">
-                          <p className="truncate font-medium">
+                          <p className="truncate font-bold">
                             <span className="mr-2 text-xs text-muted-foreground tabular-nums">{i + 1}</span>
                             {b.student.nama}
                           </p>
@@ -135,7 +141,7 @@ export default async function RaporQuranPage({ searchParams }: PageProps) {
                         </div>
                         <span className={cn(
                           'shrink-0 rounded-full px-2 py-0.5 text-[11px]',
-                          b.selesai ? 'bg-primary-wash text-primary' : 'border text-muted-foreground',
+                          b.selesai ? 'bg-primary-wash text-primary' : 'bg-accent-warm-wash font-semibold text-accent-warm',
                         )}>
                           {b.selesai ? <Check className="h-3.5 w-3.5" /> : 'belum'}
                         </span>

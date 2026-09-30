@@ -1,6 +1,5 @@
 import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
-import { Newsreader } from 'next/font/google'
 import { getSession } from '@/lib/auth/session'
 import { canCreateNews } from '@/lib/auth/permissions'
 import { createServerClient } from '@/lib/supabase/server'
@@ -10,9 +9,9 @@ import { NewsForm } from '@/app/news/baru/NewsForm'
 import { Button } from '@/components/ui/button'
 import { ArrowLeft } from 'lucide-react'
 import type { NewsArticle } from '@/types'
+import { hasStatusColumns } from '@/lib/data/news-status'
 
 // Huruf judul Teduh; nama variabel lama dipertahankan agar pemakainya tak perlu diubah.
-const playfair = Newsreader({ subsets: ['latin'], variable: '--font-playfair', display: 'swap', style: ['normal', 'italic'] })
 
 interface PageProps {
   params: Promise<{ id: string }>
@@ -33,11 +32,13 @@ export default async function EditNewsPage({ params }: PageProps) {
 
   if (!data) notFound()
   const article = data as NewsArticle
+  // Kolom status/jadwal ikut terbaca lewat select('*') bila migrasi 0107 sudah jalan.
+  const scheduleReady = hasStatusColumns(data)
 
   const boundAction = updateNewsAction.bind(null, id)
 
   return (
-    <div className={playfair.variable}>
+    <div>
       <DashboardHeader
         displayName={session.displayName}
         role={session.role}
@@ -62,12 +63,15 @@ export default async function EditNewsPage({ params }: PageProps) {
           Edit Berita
         </h1>
         <p className="text-sm text-muted-foreground mb-8">
-          Perubahan akan langsung terlihat di halaman publik.
+          {scheduleReady
+            ? 'Atur status tayangnya di bawah — draf, terbit sekarang, atau terjadwal.'
+            : 'Perubahan akan langsung terlihat di halaman publik.'}
         </p>
         <NewsForm
           action={boundAction}
           defaultValues={article}
           submitLabel="Simpan Perubahan"
+          scheduleReady={scheduleReady}
         />
       </div>
     </div>

@@ -7,9 +7,25 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { RichTextEditor } from '@/components/ui/rich-text-editor'
-import { ImagePlus, X } from 'lucide-react'
+import { ImagePlus, X, FileText, Send, CalendarClock } from 'lucide-react'
 import Image from 'next/image'
 import type { NewsArticle, NewsCategory, NewsType } from '@/types'
+import { toWibInputValue, type NewsRow } from '@/lib/data/news-status'
+
+type PublishMode = 'draf' | 'sekarang' | 'jadwal'
+
+const PUBLISH_OPTIONS: { value: PublishMode; label: string; hint: string; Icon: typeof FileText }[] = [
+  { value: 'draf',     label: 'Simpan draf',       hint: 'Belum tampil di publik',     Icon: FileText },
+  { value: 'sekarang', label: 'Terbitkan sekarang', hint: 'Langsung tampil di publik', Icon: Send },
+  { value: 'jadwal',   label: 'Jadwalkan',          hint: 'Tayang otomatis pada waktunya', Icon: CalendarClock },
+]
+
+function initialMode(row: NewsRow | undefined): PublishMode {
+  if (!row) return 'sekarang'
+  if (row.status === 'draf') return 'draf'
+  if (row.publish_at && new Date(row.publish_at).getTime() > Date.now()) return 'jadwal'
+  return 'sekarang'
+}
 
 const CATEGORIES = [
   { value: 'sdit_lhi',     label: 'SDIT LHI' },
@@ -26,12 +42,15 @@ interface Props {
   action?: FormAction
   defaultValues?: NewsArticle
   submitLabel?: string
+  /** Kolom status/jadwal sudah ada di database (migrasi 0107). */
+  scheduleReady?: boolean
 }
 
 export function NewsForm({
   action: actionProp,
   defaultValues,
   submitLabel,
+  scheduleReady = false,
 }: Props = {}) {
   const action = actionProp ?? (createNewsAction as unknown as FormAction)
   const isEdit = !!defaultValues
@@ -43,6 +62,16 @@ export function NewsForm({
   const [type, setType] = useState<NewsType>(defaultValues?.type ?? 'berita')
   const [category, setCategory] = useState<string>(defaultValues?.category ?? '')
   const [removeThumbnail, setRemoveThumbnail] = useState(false)
+  const [publishMode, setPublishMode] = useState<PublishMode>(() => initialMode(defaultValues as NewsRow | undefined))
+  const [publishAt, setPublishAt] = useState<string>(() => {
+    const row = defaultValues as NewsRow | undefined
+    return initialMode(row) === 'jadwal' ? toWibInputValue(row?.publish_at) : ''
+  })
+
+  const modeLabel =
+    publishMode === 'draf' ? (isPending ? 'Menyimpan draf...' : 'Simpan Draf')
+    : publishMode === 'jadwal' ? (isPending ? 'Menjadwalkan...' : 'Jadwalkan Terbit')
+    : null
 
   const existingThumb = !removeThumbnail && !preview ? defaultValues?.thumbnail_url ?? null : null
 
@@ -224,6 +253,61 @@ export function NewsForm({
         </p>
       </div>
 
+      {/* Status tayang */}
+      {scheduleReady ? (
+        <fieldset className="space-y-2 rounded-2xl border bg-card p-4">
+          <legend className="px-1 text-sm font-medium">Status tayang</legend>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+            {PUBLISH_OPTIONS.map(({ value, label, hint, Icon }) => (
+              <label
+                key={value}
+                className={`flex cursor-pointer items-start gap-2.5 rounded-xl border px-3 py-2.5 transition-colors ${
+                  publishMode === value
+                    ? 'border-primary bg-primary-wash'
+                    : 'bg-card hover:bg-muted'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="publish_mode"
+                  value={value}
+                  checked={publishMode === value}
+                  onChange={() => setPublishMode(value)}
+                  className="sr-only"
+                />
+                <Icon className={`mt-0.5 h-4 w-4 shrink-0 ${publishMode === value ? 'text-primary' : 'text-muted-foreground'}`} />
+                <span className="min-w-0">
+                  <span className={`block text-sm font-semibold ${publishMode === value ? 'text-primary' : ''}`}>{label}</span>
+                  <span className="block text-xs text-muted-foreground">{hint}</span>
+                </span>
+              </label>
+            ))}
+          </div>
+          {publishMode === 'jadwal' && (
+            <div className="space-y-1.5 pt-1">
+              <Label htmlFor="publish_at">Tanggal &amp; jam tayang (WIB) <span className="text-destructive">*</span></Label>
+              <Input
+                id="publish_at"
+                name="publish_at"
+                type="datetime-local"
+                required
+                value={publishAt}
+                onChange={e => setPublishAt(e.target.value)}
+                className="sm:max-w-xs"
+              />
+              <p className="text-xs text-muted-foreground">
+                Berita tersimpan sekarang, dan baru tampil di halaman publik setelah waktu ini.
+              </p>
+            </div>
+          )}
+        </fieldset>
+      ) : (
+        <p className="rounded-xl bg-muted/60 px-3 py-2 text-xs text-muted-foreground">
+          Berita langsung terbit saat disimpan. Pilihan draf &amp; jadwal terbit aktif setelah migrasi
+          database 0107 dijalankan.
+        </p>
+      )}
+
       {state?.error && (
         <p className="text-sm text-destructive bg-destructive/10 px-3 py-2 rounded-md">
           {state.error}
@@ -232,9 +316,11 @@ export function NewsForm({
 
       <div className="flex gap-3 pt-1 pb-8">
         <Button type="submit" disabled={isPending} size="lg">
-          {isPending
-            ? (isEdit ? 'Menyimpan...' : 'Mempublikasikan...')
-            : (submitLabel ?? (isEdit ? 'Simpan Perubahan' : 'Publikasikan Berita'))}
+          {scheduleReady && modeLabel
+            ? modeLabel
+            : isPending
+              ? (isEdit ? 'Menyimpan...' : 'Mempublikasikan...')
+              : (submitLabel ?? (isEdit ? 'Simpan Perubahan' : 'Publikasikan Berita'))}
         </Button>
       </div>
     </form>

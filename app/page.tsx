@@ -16,6 +16,7 @@ import { getDataEkstra, getGuruEkstra, keJenisPublik, type DataEkstra } from '@/
 import { PublicFooter } from '@/components/home/PublicFooter'
 import type { PublicPost, NewsArticle, KaldiEvent } from '@/types'
 import { getKaldikEvents } from '@/lib/data/kaldik'
+import { publicNews, type NewsRow } from '@/lib/data/news-status'
 
 // Huruf judul Teduh; nama variabel lama dipertahankan agar pemakainya tak perlu diubah.
 const playfair = Newsreader({ subsets: ['latin'], variable: '--font-playfair', display: 'swap', style: ['normal', 'italic'] })
@@ -51,8 +52,10 @@ async function getNews(limit: number): Promise<NewsArticle[]> {
       .select('*, author:users!news_articles_author_id_fkey(id, display_name, role)')
       .eq('is_active', true)
       .order('created_at', { ascending: false })
-      .limit(limit)
-    return (data ?? []) as NewsArticle[]
+      // Ambil lebih banyak lalu saring draf / terjadwal di JS (aman sebelum
+      // kolom status dari migrasi 0107 ada), baru dipotong sesuai limit.
+      .limit(limit + 30)
+    return publicNews((data ?? []) as NewsRow[]).slice(0, limit)
   } catch {
     return []
   }

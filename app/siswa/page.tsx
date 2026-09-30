@@ -9,7 +9,8 @@ import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { SearchInput } from '@/components/ui/search-input'
 import { Button } from '@/components/ui/button'
 import { SiswaRowActions } from '@/components/siswa/SiswaRowActions'
-import { Plus, Users, Upload, ArrowDown, ArrowUp, AlertTriangle } from 'lucide-react'
+import { Plus, Users, Upload, ArrowDown, ArrowUp, AlertCircle } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import { SURAH } from '@/lib/rq/quran'
 import { tingkatOf } from '@/lib/rq/sesi'
 import { kelasJelas } from '@/lib/rq/kelas'
@@ -282,116 +283,140 @@ export default async function SiswaListPage({ searchParams }: PageProps) {
     return href({ sort: key, dir: sort === key && dir === 'asc' ? 'desc' : 'asc' })
   }
 
+  // ── Angka ringkas untuk rombel yang sedang terbuka (dari baris yang sudah dimuat).
+  const tanpaPengampu = baris.filter(s => !s.pengampu).length
+  const tahsinTercatat = baris.filter(s => s.tahsinLabel !== '—').length
+  const tahfidzTercatat = baris.filter(s => s.tahfidzLabel !== '—').length
+  const persen = (n: number) => (baris.length ? Math.round((n / baris.length) * 100) : 0)
+  const siswaTingkat = tingkat === null ? 0 : rombelList.reduce((n, k) => n + (kelasCount.get(k) ?? 0), 0)
+
   return (
     <div>
       <DashboardHeader displayName={session.displayName} role={session.role} title="Siswa" showBack ownH1 />
-      <div className="p-4 md:p-8 max-w-6xl mx-auto">
-        <div className="flex items-end justify-between gap-3 flex-wrap mb-5">
-          <div>
-            <h1 className="text-3xl leading-tight">Siswa</h1>
-            <p className="text-sm text-muted-foreground mt-0.5">
-              {JENJANG_LABELS[jenjang]}
-              {kelas ? ` · Kelas ${kelas} · ${baris.length} siswa` : ' · belum ada kelas'}
-            </p>
+      <div className="mx-auto max-w-6xl space-y-5 p-4 md:p-8">
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div className="min-w-0">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-accent-warm">Pembinaan Qur&rsquo;an · siswa</p>
+            <h1 className="mt-1 max-w-3xl font-heading text-3xl leading-tight md:text-[34px]">
+              {kelas ? (
+                <>
+                  Siswa {JENJANG_LABELS[jenjang]} kelas {kelas} — {baris.length} anak
+                  {tanpaPengampu > 0 ? <>, <i>{tanpaPengampu} belum punya pengampu.</i></> : '.'}
+                </>
+              ) : (
+                <>Siswa {JENJANG_LABELS[jenjang]} — <i>belum ada kelas.</i></>
+              )}
+            </h1>
           </div>
           {canCreate && (
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Button asChild size="sm" variant="outline">
-                <Link href="/siswa/impor"><Upload className="h-4 w-4 mr-1" />Impor Excel</Link>
+                <Link href="/siswa/impor"><Upload className="mr-1 h-4 w-4" />Impor Excel</Link>
               </Button>
               <Button asChild size="sm">
-                <Link href="/siswa/baru"><Plus className="h-4 w-4 mr-1" />Tambah Siswa</Link>
+                <Link href="/siswa/baru"><Plus className="mr-1 h-4 w-4" />Tambah siswa</Link>
               </Button>
             </div>
           )}
         </div>
 
-        <div className="mb-3">
-          <SearchInput placeholder="Cari nama atau NIS..." />
-        </div>
-
         {/* Unit — seluruhnya selalu tampil, termasuk yang belum berisi siswa,
             supaya terlihat unit mana saja yang memang didukung. */}
-        <div className="flex gap-2 mb-3 flex-wrap">
-          {viewableJenjang.map(j => (
-            <Link
-              key={j}
-              href={href({ jenjang: j, tingkat: null, kelas: null })}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
-                jenjang === j
-                  ? 'bg-primary text-primary-foreground border-primary'
-                  : 'bg-card hover:bg-muted text-muted-foreground'
-              }`}
-            >
-              {JENJANG_LABELS[j]}
-              <span className="opacity-60 ml-1 tabular-nums">({jenjangCount.get(j) ?? 0})</span>
-            </Link>
-          ))}
-        </div>
-
-        {/* Tingkat — lapis pertama. Tanpa "Semua Kelas". */}
-        {(tingkatList.length > 0 || belumJelas > 0) && (
-          <div className="flex gap-1 mb-3 overflow-x-auto border-b">
-            {tingkatList.map(t => (
+        <div className="flex flex-col gap-3 md:flex-row md:items-center">
+          <nav aria-label="Unit" className="flex flex-wrap gap-1.5">
+            {viewableJenjang.map(j => (
               <Link
-                key={t}
-                // Berganti tingkat membuang rombel: rombel itu milik tingkat
-                // yang ditinggalkan, dan '1A' tidak ada di kelas 2.
-                href={href({ tingkat: t, kelas: null })}
-                className={`px-3 py-1.5 text-xs font-medium whitespace-nowrap border-b-2 -mb-px transition-colors ${
-                  tingkat === t
-                    ? 'border-primary text-foreground'
-                    : 'border-transparent text-muted-foreground hover:text-foreground'
-                }`}
+                key={j}
+                href={href({ jenjang: j, tingkat: null, kelas: null })}
+                aria-current={jenjang === j ? 'page' : undefined}
+                className={cn('inline-flex h-[34px] items-center gap-1 rounded-full border px-3.5 text-[12.5px] font-semibold transition-colors',
+                  jenjang === j ? 'border-primary bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:bg-muted hover:text-foreground')}
               >
-                {t === 0 ? 'Lainnya' : `Kelas ${t}`}
-                <span className="opacity-60 ml-1 tabular-nums">
-                  ({perTingkat.get(t)!.reduce((n, k) => n + (kelasCount.get(k) ?? 0), 0)})
-                </span>
+                {JENJANG_LABELS[j]}
+                <span className="tabular-nums opacity-70">{jenjangCount.get(j) ?? 0}</span>
               </Link>
             ))}
+          </nav>
+          <div className="md:ml-auto md:w-64">
+            <SearchInput placeholder="Cari nama atau NIS" />
+          </div>
+        </div>
 
-            {/* Tab pembenahan — hilang sendiri begitu tidak ada lagi yang
-                menggantung, jadi ia tidak pernah jadi tab kosong yang harus
-                dijelaskan. Warnanya sengaja berbeda: ini bukan tingkat kelas
-                yang sejajar dengan tetangganya, melainkan pekerjaan yang belum
-                selesai yang kebetulan tinggal di deretan yang sama. */}
+        {/* Tingkat — lapis pertama, sebagai ubin. Tanpa "Semua Kelas". */}
+        {tingkatList.length > 0 && (
+          <nav aria-label="Tingkat kelas" className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+            {tingkatList.map(t => {
+              const n = perTingkat.get(t)!.reduce((m, k) => m + (kelasCount.get(k) ?? 0), 0)
+              const on = tingkat === t
+              return (
+                <Link
+                  key={t}
+                  // Berganti tingkat membuang rombel: rombel itu milik tingkat
+                  // yang ditinggalkan, dan '1A' tidak ada di kelas 2.
+                  href={href({ tingkat: t, kelas: null })}
+                  aria-current={on ? 'page' : undefined}
+                  className={cn('flex flex-col rounded-xl border px-3.5 py-2.5 transition-colors',
+                    on ? 'border-primary bg-primary text-primary-foreground' : 'bg-card hover:border-primary/40')}
+                >
+                  <span className="text-sm font-bold">{t === 0 ? 'Lainnya' : `Kelas ${t}`}</span>
+                  <span className={cn('text-xs tabular-nums', on ? 'opacity-80' : 'text-muted-foreground')}>{n} siswa</span>
+                </Link>
+              )
+            })}
+          </nav>
+        )}
+
+        {/* Rombel — lapis kedua, hanya rombel milik tingkat yang sedang dipilih.
+            Di sampingnya tautan pembenahan untuk anak yang kelasnya belum jelas —
+            hilang sendiri begitu tidak ada lagi yang menggantung. */}
+        {(rombelList.length > 0 || belumJelas > 0) && (
+          <div className="flex flex-col gap-3 md:flex-row md:items-center">
+            {rombelList.length > 0 && (
+              <nav aria-label="Rombel" className="flex flex-wrap gap-1.5">
+                {rombelList.map(k => (
+                  <Link
+                    key={k}
+                    href={href({ kelas: k })}
+                    aria-current={kelas === k ? 'page' : undefined}
+                    className={cn('inline-flex h-[34px] items-center gap-1 rounded-full border px-3.5 text-[12.5px] font-semibold transition-colors',
+                      kelas === k ? 'border-primary bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:bg-muted hover:text-foreground')}
+                  >
+                    {k}
+                    <span className="tabular-nums opacity-70">{kelasCount.get(k)}</span>
+                  </Link>
+                ))}
+              </nav>
+            )}
             {belumJelas > 0 && (
               <Link
                 href="/siswa/kelas"
-                className="ml-auto inline-flex items-center gap-1.5 whitespace-nowrap border-b-2 border-transparent px-3 py-1.5 -mb-px text-xs font-medium text-warning transition-colors hover:border-warning"
+                className="inline-flex items-center gap-2 self-start rounded-full bg-accent-warm-wash px-3.5 py-2 text-[12.5px] font-semibold text-accent-warm transition-opacity hover:opacity-80 md:ml-auto md:self-auto"
               >
-                <AlertTriangle className="h-3.5 w-3.5" />
-                Belum jelas
-                <span className="opacity-70 tabular-nums">({belumJelas})</span>
+                <AlertCircle className="h-4 w-4 shrink-0" />
+                {belumJelas} siswa kelasnya belum jelas — rapikan →
               </Link>
             )}
           </div>
         )}
 
-        {/* Rombel — lapis kedua, hanya rombel milik tingkat yang sedang dipilih. */}
-        {rombelList.length > 0 && (
-          <div className="flex w-fit max-w-full gap-1 mb-4 rounded-lg bg-muted p-1 overflow-x-auto">
-            {rombelList.map(k => (
-              <Link
-                key={k}
-                href={href({ kelas: k })}
-                className={`px-3 py-1 rounded-md text-xs font-medium whitespace-nowrap transition-colors ${
-                  kelas === k ? 'bg-background shadow-sm' : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                {k}
-                <span className="opacity-60 ml-1 tabular-nums">({kelasCount.get(k)})</span>
-              </Link>
-            ))}
+        {kelas && baris.length > 0 && (
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <StatTile
+              label={`Siswa di ${kelas}`}
+              value={baris.length}
+              note={rombelList.length > 1 ? `${tingkat === 0 ? 'Lainnya' : `Kelas ${tingkat}`}: ${siswaTingkat} siswa` : 'satu-satunya rombel'}
+            />
+            <StatTile label="Tahsin tercatat" value={tahsinTercatat} note={`${persen(tahsinTercatat)}% dari rombel`} />
+            <StatTile label="Tahfidz tercatat" value={tahfidzTercatat} note={`${persen(tahfidzTercatat)}% dari rombel`} />
+            <StatTile label="Tanpa pengampu" value={tanpaPengampu} note="belum masuk halaqoh berpengampu" warm={tanpaPengampu > 0} />
           </div>
         )}
 
         {baris.length === 0 ? (
-          <div className="rounded-2xl border border-dashed py-12 text-center bg-muted/30">
-            <Users className="h-8 w-8 mx-auto text-muted-foreground/40 mb-3" />
-            <p className="font-medium text-sm">Tidak ada siswa</p>
-            <p className="text-xs text-muted-foreground mt-1">
+          <div className="rounded-2xl border border-dashed bg-card py-12 text-center">
+            <Users className="mx-auto mb-3 h-8 w-8 text-muted-foreground/40" />
+            <p className="text-sm font-medium">Tidak ada siswa</p>
+            <p className="mt-1 text-xs text-muted-foreground">
               {query
                 ? `Tidak ada hasil untuk "${query}" di ${JENJANG_LABELS[jenjang]}`
                 : `Belum ada siswa di ${JENJANG_LABELS[jenjang]}`}
@@ -400,38 +425,46 @@ export default async function SiswaListPage({ searchParams }: PageProps) {
         ) : (
           /* Tabel lebar menggulir di dalam wadahnya sendiri — halamannya tidak
              ikut bergeser mendatar di layar sempit. */
-          <div className="rounded-lg border bg-card overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="border-b bg-muted/40 text-xs text-muted-foreground">
+          <div className="overflow-x-auto rounded-2xl border bg-card">
+            <table className="w-full min-w-[720px] text-sm">
+              <thead className="border-b text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
                 <tr>
                   <Th href={hrefSort('nama')} aktif={sort === 'nama'} dir={dir}>Nama</Th>
-                  <Th href={hrefSort('pengampu')} aktif={sort === 'pengampu'} dir={dir}>Pengampu</Th>
-                  <Th href={hrefSort('tahsin')} aktif={sort === 'tahsin'} dir={dir}>Capaian Tahsin</Th>
-                  <Th href={hrefSort('tahfidz')} aktif={sort === 'tahfidz'} dir={dir}>Capaian Tahfidz</Th>
-                  {bolehUbah && <th className="w-20 px-3 py-2" />}
+                  <th className="px-3 py-3 text-left font-bold">Kelas</th>
+                  <Th href={hrefSort('pengampu')} aktif={sort === 'pengampu'} dir={dir}>Pengampu · halaqoh</Th>
+                  <Th href={hrefSort('tahsin')} aktif={sort === 'tahsin'} dir={dir}>Tahsin</Th>
+                  <Th href={hrefSort('tahfidz')} aktif={sort === 'tahfidz'} dir={dir}>Tahfidz</Th>
+                  {bolehUbah && <th className="w-20 px-3 py-3" />}
                 </tr>
               </thead>
               <tbody className="divide-y">
                 {baris.map(s => (
-                  <tr key={s.id} className="hover:bg-muted/30 transition-colors">
-                    <td className="px-3 py-2">
-                      <Link href={`/siswa/${s.id}`} className="font-medium hover:underline">
+                  <tr key={s.id} className="transition-colors hover:bg-muted/30">
+                    <td className="px-3 py-3 first:pl-5">
+                      <Link href={`/siswa/${s.id}`} className="font-bold hover:underline">
                         {s.full_name}
                       </Link>
                       {s.nis && (
-                        <span className="block text-[11px] text-muted-foreground">NIS {s.nis}</span>
+                        <span className="block text-xs text-muted-foreground">NIS {s.nis}</span>
                       )}
                     </td>
-                    <td className="px-3 py-2 text-muted-foreground">
-                      {s.pengampu ?? <em className="opacity-70">tanpa pengampu</em>}
+                    <td className="px-3 py-3 font-bold">{s.kelas ?? '—'}</td>
+                    <td className="px-3 py-3">
+                      {s.pengampu
+                        ? <span className="font-semibold">{s.pengampu}</span>
+                        : <span className="font-semibold text-accent-warm">tanpa pengampu</span>}
                       {s.halaqoh && (
-                        <span className="block text-[11px] opacity-70">{s.halaqoh}</span>
+                        <span className="block text-xs text-muted-foreground">{s.halaqoh}</span>
                       )}
                     </td>
-                    <td className="px-3 py-2 text-muted-foreground">{s.tahsinLabel}</td>
-                    <td className="px-3 py-2 text-muted-foreground">{s.tahfidzLabel}</td>
+                    <td className={cn('px-3 py-3', s.tahsinLabel === '—' && 'text-accent-warm')}>
+                      {s.tahsinLabel === '—' ? 'belum tercatat' : s.tahsinLabel}
+                    </td>
+                    <td className={cn('px-3 py-3', s.tahfidzLabel === '—' && 'text-accent-warm')}>
+                      {s.tahfidzLabel === '—' ? 'belum tercatat' : s.tahfidzLabel}
+                    </td>
                     {bolehUbah && (
-                      <td className="px-3 py-2">
+                      <td className="px-3 py-3 pr-5">
                         <SiswaRowActions id={s.id} name={s.full_name} />
                       </td>
                     )}
@@ -446,12 +479,22 @@ export default async function SiswaListPage({ searchParams }: PageProps) {
   )
 }
 
+function StatTile({ label, value, note, warm }: { label: string; value: number; note: string; warm?: boolean }) {
+  return (
+    <div className="rounded-2xl border bg-card px-4 py-3.5 md:px-5 md:py-4">
+      <p className="text-[13px] text-muted-foreground">{label}</p>
+      <p className={cn('mt-1 font-heading text-[34px] leading-none tabular-nums', warm && 'text-accent-warm')}>{value}</p>
+      <p className="mt-1.5 text-xs text-muted-foreground">{note}</p>
+    </div>
+  )
+}
+
 /** Kepala kolom yang bisa diklik untuk mengurutkan. */
 function Th({
   href, aktif, dir, children,
 }: { href: string; aktif: boolean; dir: 'asc' | 'desc'; children: React.ReactNode }) {
   return (
-    <th className="px-3 py-2 text-left font-medium">
+    <th className="px-3 py-3 text-left font-bold first:pl-5">
       <Link href={href} className="inline-flex items-center gap-1 hover:text-foreground">
         {children}
         {aktif && (dir === 'asc'

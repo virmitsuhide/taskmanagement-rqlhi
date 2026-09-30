@@ -65,6 +65,11 @@
  * berganti rupa tanpa menyentuh logika.
  */
 :root {
+  /* Nama lama huruf judul. Sebagian halaman & komponen masih memakai
+     var(--font-playfair); kini ia hanya alias huruf judul Teduh (Newsreader)
+     yang dimuat sekali di layout akar. */
+  --font-playfair: var(--font-display);
+
     --background: #F5F2EA;
     --foreground: #17211F;
     --card: #FFFFFF;

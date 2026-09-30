@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, PenLine, ShieldAlert } from 'lucide-react'
+import { ArrowLeft, ChevronLeft, ChevronRight, PenLine, ShieldAlert } from 'lucide-react'
 import { getSession } from '@/lib/auth/session'
 import { createServerClient } from '@/lib/supabase/server'
 import { canAccessKpiPublikasi, canPublishKpiRapor } from '@/lib/auth/permissions'
@@ -110,18 +110,50 @@ export default async function PublikasiKpiPage({ searchParams }: PageProps) {
       />
 
       <div className="mx-auto max-w-[1200px] p-4 md:p-8">
-        <Link
-          href="/kpi"
-          className="mb-4 inline-flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
-        >
-          <ArrowLeft className="h-3.5 w-3.5" />Kembali ke KPI bulanan
-        </Link>
-
-        <h1 className="text-3xl leading-tight">Publikasi Rapor KPI</h1>
-        <p className="mb-5 mt-0.5 text-sm text-muted-foreground">
-          {MONTH_NAMES[month - 1]} {year} · {unitSaya.find(u => u.key === unit)?.label}
-          {menunggu.length > 0 && ` · ${menunggu.length} menunggu tanda tangan Anda`}
-        </p>
+        <div className="mb-5 flex flex-wrap items-end justify-between gap-4">
+          <div className="min-w-0 max-w-3xl">
+            <Link
+              href="/kpi"
+              className="mb-3 inline-flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" />Kembali ke KPI bulanan
+            </Link>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-accent-warm">
+              Ruang kerja · Publikasi KPI
+            </p>
+            <h1 className="mt-1 font-heading text-3xl leading-tight md:text-[38px]">
+              KPI {MONTH_NAMES[month - 1]} —{' '}
+              <em>
+                {menunggu.length > 0
+                  ? `${menunggu.length} guru menunggu Anda terbitkan.`
+                  : 'tidak ada yang menunggu Anda.'}
+              </em>
+            </h1>
+            <p className="mt-2 text-sm text-muted-foreground">
+              {unitSaya.find(u => u.key === unit)?.label} · {MONTH_NAMES[month - 1]} {year}. Periksa nilai
+              yang sudah diisi SDM. Terbitkan yang sudah pas; kembalikan dengan catatan bila perlu dikoreksi.
+            </p>
+          </div>
+          <div className="flex items-center gap-1">
+            <Link
+              href={href(month === 1 ? { month: 12, year: year - 1 } : { month: month - 1 })}
+              aria-label="Bulan sebelumnya"
+              className="flex h-9 w-9 items-center justify-center rounded-full border bg-card hover:bg-muted"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Link>
+            <span className="min-w-24 text-center text-sm font-bold tabular-nums">
+              {MONTH_NAMES[month - 1].slice(0, 3)} {year}
+            </span>
+            <Link
+              href={href(month === 12 ? { month: 1, year: year + 1 } : { month: month + 1 })}
+              aria-label="Bulan berikutnya"
+              className="flex h-9 w-9 items-center justify-center rounded-full border bg-card hover:bg-muted"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Link>
+          </div>
+        </div>
 
         {/*
           Peringatan tanda tangan ditaruh SEBELUM daftarnya, bukan sebagai galat
@@ -130,7 +162,7 @@ export default async function PublikasiKpiPage({ searchParams }: PageProps) {
           sejak awal memang layak diberitahukan sejak awal.
         */}
         {!punyaTtd && (
-          <div className="mb-4 flex items-start gap-2.5 rounded-lg border border-warning/30 bg-warning-wash px-3.5 py-3">
+          <div className="mb-4 flex items-start gap-2.5 rounded-2xl border border-warning/30 bg-warning-wash px-4 py-3">
             <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
             <div className="text-sm">
               <p className="font-semibold text-warning">Tanda tangan Anda belum terpasang</p>
@@ -146,7 +178,7 @@ export default async function PublikasiKpiPage({ searchParams }: PageProps) {
         )}
 
         {unitSaya.length > 1 && (
-          <div className="mb-3 flex w-fit gap-1 overflow-x-auto rounded-lg bg-muted p-1">
+          <div className="mb-3 flex w-fit max-w-full gap-1 overflow-x-auto rounded-xl bg-muted p-1">
             {unitSaya.map(u => (
               <Link
                 key={u.key}
@@ -195,7 +227,7 @@ export default async function PublikasiKpiPage({ searchParams }: PageProps) {
         </div>
 
         {rows.length === 0 ? (
-          <div className="rounded-lg border border-dashed py-14 text-center">
+          <div className="rounded-2xl border border-dashed bg-card py-14 text-center">
             <PenLine className="mx-auto mb-2 h-6 w-6 text-muted-foreground" />
             <p className="text-sm font-medium">Belum ada rapor untuk periode ini</p>
             <p className="mt-1 text-xs text-muted-foreground">
