@@ -9,7 +9,7 @@ import {
 } from '@/lib/auth/permissions'
 import { hariIni, syncHalaqohMembership, syncHalaqohMemberships } from '@/lib/data/halaqoh-membership'
 import { periksaBaris, tandaiNisKembar, type BarisSiswa, type RujukanImpor } from '@/lib/rq/siswa-impor'
-import { kelasJelas, POLA_KELAS } from '@/lib/rq/kelas'
+import { bakukanKelas, contohKelas, KELAS_TETAP, kelasBerikutnya, kelasJelas } from '@/lib/rq/kelas'
 import type { Gender, Jenjang } from '@/types'
 
 /** Ubah string kosong atau sentinel 'none' (dari Radix Select) menjadi null. */
@@ -26,7 +26,8 @@ function pickStudentFields(formData: FormData) {
     gender: clean(formData.get('gender')) as Gender | null,
     birth_date: clean(formData.get('birth_date')),
     jenjang: formData.get('jenjang') as Jenjang,
-    kelas: clean(formData.get('kelas')),
+    // Dibakukan per unit: 'TK A' → 'TKA'. Sah-tidaknya diperiksa kelasTetapSah.
+    kelas: clean(formData.get('kelas')) && bakukanKelas(formData.get('jenjang') as Jenjang, clean(formData.get('kelas'))),
     program: clean(formData.get('program')),
     halaqoh_id: clean(formData.get('halaqoh_id')),
     wali_name: clean(formData.get('wali_name')),
@@ -38,6 +39,16 @@ function pickStudentFields(formData: FormData) {
       ? Number(formData.get('current_jilid_page')) || null
       : null,
   }
+}
+
+/**
+ * Unit tanpa rombel (TPAIT, SD Juara, SMA) hanya mengenal daftar kelas tetap —
+ * '1A' di SD Juara adalah kelas yang tidak ada. SD & SMP tetap longgar di
+ * formulir; bentuknya ditagih lewat halaman pembenahan kelas.
+ */
+function galatKelas(jenjang: Jenjang, kelas: string | null): string | null {
+  if (!kelas || !KELAS_TETAP[jenjang] || kelasJelas(jenjang, kelas)) return null
+  return `Kelas ${JENJANG_LABELS[jenjang]} hanya: ${contohKelas(jenjang)}.`
 }
 
 export async function createStudentAction(_: unknown, formData: FormData) {
@@ -53,6 +64,8 @@ export async function createStudentAction(_: unknown, formData: FormData) {
   if (!canManageStudents(session.role, fields.jenjang, fields.program)) {
     return { error: 'Anda tidak memiliki izin untuk siswa program ini.' }
   }
+  const galatK = galatKelas(fields.jenjang, fields.kelas)
+  if (galatK) return { error: galatK }
 
   const supabase = createServerClient()
   const { data, error } = await supabase
@@ -110,6 +123,10 @@ export async function updateStudentAction(_: unknown, formData: FormData) {
   if (!canManageStudents(session.role, jenjang, fields.program)) {
     return { error: 'Anda tidak memiliki izin untuk siswa program ini.' }
   }
+  // Formulir sunting tidak mengirim jenjang — bakukan ulang dengan jenjang asli.
+  fields.kelas = fields.kelas && bakukanKelas(jenjang, fields.kelas)
+  const galatK = galatKelas(jenjang, fields.kelas)
+  if (galatK) return { error: galatK }
 
   const { error } = await supabase
     .from('students')
@@ -290,22 +307,11 @@ export async function deleteStudentAction(id: string) {
 
 // ─── Kenaikan kelas antar tahun ajaran ───────────────────────────────────────
 
-/**
- * Tingkat terakhir tiap jenjang. Anak di tingkat ini tidak naik — ia lulus,
- * dan ditandai nonaktif.
- *
- * PAUD sengaja tidak punya nilai: kelasnya ditulis 'A'/'B', bukan angka, jadi
- * tidak ada yang bisa dinaikkan maupun diluluskan secara otomatis di sana.
- */
-const TINGKAT_AKHIR: Partial<Record<Jenjang, number>> = {
-  sd: 6, sd_juara: 6, smp: 9, sma: 12,
-}
-
 /*
- * Kelas yang bisa dinaikkan — angka di depan, sisanya rombel yang
- * dipertahankan — dibaca dari lib/rq/kelas.ts, satu tempat bersama halaman
- * pembenahan kelas. Selama keduanya memakai pola yang sama, tidak mungkin ada
- * anak yang dinyatakan beres di satu layar tapi tetap dilewati di layar lain.
+ * Kelas berikutnya & tingkat akhir tiap unit dibaca dari lib/rq/kelas.ts
+ * (kelasBerikutnya), satu tempat bersama halaman pembenahan kelas. Selama
+ * keduanya memakai aturan yang sama, tidak mungkin ada anak yang dinyatakan
+ * beres di satu layar tapi tetap dilewati di layar lain.
  */
 
 export interface RencanaKenaikan {
@@ -333,8 +339,8 @@ function pilah(rows: BarisKenaikan[]) {
   const dilewati = new Map<string, number>()
 
   for (const s of rows) {
-    const cocok = s.kelas?.match(POLA_KELAS)
-    if (!cocok) {
+    const berikut = kelasBerikutnya(s.jenjang, s.kelas)
+    if (!berikut) {
       // Termasuk '4.0' dan kawan-kawannya yang lolos dari impor Excel. Ditolak,
       // BUKAN ditebak: tidak ada rombel yang bisa dipertahankan dari '4.0', dan
       // menebaknya berarti memindahkan anak ke kelas yang tak pernah diputuskan
@@ -343,16 +349,8 @@ function pilah(rows: BarisKenaikan[]) {
       dilewati.set(k, (dilewati.get(k) ?? 0) + 1)
       continue
     }
-
-    const tingkat = Number(cocok[1])
-    const rombel = cocok[2]
-    const akhir = TINGKAT_AKHIR[s.jenjang]
-
-    if (akhir !== undefined && tingkat >= akhir) {
-      lulus.push(s.id)
-      continue
-    }
-    naik.push({ id: s.id, kelas: `${tingkat + 1}${rombel}` })
+    if (berikut === 'lulus') lulus.push(s.id)
+    else naik.push({ id: s.id, kelas: berikut.naik })
   }
 
   return { naik, lulus, dilewati }
@@ -546,7 +544,7 @@ export async function pindahkanKelasAction(ids: string[], kelas: string) {
   if (tolak) {
     return {
       error: `'${tujuan}' belum berbentuk kelas yang utuh untuk ${JENJANG_LABELS[tolak.jenjang]} ` +
-        '— tulis tingkat lalu rombelnya, mis. 4B.',
+        (KELAS_TETAP[tolak.jenjang] ? `— pilih salah satu: ${contohKelas(tolak.jenjang)}.` : '— tulis tingkat lalu rombelnya, mis. 4B.'),
     }
   }
 

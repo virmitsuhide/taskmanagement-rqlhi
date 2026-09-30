@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { JENJANG_LABELS } from '@/lib/auth/permissions'
 import { methodsForJenjang } from '@/lib/tahsin'
 import { getProgramsForJenjang } from '@/lib/rq/programs'
+import { bakukanKelas, contohKelas, KELAS_TETAP } from '@/lib/rq/kelas'
 import type { Jenjang, Halaqoh, TahsinMethod, JilidLevel } from '@/types'
 
 // Radix Select melarang SelectItem value="". Pakai sentinel ini untuk opsi "kosong".
@@ -177,7 +178,7 @@ export function StudentForm({
               </Select>
             </Field>
             <Field label="Kelas" htmlFor="kelas">
-              <Input id="kelas" name="kelas" placeholder="contoh: 4A" defaultValue={initial?.kelas ?? ''} disabled={isPending} className={CONTROL} />
+              <KolomKelas key={jenjang} jenjang={jenjang} awal={initial?.kelas ?? ''} disabled={isPending} />
             </Field>
           </div>
         ) : (
@@ -190,7 +191,7 @@ export function StudentForm({
             htmlFor="kelas"
             hint={<>Unit <span className="font-medium text-foreground">{JENJANG_LABELS[jenjang]}</span> &middot; ikut kelas, tidak diubah dari sini.</>}
           >
-            <Input id="kelas" name="kelas" placeholder="contoh: 4A" defaultValue={initial?.kelas ?? ''} disabled={isPending} className={CONTROL} />
+            <KolomKelas key={jenjang} jenjang={jenjang} awal={initial?.kelas ?? ''} disabled={isPending} />
           </Field>
         )}
 
@@ -374,5 +375,24 @@ function Field({ label, htmlFor, required, hint, className, children }: {
       {children}
       {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
     </div>
+  )
+}
+
+/**
+ * Kolom kelas. TPAIT, SD Juara, dan SMA hanya punya daftar kelas tetap
+ * (lib/rq/kelas.ts) — dipilih, bukan diketik, supaya '1A' di SD Juara tidak
+ * pernah tercipta. SD & SMP tetap diketik: rombelnya beragam.
+ */
+function KolomKelas({ jenjang, awal, disabled }: { jenjang: Jenjang; awal: string; disabled: boolean }) {
+  const tetap = KELAS_TETAP[jenjang]
+  if (!tetap) {
+    return <Input id="kelas" name="kelas" placeholder={contohKelas(jenjang)} defaultValue={awal} disabled={disabled} className={CONTROL} />
+  }
+  const baku = bakukanKelas(jenjang, awal)
+  return (
+    <select id="kelas" name="kelas" defaultValue={tetap.includes(baku) ? baku : ''} disabled={disabled} className={cn(CONTROL, 'rounded-md border bg-transparent px-2')}>
+      <option value="">— Pilih kelas —</option>
+      {tetap.map(k => <option key={k} value={k}>{k}</option>)}
+    </select>
   )
 }

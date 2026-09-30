@@ -11,6 +11,7 @@
  * dikosongkan. Impor 700 baris adalah tempat kesalahan sunyi paling mahal.
  */
 import { JENJANG_LABELS } from '@/lib/auth/permissions'
+import { bakukanKelas, contohKelas, KELAS_TETAP, kelasJelas } from '@/lib/rq/kelas'
 import { getProgramsForJenjang, programLabel as programLabelOf, UNIT_LABELS } from '@/lib/rq/programs'
 import { methodsForJenjang } from '@/lib/tahsin'
 import type { Jenjang } from '@/types'
@@ -108,7 +109,7 @@ export const KOLOM_IMPOR: Kolom[] = [
   {
     key: 'kelas', header: 'Kelas', lebar: 10,
     contoh: '4A',
-    petunjuk: 'Bebas, mis. 4A. Tulis sebagai teks agar tidak berubah jadi 4.0.',
+    petunjuk: 'SD/SMP: tingkat + rombel, mis. 4A. TPAIT: KB, TKA, TKB. SD Juara: 1–6. SMA: 10, 11, 12. Tulis sebagai teks agar tidak berubah jadi 4.0.',
   },
   {
     key: 'program', header: 'Program', lebar: 20,
@@ -269,6 +270,13 @@ export function periksaBaris(
     galat.push(`Anda tidak berwenang menambah siswa ${JENJANG_LABELS[jenjang]}.`)
   }
 
+  // Unit tanpa rombel (TPAIT, SD Juara, SMA): kelas dibakukan ('TK A' → 'TKA')
+  // dan harus salah satu kelas tetapnya — '1A' di SD Juara ditolak.
+  const kelasBaku = jenjang ? bakukanKelas(jenjang, kelas) : kelas
+  if (jenjang && kelasBaku && KELAS_TETAP[jenjang] && !kelasJelas(jenjang, kelasBaku)) {
+    galat.push(`Kelas '${kelas}' tidak ada di ${JENJANG_LABELS[jenjang]} — pilih salah satu: ${contohKelas(jenjang)}.`)
+  }
+
   // Sisa kolom bergantung jenjang (program, metode, halaqoh), jadi tanpa
   // jenjang yang sah tidak ada yang bisa diperiksa lebih jauh.
   if (!jenjang || galat.length > 0) return gagal()
@@ -397,7 +405,7 @@ export function periksaBaris(
       gender,
       birth_date: tgl.nilai,
       jenjang,
-      kelas: kelas || null,
+      kelas: kelasBaku || null,
       program,
       halaqoh_id,
       wali_name: str('wali_name') || null,

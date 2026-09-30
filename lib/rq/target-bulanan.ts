@@ -1,4 +1,5 @@
 import type { KodeRencana } from '@/lib/rq/target-tahfidz'
+import { KELAS_TETAP } from '@/lib/rq/kelas'
 import type { Jenjang } from '@/types'
 
 /**
@@ -79,7 +80,7 @@ const SD = [1, 2, 3, 4, 5, 6]
 export function kelompokTarget(jenjang: Jenjang, jenis: JenisTarget): KelompokTarget[] {
   if (jenis === 'tahsin') {
     switch (jenjang) {
-      case 'paud': return [{ kode: 'semua', label: 'TPAIT', tingkat: [1, 2], metode: () => 'UMMI' }]
+      case 'paud': return [{ kode: 'semua', label: 'TPAIT', tingkat: [1, 2, 3], metode: () => 'UMMI' }]
       case 'sd': return [
         { kode: 'clil', label: 'CLIL', tingkat: SD, metode: () => 'UMMI' },
         { kode: 'quls', label: 'QULS', tingkat: SD, metode: () => 'KIBAR' },
@@ -90,7 +91,7 @@ export function kelompokTarget(jenjang: Jenjang, jenis: JenisTarget): KelompokTa
     }
   }
   switch (jenjang) {
-    case 'paud': return [{ kode: 'semua', label: 'TPAIT', tingkat: [1, 2] }]
+    case 'paud': return [{ kode: 'semua', label: 'TPAIT', tingkat: [1, 2, 3] }]
     case 'sd': return [
       { kode: 'clil', label: 'CLIL', tingkat: SD, rencana: 'sd_clil' },
       { kode: 'quls', label: 'QULS', tingkat: SD, rencana: 'sd_quls' },
@@ -105,7 +106,8 @@ export function kelompokTarget(jenjang: Jenjang, jenis: JenisTarget): KelompokTa
 }
 
 export function labelTingkat(jenjang: Jenjang, tingkat: number): string {
-  if (jenjang === 'paud') return tingkat === 1 ? 'TK A' : tingkat === 2 ? 'TK B' : `Tingkat ${tingkat}`
+  // TPAIT: tingkat 1–3 = KB, TKA, TKB (urutan KELAS_TETAP di lib/rq/kelas.ts).
+  if (jenjang === 'paud') return KELAS_TETAP.paud?.[tingkat - 1] ?? `Tingkat ${tingkat}`
   return `Kelas ${tingkat}`
 }
 
