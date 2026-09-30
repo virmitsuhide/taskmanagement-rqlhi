@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { tanggalWIB } from '@/lib/rq/ujian'
 
 const REQUEST_TYPES = [
   { value: 'flyer_ujian', label: 'Flyer Ujian' },
@@ -17,7 +18,7 @@ const REQUEST_TYPES = [
 
 export function ContentRequestForm() {
   const [state, action, isPending] = useActionState(createContentRequestAction, null)
-  const today = new Date().toISOString().split('T')[0]
+  const today = tanggalWIB(new Date())
 
   return (
     <form action={action} className="space-y-5">

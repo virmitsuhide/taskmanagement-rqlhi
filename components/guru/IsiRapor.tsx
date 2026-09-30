@@ -308,28 +308,29 @@ function IsianMerah({ slot, isian, sisip, pending, ubah }: {
       <ol className="space-y-3">
         {slot.map((s, n) => {
           const nilai = isian[s.id] ?? ''
-          const panjang = nilai.length > 50 || s.contoh.length > 50
+          // Ditentukan dari template, bukan dari panjang ketikan: dulu kotak
+          // berganti dari <input> ke <textarea> begitu ketikan lewat 50 huruf —
+          // sebelum itu teks menggeser keluar kotak, dan saat berganti kursor
+          // hilang di tengah kalimat.
+          const sisipan = s.contoh.length <= 50
           const kelasKotak = cn(
-            'min-w-0 rounded-xl border px-3 py-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50',
+            'min-w-0 max-w-full rounded-xl border px-3 py-2.5 text-sm leading-snug break-words outline-none field-sizing-content focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50',
             nilai.trim() ? 'bg-card' : 'border-accent-warm/50 bg-accent-warm-wash',
-            panjang ? 'w-full resize-y' : 'w-full sm:w-auto sm:min-w-[14rem] sm:flex-1',
+            sisipan ? 'min-h-11 w-full resize-none sm:w-auto sm:min-w-[14rem] sm:flex-1' : 'min-h-24 w-full resize-y',
           )
           const label = `Isian ${n + 1}: setelah "${s.sebelum}"`
           return (
             <li key={s.id} className="text-sm leading-relaxed">
               {s.sebelum && <p className="mb-1.5">{s.sebelum}</p>}
               <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
-                {panjang ? (
-                  <textarea value={nilai} disabled={pending} rows={3} aria-label={label}
-                    onFocus={() => setFokus(s.id)}
-                    onChange={e => ubah(s.id, e.target.value)}
-                    placeholder={`Contoh: ${s.contoh}`} className={kelasKotak} />
-                ) : (
-                  <input value={nilai} disabled={pending} aria-label={label}
-                    onFocus={() => setFokus(s.id)}
-                    onChange={e => ubah(s.id, e.target.value)}
-                    placeholder={`Contoh: ${s.contoh}`} className={cn(kelasKotak, 'h-11')} />
-                )}
+                {/* Selalu textarea supaya teks panjang turun ke baris berikutnya.
+                    Isian yang menyambung kalimat tidak menerima Enter — baris
+                    baru di tengah kalimat merusak lembar cetak. */}
+                <textarea value={nilai} disabled={pending} rows={sisipan ? 1 : 3} aria-label={label}
+                  onFocus={() => setFokus(s.id)}
+                  onKeyDown={e => { if (sisipan && e.key === 'Enter') e.preventDefault() }}
+                  onChange={e => ubah(s.id, sisipan ? e.target.value.replace(/\s*\n\s*/g, ' ') : e.target.value)}
+                  placeholder={`Contoh: ${s.contoh}`} className={kelasKotak} />
                 {s.sesudah && <span>{s.sesudah}</span>}
               </div>
             </li>

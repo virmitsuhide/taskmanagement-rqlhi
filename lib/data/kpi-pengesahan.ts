@@ -2,7 +2,7 @@ import { createServerClient } from '@/lib/supabase/server'
 import { nilaiDari, MONTH_NAMES } from '@/lib/data/kpi'
 import { levelDari } from '@/lib/kpi/hitung'
 import { jatuhTempo, tanggalSql } from '@/lib/kpi/alur'
-import { koorPengesah } from '@/lib/auth/permissions'
+import { unitPengesahan } from '@/lib/auth/permissions'
 import type {
   Jenjang, KpiMonthly, KpiRaporRiwayat, KpiRaporStatus, KpiSelesaiSebab, LingkupPenugasan,
   UserRole,
@@ -229,7 +229,7 @@ export async function hitungMenungguKoordinator(role: UserRole): Promise<number>
     berjumlah belasan, jadi ini kueri kecil — dan menjadikannya embed PostgREST
     akan menukar dua kueri murah dengan satu kueri yang jauh lebih sulit dibaca.
   */
-  const units = (['sd', 'sd_juara', 'smp'] as Jenjang[]).filter(u => koorPengesah(u) === role)
+  const units = unitPengesahan(role)
   if (role !== 'kepala_rq' && units.length === 0) return 0
 
   const { data: guru } = await supabase

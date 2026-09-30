@@ -15,6 +15,7 @@ import { StarInput } from '@/components/setoran/StarInput'
 import { TAHFIDZ_KIND_META } from '@/lib/tahsin'
 import { bolehLintasSurat, jumlahAyatRentang, periksaRentang } from '@/lib/rq/rentang-surat'
 import type { TahfidzKind } from '@/types'
+import { tanggalWIB } from '@/lib/rq/ujian'
 
 interface StudentOption {
   id: string
@@ -38,7 +39,7 @@ interface Props {
   antrian?: string[]
 }
 
-const today = () => new Date().toISOString().slice(0, 10)
+const today = () => tanggalWIB(new Date())
 
 export function TahfidzSetoranForm({ students, surat, completedJuzByStudent = {}, defaultStudentId, antrian }: Props) {
   const router = useRouter()

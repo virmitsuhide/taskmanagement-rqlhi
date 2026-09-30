@@ -8,7 +8,7 @@ import {
   canManageUjian, canManageUjianBaris, canSubmitUjian, getUjianProgramScope, getUjianUnits, ujianHanyaQuls,
 } from '@/lib/auth/permissions'
 import { getUnitsUjianGuru } from '@/lib/data/ujian'
-import { cocokkanLevelUjian, getTahfidzLabel, UJIAN_UNIT_JENJANG, type TahapLevel } from '@/lib/rq/ujian'
+import { cocokkanLevelUjian, getTahfidzLabel, UJIAN_UNIT_JENJANG, type TahapLevel, tanggalWIB } from '@/lib/rq/ujian'
 import { getTeacherHalaqohIds, getTeacherStudents } from '@/lib/data/teacher'
 import { tautkanUjianKeDrill } from '@/lib/data/drill-tahfidz'
 import { totalJuzHafalan } from '@/lib/rq/hafalan'
@@ -483,7 +483,7 @@ async function terapkanKelulusanTahsin(ujianId: string): Promise<string[]> {
       student_id: s.id,
       from_jilid_id: diuji.id,
       to_jilid_id: berikutnya.id,
-      promotion_date: new Date().toISOString().slice(0, 10),
+      promotion_date: tanggalWIB(new Date()),
       catatan: `Lulus ujian tahsin ${diuji.label}`,
       source_ujian_id: ujianId,
     })
@@ -901,7 +901,7 @@ async function simpanRiwayatTahfidz(
 ): Promise<Result> {
   if (!input.student_id) return { error: 'Pilih siswa lebih dulu.' }
   if (!/^\d{4}-\d{2}-\d{2}$/.test(input.tanggal)) return { error: 'Tanggal ujian wajib diisi.' }
-  if (input.tanggal > new Date().toISOString().slice(0, 10)) {
+  if (input.tanggal > tanggalWIB(new Date())) {
     return { error: 'Riwayat hanya untuk ujian yang sudah terjadi — tanggalnya tidak boleh di masa depan.' }
   }
   if (!PREDIKAT_SAH.includes(input.predikat)) return { error: 'Predikat wajib dipilih.' }

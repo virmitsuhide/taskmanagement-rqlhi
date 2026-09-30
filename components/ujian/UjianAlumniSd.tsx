@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { catatUjianAlumniSdAction } from '@/app/actions/ujian'
-import { PREDIKAT_OPTIONS, getPredikatLabel, getStatusLabel, getTahfidzLabel } from '@/lib/rq/ujian'
+import { PREDIKAT_OPTIONS, getPredikatLabel, getStatusLabel, getTahfidzLabel, tanggalWIB } from '@/lib/rq/ujian'
 import { ringkasHafalan } from '@/lib/rq/hafalan'
 import { cn } from '@/lib/utils'
 import type { UjianAlumniSd } from '@/lib/data/ujian'
@@ -50,7 +50,7 @@ export function UjianAlumniSd({ siswa }: { siswa: UjianAlumniSd[] }) {
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="space-y-1.5">
             <Label htmlFor="bawaan_tanggal" className="text-xs">Tanggal ujian</Label>
-            <Input id="bawaan_tanggal" type="date" max={new Date().toISOString().slice(0, 10)} value={bawaan.tanggal}
+            <Input id="bawaan_tanggal" type="date" max={tanggalWIB(new Date())} value={bawaan.tanggal}
               onChange={e => setBawaan(b => ({ ...b, tanggal: e.target.value }))} className="h-9" />
           </div>
           <div className="space-y-1.5">
@@ -201,7 +201,7 @@ function FormUjian({ siswa, bawaan, onTutup }: { siswa: UjianAlumniSd; bawaan: B
       <div className="grid gap-3 grid-cols-2 sm:grid-cols-4">
         <div className="space-y-1.5 col-span-2 sm:col-span-1">
           <Label className="text-xs">Tanggal ujian</Label>
-          <Input type="date" required max={new Date().toISOString().slice(0, 10)} value={tanggal}
+          <Input type="date" required max={tanggalWIB(new Date())} value={tanggal}
             onChange={e => setTanggal(e.target.value)} className="h-9" />
         </div>
         <div className="space-y-1.5 col-span-2 sm:col-span-1">

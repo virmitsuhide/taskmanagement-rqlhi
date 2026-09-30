@@ -15,6 +15,7 @@ import { Pagination } from '@/components/ui/pagination'
 import { cn } from '@/lib/utils'
 import { TaskRow, daysUntil } from './TaskRow'
 import type { Task, TaskStatus } from '@/types'
+import { tanggalWIB } from '@/lib/rq/ujian'
 
 const PAGE_SIZE = 20
 
@@ -125,7 +126,7 @@ export default async function TasksPage({ searchParams }: PageProps) {
     countTasks().eq('assigned_to', session.userId).eq('status', 'done'),
     countTasks().eq('assigned_by', session.userId).neq('assigned_to', session.userId),
     countTasks().eq('assigned_to', session.userId).in('status', ACTIVE_STATUSES)
-      .lt('due_date', new Date().toISOString().slice(0, 10)),
+      .lt('due_date', tanggalWIB(new Date())),
   ])
 
   const totalActive = activeCountRes.count ?? 0

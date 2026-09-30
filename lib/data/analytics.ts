@@ -1100,7 +1100,7 @@ export async function getSiswaDrill(program: readonly string[] | null = null): P
     }
   }
 
-  const hariIni = new Date(new Date().toISOString().slice(0, 10)).getTime()
+  const hariIni = new Date(tanggalWIB(new Date())).getTime()
   const rows = ((siswaRes.data ?? []) as unknown as Array<{
     id: string; full_name: string; jenjang: Jenjang; kelas: string | null; program: string | null; tahsin_drill_sejak: string
     jilid: { label: string } | null; halaqoh: { name: string } | null

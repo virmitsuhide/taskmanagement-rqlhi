@@ -6,7 +6,9 @@ import { toast } from 'sonner'
 import { CalendarOff, RotateCcw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { batalKosongAction, simpanJadwalAction, tandaiKosongAction } from '@/app/actions/kalender-quran'
+import {
+  batalKosongAction, simpanJadwalAction, tandaiKosongRentangAction, type SasaranKosong,
+} from '@/app/actions/kalender-quran'
 import {
   HARI_PILIHAN, HARI_SINGKAT, hariKe, hariProgram, hitungTM, tanggalSebulan,
   type HariKosong, type JadwalProgram,
@@ -31,10 +33,19 @@ interface Props {
   jadwal: JadwalProgram[]
   kosong: HariKosong[]
   agenda: AgendaHari[]
-  /** Rombel di angkatan ini, mis. ['2A','2B','2C']. */
-  kelas: string[]
+  /** Rombel tiap angkatan di unit ini, mis. { 2: ['2A','2B','2C'] }. */
+  kelasPerAngkatan: Record<number, string[]>
+  /** 'YYYY-MM-DD' WIB — terpilih sejak awal bila jatuh di bulan yang dibuka. */
+  hariIni: string
   bolehUbah: boolean
+  /** Program yang hari aktifnya boleh diatur peran ini. */
+  programBoleh: string[]
+  /** false bagi koor SD / QULS SD: penandaan selalu per kelas. */
+  bolehSeluruhAngkatan: boolean
 }
+
+/** Kunci checklist: '7|7A' untuk satu rombel, '7|*' untuk angkatan tanpa data rombel. */
+const kunci = (t: number, k: string | null) => `${t}|${k ?? '*'}`
 
 const BULAN_ID = [
   'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
@@ -51,15 +62,62 @@ const BULAN_ID = [
  * kelihatan seketika, bukan baru terasa saat rapor dicetak.
  */
 export function KalenderQuran({
-  termId, jenjang, tingkat, tahun, bulan, programs, jadwal, kosong, agenda, kelas, bolehUbah,
+  termId, jenjang, tingkat, tahun, bulan, programs, jadwal, kosong, agenda, kelasPerAngkatan, hariIni, bolehUbah,
+  programBoleh, bolehSeluruhAngkatan,
 }: Props) {
   const router = useRouter()
   const [pending, mulai] = useTransition()
-  const [dipilih, setDipilih] = useState<string | null>(null)
-  const [sasaranKelas, setSasaranKelas] = useState<string>('')
+  const tanggal = useMemo(() => tanggalSebulan(tahun, bulan), [tahun, bulan])
+  const kelas = useMemo(() => kelasPerAngkatan[tingkat] ?? [], [kelasPerAngkatan, tingkat])
+  const semuaAngkatan = Object.keys(kelasPerAngkatan).map(Number).sort((a, b) => a - b)
+
+  // Koordinator paling sering membuka halaman ini untuk hari ini — panelnya
+  // langsung terbuka tanpa perlu mengeklik tanggal.
+  const [dipilih, setDipilih] = useState<string | null>(tanggal.includes(hariIni) ? hariIni : null)
+  const [sampai, setSampai] = useState<string>(dipilih ?? '')
+  // Bawaan: seluruh angkatan yang sedang dibuka.
+  const [centang, setCentang] = useState<Set<string>>(
+    () => new Set(kelas.length > 0 ? kelas.map(k => kunci(tingkat, k)) : [kunci(tingkat, null)]),
+  )
   const [alasan, setAlasan] = useState('')
 
-  const tanggal = useMemo(() => tanggalSebulan(tahun, bulan), [tahun, bulan])
+  function pilihTanggal(iso: string) {
+    const baru = iso === dipilih ? null : iso
+    setDipilih(baru)
+    setSampai(baru ?? '')
+  }
+
+  /** Rombel yang bisa dicentang di sebuah angkatan; angkatan tanpa data rombel diwakili satu kotak. */
+  function opsiAngkatan(t: number): string[] {
+    const k = kelasPerAngkatan[t] ?? []
+    return k.length > 0 ? k.map(x => kunci(t, x)) : [kunci(t, null)]
+  }
+
+  function ubahCentang(kunciKunci: string[], nyala: boolean) {
+    setCentang(prev => {
+      const s = new Set(prev)
+      for (const k of kunciKunci) {
+        if (nyala) s.add(k)
+        else s.delete(k)
+      }
+      return s
+    })
+  }
+
+  /**
+   * Checklist → sasaran penandaan. Angkatan yang semua rombelnya dicentang
+   * disimpan sebagai "seluruh angkatan" — satu baris, dan tetap berlaku
+   * kalau kelak ada rombel baru di angkatan itu.
+   */
+  function sasaranTerpilih(): SasaranKosong[] {
+    return semuaAngkatan.flatMap((t): SasaranKosong[] => {
+      const k = kelasPerAngkatan[t] ?? []
+      if (k.length === 0) return centang.has(kunci(t, null)) ? [{ tingkat: t, kelas: null }] : []
+      const dipilihKelas = k.filter(x => centang.has(kunci(t, x)))
+      if (bolehSeluruhAngkatan && dipilihKelas.length === k.length) return [{ tingkat: t, kelas: null }]
+      return dipilihKelas.map(x => ({ tingkat: t, kelas: x }))
+    })
+  }
   const agendaPer = useMemo(() => {
     const m = new Map<string, AgendaHari[]>()
     for (const a of agenda) m.set(a.tanggal, [...(m.get(a.tanggal) ?? []), a])
@@ -100,14 +158,20 @@ export function KalenderQuran({
     })
   }
 
-  function tandai(iso: string) {
+  function tandai(dari: string) {
+    const sasaran = sasaranTerpilih()
+    if (sasaran.length === 0) {
+      toast.error('Centang minimal satu angkatan atau kelas.')
+      return
+    }
     mulai(async () => {
-      const hasil = await tandaiKosongAction(iso, jenjang, tingkat, sasaranKelas || null, alasan)
+      const hasil = await tandaiKosongRentangAction(termId, dari, sampai || dari, jenjang, sasaran, alasan)
       if (hasil.error) {
         toast.error(hasil.error)
         return
       }
-      toast.success(sasaranKelas ? `${iso} — ${sasaranKelas} ditandai kosong.` : `${iso} ditandai kosong.`)
+      const label = sasaran.map(s => s.kelas ?? `angkatan ${s.tingkat}`).join(', ')
+      toast.success(`${hasil.hari} hari sesi ditandai kosong untuk ${label}.`)
       setAlasan('')
       router.refresh()
     })
@@ -150,7 +214,7 @@ export function KalenderQuran({
                     <button
                       key={h}
                       type="button"
-                      disabled={pending || !bolehUbah}
+                      disabled={pending || !bolehUbah || !programBoleh.includes(p.code)}
                       aria-pressed={hari.includes(h)}
                       onClick={() => ubahHari(p.code, h)}
                       className={cn(
@@ -187,7 +251,7 @@ export function KalenderQuran({
               <button
                 key={iso}
                 type="button"
-                onClick={() => setDipilih(iso === dipilih ? null : iso)}
+                onClick={() => pilihTanggal(iso)}
                 aria-pressed={iso === dipilih}
                 className={cn(
                   'relative aspect-square rounded-md border text-sm transition-colors',
@@ -247,7 +311,7 @@ export function KalenderQuran({
                 Ditiadakan untuk {k.kelas ?? `seluruh angkatan ${tingkat}`}
                 {k.alasan && ` — ${k.alasan}`}
               </span>
-              {bolehUbah && k.id && (
+              {bolehUbah && k.id && (bolehSeluruhAngkatan || (k.kelas !== null && kelas.includes(k.kelas))) && (
                 <Button type="button" size="sm" variant="outline" disabled={pending} onClick={() => batal(k.id!)}
                   className="border-white/40 bg-transparent text-white hover:bg-white/15">
                   <RotateCcw /> Batalkan
@@ -256,27 +320,69 @@ export function KalenderQuran({
             </div>
           ))}
 
-          {bolehUbah && programAktif(dipilih).length > 0 && (
-            <div className="flex flex-wrap items-end gap-2 border-t pt-3">
-              <div className="space-y-1">
-                <label className="text-xs font-medium" htmlFor="sasaran">Yang ditiadakan</label>
-                <select
-                  id="sasaran" value={sasaranKelas} disabled={pending}
-                  onChange={e => setSasaranKelas(e.target.value)}
-                  className="h-9 rounded-md border bg-transparent px-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-                >
-                  <option value="">Seluruh angkatan {tingkat}</option>
-                  {kelas.map(k => <option key={k} value={k}>Kelas {k} saja</option>)}
-                </select>
+          {bolehUbah && (
+            <div className="space-y-3 border-t pt-3">
+              <p className="text-sm font-medium">Tandai jam Qur&apos;an kosong</p>
+
+              <div className="flex flex-wrap items-end gap-2">
+                <div className="space-y-1">
+                  <span className="text-xs font-medium">Mulai</span>
+                  <p className="flex h-9 items-center rounded-md border bg-muted/40 px-3 text-sm tabular-nums">{dipilih}</p>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium" htmlFor="sampai">Sampai</label>
+                  <Input id="sampai" type="date" value={sampai} min={dipilih} disabled={pending}
+                    onChange={e => setSampai(e.target.value || dipilih)} className="h-9 w-auto" />
+                </div>
+                <p className="pb-2 text-[11px] text-muted-foreground">Agenda beberapa hari? Isi tanggal terakhirnya. Hari tanpa sesi dilewati.</p>
               </div>
-              <div className="min-w-[12rem] flex-1 space-y-1">
-                <label className="text-xs font-medium" htmlFor="alasan">Alasan</label>
-                <Input id="alasan" value={alasan} disabled={pending} placeholder="Class meeting, outing, pekan ujian…"
-                  onChange={e => setAlasan(e.target.value)} className="h-9" />
+
+              <fieldset className="space-y-2">
+                <legend className="text-xs font-medium">Yang terkena agenda</legend>
+                {semuaAngkatan.map(t => {
+                  const opsi = opsiAngkatan(t)
+                  const n = opsi.filter(k => centang.has(k)).length
+                  const kelasT = kelasPerAngkatan[t] ?? []
+                  return (
+                    <div key={t} className="flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-md border px-3 py-2">
+                      <label className="flex min-h-9 items-center gap-2 text-sm font-medium">
+                        <input
+                          type="checkbox"
+                          className="size-4 accent-[color:var(--primary)]"
+                          checked={n === opsi.length}
+                          ref={el => { if (el) el.indeterminate = n > 0 && n < opsi.length }}
+                          disabled={pending}
+                          onChange={e => ubahCentang(opsi, e.target.checked)}
+                        />
+                        Kelas {t}{kelasT.length > 0 && ' (semua)'}
+                      </label>
+                      {kelasT.map(k => (
+                        <label key={k} className="flex min-h-9 items-center gap-1.5 text-sm">
+                          <input
+                            type="checkbox"
+                            className="size-4 accent-[color:var(--primary)]"
+                            checked={centang.has(kunci(t, k))}
+                            disabled={pending}
+                            onChange={e => ubahCentang([kunci(t, k)], e.target.checked)}
+                          />
+                          {k}
+                        </label>
+                      ))}
+                    </div>
+                  )
+                })}
+              </fieldset>
+
+              <div className="flex flex-wrap items-end gap-2">
+                <div className="min-w-[12rem] flex-1 space-y-1">
+                  <label className="text-xs font-medium" htmlFor="alasan">Alasan</label>
+                  <Input id="alasan" value={alasan} disabled={pending} placeholder="Class meeting, outing, pekan ujian…"
+                    onChange={e => setAlasan(e.target.value)} className="h-9" />
+                </div>
+                <Button type="button" disabled={pending} onClick={() => tandai(dipilih)}>
+                  <CalendarOff /> Tandai kosong
+                </Button>
               </div>
-              <Button type="button" disabled={pending} onClick={() => tandai(dipilih)}>
-                <CalendarOff /> Tandai kosong
-              </Button>
             </div>
           )}
         </section>

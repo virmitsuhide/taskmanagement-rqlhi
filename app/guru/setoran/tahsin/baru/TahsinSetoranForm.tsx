@@ -19,6 +19,7 @@ import type { SuratPilihan } from '@/components/setoran/SetoranSesiTahfidz'
 import type { HasilMateri, MateriTahsin } from '@/lib/data/materi-tahsin'
 import { methodsForJenjang } from '@/lib/tahsin'
 import type { Jenjang } from '@/types'
+import { tanggalWIB } from '@/lib/rq/ujian'
 
 interface StudentOption {
   id: string
@@ -140,7 +141,7 @@ export function TahsinSetoranForm({
   // akan membawa anak masuk drill. Nilai sesungguhnya tetap dikirim lewat form.
   const [halamanIsi, setHalamanIsi] = useState(String(initialStudent?.current_jilid_page ?? ''))
 
-  const today = new Date().toISOString().slice(0, 10)
+  const today = tanggalWIB(new Date())
 
   return (
     <form onSubmit={kirim.onSubmit} className="space-y-4 max-w-2xl">

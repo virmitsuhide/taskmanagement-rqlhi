@@ -34,8 +34,10 @@ const BULAN_ID = [
  */
 const SARINGAN = [
   { kode: 'SEMUA', label: 'Semua' },
+  { kode: 'TPAIT', label: 'TPAIT' },
   { kode: 'SD', label: 'SDIT' },
   { kode: 'SMP', label: 'SMPIT' },
+  { kode: 'SMA', label: 'SMA' },
   { kode: 'RQ', label: 'RQ LHI' },
 ] as const
 

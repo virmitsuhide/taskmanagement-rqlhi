@@ -1,7 +1,8 @@
 import { createServerClient } from '@/lib/supabase/server'
 import { hitungTM, type HariKosong, type JadwalProgram, type SasaranTM } from '@/lib/rq/kalender-quran'
 import { tingkatOf } from '@/lib/rq/sesi'
-import type { Jenjang } from '@/types'
+import { canManageStudents, kalenderPerProgram } from '@/lib/auth/permissions'
+import type { Jenjang, UserRole } from '@/types'
 
 /**
  * Kalender aktif pembelajaran Al-Qur'an (0084).
@@ -102,33 +103,36 @@ export function tmPerSiswa(
   return hasil
 }
 
-/** Rombel yang ada di sebuah angkatan — pilihan saat menandai satu kelas saja. */
-export async function getKelasAngkatan(jenjang: Jenjang, tingkat: number): Promise<string[]> {
+/**
+ * Angkatan yang benar-benar ada di sebuah unit beserta rombelnya,
+ * mis. { 7: ['7A','7B'], 8: ['8A'] }. Satu pembacaan untuk dua keperluan:
+ * pemilih angkatan, dan checklist sasaran saat menandai hari kosong — agenda
+ * sering mengenai beberapa angkatan atau sebagian rombel sekaligus.
+ */
+export async function getKelasPerAngkatan(jenjang: Jenjang, role?: UserRole): Promise<Record<number, string[]>> {
   const supabase = createServerClient()
   const { data } = await supabase
     .from('students')
-    .select('kelas')
+    .select('kelas, program')
     .eq('jenjang', jenjang)
     .eq('is_active', true)
-  const kelas = new Set<string>()
-  for (const r of (data ?? []) as { kelas: string | null }[]) {
-    if (r.kelas && tingkatOf(r.kelas) === tingkat) kelas.add(r.kelas.trim())
-  }
-  return [...kelas].sort()
-}
 
-/** Angkatan yang benar-benar ada di sebuah unit, urut naik. */
-export async function getAngkatan(jenjang: Jenjang): Promise<number[]> {
-  const supabase = createServerClient()
-  const { data } = await supabase
-    .from('students')
-    .select('kelas')
-    .eq('jenjang', jenjang)
-    .eq('is_active', true)
-  const tingkat = new Set<number>()
-  for (const r of (data ?? []) as { kelas: string | null }[]) {
+  // Koor SD / QULS SD hanya mendapat rombel yang SELURUH anaknya ia kelola;
+  // rombel campuran jatuh ke luar keduanya dan tetap bisa diurus Kepala RQ.
+  const terbatas = role !== undefined && kalenderPerProgram(role, jenjang)
+  const per = new Map<number, Set<string>>()
+  const ditolak = new Set<string>()
+  for (const r of (data ?? []) as { kelas: string | null; program: string | null }[]) {
     const t = tingkatOf(r.kelas)
-    if (t) tingkat.add(t)
+    if (!t) continue
+    const kelas = r.kelas!.trim()
+    if (terbatas && !canManageStudents(role, jenjang, r.program ?? '')) ditolak.add(kelas.toLowerCase())
+    if (!per.has(t)) per.set(t, new Set())
+    per.get(t)!.add(kelas)
   }
-  return [...tingkat].sort((a, b) => a - b)
+  return Object.fromEntries(
+    [...per]
+      .map(([t, k]) => [t, [...k].filter(x => !ditolak.has(x.toLowerCase())).sort()] as const)
+      .filter(([, k]) => k.length > 0),
+  )
 }

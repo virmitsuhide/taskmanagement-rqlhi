@@ -22,6 +22,7 @@ import type { SiswaSesiTahsin } from '@/lib/data/setoran-sesi'
 import type { KelompokKlasikal } from '@/lib/data/kelompok-klasikal'
 import type { HasilMateri } from '@/lib/data/materi-tahsin'
 import { anggotaDariPengaturan, usulanKelompok } from '@/lib/rq/klasikal'
+import { tanggalWIB } from '@/lib/rq/ujian'
 
 type Status = 'lulus' | 'ulang'
 
@@ -170,7 +171,7 @@ export function SetoranSesiTahsin({ siswa, surat, halaqohId, pengaturan, tanggal
   // Anak yang hari itu sudah punya setoran: menunggu keputusan guru.
   const [ganda, setGanda] = useState<SetoranGanda[]>([])
   const [tertunda, setTertunda] = useState<InputSetoranTahsin[]>([])
-  const [tanggal, setTanggal] = useState(() => tanggalTetap ?? new Date().toISOString().slice(0, 10))
+  const [tanggal, setTanggal] = useState(() => tanggalTetap ?? tanggalWIB(new Date()))
   const [isian, setIsian] = useState<Record<string, Isian>>(
     () => Object.fromEntries(siswa.map(s => [s.id, isianAwal(s)])),
   )

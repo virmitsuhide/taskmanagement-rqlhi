@@ -18,7 +18,7 @@ import type { KaldiEvent } from '@/types'
  * kehadiran di rapor tidak boleh ikut berubah diam-diam.
  */
 
-export const KALDIK_UNIT = ['NASIONAL', 'SD', 'SMP', 'RQ'] as const
+export const KALDIK_UNIT = ['NASIONAL', 'TPAIT', 'SD', 'SMP', 'SMA', 'RQ'] as const
 export type KaldikUnit = (typeof KALDIK_UNIT)[number]
 
 export const KALDIK_TIPE = ['agenda', 'libur_nasional', 'libur_semester', 'ramadhan', 'kegiatan_bersama'] as const

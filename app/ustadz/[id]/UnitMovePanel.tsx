@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import type { Jenjang, TeacherUnitMove } from '@/types'
+import { tanggalWIB } from '@/lib/rq/ujian'
 
 interface Props {
   teacherId: string
@@ -42,7 +43,7 @@ export function UnitMovePanel({ teacherId, teacherName, currentUnit, riwayat }: 
   const confirm = useConfirm()
   const [open, setOpen] = useState(false)
   const [toUnit, setToUnit] = useState<string>('')
-  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10))
+  const [date, setDate] = useState(() => tanggalWIB(new Date()))
   const [notes, setNotes] = useState('')
 
   async function submit() {

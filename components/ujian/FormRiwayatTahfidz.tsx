@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { PilihSiswa } from './PilihSiswa'
-import { PREDIKAT_OPTIONS, UJIAN_UNIT_SEKOLAH, getTahfidzLabel } from '@/lib/rq/ujian'
+import { PREDIKAT_OPTIONS, UJIAN_UNIT_SEKOLAH, getTahfidzLabel, tanggalWIB } from '@/lib/rq/ujian'
 import { ringkasHafalan } from '@/lib/rq/hafalan'
 import { catatRiwayatTahfidzAction, type SaranSiswa } from '@/app/actions/ujian'
 import type { TahfidzTipe, UjianPredikat, UjianUnit } from '@/types'
@@ -128,7 +128,7 @@ export function FormRiwayatTahfidz({ units }: { units: UjianUnit[] }) {
         <div className="space-y-1.5">
           <Label htmlFor="tanggal_riwayat">Tanggal ujian</Label>
           <Input id="tanggal_riwayat" type="date" required value={tanggal}
-            max={new Date().toISOString().slice(0, 10)}
+            max={tanggalWIB(new Date())}
             onChange={e => setTanggal(e.target.value)} className="h-9" />
         </div>
         <div className="space-y-1.5">

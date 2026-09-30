@@ -2,9 +2,11 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { CalendarRange, ChevronLeft, ChevronRight } from 'lucide-react'
 import { getSession } from '@/lib/auth/session'
-import { canManageRaporTemplate, getManageableJenjang, JENJANG_LABELS } from '@/lib/auth/permissions'
+import {
+  canManageRaporTemplate, canManageStudents, getManageableJenjang, JENJANG_LABELS, kalenderPerProgram,
+} from '@/lib/auth/permissions'
 import { getCurrentTerm } from '@/lib/data/terms'
-import { getAngkatan, getKalender, getKelasAngkatan } from '@/lib/data/kalender-quran'
+import { getKalender, getKelasPerAngkatan } from '@/lib/data/kalender-quran'
 import { hitungTM } from '@/lib/rq/kalender-quran'
 import { agendaPerTanggal, adalahLibur, getKaldikEvents } from '@/lib/data/kaldik'
 import { PROGRAMS_BY_JENJANG } from '@/lib/rq/programs'
@@ -23,7 +25,7 @@ const PATH = '/kalender-quran'
 
 /** Unit kaldik yang mewakili sebuah jenjang — agenda SD berlaku untuk SD Juara juga. */
 const UNIT_KALDIK: Record<Jenjang, string> = {
-  paud: 'PAUD', sd: 'SD', sd_juara: 'SD', smp: 'SMP', sma: 'SMA',
+  paud: 'TPAIT', sd: 'SD', sd_juara: 'SD', smp: 'SMP', sma: 'SMA',
 }
 
 /**
@@ -50,18 +52,18 @@ export default async function KalenderQuranPage({ searchParams }: PageProps) {
   const tahun = Number(bulanKode.slice(0, 4))
   const bulan = Number(bulanKode.slice(5, 7))
 
-  const [term, angkatan] = await Promise.all([getCurrentTerm(), getAngkatan(unit)])
+  const [term, kelasPerAngkatan] = await Promise.all([getCurrentTerm(), getKelasPerAngkatan(unit, session.role)])
   if (!term) {
     redirect('/tahun-ajaran')
   }
 
+  const angkatan = Object.keys(kelasPerAngkatan).map(Number).sort((a, b) => a - b)
   const tingkat = Number(sp.angkatan) || angkatan[0] || 1
   const awal = `${bulanKode}-01`
   const akhir = `${bulanKode}-${String(new Date(Date.UTC(tahun, bulan, 0)).getUTCDate()).padStart(2, '0')}`
 
-  const [kalender, kelas, kaldik, kalenderSemester] = await Promise.all([
+  const [kalender, kaldik, kalenderSemester] = await Promise.all([
     getKalender(term.id, [unit], awal, akhir),
-    getKelasAngkatan(unit, tingkat),
     getKaldikEvents([tahun]),
     // Rekap semester perlu seluruh rentang, bukan hanya bulan yang dibuka.
     getKalender(term.id, [unit], term.start_date, term.end_date),
@@ -144,8 +146,11 @@ export default async function KalenderQuranPage({ searchParams }: PageProps) {
                 jadwal={kalender.jadwal}
                 kosong={kalender.kosong}
                 agenda={agenda}
-                kelas={kelas}
+                kelasPerAngkatan={kelasPerAngkatan}
+                hariIni={hariIni}
                 bolehUbah={canManageRaporTemplate(session.role, unit)}
+                programBoleh={programs.filter(p => canManageStudents(session.role, unit, p.code)).map(p => p.code)}
+                bolehSeluruhAngkatan={!kalenderPerProgram(session.role, unit)}
               />
             )}
 

@@ -15,6 +15,7 @@ import {
   tautkanPengganti, type SetoranGanda,
 } from '@/lib/data/setoran-ganda'
 import type { TahsinStatus, TahfidzKind } from '@/types'
+import { tanggalWIB } from '@/lib/rq/ujian'
 
 /**
  * KEBIJAKAN POSISI SISWA setelah setoran tahsin (ditetapkan RQ LHI).
@@ -461,7 +462,7 @@ export async function createTahsinLogAction(_: unknown, formData: FormData): Pro
     nilai_sikap: readScore(formData, 'nilai_sikap'),
     status: ((formData.get('status') as string) || 'lulus') as TahsinStatus,
     catatan: ((formData.get('catatan') as string) || '').trim() || null,
-    setoran_date: (formData.get('setoran_date') as string) || new Date().toISOString().slice(0, 10),
+    setoran_date: (formData.get('setoran_date') as string) || tanggalWIB(new Date()),
     timpa: formData.get('timpa') === '1',
   })
   if (typeof galat === 'string') return { error: galat }
@@ -672,7 +673,7 @@ export async function createTahfidzLogAction(_: unknown, formData: FormData): Pr
     nilai_tahfidz: readScore(formData, 'nilai_tahfidz'),
     nilai_sikap: readScore(formData, 'nilai_sikap'),
     catatan: ((formData.get('catatan') as string) || '').trim() || null,
-    setoran_date: (formData.get('setoran_date') as string) || new Date().toISOString().slice(0, 10),
+    setoran_date: (formData.get('setoran_date') as string) || tanggalWIB(new Date()),
     timpa: formData.get('timpa') === '1',
   })
   if (typeof galat === 'string') return { error: galat }

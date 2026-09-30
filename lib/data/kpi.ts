@@ -1,6 +1,6 @@
 import { createServerClient } from '@/lib/supabase/server'
 import { hitungKpi, type KpiHasil } from '@/lib/kpi/hitung'
-import { canPublishKpiRapor, getManageableJenjang } from '@/lib/auth/permissions'
+import { UNIT_PENUGASAN_LABELS, unitPengesahan } from '@/lib/auth/permissions'
 import type { KpiMonthly, KpiRow, Jenjang, UserRole } from '@/types'
 
 /** Bulan tiap semester. Ganjil = Juli–Desember, Genap = Januari–Juni. */
@@ -14,12 +14,12 @@ export const MONTH_NAMES = [
   'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
 ]
 
-/** Unit yang dinilai KPI. PAUD belum masuk rubrik. */
-export const KPI_UNITS: { key: Jenjang; label: string }[] = [
-  { key: 'sd', label: 'SDIT LHI' },
-  { key: 'sd_juara', label: 'SD LHI Juara' },
-  { key: 'smp', label: 'SMPIT LHI' },
-]
+/**
+ * Unit yang dinilai KPI. TPAIT & SMA sengaja tidak: gurunya sedikit dan
+ * dinilai langsung oleh kepala unitnya (lihat KOOR_PENGESAH).
+ */
+export const KPI_UNITS: { key: Jenjang; label: string }[] = (['sd', 'sd_juara', 'smp'] as const)
+  .map(key => ({ key, label: UNIT_PENUGASAN_LABELS[key] }))
 
 /**
  * Unit KPI yang boleh dilihat satu peran. Koordinator unit hanya melihat guru
@@ -28,11 +28,8 @@ export const KPI_UNITS: { key: Jenjang; label: string }[] = [
  * URL tidak bisa membuka unit lain.
  */
 export function kpiUnitsFor(role: UserRole): typeof KPI_UNITS {
-  if (role === 'koor_sd' || role === 'koor_smp' || role === 'koor_sdjuara') {
-    const milik = KPI_UNITS.filter(u => canPublishKpiRapor(role, u.key))
-    return milik.length ? milik : KPI_UNITS.filter(u => getManageableJenjang(role).includes(u.key))
-  }
-  return KPI_UNITS
+  const milik = unitPengesahan(role)
+  return milik.length > 0 ? KPI_UNITS.filter(u => milik.includes(u.key)) : KPI_UNITS
 }
 
 /**

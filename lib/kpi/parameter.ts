@@ -123,9 +123,8 @@ export const KPI_PARAM_SMP: KpiParam = {
  * Rubrik yang berlaku untuk sebuah unit.
  *
  * SD LHI Juara memakai rubrik SD karena keduanya berbagi satu berkas Panduan.
- * Unit yang belum punya rubrik sendiri (PAUD) jatuh ke SD, bukan melempar galat
- * — halaman KPI tetap bisa dibuka, dan angkanya jelas keliru daripada halaman
- * yang rusak sama sekali. PAUD memang belum masuk KPI_UNITS.
+ * Unit lain jatuh ke SD, bukan melempar galat. TPAIT & SMA memang tidak
+ * dinilai KPI (lihat KPI_UNITS), jadi jalur itu hanya jaring pengaman.
  */
 export function paramFor(unit: Jenjang | null | undefined): KpiParam {
   return unit === 'smp' ? KPI_PARAM_SMP : KPI_PARAM_SD

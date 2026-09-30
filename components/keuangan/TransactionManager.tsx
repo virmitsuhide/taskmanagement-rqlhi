@@ -17,6 +17,7 @@ import { useConfirm } from '@/components/ui/confirm-dialog'
 import { formatPeriod, formatRupiah, toPeriodKey } from '@/lib/finance/period'
 import type { Receivable } from '@/lib/finance/report'
 import type { FinanceAccount, FinanceTransaction } from '@/types'
+import { tanggalWIB } from '@/lib/rq/ujian'
 
 type Tab = 'pemasukan' | 'pengeluaran' | 'piutang'
 
@@ -363,7 +364,7 @@ function ReceivableList({ receivables, canManage }: { receivables: Receivable[];
 function ReceivableRow({ receivable, canManage }: { receivable: Receivable; canManage: boolean }) {
   const { transaction: trx, accountName } = receivable
   const [open, setOpen] = useState(false)
-  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10))
+  const [date, setDate] = useState(() => tanggalWIB(new Date()))
   const [pending, setPending] = useState(false)
 
   async function settle() {

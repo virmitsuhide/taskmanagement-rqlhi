@@ -15,6 +15,7 @@ import { createTahfidzLogSesiAction, type InputSetoranTahfidz } from '@/app/acti
 import { PerbandinganSetoranDialog } from '@/components/setoran/PerbandinganSetoranDialog'
 import type { SetoranGanda } from '@/lib/data/setoran-ganda'
 import type { SiswaSesiTahfidz } from '@/lib/data/setoran-sesi'
+import { tanggalWIB } from '@/lib/rq/ujian'
 
 type Jenis = 'ziyadah' | 'murojaah_baru' | 'murojaah_lama'
 const JENIS: Jenis[] = ['ziyadah', 'murojaah_baru', 'murojaah_lama']
@@ -91,7 +92,7 @@ export function SetoranSesiTahfidz({ siswa, surat, tanggalTetap, ekstraSlotId }:
   // Anak yang hari itu sudah punya setoran jenis yang sama: menunggu keputusan guru.
   const [ganda, setGanda] = useState<SetoranGanda[]>([])
   const [tertunda, setTertunda] = useState<InputSetoranTahfidz[]>([])
-  const [tanggal, setTanggal] = useState(() => tanggalTetap ?? new Date().toISOString().slice(0, 10))
+  const [tanggal, setTanggal] = useState(() => tanggalTetap ?? tanggalWIB(new Date()))
   const [isian, setIsian] = useState<Record<string, Isian>>(
     () => Object.fromEntries(siswa.map(s => [s.id, isianAwal(s, surat)])),
   )

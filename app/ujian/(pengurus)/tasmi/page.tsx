@@ -5,7 +5,7 @@ import { getSession } from '@/lib/auth/session'
 import { canViewUjian, getUjianProgramScope, getUjianUnits } from '@/lib/auth/permissions'
 import { getStatusHafalan, type StatusHafalanSiswa, type ButirUjian } from '@/lib/data/verifikasi-riwayat'
 import { labelKewajiban } from '@/lib/rq/hafalan'
-import { UNIT_LABELS } from '@/lib/rq/programs'
+import { UNIT_LABELS, UNIT_ORDER } from '@/lib/rq/programs'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { UjianSubNav } from '@/components/ujian/UjianSubNav'
 import { DashTop, KpiCard, Panel, Slicer, hrefDengan } from '@/components/dashboard/kit'
@@ -19,7 +19,9 @@ interface PageProps {
 type Jenis = 'semua' | '3_juz' | '5_juz'
 type Status = 'semua' | 'sudah' | 'belum'
 const PATH = '/ujian/tasmi'
-const URUT_JENJANG: Jenjang[] = ['sd', 'sd_juara', 'smp']
+// Seluruh unit, bukan daftar sendiri: dulu SMA tertinggal di sini, sehingga
+// siswanya ikut dihitung tapi tidak pernah muncul di matriks maupun filter.
+const URUT_JENJANG: readonly Jenjang[] = UNIT_ORDER
 
 const sudah = (b: ButirUjian) => b.status === 'tercatat' || b.status === 'terverifikasi'
 const tasmi = (b: ButirUjian, jenis: Jenis) => b.tipe !== '1_juz' && (jenis === 'semua' || b.tipe === jenis)

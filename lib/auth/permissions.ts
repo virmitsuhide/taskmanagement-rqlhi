@@ -1300,9 +1300,9 @@ export function canInputKpi(role: UserRole): boolean {
  * karena merekalah yang menjalankan tindak lanjut pada level 1-4.
  */
 export function canViewKpi(role: UserRole): boolean {
-  // Koor SD Juara ikut: SD LHI Juara punya rubrik KPI sendiri. Koor TPAIT &
-  // SMA belum — unitnya tidak ada di KPI_UNITS (lib/data/kpi.ts).
-  return canInputKpi(role) || role === 'kumik' || role === 'koor_sd' || role === 'koor_smp' || role === 'koor_sdjuara'
+  // Koordinator ikut bila ia mengesahkan KPI sebuah unit (KOOR_PENGESAH) —
+  // satu peta, supaya unit baru tidak perlu ditambahkan di tiga tempat.
+  return canInputKpi(role) || role === 'kumik' || unitPengesahan(role).length > 0
 }
 
 /**
@@ -1337,14 +1337,26 @@ export function canPrintKpiRapor(role: UserRole): boolean {
  * Guru QULS SD ikut di bawah Koor SD: unitnya memang sd, dan pemisahan
  * pembinaan QULS SD belum sampai ke jalur pengesahan KPI. SD LHI Juara
  * disahkan koordinatornya sendiri sejak unit itu punya koor (0099).
+ *
+ * Record penuh, bukan Partial: unit baru yang lupa ditambahkan di sini
+ * langsung gagal dikompilasi. `null` = sengaja tanpa koor pengesah.
  * Kalau kelak Koor QULS SD yang mengesahkan anak buahnya sendiri, cukup peta ini
  * yang berubah — lib/data/kpi-rapor.ts membacanya lewat koorPengesah(), tidak
  * memelihara petanya sendiri.
  */
-const KOOR_PENGESAH: Partial<Record<Jenjang, UserRole>> = {
+const KOOR_PENGESAH: Record<Jenjang, UserRole | null> = {
+  // TPAIT & SMA sengaja tanpa KPI: gurunya sedikit dan dinilai langsung oleh
+  // kepala unitnya, di luar sistem ini.
+  paud: null,
   sd: 'koor_sd',
   sd_juara: 'koor_sdjuara',
   smp: 'koor_smp',
+  sma: null,
+}
+
+/** Unit yang rapor KPI gurunya disahkan `role` — untuk lencana antrean pengesahan. */
+export function unitPengesahan(role: UserRole): Jenjang[] {
+  return (Object.keys(KOOR_PENGESAH) as Jenjang[]).filter(u => KOOR_PENGESAH[u] === role)
 }
 
 /**
@@ -1404,7 +1416,7 @@ export function canPublishKpiRapor(
  * halamannya, melainkan baris mana yang bisa ia terbitkan di dalamnya.
  */
 export function canAccessKpiPublikasi(role: UserRole): boolean {
-  return role === 'koor_sd' || role === 'koor_smp' || role === 'koor_sdjuara' || role === 'kepala_rq'
+  return role === 'kepala_rq' || unitPengesahan(role).length > 0
 }
 
 /**
@@ -1664,6 +1676,17 @@ export function canManageRaporTemplate(role: UserRole, jenjang?: Jenjang | null)
 }
 
 /**
+ * Kalender Qur'an SD dipegang dua koordinator yang wewenangnya dipotong per
+ * program (koor SD: non-QULS, koor QULS SD: QULS). Bagi keduanya, hari aktif
+ * hanya untuk programnya sendiri, dan hari kosong hanya untuk rombel yang
+ * seluruh anaknya ia kelola — tidak "seluruh angkatan", sebab satu angkatan
+ * SD berisi rombel milik keduanya (mis. 1A reguler, 1D QULS).
+ */
+export function kalenderPerProgram(role: UserRole, jenjang: Jenjang): boolean {
+  return jenjang === 'sd' && (role === 'koor_sd' || role === 'koor_qulssd')
+}
+
+/**
  * Riyadhoh Qur'an SMP (0087) — jadwal Sabtu putra/putri, pengampu, dan
  * peserta. Fitur Koordinator SMP saja: menu, halaman kelola, dan aksinya.
  * Pengampu tetap menjalankannya dari portal guru (/guru/riyadhoh), yang
@@ -1693,11 +1716,12 @@ export function canViewRiyadhohAnalitik(role: UserRole): boolean {
  */
 export function canManageKaldik(role: UserRole, unit?: string | null): boolean {
   const u = (unit ?? '').toUpperCase()
-  if (!u || u === 'NASIONAL' || u === 'RQ') {
-    return role === 'koor_sd' || role === 'koor_smp' || role === 'koor_qulssd'
-  }
-  if (u === 'SD') return role === 'koor_sd' || role === 'koor_qulssd'
+  if (!u || u === 'NASIONAL' || u === 'RQ') return isKoorUnit(role) || role === 'koor_qulssd'
+  // SD Juara mengikuti agenda SD (lihat UNIT_KALDIK di /kalender-quran).
+  if (u === 'SD') return role === 'koor_sd' || role === 'koor_qulssd' || role === 'koor_sdjuara'
   if (u === 'SMP') return role === 'koor_smp'
+  if (u === 'TPAIT') return role === 'koor_tpait'
+  if (u === 'SMA') return role === 'koor_sma'
   return false
 }
 
