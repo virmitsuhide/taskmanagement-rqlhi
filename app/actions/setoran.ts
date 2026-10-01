@@ -504,11 +504,17 @@ async function simpanSetoranTahsin(teacherId: string, input: InputSetoranTahsin)
   return null
 }
 
+/**
+ * Setelah setoran tersimpan, seluruh portal guru disegarkan — bukan halaman
+ * per halaman. Statistik, progres, capaian unit, dan halaman asrama semuanya
+ * membaca setoran; daftar yang disebut satu per satu selalu tertinggal satu
+ * halaman baru, dan angka basi di sana terbaca sebagai "data tidak real time".
+ */
 function segarkanSetoran(studentIds: string[]) {
-  revalidatePath('/guru/siswa')
-  for (const id of studentIds) revalidatePath(`/guru/siswa/${id}`)
-  revalidatePath('/guru')
-  revalidatePath('/guru/riyadhoh')
+  revalidatePath('/guru', 'layout')
+  for (const id of studentIds) revalidatePath(`/siswa/${id}`)
+  revalidatePath('/setoran')
+  revalidatePath('/asrama')
 }
 
 /** Jawaban formulir setor satu-satu; sukses tidak menjawab, melainkan redirect. */

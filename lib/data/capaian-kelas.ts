@@ -692,6 +692,8 @@ export function targetPerTingkat(matriks: MatriksCapaian[]): Map<number | null, 
 // membaca; nama siswa tidak ikut dikembalikan.
 
 export interface PosisiSiswaUnit {
+  /** Id siswa — hanya untuk pengelompokan di server (mis. kelompok asrama), tidak pernah dikirim ke peramban. */
+  id: string
   halaqoh_id: string | null
   tingkat: number | null
   metode_id: string | null
@@ -755,6 +757,7 @@ export async function getPosisiUnit(jenjang: Jenjang): Promise<PosisiUnit> {
     const lv = adaSetoran ? lvSiswa ?? (logJilid ? levelById.get(logJilid) : undefined) : undefined
     const { letak } = bacaTahfidz(s.id)
     return {
+      id: s.id,
       halaqoh_id: s.halaqoh_id,
       tingkat: tingkatOf(s.kelas),
       metode_id: (lv ?? lvSiswa)?.method_id ?? null,

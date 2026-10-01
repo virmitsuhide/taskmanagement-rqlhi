@@ -1,4 +1,5 @@
 import { BookOpen, Play, Sparkles, UserCheck, Users } from 'lucide-react'
+import { LencanaLevel } from '@/components/asrama/LencanaLevel'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { getTeacherSession } from '@/lib/auth/teacher-session'
@@ -34,7 +35,9 @@ export default async function TeacherHomePage() {
   const dateLabel = `${DAY_ID[now.getDay()]}, ${now.getDate()} ${MONTH_ID[now.getMonth()]} ${now.getFullYear()}`
 
   const [students, weekly, halaqohSummary, konteks, unitUjian, pengajuan, notifUjian, tersembunyi, daftarSesi] = await Promise.all([
-    getTeacherStudents(session.teacherId),
+    // Ikut anak kelompok asrama (0110) — musyrif boarding tidak memegang
+    // halaqoh sekolah, dan tanpa ini dashboard-nya bilang "belum mengampu".
+    getTeacherStudents(session.teacherId, { denganAsrama: true }),
     getTeacherWeeklyStats(session.teacherId),
     getTeacherHalaqohSummary(session.teacherId),
     getKonteksPengumuman(session.teacherId),
@@ -50,11 +53,18 @@ export default async function TeacherHomePage() {
     : 0
   const pengumuman = await getPengumumanGuru(konteks.unit, konteks.seenAt)
   const todayStr = now.toISOString().slice(0, 10)
-  const setorHariIni = students.filter(s => s.last_setoran_date === todayStr).length
-  const belumSetor = students.filter(s => daysAgo(s.last_setoran_date) !== 0)
+  /*
+    Anak yang hanya diampu di asrama diukur dari setoran TAHFIDZ terakhirnya:
+    setoran tahsin jalur asrama belum dibuka (TAHSIN_ASRAMA_DIBUKA), jadi
+    tanggal tahsinnya milik pengampu sekolah, bukan ukuran kerja musyrif.
+  */
+  const hanyaAsrama = (s: (typeof students)[number]) => !s.pengampu_sekolah && s.asrama_kelompok !== null
+  const tglAcuan = (s: (typeof students)[number]) => hanyaAsrama(s) ? s.last_tahfidz_date : s.last_setoran_date
+  const setorHariIni = students.filter(s => tglAcuan(s) === todayStr).length
+  const belumSetor = students.filter(s => daysAgo(tglAcuan(s)) !== 0)
   // Antrian: prioritaskan yang paling lama belum setor
   const antrian = [...belumSetor].sort((a, b) => {
-    const da = daysAgo(a.last_setoran_date); const db = daysAgo(b.last_setoran_date)
+    const da = daysAgo(tglAcuan(a)); const db = daysAgo(tglAcuan(b))
     if (da === null) return -1
     if (db === null) return 1
     return db - da
@@ -171,7 +181,7 @@ export default async function TeacherHomePage() {
 
             {students.length === 0 ? (
               <div className="rounded-2xl border border-dashed bg-muted/30 py-10 text-center text-sm text-muted-foreground">
-                Anda belum mengampu halaqoh manapun. Hubungi admin untuk assign halaqoh.
+                Anda belum mengampu halaqoh atau kelompok asrama manapun. Hubungi admin untuk assign halaqoh.
               </div>
             ) : antrian.length === 0 ? (
               <div className="rounded-2xl border bg-card py-10 text-center text-sm text-muted-foreground">
@@ -180,14 +190,14 @@ export default async function TeacherHomePage() {
             ) : (
               <div className="rounded-2xl border bg-card divide-y">
                 {antrian.map(s => {
-                  const d = daysAgo(s.last_setoran_date)
+                  const d = daysAgo(tglAcuan(s))
                   return (
                     <div key={s.id} className="flex items-center gap-3 p-3">
                       <div className="w-9 h-9 rounded-full bg-muted flex items-center justify-center text-sm font-medium shrink-0">
                         {s.full_name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase()}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm truncate">{s.full_name}</p>
+                        <p className="flex items-center gap-1.5 font-medium text-sm"><span className="truncate">{s.full_name}</span><LencanaLevel level={s.level} /></p>
                         <p className="text-xs text-muted-foreground truncate">
                           {s.lulus_tahsin
                             ? `Lulus Tahsin${s.last_tahfidz_surat ? ` · tahfidz ${s.last_tahfidz_surat}` : ''}`
@@ -198,7 +208,9 @@ export default async function TeacherHomePage() {
                         </p>
                       </div>
                       <Link
-                        href={s.lulus_tahsin ? `/guru/setoran/tahfidz/baru?student=${s.id}` : `/guru/setoran/tahsin/baru?student=${s.id}`}
+                        href={hanyaAsrama(s)
+                          ? '/guru/setoran/tahfidz/asrama'
+                          : s.lulus_tahsin ? `/guru/setoran/tahfidz/baru?student=${s.id}` : `/guru/setoran/tahsin/baru?student=${s.id}`}
                         className="text-xs px-3 py-1.5 rounded-md text-white shrink-0"
                         style={{ background: 'var(--primary)' }}
                       >

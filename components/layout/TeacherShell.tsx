@@ -65,6 +65,9 @@ export async function TeacherShell({ children }: { children: React.ReactNode }) 
   // Sesi Tahsin/Tahfidz sekolah — layarnya akan kosong. Guru yang memegang
   // keduanya melihat empat-empatnya.
   const tampilSesiSekolah = halaqohSekolah.length > 0 || !pengampuAsrama
+  // Musyrif/ah murni (hanya kelompok asrama): laporan orang tua, rapor Qur'an,
+  // dan rapor KPI adalah urusan pengampu sekolah — menunya tidak ditampilkan.
+  const musyrifSaja = !tampilSesiSekolah
 
   // Diambil di kerangka, bukan di tiap halaman: loncengnya ada di bilah atas
   // yang melekat di semua halaman portal, jadi datanya harus ikut ke mana pun.
@@ -114,19 +117,20 @@ export async function TeacherShell({ children }: { children: React.ReactNode }) 
         // Sebaran capaian seluruh halaqoh di unit guru — jumlah saja, tanpa nama siswa.
         { label: 'Capaian Unit', href: '/guru/capaian-unit', icon: <PieChart /> },
         // Laporan per SESI untuk grup wali; rapor per anak ada di halaman siswa.
-        { label: 'Laporan Orang Tua', href: '/guru/laporan-ortu', icon: <FileText /> },
+        ...(musyrifSaja ? [] : [{ label: 'Laporan Orang Tua', href: '/guru/laporan-ortu', icon: <FileText /> }]),
         // Rapor semester memakai format yang ditetapkan koordinator (0082).
-        { label: 'Rapor Qur’an', href: '/guru/rapor-quran', icon: <ScrollText /> },
+        ...(musyrifSaja ? [] : [{ label: 'Rapor Qur’an', href: '/guru/rapor-quran', icon: <ScrollText /> }]),
         ...(riyadhoh.length > 0 ? [{ label: 'Riyadhoh Sabtu', href: '/guru/riyadhoh', icon: <CalendarHeart /> }] : []),
         { label: 'Statistik', href: '/guru/statistik', icon: <BarChart3 /> },
       ],
     },
-    {
+    // Rapor KPI menilai kinerja guru sekolah — tidak untuk musyrif/ah murni.
+    ...(musyrifSaja ? [] : [{
       title: 'Kinerja Saya',
       items: [
         { label: 'Rapor KPI', href: '/guru/rapor-kpi', icon: <ClipboardCheck />, badge: raporBaru },
       ],
-    },
+    }]),
     {
       title: 'Lainnya',
       items: [

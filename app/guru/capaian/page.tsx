@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { getTeacherSession } from '@/lib/auth/teacher-session'
 import { createServerClient } from '@/lib/supabase/server'
 import { getTeacherHalaqohIds } from '@/lib/data/teacher'
+import { getKelompokAsrama } from '@/lib/data/asrama'
 import Link from 'next/link'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { PapanCapaian } from './PapanCapaian'
@@ -29,23 +30,43 @@ export default async function CapaianBulananPage({ searchParams }: PageProps) {
   const period = isValidPeriod(params.periode ?? '') ? params.periode! : currentPeriod()
 
   const supabase = createServerClient()
-  const halaqohIds = await getTeacherHalaqohIds(session.teacherId)
+  const [halaqohIds, asrama] = await Promise.all([
+    getTeacherHalaqohIds(session.teacherId),
+    getKelompokAsrama({ pengampuId: session.teacherId }),
+  ])
 
   const { data: halaqohRows } = halaqohIds.length
     ? await supabase.from('halaqoh').select('id, name').in('id', halaqohIds).order('name')
     : { data: [] }
-  const halaqohList = (halaqohRows ?? []) as { id: string; name: string }[]
+  /*
+    Kelompok asrama yang diampu (0110) ikut sebagai pilihan, berkunci
+    "asrama-<id>". Isinya HANYA LIHAT: capaian awal & akhir bulan anak
+    dicatat dan dirangkum pengampu sekolahnya; musyrif melihat hasilnya.
+  */
+  const halaqohList = [
+    ...((halaqohRows ?? []) as { id: string; name: string }[]),
+    ...asrama.map(k => ({ id: `asrama-${k.id}`, name: `Asrama · ${k.nama}` })),
+  ]
 
   const activeHalaqoh = halaqohList.find(h => h.id === params.halaqoh) ?? halaqohList[0] ?? null
+  const kelompokAsrama = activeHalaqoh?.id.startsWith('asrama-')
+    ? asrama.find(k => `asrama-${k.id}` === activeHalaqoh.id) ?? null
+    : null
+  const idsAsrama = kelompokAsrama?.anggota.map(a => a.student_id) ?? []
 
-  const { data: studentRows } = activeHalaqoh
-    ? await supabase
-        .from('students')
-        .select('id, full_name, kelas, level_awal')
-        .eq('halaqoh_id', activeHalaqoh.id)
-        .eq('is_active', true)
-        .order('full_name')
-    : { data: [] }
+  const { data: studentRows } = !activeHalaqoh
+    ? { data: [] }
+    : kelompokAsrama
+      ? idsAsrama.length
+        ? await supabase.from('students').select('id, full_name, kelas, level_awal')
+            .in('id', idsAsrama).eq('is_active', true).order('full_name')
+        : { data: [] }
+      : await supabase
+          .from('students')
+          .select('id, full_name, kelas, level_awal')
+          .eq('halaqoh_id', activeHalaqoh.id)
+          .eq('is_active', true)
+          .order('full_name')
   const students = (studentRows ?? []) as {
     id: string; full_name: string; kelas: string | null; level_awal: string
   }[]
@@ -60,15 +81,20 @@ export default async function CapaianBulananPage({ searchParams }: PageProps) {
 
   // Muroja'ah bulan ini dalam halaman (volume baca), langsung dari setoran —
   // bukan dari rangkuman bulanan, yang hanya memuat titik awal & akhir.
+  // Kelompok asrama: muroja'ah di sekolah saja, sejalan dengan capaiannya.
+  const kueriMurojaah = () => {
+    const q = supabase
+      .from('tahfidz_logs')
+      .select('student_id, kind, surat_id, ayat_dari, surat_ke_id, ayat_ke')
+      .in('student_id', students.map(s => s.id))
+      .in('kind', [...KIND_MUROJAAH])
+      .gte('setoran_date', toPeriodDate(period))
+      .lt('setoran_date', toPeriodDate(shiftPeriod(period, 1)))
+    return kelompokAsrama ? q.eq('asrama', false) : q
+  }
   const [{ data: murojaahRows }, peta] = students.length
     ? await Promise.all([
-        supabase
-          .from('tahfidz_logs')
-          .select('student_id, kind, surat_id, ayat_dari, surat_ke_id, ayat_ke')
-          .in('student_id', students.map(s => s.id))
-          .in('kind', [...KIND_MUROJAAH])
-          .gte('setoran_date', toPeriodDate(period))
-          .lt('setoran_date', toPeriodDate(shiftPeriod(period, 1))),
+        kueriMurojaah(),
         getPetaHalaman(),
       ])
     : [{ data: [] }, null]
@@ -99,7 +125,9 @@ export default async function CapaianBulananPage({ searchParams }: PageProps) {
               )}
             </h1>
             <p className="mt-2 max-w-2xl text-sm text-muted-foreground md:text-base">
-              Pengganti lembar DB Y1–Y6. Rangkum otomatis dari setoran, lalu betulkan yang perlu — dasar rapor dan rekap semester.
+              {kelompokAsrama
+                ? 'Capaian awal dan akhir bulan anak asrama dari catatan sekolahnya — hanya lihat; dirangkum dan dibetulkan oleh pengampu sekolah.'
+                : 'Pengganti lembar DB Y1–Y6. Rangkum otomatis dari setoran, lalu betulkan yang perlu — dasar rapor dan rekap semester.'}
             </p>
           </div>
 
@@ -141,7 +169,7 @@ export default async function CapaianBulananPage({ searchParams }: PageProps) {
 
         {halaqohList.length === 0 ? (
           <div className="rounded-2xl border border-dashed bg-muted/30 py-10 text-center text-sm text-muted-foreground">
-            Anda belum menjadi wali atau pengampu halaqoh mana pun.
+            Anda belum menjadi wali atau pengampu halaqoh maupun kelompok asrama mana pun.
           </div>
         ) : (
           <PapanCapaian
@@ -152,6 +180,7 @@ export default async function CapaianBulananPage({ searchParams }: PageProps) {
             students={students}
             monthly={monthly}
             murojaah={murojaah}
+            bacaSaja={kelompokAsrama !== null}
           />
         )}
       </div>

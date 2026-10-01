@@ -4,6 +4,8 @@ import { getTeacherSession } from '@/lib/auth/teacher-session'
 import { JENJANG_LABELS } from '@/lib/auth/permissions'
 import { createServerClient } from '@/lib/supabase/server'
 import { getHalaqohSesiGuru } from '@/lib/data/setoran-sesi'
+import { getKelompokAsrama } from '@/lib/data/asrama'
+import { LABEL_GENDER_ASRAMA } from '@/lib/rq/asrama'
 import { BELUM_TERCATAT, getPosisiUnit, type PosisiSiswaUnit } from '@/lib/data/capaian-kelas'
 import { cn } from '@/lib/utils'
 import type { Jenjang } from '@/types'
@@ -66,32 +68,57 @@ export default async function CapaianUnitPage({ searchParams }: PageProps) {
   if (!session) redirect('/guru/login')
   const sp = await searchParams
 
-  const halaqohSaya = await getHalaqohSesiGuru(session.teacherId)
+  const [halaqohSaya, asramaSaya] = await Promise.all([
+    getHalaqohSesiGuru(session.teacherId),
+    getKelompokAsrama({ pengampuId: session.teacherId }),
+  ])
+  /*
+    "Unit" pengampu asrama (0110) adalah ASRAMA segendernya: yang dibandingkan
+    kelompok-kelompok asrama, bukan halaqoh sekolah. Posisi tiap anak tetap
+    dari aturan yang sama (getPosisiUnit SMP) — hanya pengelompokannya beda.
+  */
   const unitSaya = [...new Set(halaqohSaya.map(h => h.jenjang))] as Jenjang[]
-  const unit = unitSaya.includes(sp.unit as Jenjang) ? (sp.unit as Jenjang) : unitSaya[0]
+  const pilihanUnit: (Jenjang | 'asrama')[] = [...unitSaya, ...(asramaSaya.length ? ['asrama' as const] : [])]
+  const unit = pilihanUnit.find(u => u === sp.unit) ?? pilihanUnit[0]
   const jenis: 'tahsin' | 'tahfidz' = sp.jenis === 'tahfidz' ? 'tahfidz' : 'tahsin'
+  const asrama = unit === 'asrama'
+  const genderAsrama = [...new Set(asramaSaya.map(k => k.gender))]
+  const labelUnit = (u: Jenjang | 'asrama') => u === 'asrama'
+    ? (genderAsrama.length === 1 ? LABEL_GENDER_ASRAMA[genderAsrama[0]] : 'Asrama')
+    : JENJANG_LABELS[u]
+  const namaGrup = asrama ? 'kelompok' : 'halaqoh'
+  const lingkup = asrama ? 'asrama' : 'unit'
 
   if (!unit) {
     return (
       <Bingkai>
         <Judul unit={null} />
         <p className="rounded-2xl border border-dashed bg-muted/30 py-10 text-center text-sm text-muted-foreground">
-          Anda belum mengampu halaqoh aktif, jadi belum ada unit yang bisa ditampilkan.
+          Anda belum mengampu halaqoh atau kelompok asrama aktif, jadi belum ada unit yang bisa ditampilkan.
         </p>
       </Bingkai>
     )
   }
 
-  const data = await getPosisiUnit(unit)
+  // Kelompok asrama segender (semua pengampu) — pembanding untuk unit asrama.
+  const kelompokUnit = asrama ? (await getKelompokAsrama()).filter(k => genderAsrama.includes(k.gender)) : []
+  const kelompokSiswa = new Map(kelompokUnit.flatMap(k => k.anggota.map(a => [a.student_id, k.id] as const)))
+  const mentah = await getPosisiUnit(asrama ? 'smp' : unit)
+  const data = asrama ? { ...mentah, siswa: mentah.siswa.filter(s => kelompokSiswa.has(s.id)) } : mentah
+  /** Halaqoh (sekolah) atau kelompok asrama tempat siswa ini dihitung. */
+  const grupOf = (s: PosisiSiswaUnit): string | null => asrama ? kelompokSiswa.get(s.id) ?? null : s.halaqoh_id
   const metodeAda = data.metode
-  const idSaya = new Set(halaqohSaya.map(h => h.id))
+  const idSaya = new Set(asrama ? asramaSaya.map(k => k.id) : halaqohSaya.map(h => h.id))
   /*
     Tahsin SELALU dibaca per metode: Jilid 4 KIBAR bukan Jilid 4 Ummi, jadi
     menggabungkannya menyesatkan. Bawaannya metode yang paling banyak dipakai
     siswa halaqoh guru ini sendiri.
   */
   const hitungMetodeSaya = new Map<string, number>()
-  for (const s of data.siswa) if (s.metode_id && s.halaqoh_id && idSaya.has(s.halaqoh_id)) hitungMetodeSaya.set(s.metode_id, (hitungMetodeSaya.get(s.metode_id) ?? 0) + 1)
+  for (const s of data.siswa) {
+    const grup = grupOf(s)
+    if (s.metode_id && grup && idSaya.has(grup)) hitungMetodeSaya.set(s.metode_id, (hitungMetodeSaya.get(s.metode_id) ?? 0) + 1)
+  }
   const metodeBawaan = [...hitungMetodeSaya.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? metodeAda[0]?.id ?? null
   const metode = jenis === 'tahsin'
     ? (metodeAda.some(m => m.id === sp.metode) ? sp.metode! : metodeBawaan)
@@ -109,29 +136,31 @@ export default async function CapaianUnitPage({ searchParams }: PageProps) {
   const kunci: Kunci = jenis === 'tahsin' ? s => s.level ?? BELUM_TERCATAT : s => s.tahfidz
   const unitSeb = sebaran(siswa, kunci, urutan)
   const warnaDari = new Map(unitSeb.kolom.map((k, i) => [k, unitSeb.warna[i]]))
-  const siswaSaya = siswa.filter(s => s.halaqoh_id && idSaya.has(s.halaqoh_id))
+  const siswaSaya = siswa.filter(s => { const grup = grupOf(s); return grup !== null && idSaya.has(grup) })
   const medianUnit = median(siswa, kunci, urutan)
   const medianSaya = median(siswaSaya, kunci, urutan)
   const belum = unitSeb.jumlah[unitSeb.kolom.indexOf(BELUM_TERCATAT)] ?? 0
 
-  // Nama halaqoh & pengampu — tanpa daftar anggota.
-  const idHalaqoh = [...new Set(siswa.map(s => s.halaqoh_id).filter((x): x is string => Boolean(x)))]
+  // Nama halaqoh/kelompok & pengampu — tanpa daftar anggota.
+  const idHalaqoh = [...new Set(siswa.map(grupOf).filter((x): x is string => Boolean(x)))]
   const supabase = createServerClient()
-  const { data: hRows } = idHalaqoh.length
+  const { data: hRows } = !asrama && idHalaqoh.length
     ? await supabase.from('halaqoh')
         .select('id, name, sesi, wali_teacher:teachers!halaqoh_wali_teacher_id_fkey(full_name)')
         .in('id', idHalaqoh)
     : { data: [] }
-  const infoHalaqoh = new Map(((hRows ?? []) as unknown as { id: string; name: string; sesi: number | null; wali_teacher: { full_name: string } | null }[])
-    .map(h => [h.id, h]))
+  const infoHalaqoh = new Map<string, { name: string; wali_teacher: { full_name: string } | null }>(asrama
+    ? kelompokUnit.map(k => [k.id, { name: k.nama, wali_teacher: k.pengampu_nama ? { full_name: k.pengampu_nama } : null }])
+    : ((hRows ?? []) as unknown as { id: string; name: string; wali_teacher: { full_name: string } | null }[])
+        .map(h => [h.id, h]))
   const perHalaqoh = idHalaqoh.map(id => {
-    const anggota = siswa.filter(s => s.halaqoh_id === id)
+    const anggota = siswa.filter(s => grupOf(s) === id)
     const hitung = new Map<string, number>()
     for (const s of anggota) hitung.set(kunci(s), (hitung.get(kunci(s)) ?? 0) + 1)
     const med = median(anggota, kunci, urutan)
     return {
       id,
-      nama: infoHalaqoh.get(id)?.name ?? 'Halaqoh',
+      nama: infoHalaqoh.get(id)?.name ?? (asrama ? 'Kelompok' : 'Halaqoh'),
       pengampu: infoHalaqoh.get(id)?.wali_teacher?.full_name ?? null,
       total: anggota.length,
       sel: unitSeb.kolom.map(k => hitung.get(k) ?? 0),
@@ -145,7 +174,7 @@ export default async function CapaianUnitPage({ searchParams }: PageProps) {
 
   const href = (g: Record<string, string | undefined>) => {
     const p = new URLSearchParams()
-    const isi = { unit: unitSaya.length > 1 ? unit : undefined, jenis: jenis === 'tahfidz' ? 'tahfidz' : undefined, metode: metode ?? undefined, kelas: kelas?.toString(), urut: urut === 'median' ? 'median' : undefined, ...g }
+    const isi = { unit: pilihanUnit.length > 1 ? unit : undefined, jenis: jenis === 'tahfidz' ? 'tahfidz' : undefined, metode: metode ?? undefined, kelas: kelas?.toString(), urut: urut === 'median' ? 'median' : undefined, ...g }
     for (const [k, v] of Object.entries(isi)) if (v) p.set(k, v)
     const qs = p.toString()
     return qs ? `${PATH}?${qs}` : PATH
@@ -155,7 +184,7 @@ export default async function CapaianUnitPage({ searchParams }: PageProps) {
 
   return (
     <Bingkai>
-      <Judul unit={JENJANG_LABELS[unit]} />
+      <Judul unit={labelUnit(unit)} asrama={asrama} />
 
       {/* ── Saringan ── */}
       <div className="flex flex-wrap items-center gap-x-5 gap-y-3 rounded-2xl border bg-card p-4">
@@ -163,9 +192,9 @@ export default async function CapaianUnitPage({ searchParams }: PageProps) {
           <Pil href={href({ jenis: undefined, metode: undefined })} aktif={jenis === 'tahsin'}>Tahsin · jilid</Pil>
           <Pil href={href({ jenis: 'tahfidz', metode: undefined })} aktif={jenis === 'tahfidz'}>Tahfidz · juz</Pil>
         </Kelompok>
-        {unitSaya.length > 1 && (
+        {pilihanUnit.length > 1 && (
           <Kelompok label="Unit">
-            {unitSaya.map(u => <Pil key={u} href={href({ unit: u, metode: undefined, kelas: undefined })} aktif={u === unit}>{JENJANG_LABELS[u]}</Pil>)}
+            {pilihanUnit.map(u => <Pil key={u} href={href({ unit: u, metode: undefined, kelas: undefined })} aktif={u === unit}>{labelUnit(u)}</Pil>)}
           </Kelompok>
         )}
         {jenis === 'tahsin' && metodeAda.length > 0 && (
@@ -183,15 +212,15 @@ export default async function CapaianUnitPage({ searchParams }: PageProps) {
 
       {/* ── Angka ringkas ── */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Angka label="Siswa" nilai={String(unitSeb.total)} ket={`${perHalaqoh.length} halaqoh${namaMetode ? ` · ${namaMetode}` : ''}`} />
-        <Angka label="Median unit" nilai={medianUnit ?? '—'} ket={`posisi tengah ${namaTingkat}`} nada="primary" />
-        <Angka label="Halaqoh Anda" nilai={medianSaya ?? '—'} ket={`${siswaSaya.length} siswa · median`} nada="warm" />
+        <Angka label="Siswa" nilai={String(unitSeb.total)} ket={`${perHalaqoh.length} ${namaGrup}${namaMetode ? ` · ${namaMetode}` : ''}`} />
+        <Angka label={asrama ? 'Median asrama' : 'Median unit'} nilai={medianUnit ?? '—'} ket={`posisi tengah ${namaTingkat}`} nada="primary" />
+        <Angka label={asrama ? 'Kelompok Anda' : 'Halaqoh Anda'} nilai={medianSaya ?? '—'} ket={`${siswaSaya.length} siswa · median`} nada="warm" />
         <Angka label="Belum tercatat" nilai={String(belum)} ket={`${persen(belum, unitSeb.total)}% belum punya posisi`} />
       </div>
 
       {tanpaMetode > 0 && (
         <p className="-mt-2 text-xs text-muted-foreground">
-          {tanpaMetode} siswa di unit ini belum punya level tahsin, jadi belum masuk metode mana pun.
+          {tanpaMetode} siswa di {lingkup} ini belum punya level tahsin, jadi belum masuk metode mana pun.{asrama && ' Posisinya menunggu capaian sekolah.'}
         </p>
       )}
 
@@ -204,10 +233,10 @@ export default async function CapaianUnitPage({ searchParams }: PageProps) {
           {/* ── Sebaran se-unit ── */}
           <section className="rounded-2xl border bg-card p-5 md:p-6">
             <h2 className="font-heading text-xl leading-tight">
-              {jenis === 'tahsin' ? 'Sebaran jilid se-unit' : 'Juz yang sedang dihafal'}
+              {jenis === 'tahsin' ? `Sebaran jilid se-${lingkup}` : 'Juz yang sedang dihafal'}
             </h2>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              {JENJANG_LABELS[unit]}{namaMetode ? ` · metode ${namaMetode}` : ''}{kelas ? ` · kelas ${kelas}` : ''}
+              {labelUnit(unit)}{namaMetode ? ` · metode ${namaMetode}` : ''}{kelas ? ` · kelas ${kelas}` : ''}
             </p>
             <div className="my-5 flex justify-center">
               <Donut seb={unitSeb} tengah={medianUnit ?? String(unitSeb.total)} bawah={medianUnit ? 'median unit' : 'siswa'} />
@@ -218,7 +247,7 @@ export default async function CapaianUnitPage({ searchParams }: PageProps) {
                   <th className="pb-1.5 font-semibold">Tingkat</th>
                   <th className="pb-1.5 text-right font-semibold">Siswa</th>
                   <th className="pb-1.5 text-right font-semibold">%</th>
-                  <th className="pb-1.5 text-right font-semibold">Halaqoh Anda</th>
+                  <th className="pb-1.5 text-right font-semibold">{asrama ? 'Kelompok Anda' : 'Halaqoh Anda'}</th>
                 </tr>
               </thead>
               <tbody>
@@ -244,8 +273,8 @@ export default async function CapaianUnitPage({ searchParams }: PageProps) {
             </table>
             {medianUnit && medianSaya && (
               <p className="mt-4 rounded-xl bg-primary-wash px-4 py-3 text-sm leading-relaxed">
-                Median unit <b>{medianUnit}</b>; halaqoh Anda <b>{medianSaya}</b>
-                {medianSaya === medianUnit ? ' — sejajar dengan unit.' : urutan.indexOf(medianSaya) > urutan.indexOf(medianUnit) ? ' — di depan median unit.' : ' — di belakang median unit.'}
+                Median {lingkup} <b>{medianUnit}</b>; {namaGrup} Anda <b>{medianSaya}</b>
+                {medianSaya === medianUnit ? ` — sejajar dengan ${lingkup}.` : urutan.indexOf(medianSaya) > urutan.indexOf(medianUnit) ? ` — di depan median ${lingkup}.` : ` — di belakang median ${lingkup}.`}
               </p>
             )}
           </section>
@@ -254,8 +283,8 @@ export default async function CapaianUnitPage({ searchParams }: PageProps) {
           <section className="rounded-2xl border bg-card p-5 md:p-6">
             <div className="flex flex-wrap items-end justify-between gap-3">
               <div>
-                <h2 className="font-heading text-xl leading-tight">Per halaqoh</h2>
-                <p className="mt-0.5 text-xs text-muted-foreground">Batang penuh = seluruh siswa halaqoh itu</p>
+                <h2 className="font-heading text-xl leading-tight">{asrama ? 'Per kelompok asrama' : 'Per halaqoh'}</h2>
+                <p className="mt-0.5 text-xs text-muted-foreground">Batang penuh = seluruh siswa {namaGrup} itu</p>
               </div>
               <Kelompok label="Urutkan">
                 <Pil href={href({ urut: undefined })} aktif={urut === 'nama'} kecil>Nama</Pil>
@@ -305,7 +334,7 @@ export default async function CapaianUnitPage({ searchParams }: PageProps) {
               ))}
             </ul>
             <p className="mt-4 text-xs text-muted-foreground">
-              Arahkan kursor (atau ketuk) batang untuk jumlah per tingkat. Nama siswa halaqoh lain tidak ditampilkan — hanya jumlahnya.
+              Arahkan kursor (atau ketuk) batang untuk jumlah per tingkat. Nama siswa {namaGrup} lain tidak ditampilkan — hanya jumlahnya.
             </p>
           </section>
         </div>
@@ -322,15 +351,17 @@ function Bingkai({ children }: { children: React.ReactNode }) {
   )
 }
 
-function Judul({ unit }: { unit: string | null }) {
+function Judul({ unit, asrama = false }: { unit: string | null; asrama?: boolean }) {
   return (
     <header>
       <p className="text-xs font-bold uppercase tracking-[0.1em] text-warning">
         Siswa &amp; capaian · capaian unit{unit ? ` · ${unit}` : ''}
       </p>
-      <h1 className="mt-1 text-3xl tracking-tight">Sampai mana halaqoh-halaqoh di unit saya?</h1>
+      <h1 className="mt-1 text-3xl tracking-tight">{asrama ? 'Sampai mana kelompok-kelompok di asrama saya?' : 'Sampai mana halaqoh-halaqoh di unit saya?'}</h1>
       <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-        Bandingkan capaian halaqoh Anda dengan kelompok lain di unit yang sama — tahsin menurut jilid, tahfidz menurut juz.
+        {asrama
+          ? 'Bandingkan capaian kelompok asrama Anda dengan kelompok asrama lain — tahsin menurut jilid, tahfidz menurut juz.'
+          : 'Bandingkan capaian halaqoh Anda dengan kelompok lain di unit yang sama — tahsin menurut jilid, tahfidz menurut juz.'}
       </p>
     </header>
   )

@@ -1,4 +1,5 @@
 import { createServerClient } from '@/lib/supabase/server'
+import { getKelompokAsrama } from '@/lib/data/asrama'
 import { getHalaqohSesiGuru, type HalaqohSesi } from '@/lib/data/setoran-sesi'
 import { getPetaHalaman, getTargetTahfidz } from '@/lib/data/target-tahfidz'
 import { levelDariTahap, levelOrder } from '@/lib/rq/level'
@@ -93,6 +94,12 @@ export interface StatistikGuru {
   halaqoh: HalaqohSesi[]
   /** Halaqoh yang disaring; null = semua halaqoh guru. */
   halaqohTerpilih: HalaqohSesi | null
+  /**
+   * Guru ini hanya pengampu asrama (0110) — tidak memegang halaqoh sekolah.
+   * Halaman memakai ini untuk membuka tampilan tahfidz lebih dulu, karena
+   * setoran tahsin jalur asrama belum dibuka.
+   */
+  hanyaAsrama: boolean
   /**
    * Rentang sebanding sebelumnya: pekan/bulan/3 bulan lalu sampai hari yang
    * SAMA jauhnya dari awal — bukan periode penuh. Bulan berjalan yang baru
@@ -276,20 +283,25 @@ function tingkatDari(kelas: string | null): number | null {
 const TOP = 5
 
 /** Angka ringkasan satu rentang — untuk periode pembanding, tanpa rincian per anak. */
-async function ringkasRentang(ids: string[], awal: string, akhir: string): Promise<RingkasPembanding> {
+async function ringkasRentang(
+  ids: string[], awal: string, akhir: string,
+  milikPov: (l: { student_id: string; asrama?: boolean | null }) => boolean,
+): Promise<RingkasPembanding> {
   const supabase = createServerClient()
-  const [tahsin, tahfidz, naikJilid, naikJuz] = await Promise.all([
-    ambilSemua<{ student_id: string }>((dari, ke) =>
-      supabase.from('tahsin_logs').select('student_id')
+  const [tahsinSemua, tahfidzSemua, naikJilid, naikJuz] = await Promise.all([
+    ambilSemua<{ student_id: string; asrama: boolean | null }>((dari, ke) =>
+      supabase.from('tahsin_logs').select('student_id, asrama')
         .in('student_id', ids).gte('setoran_date', awal).lte('setoran_date', akhir).range(dari, ke)),
-    ambilSemua<{ student_id: string }>((dari, ke) =>
-      supabase.from('tahfidz_logs').select('student_id')
+    ambilSemua<{ student_id: string; asrama: boolean | null }>((dari, ke) =>
+      supabase.from('tahfidz_logs').select('student_id, asrama')
         .in('student_id', ids).gte('setoran_date', awal).lte('setoran_date', akhir).range(dari, ke)),
     supabase.from('jilid_promotions').select('*', { count: 'exact', head: true })
       .in('student_id', ids).gte('promotion_date', awal).lte('promotion_date', akhir),
     supabase.from('juz_promotions').select('*', { count: 'exact', head: true })
       .in('student_id', ids).gte('promotion_date', awal).lte('promotion_date', akhir),
   ])
+  const tahsin = tahsinSemua.filter(milikPov)
+  const tahfidz = tahfidzSemua.filter(milikPov)
   return {
     setoranTahsin: tahsin.length,
     setoranTahfidz: tahfidz.length,
@@ -304,12 +316,32 @@ export async function getStatistikGuru(
   kode: KodePeriode,
   saring: { halaqohId?: string | null } = {},
 ): Promise<StatistikGuru> {
-  const [periode, semuaHalaqoh] = await Promise.all([rentangPeriode(kode), getHalaqohSesiGuru(teacherId)])
+  const [periode, halaqohSekolah, kelompokAsrama] = await Promise.all([
+    rentangPeriode(kode),
+    getHalaqohSesiGuru(teacherId),
+    getKelompokAsrama({ pengampuId: teacherId }),
+  ])
+  /*
+    Kelompok asrama yang diampu (0110) ikut sebagai "halaqoh" berkunci
+    "asrama-<id>". Sudut pandangnya sudut pandang PENGAMPU: untuk anak asrama
+    yang dihitung setoran yang dicatat di asrama, untuk anak halaqoh sekolah
+    setoran sekolahnya — kerja guru ini sendiri, bukan kerja pengampu lain
+    atas anak yang sama. Posisi & peringkat "tertinggi" tetap posisi anak.
+  */
+  const semuaHalaqoh: HalaqohSesi[] = [
+    ...halaqohSekolah,
+    ...kelompokAsrama.map(k => ({ id: `asrama-${k.id}`, name: `Asrama · ${k.nama}`, sesi: null, jenjang: 'smp' as const })),
+  ]
+  const hanyaAsrama = halaqohSekolah.length === 0 && kelompokAsrama.length > 0
   // Halaqoh yang diminta hanya dipakai bila memang milik guru ini.
   const halaqohTerpilih = semuaHalaqoh.find(h => h.id === saring.halaqohId) ?? null
   const halaqoh = halaqohTerpilih ? [halaqohTerpilih] : semuaHalaqoh
+  const idSekolah = halaqoh.filter(h => !h.id.startsWith('asrama-')).map(h => h.id)
+  const siswaAsrama = new Set(kelompokAsrama
+    .filter(k => halaqoh.some(h => h.id === `asrama-${k.id}`))
+    .flatMap(k => k.anggota.map(a => a.student_id)))
   const kosong: StatistikGuru = {
-    periode, halaqoh: semuaHalaqoh, halaqohTerpilih, pembanding: null, jumlahSiswa: 0,
+    periode, halaqoh: semuaHalaqoh, halaqohTerpilih, hanyaAsrama, pembanding: null, jumlahSiswa: 0,
     ringkas: { setoranTahsin: 0, setoranTahfidz: 0, siswaSetor: 0, naikJilid: 0, naikJuz: 0 },
     aktivitas: wadahAktivitas(periode).map(w => ({ label: w.label, judul: w.judul, tahsin: 0, tahfidz: 0 })),
     tahsinTertinggi: [], tahfidzTertinggi: [], tahsinTercepat: [], tahfidzTercepat: [], perhatianTahsin: [], tahsinTakTerukur: 0,
@@ -319,27 +351,37 @@ export async function getStatistikGuru(
   if (halaqoh.length === 0) return kosong
 
   const supabase = createServerClient()
+  const saringSiswa = [
+    idSekolah.length ? `halaqoh_id.in.(${idSekolah.join(',')})` : null,
+    siswaAsrama.size ? `id.in.(${[...siswaAsrama].join(',')})` : null,
+  ].filter(Boolean).join(',')
+  if (!saringSiswa) return kosong
   const { data: siswaRows } = await supabase
     .from('students')
-    .select('id, full_name, kelas, jenjang, current_jilid_page, current_quran_halaman, jilid:jilid_levels!students_current_jilid_id_fkey(label, total_pages, order_num)')
-    .in('halaqoh_id', halaqoh.map(h => h.id))
+    .select('id, full_name, kelas, jenjang, halaqoh_id, current_jilid_page, current_quran_halaman, jilid:jilid_levels!students_current_jilid_id_fkey(label, total_pages, order_num)')
+    .or(saringSiswa)
     .eq('is_active', true)
     .order('full_name')
-  const siswa = (siswaRows ?? []) as unknown as Siswa[]
+  const siswa = (siswaRows ?? []) as unknown as (Siswa & { halaqoh_id: string | null })[]
   if (siswa.length === 0) return kosong
   const ids = siswa.map(s => s.id)
+  // Setoran yang menjadi kerja guru ini: jalur sekolah untuk anak halaqohnya,
+  // jalur asrama untuk anak kelompok asramanya.
+  const siswaSekolah = new Set(siswa.filter(s => s.halaqoh_id && idSekolah.includes(s.halaqoh_id)).map(s => s.id))
+  const milikPov = (l: { student_id: string; asrama?: boolean | null }) =>
+    (siswaSekolah.has(l.student_id) && !l.asrama) || (siswaAsrama.has(l.student_id) && Boolean(l.asrama))
   const perId = new Map(siswa.map(s => [s.id, s]))
   const jenjangGuru = [...new Set(siswa.map(s => s.jenjang))]
 
   const { data: term } = await supabase.from('academic_terms').select('id').eq('is_current', true).maybeSingle()
 
   const lalu = rentangSebelumnya(periode)
-  const [tahsin, tahfidz, naikJilid, naikJuz, targetRows, targetTahfidz, peta, ringkasLalu, ziyadahSemua, progresJuz, juzTeruji] = await Promise.all([
-    ambilSemua<{ student_id: string; setoran_date: string; status: string; drill: boolean | null }>((dari, ke) =>
-      supabase.from('tahsin_logs').select('student_id, setoran_date, status, drill')
+  const [tahsinSemua, tahfidzSemua, naikJilid, naikJuz, targetRows, targetTahfidz, peta, ringkasLalu, ziyadahSemua, progresJuz, juzTeruji] = await Promise.all([
+    ambilSemua<{ student_id: string; setoran_date: string; status: string; drill: boolean | null; asrama: boolean | null }>((dari, ke) =>
+      supabase.from('tahsin_logs').select('student_id, setoran_date, status, drill, asrama')
         .in('student_id', ids).gte('setoran_date', periode.awal).lte('setoran_date', periode.akhir).range(dari, ke)),
-    ambilSemua<{ student_id: string; setoran_date: string; kind: string; surat_id: number; ayat_dari: number | null; ayat_ke: number | null }>((dari, ke) =>
-      supabase.from('tahfidz_logs').select('student_id, setoran_date, kind, surat_id, ayat_dari, ayat_ke')
+    ambilSemua<{ student_id: string; setoran_date: string; kind: string; surat_id: number; ayat_dari: number | null; ayat_ke: number | null; asrama: boolean | null }>((dari, ke) =>
+      supabase.from('tahfidz_logs').select('student_id, setoran_date, kind, surat_id, ayat_dari, ayat_ke, asrama')
         .in('student_id', ids).gte('setoran_date', periode.awal).lte('setoran_date', periode.akhir).range(dari, ke)),
     supabase.from('jilid_promotions').select('*', { count: 'exact', head: true })
       .in('student_id', ids).gte('promotion_date', periode.awal).lte('promotion_date', periode.akhir),
@@ -350,7 +392,7 @@ export async function getStatistikGuru(
       : Promise.resolve({ data: [] }),
     getTargetTahfidz(jenjangGuru),
     getPetaHalaman(),
-    lalu ? ringkasRentang(ids, lalu.awal, lalu.akhir) : Promise.resolve(null),
+    lalu ? ringkasRentang(ids, lalu.awal, lalu.akhir, milikPov) : Promise.resolve(null),
     // Bahan 'Tahfidz Tertinggi': seluruh ziyadah (bukan hanya periode ini) & juz tuntas.
     ambilSemua<{ student_id: string; surat_id: number; ayat_dari: number | null; ayat_ke: number | null }>((dari, ke) =>
       supabase.from('tahfidz_logs').select('student_id, surat_id, ayat_dari, ayat_ke')
@@ -359,6 +401,9 @@ export async function getStatistikGuru(
       supabase.from('juz_progress').select('student_id, juz_number, ayat_hafal, mutqin').in('student_id', ids).range(dari, ke)),
     getJuzTerujiPerSiswa(ids),
   ])
+
+  const tahsin = tahsinSemua.filter(milikPov)
+  const tahfidz = tahfidzSemua.filter(milikPov)
 
   // ── Ringkasan & aktivitas ──
   const pernahSetor = new Set<string>([...tahsin.map(l => l.student_id), ...tahfidz.map(l => l.student_id)])
@@ -501,6 +546,7 @@ export async function getStatistikGuru(
     periode,
     halaqoh: semuaHalaqoh,
     halaqohTerpilih,
+    hanyaAsrama,
     pembanding: lalu && ringkasLalu ? { keterangan: lalu.keterangan, ringkas: ringkasLalu } : null,
     jumlahSiswa: siswa.length,
     ringkas: {

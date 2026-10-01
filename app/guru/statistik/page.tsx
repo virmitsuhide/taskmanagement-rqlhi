@@ -34,13 +34,16 @@ export default async function GuruStatistikPage({ searchParams }: PageProps) {
 
   const sp = await searchParams
   const kode: KodePeriode = URUTAN.includes(sp.periode as KodePeriode) ? (sp.periode as KodePeriode) : 'bulan'
-  const fokus: Fokus = sp.fokus === 'tahsin' || sp.fokus === 'tahfidz' ? sp.fokus : 'semua'
   const s = await getStatistikGuru(session.teacherId, kode, { halaqohId: sp.halaqoh })
+  // Musyrif (hanya pengampu asrama) mencatat tahfidz saja selama setoran
+  // tahsin asrama ditutup — tampilannya dibuka di Tahfidz lebih dulu.
+  const bawaan: Fokus = s.hanyaAsrama ? 'tahfidz' : 'semua'
+  const fokus: Fokus = sp.fokus === 'tahsin' || sp.fokus === 'tahfidz' || sp.fokus === 'semua' ? sp.fokus : bawaan
 
   const params = {
     periode: kode === 'bulan' ? undefined : kode,
     halaqoh: s.halaqohTerpilih?.id,
-    fokus: fokus === 'semua' ? undefined : fokus,
+    fokus: fokus === bawaan ? undefined : fokus,
   }
   const href = (ganti: Record<string, string | undefined>) => hrefDengan(PATH, params, ganti)
   const tahsin = fokus !== 'tahfidz'
@@ -93,7 +96,7 @@ export default async function GuruStatistikPage({ searchParams }: PageProps) {
                 label="Program"
                 options={(['semua', 'tahsin', 'tahfidz'] as Fokus[]).map(f => ({
                   label: f === 'semua' ? 'Semua' : f === 'tahsin' ? 'Tahsin' : 'Tahfidz',
-                  href: href({ fokus: f === 'semua' ? undefined : f }),
+                  href: href({ fokus: f === bawaan ? undefined : f }),
                   active: fokus === f,
                 }))}
               />
@@ -105,7 +108,7 @@ export default async function GuruStatistikPage({ searchParams }: PageProps) {
           <div className="rounded-2xl border border-dashed bg-muted/30 py-10 text-center text-sm text-muted-foreground">
             {s.halaqohTerpilih
               ? 'Halaqoh ini belum berisi siswa aktif.'
-              : 'Anda belum mengampu halaqoh aktif, atau halaqohnya belum berisi siswa.'}
+              : 'Anda belum mengampu halaqoh atau kelompok asrama aktif, atau belum berisi siswa.'}
           </div>
         ) : (
           <>

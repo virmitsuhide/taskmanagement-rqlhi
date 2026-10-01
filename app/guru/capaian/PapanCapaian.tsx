@@ -29,6 +29,11 @@ interface Props {
   monthly: Record<string, StudentMonthly>
   /** Halaman muroja'ah bulan ini per siswa (volume baca), dihitung dari setoran. */
   murojaah: Record<string, RekapMurojaah>
+  /**
+   * Hanya lihat — pengampu asrama (0110) melihat capaian awal & akhir bulan
+   * yang dicatat sekolah, tanpa merangkum atau mengubahnya.
+   */
+  bacaSaja?: boolean
 }
 
 /** Kolom tabel di layar lebar; di ponsel tiap anak menjadi kartu. */
@@ -38,7 +43,7 @@ const KOLOM = 'lg:grid lg:grid-cols-[1.25fr_0.45fr_1.3fr_1.3fr_0.4fr_1.15fr_1fr_
  * Papan capaian awal & akhir bulan satu halaqoh — pengganti lembar DB Y1–Y6.
  * Baris yang sedang diisi terbuka di tempat, tepat di bawah nama anaknya.
  */
-export function PapanCapaian({ period, previousPeriod, activeHalaqohId, students, monthly, murojaah }: Props) {
+export function PapanCapaian({ period, previousPeriod, activeHalaqohId, students, monthly, murojaah, bacaSaja = false }: Props) {
   const router = useRouter()
   const confirm = useConfirm()
   const [editing, setEditing] = useState<string | null>(null)
@@ -100,7 +105,7 @@ export function PapanCapaian({ period, previousPeriod, activeHalaqohId, students
             <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${persen}%` }} />
           </div>
         </div>
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 md:flex md:shrink-0">
+        {!bacaSaja && <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 md:flex md:shrink-0">
           <button
             type="button"
             disabled={pending || students.length === 0}
@@ -117,7 +122,7 @@ export function PapanCapaian({ period, previousPeriod, activeHalaqohId, students
           >
             <CalendarDays className="size-4" /> Isi awal dari {monthName(previousPeriod)}
           </button>
-        </div>
+        </div>}
       </div>
 
       {/* ── Tabel (lebar) / kartu (ponsel) ── */}
@@ -150,8 +155,8 @@ export function PapanCapaian({ period, previousPeriod, activeHalaqohId, students
                         <span className="lg:hidden"> · Level {row?.level || student.level_awal || '—'}</span>
                       </p>
                     </div>
-                    <TombolIsi nama={student.full_name} buka={buka} className="flex lg:hidden"
-                      onClick={() => setEditing(buka ? null : student.id)} />
+                    {!bacaSaja && <TombolIsi nama={student.full_name} buka={buka} className="flex lg:hidden"
+                      onClick={() => setEditing(buka ? null : student.id)} />}
                   </div>
 
                   <p className="hidden text-sm font-bold lg:block">{row?.level || student.level_awal || '—'}</p>
@@ -177,11 +182,11 @@ export function PapanCapaian({ period, previousPeriod, activeHalaqohId, students
                     <Sel label="Ujian"><span className="text-[13px]">{row?.ujian_tercatat || '—'}</span></Sel>
                   </dl>
 
-                  <TombolIsi nama={student.full_name} buka={buka} className="hidden lg:flex"
-                    onClick={() => setEditing(buka ? null : student.id)} />
+                  {!bacaSaja && <TombolIsi nama={student.full_name} buka={buka} className="hidden lg:flex"
+                    onClick={() => setEditing(buka ? null : student.id)} />}
                 </div>
 
-                {buka && (
+                {buka && !bacaSaja && (
                   <FormCapaian
                     period={period}
                     student={student}
