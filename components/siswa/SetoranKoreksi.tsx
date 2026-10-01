@@ -107,6 +107,9 @@ function Row({ item, onEdit }: { item: SetoranItem; onEdit: () => void }) {
           {item.status === 'ulang' && (
             <span className="text-xs text-warning">ulang</span>
           )}
+          {item.table === 'tahsin_logs' && item.status === 'lanjut' && (
+            <span className="text-xs text-info">lanjut — belum tuntas</span>
+          )}
         </div>
         <p className="mt-0.5 text-xs text-muted-foreground">
           {item.tanggal}
@@ -205,6 +208,7 @@ function EditForm({ item, onDone }: { item: SetoranItem; onDone: () => void }) {
               className="h-9 w-full rounded-md border bg-transparent px-3 text-sm"
             >
               <option value="lulus">Lulus</option>
+              <option value="lanjut">Lanjut (halaman belum tuntas)</option>
               <option value="ulang">Ulang</option>
             </select>
           </div>

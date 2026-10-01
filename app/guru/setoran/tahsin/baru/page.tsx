@@ -6,6 +6,7 @@ import { createServerClient } from '@/lib/supabase/server'
 import { TahsinSetoranForm } from './TahsinSetoranForm'
 import type { SuratPilihan } from '@/components/setoran/SetoranSesiTahfidz'
 import { getMateriPerJilid, getHasilMateriPerSiswa } from '@/lib/data/materi-tahsin'
+import { lanjutTerbuka } from '@/lib/data/setoran-sesi'
 import { getHadirRiyadhoh, getPesertaKelompok, getSabtuPengampu } from '@/lib/data/riyadhoh'
 
 interface PageProps {
@@ -89,9 +90,10 @@ export default async function NewTahsinSetoranPage({ searchParams }: PageProps) 
     muncul beberapa saat setelah namanya dipilih — tepat ketika guru sudah
     mulai mengetik.
   */
-  const [materiPerJilid, hasilPerSiswa] = await Promise.all([
+  const [materiPerJilid, hasilPerSiswa, lanjut] = await Promise.all([
     getMateriPerJilid(students.map(s => s.current_jilid_id ?? '')),
     getHasilMateriPerSiswa(students.map(s => s.id)),
+    lanjutTerbuka(supabase, students),
   ])
 
   return (
@@ -129,7 +131,7 @@ export default async function NewTahsinSetoranPage({ searchParams }: PageProps) 
           </div>
         ) : (
           <TahsinSetoranForm
-            students={students}
+            students={students.map(s => ({ ...s, lanjut: lanjut.get(s.id) ?? null }))}
             methods={methodsRes.data ?? []}
             jilidLevels={jilidRes.data ?? []}
             surat={(suratRes.data ?? []) as SuratPilihan[]}

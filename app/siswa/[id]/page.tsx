@@ -15,6 +15,7 @@ import type { Jenjang, UjianTahfidz } from '@/types'
 import { cn } from '@/lib/utils'
 import { getInfoSurat } from '@/lib/data/nama-surat'
 import { teksRentang } from '@/lib/rq/rentang-surat'
+import { teksBaris } from '@/lib/rq/status-tahsin'
 
 interface PageProps {
   params: Promise<{ id: string }>
@@ -390,6 +391,7 @@ async function ambilSetoran(
       judul: [
         (r.jilid as { label: string } | null)?.label,
         r.halaman ? `hal ${r.halaman}` : null,
+        teksBaris(num(r.baris_dari), num(r.baris_ke)),
       ].filter(Boolean).join(' · ') || 'Tahsin',
       nilai: num(r.nilai_tahsin), sikap: num(r.nilai_sikap),
       status: (r.status as string) ?? null, catatan: (r.catatan as string) ?? null,

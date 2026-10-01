@@ -1,6 +1,8 @@
 import type { createServerClient } from '@/lib/supabase/server'
 import { recalcPosisi, recalcMutqin, kurangiJuzProgress } from '@/lib/rq/hitung-ulang-setoran'
 import { teksRentang } from '@/lib/rq/rentang-surat'
+import { teksBaris } from '@/lib/rq/status-tahsin'
+import type { TahsinStatus } from '@/types'
 
 /**
  * SATU SETORAN PER ANAK PER HARI.
@@ -29,7 +31,7 @@ export interface RingkasSetoran {
   waktu: string | null
   /** "Jilid 3 · halaman 12 · 📖 Al-Mulk 1–10" atau "Ziyadah · An-Naba' 1–16". */
   isi: string
-  status: 'lulus' | 'ulang' | null
+  status: TahsinStatus | null
   /** Nilai bacaan / hafalan, 0–100. */
   nilai: number | null
   /** Nilai sikap (adab), 0–100. */
@@ -87,6 +89,9 @@ async function namaSiswa(supabase: Supabase, id: string): Promise<string> {
 export interface IsiTahsin {
   jilid_label: string | null
   halaman: number | null
+  /** Baris buku (0109); tidak ada = halaman utuh. */
+  baris_dari?: number | null
+  baris_ke?: number | null
   jumlah_materi: number
   quran_surat_id: number | null
   quran_ayat_dari: number | null
@@ -97,7 +102,10 @@ function isiTahsin(x: IsiTahsin, surat: Map<number, string>): string {
   const bagian: string[] = []
   if (x.jilid_label) bagian.push(x.jilid_label)
   if (x.jumlah_materi > 0) bagian.push(`${x.jumlah_materi} materi`)
-  else if (x.halaman !== null) bagian.push(`halaman ${x.halaman}`)
+  else if (x.halaman !== null) {
+    const baris = teksBaris(x.baris_dari ?? null, x.baris_ke ?? null)
+    bagian.push(`halaman ${x.halaman}${baris ? ` (${baris})` : ''}`)
+  }
   if (x.quran_surat_id !== null) {
     const rentang = x.quran_ayat_dari !== null
       ? ` ${x.quran_ayat_dari}${x.quran_ayat_ke !== null && x.quran_ayat_ke !== x.quran_ayat_dari ? `–${x.quran_ayat_ke}` : ''}`
@@ -111,7 +119,9 @@ interface LogTahsinLama {
   id: string
   jilid_id: string | null
   halaman: number | null
-  status: 'lulus' | 'ulang'
+  status: TahsinStatus
+  baris_dari: number | null
+  baris_ke: number | null
   drill: boolean | null
   nilai_tahsin: unknown
   nilai_sikap: unknown
@@ -183,6 +193,8 @@ export async function periksaGandaTahsin(
       isi: isiTahsin({
         jilid_label: l.jilid?.label ?? null,
         halaman: l.halaman,
+        baris_dari: l.baris_dari,
+        baris_ke: l.baris_ke,
         jumlah_materi: materi.get(l.id)?.length ?? 0,
         quran_surat_id: l.quran_surat_id,
         quran_ayat_dari: l.quran_ayat_dari,

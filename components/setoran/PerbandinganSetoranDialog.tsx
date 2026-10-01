@@ -5,6 +5,7 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog'
 import { bintangDariNilai } from '@/lib/rq/bintang'
+import { LABEL_STATUS_TAHSIN } from '@/lib/rq/status-tahsin'
 import { cn } from '@/lib/utils'
 import type { RingkasSetoran, SetoranGanda } from '@/lib/data/setoran-ganda'
 
@@ -30,7 +31,7 @@ function bintang(nilai: number | null): string {
 
 const BARIS: { label: string; ambil: (r: RingkasSetoran) => string }[] = [
   { label: 'Setoran', ambil: r => r.isi },
-  { label: 'Status', ambil: r => (r.status === 'lulus' ? 'Lulus' : r.status === 'ulang' ? 'Ulang' : '—') },
+  { label: 'Status', ambil: r => (r.status ? LABEL_STATUS_TAHSIN[r.status] : '—') },
   { label: 'Nilai', ambil: r => bintang(r.nilai) },
   { label: 'Adab', ambil: r => bintang(r.sikap) },
   { label: 'Catatan', ambil: r => r.catatan || '—' },

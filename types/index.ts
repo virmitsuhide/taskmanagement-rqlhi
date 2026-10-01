@@ -580,7 +580,13 @@ export type LingkupPenugasan = 'unit' | 'yayasan'
  */
 export type KategoriGuru =
   | 'guru_rq' | 'guru_quls_sd' | 'musyrif_smp' | 'guru_tpait' | 'guru_sd_juara' | 'guru_sma'
-export type TahsinStatus = 'lulus' | 'ulang'
+/**
+ * Status setoran tahsin. 'lanjut' (0109) = halaman belum tuntas, anak baru
+ * sanggup beberapa baris — posisi tetap, BUKAN kegagalan seperti 'ulang'.
+ */
+export type TahsinStatus = 'lulus' | 'ulang' | 'lanjut'
+/** Status tasmi' — hanya lulus/ulang; 'lanjut' milik setoran tahsin. */
+export type TasmiStatus = 'lulus' | 'ulang'
 // Jenis setoran tahfidz (semantik RQ LHI):
 //  - ziyadah        : menambah hafalan baru (dihitung ke progress juz)
 //  - murojaah_baru  : mengulang hafalan di juz yang sedang berjalan
@@ -837,7 +843,7 @@ export interface TasmiLog {
   nilai_fashohah: number | null
   nilai_tajwid: number | null
   nilai_kelancaran: number | null
-  status: TahsinStatus           // lulus | ulang
+  status: TasmiStatus
   catatan: string | null
   created_at: string
   student?: Student

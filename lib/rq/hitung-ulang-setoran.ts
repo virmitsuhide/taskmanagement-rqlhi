@@ -40,7 +40,7 @@ async function posisiQuranBerikutnya(supabase: Supabase, bacaan: BacaanQuran): P
  *
  * Diputar ulang dari awal secara kronologis, mengikuti aturan yang sama
  * dengan saat setoran dibuat (resolveStudentPosition di actions/setoran.ts):
- * 'lulus' memajukan satu halaman, 'ulang' mempertahankan posisi, setoran
+ * 'lulus' memajukan satu halaman, 'ulang' & 'lanjut' mempertahankan posisi, setoran
  * DRILL tidak menggeser halaman, lulus di halaman terakhir berhenti di
  * halaman itu, dan kenaikan jilid memindahkan ke jilid berikutnya dengan
  * halaman kembali ke 1.
@@ -102,7 +102,8 @@ export async function recalcPosisi(supabase: Supabase, studentId: string): Promi
   let page: number | null = null
   /*
     Posisi mushaf tidak ikut diputar setoran demi setoran, cukup setoran
-    LULUS terakhir yang memuat bacaan. Bedanya dari halaman buku: mushaf tidak
+    LULUS atau LANJUT terakhir yang memuat bacaan ('lanjut' menahan halaman
+    buku, bukan mushaf — rentang ayatnya sudah persis yang dibaca). Bedanya dari halaman buku: mushaf tidak
     punya kenaikan jilid yang mengembalikan hitungan ke 1, jadi tidak ada
     riwayat yang perlu ditumpuk — catatan terakhir sudah menyimpan seluruh
     jawabannya. Bacaan selama drill tetap dihitung, sama seperti saat disetor.
@@ -119,13 +120,23 @@ export async function recalcPosisi(supabase: Supabase, studentId: string): Promi
           page = total !== null && log.halaman >= total ? total : log.halaman + 1
         }
       }
-      if (log.quran_surat_id !== null) {
-        bacaanTerakhir = {
-          halaman: log.quran_halaman,
-          surat_id: log.quran_surat_id,
-          ayat_dari: log.quran_ayat_dari,
-          ayat_ke: log.quran_ayat_ke,
-        }
+    } else if (!log.drill && jilid === null) {
+      /*
+        Setoran pertama yang belum lulus (Lanjut/Ulang) tetap menetapkan di
+        mana anak berada: di halaman itu, belum maju. Tanpa ini anak yang baru
+        sanggup beberapa baris kehilangan jilidnya setiap kali riwayatnya
+        diputar ulang.
+      */
+      method = log.method_id
+      jilid = log.jilid_id
+      page = log.halaman
+    }
+    if (log.status !== 'ulang' && log.quran_surat_id !== null) {
+      bacaanTerakhir = {
+        halaman: log.quran_halaman,
+        surat_id: log.quran_surat_id,
+        ayat_dari: log.quran_ayat_dari,
+        ayat_ke: log.quran_ayat_ke,
       }
     }
     const naik = promosiDari.get(log.id)

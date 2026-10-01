@@ -1,0 +1,30 @@
+-- ============================================================
+-- Tahsin: status setoran ketiga 'lanjut' (halaman belum tuntas)
+-- ============================================================
+-- 📋 CARA PAKAI: Supabase SQL Editor → paste seluruh file → Run.
+--    Idempoten (boleh dijalankan ulang).
+--
+-- Yang berubah:
+--   • tipe tahsin_status mendapat nilai 'lanjut'
+--
+-- Arti tiga status setoran tahsin:
+--   lulus  — halaman tuntas & lancar → posisi maju satu halaman
+--   lanjut — halaman BELUM tuntas, anak baru sanggup beberapa baris →
+--            posisi tetap di halaman itu, pertemuan berikutnya melanjutkan
+--            dari baris sesudah baris_ke (kolom baris_dari/baris_ke sudah ada
+--            sejak 0004, kini benar-benar diisi)
+--   ulang  — halaman sudah dibaca utuh tapi belum lancar → posisi tetap
+--
+-- 'lanjut' BUKAN kegagalan: tidak dihitung sebagai "ulang" di analitik, dan
+-- tetap terhitung hari setor di rekap pekanan.
+--
+-- Catatan: tipe yang sama dipakai tasmi_logs.status. Aplikasi tidak pernah
+-- menulis 'lanjut' ke tasmi_logs — nilainya hanya sah di tingkat tipe.
+--
+-- ALTER TYPE ... ADD VALUE tidak boleh dibungkus BEGIN/COMMIT bersama
+-- pemakaian nilainya, jadi file ini sengaja satu pernyataan saja.
+-- Jalankan file ini SEBELUM kode yang memakai 'lanjut' ter-deploy: setoran
+-- berstatus Lanjut akan ditolak database bila nilainya belum ada.
+-- ============================================================
+
+ALTER TYPE public.tahsin_status ADD VALUE IF NOT EXISTS 'lanjut';

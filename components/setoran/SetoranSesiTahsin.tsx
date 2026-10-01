@@ -23,8 +23,34 @@ import type { KelompokKlasikal } from '@/lib/data/kelompok-klasikal'
 import type { HasilMateri } from '@/lib/data/materi-tahsin'
 import { anggotaDariPengaturan, usulanKelompok } from '@/lib/rq/klasikal'
 import { tanggalWIB } from '@/lib/rq/ujian'
+import { BARIS_MAKS, LABEL_STATUS_TAHSIN, URUTAN_STATUS_TAHSIN } from '@/lib/rq/status-tahsin'
+import type { TahsinStatus } from '@/types'
 
-type Status = 'lulus' | 'ulang'
+type Status = TahsinStatus
+
+/**
+ * Baris awal setoran hari ini: sesudah baris terakhir setoran Lanjut, bila
+ * anak masih di halaman yang sama. Halaman lain = mulai dari awal (null).
+ */
+function barisDariLanjut(s: SiswaSesiTahsin, halaman: number | null): number | null {
+  const ke = s.lanjut?.baris_ke ?? null
+  if (ke === null || halaman === null || halaman !== s.halaman || ke >= BARIS_MAKS) return null
+  return ke + 1
+}
+
+/** Teks penanda di kartu anak, mis. "lanjut dari baris 6". */
+function teksLanjut(s: SiswaSesiTahsin): string | null {
+  if (!s.lanjut) return null
+  return s.lanjut.baris_ke !== null && s.lanjut.baris_ke < BARIS_MAKS
+    ? `lanjut dari baris ${s.lanjut.baris_ke + 1}`
+    : 'halaman belum tuntas'
+}
+
+/** Status yang mengikuti bintang tahsin — kecuali Lanjut, yang soal panjang bacaan, bukan mutu. */
+function statusDariBintang(kini: Status, bintang: number): Status {
+  if (kini === 'lanjut') return kini
+  return harusMengulang(bintang) ? 'ulang' : 'lulus'
+}
 
 interface Isian {
   dipilih: boolean
@@ -37,6 +63,8 @@ interface Isian {
   nilai_tahsin: number | null
   nilai_sikap: number | null
   status: Status
+  /** "Sampai baris ke-" — hanya dikirim saat status Lanjut; kosong = tidak diisi. */
+  baris_ke: string
   catatan: string
   /** Dinaikkan setelah tersimpan supaya bintangnya ter-reset. */
   versi: number
@@ -56,6 +84,8 @@ interface IsianKelompok {
   /** Materi bersama — hanya di tahap Gharib/Tajwid; halaman lalu diturunkan server. */
   materi: PilihanMateri
   status: Status
+  /** "Sampai baris ke-" bersama — hanya dipakai anggota berstatus Lanjut. */
+  baris_ke: string
   /** Nilai per anggota; tidak ada di peta = belum dinilai. */
   nilaiAnak: Record<string, { tahsin: number | null; sikap: number | null }>
   catatan: string
@@ -92,14 +122,14 @@ function bacaanDari(s: SiswaSesiTahsin): IsianBacaan {
 function isianAwal(s: SiswaSesiTahsin, versi = 0): Isian {
   return {
     dipilih: false, halaman: '', quran: bacaanDari(s), materi: {},
-    nilai_tahsin: null, nilai_sikap: null, status: 'lulus', catatan: '', versi,
+    nilai_tahsin: null, nilai_sikap: null, status: 'lulus', baris_ke: '', catatan: '', versi,
   }
 }
 
 function kelompokAwal(anggota: SiswaSesiTahsin[], versi = 0): IsianKelompok {
   return {
     dipilih: false, halaman: '', quran: anggota[0] ? bacaanDari(anggota[0]) : BACAAN_KOSONG,
-    materi: {}, status: 'lulus', nilaiAnak: {}, catatan: '', catatanAnak: {}, versi,
+    materi: {}, status: 'lulus', baris_ke: '', nilaiAnak: {}, catatan: '', catatanAnak: {}, versi,
     absen: {}, statusAnak: {},
   }
 }
@@ -254,7 +284,7 @@ export function SetoranSesiTahsin({ siswa, surat, halaqohId, pengaturan, tanggal
           ...kg,
           nilaiAnak: { ...kg.nilaiAnak, [id]: { ...lama, [aspek]: bintang > 0 ? nilai : null } },
           statusAnak: aspek === 'tahsin' && bintang > 0
-            ? { ...kg.statusAnak, [id]: harusMengulang(bintang) ? 'ulang' : 'lulus' }
+            ? { ...kg.statusAnak, [id]: statusDariBintang(kg.statusAnak[id] ?? kg.status, bintang) }
             : kg.statusAnak,
         },
       }
@@ -297,15 +327,18 @@ export function SetoranSesiTahsin({ siswa, surat, halaqohId, pengaturan, tanggal
     for (const s of individual) {
       const v = isian[s.id]
       if (!v.dipilih) continue
+      // Tahap tak berbuku tidak punya halaman buku sama sekali; tahap berbasis
+      // materi menurunkan halamannya sendiri di server.
+      const halaman = s.materi.length > 0 || s.total_halaman === null
+        ? null
+        : v.halaman ? Number(v.halaman) : s.halaman
       baris.push({
         student_id: s.id,
         method_id: s.method_id,
         jilid_id: s.jilid_id,
-        // Tahap tak berbuku tidak punya halaman buku sama sekali; tahap berbasis
-        // materi menurunkan halamannya sendiri di server.
-        halaman: s.materi.length > 0 || s.total_halaman === null
-          ? null
-          : v.halaman ? Number(v.halaman) : s.halaman,
+        halaman,
+        baris_dari: barisDariLanjut(s, halaman),
+        baris_ke: halaman !== null && v.status === 'lanjut' && v.baris_ke ? Number(v.baris_ke) : null,
         quran: keBacaanQuran(v.quran),
         materi: Object.entries(v.materi).map(([materi_id, hasil]) => ({ materi_id, hasil })),
         nilai_tahsin: v.nilai_tahsin,
@@ -327,19 +360,23 @@ export function SetoranSesiTahsin({ siswa, surat, halaqohId, pengaturan, tanggal
       for (const s of g.anggota) {
         if (kg.absen[s.id]) continue
         // Anggota yang ditandai Ulang tidak ikut meluluskan materi hari ini.
-        const ulang = (kg.statusAnak[s.id] ?? kg.status) === 'ulang'
+        const st = kg.statusAnak[s.id] ?? kg.status
+        const ulang = st === 'ulang'
+        const halaman = buku ? (kg.halaman ? Number(kg.halaman) : dasar) : null
         baris.push({
           student_id: s.id,
           method_id: s.method_id,
           jilid_id: s.jilid_id,
-          halaman: buku ? (kg.halaman ? Number(kg.halaman) : dasar) : null,
+          halaman,
+          baris_dari: barisDariLanjut(s, halaman),
+          baris_ke: halaman !== null && st === 'lanjut' && kg.baris_ke ? Number(kg.baris_ke) : null,
           quran: keBacaanQuran(kg.quran),
           materi: pakaiMateri
             ? Object.entries(kg.materi).map(([materi_id, hasil]) => ({ materi_id, hasil: ulang && hasil === 'lulus' ? 'ulang' : hasil }))
             : [],
           nilai_tahsin: kg.nilaiAnak[s.id]?.tahsin ?? null,
           nilai_sikap: kg.nilaiAnak[s.id]?.sikap ?? null,
-          status: kg.statusAnak[s.id] ?? kg.status,
+          status: st,
           catatan: ['Klasikal', kg.catatan.trim(), kg.catatanAnak[s.id]?.trim()].filter(Boolean).join(' · '),
           setoran_date: tanggal,
           ekstra_slot_id: ekstraSlotId ?? null,
@@ -481,7 +518,10 @@ export function SetoranSesiTahsin({ siswa, surat, halaqohId, pengaturan, tanggal
                       />
                     )}
                     {!pakaiMateri && (
-                      <TombolStatus value={kg.status} onChange={st => ubahKelompok(g.kunci, { status: st, statusAnak: {} })} />
+                      <TombolStatus value={kg.status} bisaLanjut={buku} onChange={st => ubahKelompok(g.kunci, { status: st, statusAnak: {} })} />
+                    )}
+                    {buku && (kg.status === 'lanjut' || Object.values(kg.statusAnak).includes('lanjut')) && (
+                      <InputBaris value={kg.baris_ke} onChange={b => ubahKelompok(g.kunci, { baris_ke: b })} disabled={pending} />
                     )}
                   </div>
 
@@ -530,16 +570,17 @@ export function SetoranSesiTahsin({ siswa, surat, halaqohId, pengaturan, tanggal
                               />
                               <span className="min-w-0 flex-1">
                                 <span className="block truncate text-sm">{s.full_name}</span>
+                                {teksLanjut(s) && <span className="block text-[11px] text-info">{teksLanjut(s)}</span>}
                                 {isian[s.id]?.galat && <span role="alert" className="block text-[11px] text-destructive">{isian[s.id].galat}</span>}
                               </span>
                               {!absen && (
                                 <button
                                   type="button"
-                                  onClick={() => ubahKelompok(g.kunci, { statusAnak: { ...kg.statusAnak, [s.id]: st === 'lulus' ? 'ulang' : 'lulus' } })}
-                                  className={cn('h-8 shrink-0 rounded-md border px-2 text-xs',
-                                    st === 'lulus' ? 'border-success bg-success-wash text-success' : 'border-warning bg-warning-wash text-warning')}
+                                  onClick={() => ubahKelompok(g.kunci, { statusAnak: { ...kg.statusAnak, [s.id]: statusBerikutnya(st, buku) } })}
+                                  title="Ketuk untuk mengganti status"
+                                  className={cn('h-8 shrink-0 rounded-md border px-2 text-xs', WARNA_STATUS[st])}
                                 >
-                                  {st === 'lulus' ? 'Lulus' : 'Ulang'}
+                                  {LABEL_STATUS_TAHSIN[st]}
                                 </button>
                               )}
                               <button type="button" onClick={() => keluarkan(s.id)} title="Keluarkan — setor individual"
@@ -625,6 +666,7 @@ export function SetoranSesiTahsin({ siswa, surat, halaqohId, pengaturan, tanggal
                   </span>
                   <span className="block text-xs text-muted-foreground">
                     {s.jilid_label}{s.total_halaman && s.halaman ? ` · hal. ${s.halaman}/${s.total_halaman}` : ''}
+                    {teksLanjut(s) && <span className="font-medium text-info"> · {teksLanjut(s)}</span>}
                     {s.baca_quran && s.quran.surat_id
                       ? ` · 📖 ${namaSurat(surat, s.quran.surat_id)}${s.quran.ayat ? `:${s.quran.ayat}` : ''}`
                       : ''}
@@ -657,7 +699,15 @@ export function SetoranSesiTahsin({ siswa, surat, halaqohId, pengaturan, tanggal
                       menurunkannya dari hasil tiap materi.
                     */}
                     {s.materi.length === 0 && (
-                      <TombolStatus value={v.status} onChange={st => ubah(s.id, { status: st })} />
+                      <TombolStatus value={v.status} bisaLanjut={s.total_halaman !== null} onChange={st => ubah(s.id, { status: st })} />
+                    )}
+                    {v.status === 'lanjut' && s.total_halaman !== null && s.materi.length === 0 && (
+                      <InputBaris
+                        value={v.baris_ke}
+                        onChange={b => ubah(s.id, { baris_ke: b })}
+                        min={barisDariLanjut(s, v.halaman ? Number(v.halaman) : s.halaman) ?? 1}
+                        disabled={pending}
+                      />
                     )}
                   </div>
 
@@ -693,7 +743,7 @@ export function SetoranSesiTahsin({ siswa, surat, halaqohId, pengaturan, tanggal
                         name={`nilai_tahsin_${s.id}`}
                         onChange={(b, n) => ubah(s.id, {
                           nilai_tahsin: b > 0 ? n : null,
-                          ...(b > 0 ? { status: harusMengulang(b) ? 'ulang' : 'lulus' } : {}),
+                          ...(b > 0 ? { status: statusDariBintang(v.status, b) } : {}),
                         })}
                       />
                     </div>
@@ -704,7 +754,7 @@ export function SetoranSesiTahsin({ siswa, surat, halaqohId, pengaturan, tanggal
                   </div>
 
                   <Input
-                    placeholder="Catatan (opsional) — mis. baris yang dibaca, madd perlu dilatih…"
+                    placeholder="Catatan (opsional) — mis. madd perlu dilatih…"
                     value={v.catatan}
                     onChange={e => ubah(s.id, { catatan: e.target.value })}
                     className="h-9"
@@ -756,25 +806,65 @@ export function SetoranSesiTahsin({ siswa, surat, halaqohId, pengaturan, tanggal
   )
 }
 
-function TombolStatus({ value, onChange }: { value: Status; onChange: (s: Status) => void }) {
+const WARNA_STATUS: Record<Status, string> = {
+  lulus: 'border-success bg-success-wash text-success',
+  lanjut: 'border-info bg-info-wash text-info',
+  ulang: 'border-warning bg-warning-wash text-warning',
+}
+
+/** Status berikutnya saat tombol status anggota kelompok diketuk. */
+function statusBerikutnya(kini: Status, bisaLanjut: boolean): Status {
+  const urutan = bisaLanjut ? URUTAN_STATUS_TAHSIN : URUTAN_STATUS_TAHSIN.filter(s => s !== 'lanjut')
+  return urutan[(urutan.indexOf(kini) + 1) % urutan.length]
+}
+
+/**
+ * Lulus / Lanjut / Ulang. Lanjut hanya di tahap yang disetor per halaman
+ * buku — di tahap lain "halaman belum tuntas" tidak punya arti.
+ */
+function TombolStatus({ value, onChange, bisaLanjut }: { value: Status; onChange: (s: Status) => void; bisaLanjut: boolean }) {
   return (
     <div className="flex gap-1.5" role="group" aria-label="Status halaman">
-      {(['lulus', 'ulang'] as const).map(st => (
+      {URUTAN_STATUS_TAHSIN.filter(st => bisaLanjut || st !== 'lanjut').map(st => (
         <button
           key={st}
           type="button"
           onClick={() => onChange(st)}
           aria-pressed={value === st}
+          title={st === 'lanjut' ? 'Halaman belum tuntas — pertemuan berikutnya melanjutkan' : undefined}
           className={cn(
             'h-11 min-w-[4.5rem] rounded-xl border px-4 text-sm font-semibold',
-            value === st
-              ? st === 'lulus' ? 'border-success bg-success-wash text-success' : 'border-warning bg-warning-wash text-warning'
-              : 'bg-card',
+            value === st ? WARNA_STATUS[st] : 'bg-card',
           )}
         >
-          {st === 'lulus' ? 'Lulus' : 'Ulang'}
+          {LABEL_STATUS_TAHSIN[st]}
         </button>
       ))}
     </div>
+  )
+}
+
+/** "Sampai baris ke-" — opsional; kosong tetap boleh disimpan. */
+function InputBaris({ value, onChange, min = 1, disabled }: {
+  value: string
+  onChange: (v: string) => void
+  min?: number
+  disabled?: boolean
+}) {
+  return (
+    <label className="space-y-1">
+      <span className="block text-xs font-medium">Sampai baris ke- <span className="font-normal text-muted-foreground">(opsional)</span></span>
+      <Input
+        type="number"
+        inputMode="numeric"
+        min={min}
+        max={BARIS_MAKS}
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        placeholder={min > 1 ? `${min}–${BARIS_MAKS}` : '—'}
+        disabled={disabled}
+        className="h-11 w-24"
+      />
+    </label>
   )
 }

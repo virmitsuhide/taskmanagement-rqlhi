@@ -170,9 +170,11 @@ function TahsinTahfidzView({ unit }: { unit: UnitLearning }) {
               </select>
             </div>
           </div>
-          <div className="grid grid-cols-3 gap-2 mb-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
             <Metric label="Setoran" value={tahsin.length} />
             <Metric label="Lulus" value={tahsin.filter(l => l.status === 'lulus').length} accent />
+            {/* Lanjut = halaman belum tuntas; sengaja tidak digabung ke Ulang. */}
+            <Metric label="Lanjut" value={tahsin.filter(l => l.status === 'lanjut').length} />
             <Metric label="Ulang" value={tahsin.filter(l => l.status === 'ulang').length} />
           </div>
           <ScoreRows avg={tahsinAvg} label="Tahsin" />

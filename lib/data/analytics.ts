@@ -254,6 +254,8 @@ export async function getTahsinTahfidzAnalytics(): Promise<TahsinTahfidzAnalytic
     setoran: tahsinLogs.length,
     lulus: tahsinLogs.filter(l => l.status === 'lulus').length,
     ulang: tahsinLogs.filter(l => l.status === 'ulang').length,
+    // Halaman belum tuntas (0109) — dipisah dari ulang, bukan kegagalan.
+    lanjut: tahsinLogs.filter(l => l.status === 'lanjut').length,
     avg: {
       nilai: avgOf(tahsinLogs.map(l => l.nilai_tahsin)),
       sikap: avgOf(tahsinLogs.map(l => l.nilai_sikap)),

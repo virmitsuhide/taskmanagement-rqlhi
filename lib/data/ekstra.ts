@@ -335,7 +335,7 @@ function susunSetoranEkstra(tsData: unknown, tfData: unknown): SetoranEkstra[] {
   for (const r of (ts.data ?? []) as unknown as { student_id: string; ekstra_slot_id: string; setoran_date: string; halaman: number | null; status: string | null; nilai_tahsin: number | null; jilid: { label: string } | null }[]) {
     hasil.push({
       student_id: r.student_id, slot_id: r.ekstra_slot_id, jenis: 'tahsin', tanggal: r.setoran_date,
-      ringkas: [r.jilid?.label, r.halaman ? `hal. ${r.halaman}` : null, r.status === 'ulang' ? 'ulang' : null].filter(Boolean).join(' · ') || 'Tahsin',
+      ringkas: [r.jilid?.label, r.halaman ? `hal. ${r.halaman}` : null, r.status === 'ulang' ? 'ulang' : r.status === 'lanjut' ? 'lanjut' : null].filter(Boolean).join(' · ') || 'Tahsin',
       nilai: r.nilai_tahsin,
     })
   }

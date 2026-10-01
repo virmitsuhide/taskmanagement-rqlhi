@@ -44,7 +44,7 @@ CREATE TYPE public.routine_cadence AS ENUM ('pekanan', 'bulanan', 'semesteran', 
 CREATE TYPE public.routine_outcome AS ENUM ('terlaksana', 'tidak_terlaksana');
 CREATE TYPE public.subtask_status AS ENUM ('todo', 'in_progress', 'done');
 CREATE TYPE public.tahfidz_kind AS ENUM ('hafalan_baru', 'murojaah', 'ziyadah', 'murojaah_baru', 'murojaah_lama', 'tasmi');
-CREATE TYPE public.tahsin_status AS ENUM ('lulus', 'ulang');
+CREATE TYPE public.tahsin_status AS ENUM ('lulus', 'ulang', 'lanjut');
 CREATE TYPE public.task_history_action AS ENUM ('status', 'edited', 'deleted', 'restored', 'dependency_added', 'dependency_removed');
 CREATE TYPE public.task_horizon AS ENUM ('pendek', 'panjang');
 CREATE TYPE public.task_priority AS ENUM ('low', 'middle', 'high');

@@ -74,6 +74,50 @@ export interface SiswaSesiTahsin {
   materi: MateriTahsin[]
   /** Keadaan terakhir tiap materi; materi yang belum pernah disetor tidak ada di sini. */
   materi_hasil: Record<string, HasilMateri>
+  /**
+   * Halaman sekarang belum tuntas (0109): setoran terakhir anak berstatus
+   * Lanjut di halaman ini. baris_ke = baris terakhir yang sudah dibaca, null
+   * bila guru tidak mengisinya. null = mulai halaman dari awal.
+   */
+  lanjut: { baris_ke: number | null } | null
+}
+
+/**
+ * Setoran Lanjut yang masih berlaku per anak: setoran TERAKHIR berstatus
+ * lanjut dan masih di jilid & halaman posisi anak sekarang. Begitu ada
+ * setoran lain sesudahnya, atau posisinya sudah bergeser, tidak berlaku lagi.
+ *
+ * Hanya 90 hari terakhir yang dilihat — halaman yang ditinggal lebih lama
+ * dari itu memang sebaiknya dimulai dari awal lagi.
+ */
+export async function lanjutTerbuka(
+  supabase: ReturnType<typeof createServerClient>,
+  anak: { id: string; current_jilid_id: string | null; current_jilid_page: number | null }[],
+): Promise<Map<string, { baris_ke: number | null }>> {
+  const hasil = new Map<string, { baris_ke: number | null }>()
+  if (anak.length === 0) return hasil
+  const sejak = new Date(Date.now() - 90 * 86_400_000).toISOString().slice(0, 10)
+  const { data } = await supabase
+    .from('tahsin_logs')
+    .select('student_id, jilid_id, halaman, status, baris_ke, drill')
+    .in('student_id', anak.map(a => a.id))
+    .gte('setoran_date', sejak)
+    .order('setoran_date', { ascending: false })
+    .order('created_at', { ascending: false })
+  const posisi = new Map(anak.map(a => [a.id, a]))
+  const sudah = new Set<string>()
+  for (const l of (data ?? []) as {
+    student_id: string; jilid_id: string | null; halaman: number | null
+    status: string; baris_ke: number | null; drill: boolean | null
+  }[]) {
+    if (sudah.has(l.student_id)) continue
+    sudah.add(l.student_id)
+    const p = posisi.get(l.student_id)
+    if (l.status === 'lanjut' && !l.drill && p && l.jilid_id === p.current_jilid_id && l.halaman === p.current_jilid_page) {
+      hasil.set(l.student_id, { baris_ke: l.baris_ke })
+    }
+  }
+  return hasil
 }
 
 export async function getSiswaSesiTahsin(sasaran: SasaranSesi): Promise<SiswaSesiTahsin[]> {
@@ -102,9 +146,10 @@ export async function getSiswaSesiTahsin(sasaran: SasaranSesi): Promise<SiswaSes
   // Materi dan capaiannya diambil sekali untuk seluruh sesi, bukan per anak:
   // satu halaqoh umumnya berisi anak-anak pada tahap yang sama, sehingga
   // pengambilan per anak berarti mengulang jawaban yang identik belasan kali.
-  const [perJilid, hasilMateri] = await Promise.all([
+  const [perJilid, hasilMateri, lanjut] = await Promise.all([
     getMateriPerJilid(rows.map(r => r.current_jilid_id ?? '')),
     getHasilMateriPerSiswa(rows.map(r => r.id)),
+    lanjutTerbuka(supabase, rows),
   ])
 
   return rows.map(s => ({
@@ -125,6 +170,7 @@ export async function getSiswaSesiTahsin(sasaran: SasaranSesi): Promise<SiswaSes
     },
     materi: perJilid.get(s.current_jilid_id ?? '') ?? [],
     materi_hasil: Object.fromEntries(hasilMateri.get(s.id) ?? []),
+    lanjut: lanjut.get(s.id) ?? null,
   }))
 }
 

@@ -5,6 +5,7 @@ import { createServerClient } from '@/lib/supabase/server'
 import { getSession } from '@/lib/auth/session'
 import { canManageSetoran } from '@/lib/auth/permissions'
 import { recalcPosisi, recalcMutqin } from '@/lib/rq/hitung-ulang-setoran'
+import { BARIS_MAKS, statusTahsinSah } from '@/lib/rq/status-tahsin'
 import type { Jenjang } from '@/types'
 
 type Result = { error?: string; success?: boolean }
@@ -122,12 +123,24 @@ export async function updateSetoranAction(_: unknown, formData: FormData): Promi
   // milik tabel itu yang dikirim, supaya PostgREST tidak menolak keseluruhan.
   let payload: Record<string, unknown>
   if (table === 'tahsin_logs') {
-    const status = formData.get('status') === 'ulang' ? 'ulang' : 'lulus'
+    const status = statusTahsinSah(formData.get('status'))
+    const halaman = num(formData.get('halaman'))
+    const barisDari = num(formData.get('baris_dari'))
+    const barisKe = num(formData.get('baris_ke'))
+    if (status === 'lanjut' && halaman === null) {
+      return { error: 'Status Lanjut hanya untuk setoran yang mencatat halaman buku.' }
+    }
+    for (const b of [barisDari, barisKe]) {
+      if (b !== null && (!Number.isInteger(b) || b < 1 || b > BARIS_MAKS)) return { error: `Nomor baris harus 1–${BARIS_MAKS}.` }
+    }
+    if (barisDari !== null && barisKe !== null && barisKe < barisDari) {
+      return { error: `Baris akhir (${barisKe}) tidak boleh sebelum baris awal (${barisDari}).` }
+    }
     payload = {
       setoran_date: tanggal, catatan, status,
-      halaman: num(formData.get('halaman')),
-      baris_dari: num(formData.get('baris_dari')),
-      baris_ke: num(formData.get('baris_ke')),
+      halaman,
+      baris_dari: barisDari,
+      baris_ke: barisKe,
       nilai_tahsin: score(formData.get('nilai_tahsin')),
       nilai_sikap: sikap,
     }

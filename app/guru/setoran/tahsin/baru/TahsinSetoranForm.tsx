@@ -20,6 +20,8 @@ import type { HasilMateri, MateriTahsin } from '@/lib/data/materi-tahsin'
 import { methodsForJenjang } from '@/lib/tahsin'
 import type { Jenjang } from '@/types'
 import { tanggalWIB } from '@/lib/rq/ujian'
+import { BARIS_MAKS, LABEL_STATUS_TAHSIN } from '@/lib/rq/status-tahsin'
+import type { TahsinStatus } from '@/types'
 
 interface StudentOption {
   id: string
@@ -33,6 +35,8 @@ interface StudentOption {
   tahsin_drill_sejak: string | null
   /** Posisi bacaan mushaf — progres kedua, berjalan di samping posisi buku. */
   quran: { halaman: number | null; surat_id: number | null; ayat: number | null }
+  /** Halaman sekarang belum tuntas — setoran terakhir berstatus Lanjut (0109). */
+  lanjut: { baris_ke: number | null } | null
 }
 interface MethodOption { id: string; name: string }
 interface JilidOption {
@@ -87,7 +91,7 @@ export function TahsinSetoranForm({
   const initialStudent = students.find(s => s.id === defaultStudentId) ?? null
   const [studentId, setStudentId] = useState(defaultStudentId ?? '')
   const [methodId, setMethodId] = useState(initialStudent?.current_method_id ?? '')
-  const [status, setStatus] = useState<'lulus' | 'ulang'>('lulus')
+  const [status, setStatus] = useState<TahsinStatus>('lulus')
   const [jilidId, setJilidId] = useState(initialStudent?.current_jilid_id ?? '')
   const [bacaan, setBacaan] = useState<IsianBacaan>(() => bacaanAwal(initialStudent))
   const [materiDipilih, setMateriDipilih] = useState<PilihanMateri>({})
@@ -142,6 +146,14 @@ export function TahsinSetoranForm({
   const [halamanIsi, setHalamanIsi] = useState(String(initialStudent?.current_jilid_page ?? ''))
 
   const today = tanggalWIB(new Date())
+
+  // Melanjutkan halaman yang belum tuntas: baris awal sesudah setoran Lanjut
+  // terakhir — hanya bila halaman yang diisi masih halaman itu.
+  const barisLalu = selectedStudent?.lanjut?.baris_ke ?? null
+  const barisDari = barisLalu !== null && barisLalu < BARIS_MAKS && maksHalaman !== null && materiTahap.length === 0
+    && Number(halamanIsi) === selectedStudent?.current_jilid_page
+    ? barisLalu + 1
+    : null
 
   return (
     <form onSubmit={kirim.onSubmit} className="space-y-4 max-w-2xl">
@@ -247,6 +259,14 @@ export function TahsinSetoranForm({
             <p className="text-[11px] text-muted-foreground">
               {jilidAktif?.label} berisi {maksHalaman} halaman.
             </p>
+            {barisDari !== null && (
+              <input type="hidden" name="baris_dari" value={barisDari} />
+            )}
+            {selectedStudent?.lanjut && Number(halamanIsi) === selectedStudent.current_jilid_page && (
+              <p className="text-[11px] font-medium text-info">
+                Halaman ini belum tuntas{barisDari !== null ? ` — lanjut dari baris ${barisDari}` : ''}.
+              </p>
+            )}
           </div>
           )}
         </div>
@@ -331,7 +351,7 @@ export function TahsinSetoranForm({
                 menekan tombol status yang kedua kalinya. */}
             <StarInput
               name="nilai_tahsin"
-              onChange={b => { if (b > 0) setStatus(harusMengulang(b) ? 'ulang' : 'lulus') }}
+              onChange={b => { if (b > 0) setStatus(s => s === 'lanjut' ? s : harusMengulang(b) ? 'ulang' : 'lulus') }}
             />
           </div>
           <div>
@@ -350,7 +370,7 @@ export function TahsinSetoranForm({
       {materiTahap.length === 0 && (
       <fieldset className="min-w-0 rounded-2xl border bg-card p-4 md:p-5 [&>legend]:float-left [&>legend]:w-full [&>legend+*]:clear-both">
         <legend className="font-heading text-lg font-medium mb-3">Status Halaman</legend>
-        <div className="grid grid-cols-2 gap-3 max-w-md">
+        <div className={`grid gap-3 ${maksHalaman !== null ? 'grid-cols-3 max-w-xl' : 'grid-cols-2 max-w-md'}`}>
           <button
             type="button"
             onClick={() => setStatus('lulus')}
@@ -359,9 +379,23 @@ export function TahsinSetoranForm({
               ? { borderColor: 'var(--success)', background: 'var(--success-wash)' }
               : { borderColor: 'var(--border)', background: 'var(--card)' }}
           >
-            <p className="font-heading text-lg font-medium">Lulus</p>
-            <p className="text-xs text-muted-foreground">Lanjut halaman berikutnya</p>
+            <p className="font-heading text-lg font-medium">{LABEL_STATUS_TAHSIN.lulus}</p>
+            <p className="text-xs text-muted-foreground">Tuntas, ke halaman berikutnya</p>
           </button>
+          {/* Hanya tahap berbuku: "halaman belum tuntas" tak berarti di tahap Al-Qur'an. */}
+          {maksHalaman !== null && (
+            <button
+              type="button"
+              onClick={() => setStatus('lanjut')}
+              className="rounded-xl border-2 p-4 text-left transition-colors"
+              style={status === 'lanjut'
+                ? { borderColor: 'var(--info)', background: 'var(--info-wash)' }
+                : { borderColor: 'var(--border)', background: 'var(--card)' }}
+            >
+              <p className="font-heading text-lg font-medium">{LABEL_STATUS_TAHSIN.lanjut}</p>
+              <p className="text-xs text-muted-foreground">Baru beberapa baris, dilanjutkan</p>
+            </button>
+          )}
           <button
             type="button"
             onClick={() => setStatus('ulang')}
@@ -370,10 +404,22 @@ export function TahsinSetoranForm({
               ? { borderColor: 'var(--warning)', background: 'var(--warning-wash)' }
               : { borderColor: 'var(--border)', background: 'var(--card)' }}
           >
-            <p className="font-heading text-lg font-medium">Ulang</p>
-            <p className="text-xs text-muted-foreground">Belum tuntas, mengulang</p>
+            <p className="font-heading text-lg font-medium">{LABEL_STATUS_TAHSIN.ulang}</p>
+            <p className="text-xs text-muted-foreground">Sudah dibaca, belum lancar</p>
           </button>
         </div>
+        {status === 'lanjut' && maksHalaman !== null && (
+          <div className="mt-3 space-y-1.5">
+            <Label htmlFor="baris_ke">Sampai baris ke- <span className="font-normal text-muted-foreground">(opsional)</span></Label>
+            <Input
+              id="baris_ke" name="baris_ke" type="number" inputMode="numeric"
+              min={barisDari ?? 1} max={BARIS_MAKS}
+              placeholder="—"
+              disabled={isPending}
+              className="w-28"
+            />
+          </div>
+        )}
         {/* Sesudah tombol, bukan sesudah legend: `legend+*` harus kotak yang terlihat supaya clear-both mengena. */}
         <input type="hidden" name="status" value={status} />
       </fieldset>

@@ -16,6 +16,7 @@ import {
 } from '@/lib/data/setoran-ganda'
 import type { TahsinStatus, TahfidzKind } from '@/types'
 import { tanggalWIB } from '@/lib/rq/ujian'
+import { BARIS_MAKS, statusTahsinSah } from '@/lib/rq/status-tahsin'
 
 /**
  * KEBIJAKAN POSISI SISWA setelah setoran tahsin (ditetapkan RQ LHI).
@@ -24,6 +25,8 @@ import { tanggalWIB } from '@/lib/rq/ujian'
  *  - LULUS di HALAMAN TERAKHIR jilid : posisi tetap di halaman itu dan anak
  *            masuk DRILL — mengulang jilid tersebut sampai lulus ujian tahsin.
  *  - ULANG : posisi TIDAK bergeser.
+ *  - LANJUT : halaman belum tuntas (baru beberapa baris) — posisi juga TIDAK
+ *            bergeser; bedanya dari ULANG hanya artinya, bukan aturannya.
  *  - Selama DRILL : setoran tetap dicatat (latihan drill, halaman bebas di
  *            jilid itu) tapi posisi tidak bergerak sama sekali.
  *
@@ -44,10 +47,11 @@ function resolveStudentPosition(opts: {
   const tetap = {
     current_method_id: opts.current.method_id ?? opts.methodId,
     current_jilid_id: opts.current.jilid_id ?? opts.jilidId,
-    current_jilid_page: opts.current.page,
+    // Setoran pertama yang belum lulus: anak berada DI halaman itu, belum maju.
+    current_jilid_page: opts.current.page ?? opts.halaman,
     masukDrill: false,
   }
-  if (opts.sedangDrill || opts.status === 'ulang' || opts.halaman === null) return tetap
+  if (opts.sedangDrill || opts.status !== 'lulus' || opts.halaman === null) return tetap
 
   if (opts.totalHalaman !== null && opts.halaman >= opts.totalHalaman) {
     return { ...tetap, current_jilid_page: opts.totalHalaman, masukDrill: true }
@@ -107,6 +111,13 @@ export interface InputSetoranTahsin {
   nilai_tahsin: number | null
   nilai_sikap: number | null
   status: TahsinStatus
+  /**
+   * Baris buku yang dibaca (0109) — hanya di tahap berbuku non-materi.
+   * baris_ke diisi saat status Lanjut ("sampai baris ke-"); baris_dari saat
+   * melanjutkan halaman yang sebelumnya belum tuntas. Keduanya opsional.
+   */
+  baris_dari?: number | null
+  baris_ke?: number | null
   catatan: string | null
   setoran_date: string
   /** Guru sudah melihat perbandingan dan setuju menimpa setoran hari itu. */
@@ -252,6 +263,28 @@ async function simpanSetoranTahsin(teacherId: string, input: InputSetoranTahsin)
   const halamanTersimpan = pakaiMateri ? halamanMateri : halaman
 
   /*
+    LANJUT & BARIS (0109). "Lanjut" berarti halaman BUKU belum tuntas, jadi
+    hanya bermakna di tahap yang disetor per halaman buku. Tahap materi punya
+    'lanjut' per materinya sendiri, dan tahap tanpa buku (Al-Qur'an) sudah
+    mencatat rentang ayat yang persis.
+
+    Baris disimpan hanya di tahap berbuku; di luar itu dibuang diam-diam —
+    angka baris tanpa halaman buku tidak menunjuk ke mana pun.
+  */
+  const pakaiBaris = !pakaiMateri && halaman !== null
+  if (!pakaiMateri && status === 'lanjut' && halaman === null) {
+    return 'Status Lanjut hanya untuk tahap yang disetor per halaman buku.'
+  }
+  const barisDari = pakaiBaris ? input.baris_dari ?? null : null
+  const barisKe = pakaiBaris ? input.baris_ke ?? null : null
+  for (const b of [barisDari, barisKe]) {
+    if (b !== null && (!Number.isInteger(b) || b < 1 || b > BARIS_MAKS)) return `Nomor baris harus 1–${BARIS_MAKS}.`
+  }
+  if (barisDari !== null && barisKe !== null && barisKe < barisDari) {
+    return `Baris akhir (${barisKe}) tidak boleh sebelum baris awal (${barisDari}).`
+  }
+
+  /*
     Di tahap berbasis materi, status setoran DITURUNKAN dari hasil materinya,
     bukan ditanyakan lagi ke guru. Menanyakan dua kali membuka kemungkinan
     jawaban yang saling bertentangan — setoran berstatus 'lulus' yang semua
@@ -260,7 +293,11 @@ async function simpanSetoranTahsin(teacherId: string, input: InputSetoranTahsin)
     apa-apa tentang materi.
   */
   const statusTersimpan: TahsinStatus = pakaiMateri
-    ? (dipilih.some(m => m.hasil === 'lulus') ? 'lulus' : 'ulang')
+    ? dipilih.some(m => m.hasil === 'lulus') ? 'lulus'
+      // Materi yang masih dibahas bukan kegagalan — sama artinya dengan
+      // halaman buku yang belum tuntas.
+      : dipilih.some(m => m.hasil === 'lanjut') ? 'lanjut'
+      : 'ulang'
     : status
 
   /*
@@ -276,6 +313,8 @@ async function simpanSetoranTahsin(teacherId: string, input: InputSetoranTahsin)
     const ganda = await periksaGandaTahsin(supabase, studentId, input.setoran_date, {
       jilid_label: jilid?.label ?? null,
       halaman: halamanTersimpan,
+      baris_dari: barisDari,
+      baris_ke: barisKe,
       jumlah_materi: dipilih.length,
       quran_surat_id: input.quran.surat_id,
       quran_ayat_dari: input.quran.ayat_dari,
@@ -315,6 +354,8 @@ async function simpanSetoranTahsin(teacherId: string, input: InputSetoranTahsin)
     method_id: methodId,
     jilid_id: jilidId,
     halaman: halamanTersimpan,
+    baris_dari: barisDari,
+    baris_ke: barisKe,
     quran_halaman: input.quran.halaman,
     quran_surat_id: input.quran.surat_id,
     quran_ayat_dari: input.quran.ayat_dari,
@@ -395,8 +436,10 @@ async function simpanSetoranTahsin(teacherId: string, input: InputSetoranTahsin)
     "lulus Al-Qur'an" yang menutupnya. Selama drill buku pun bacaan mushafnya
     tetap berjalan, jadi sedangDrill sengaja tidak menahannya di sini; yang
     menahan hanya 'ulang', sebab anak yang mengulang belum pindah tempat.
+    'Lanjut' tetap memajukan mushaf: rentang ayat yang dicatat sudah persis
+    yang dibaca, jadi tidak ada "halaman belum tuntas" di sisi mushaf.
   */
-  const posisiQuran = bacaQuran && status === 'lulus' && input.quran.surat_id !== null
+  const posisiQuran = bacaQuran && status !== 'ulang' && input.quran.surat_id !== null
     ? (() => {
         const p = posisiLanjut(input.quran, totalAyat)
         return {
@@ -460,7 +503,9 @@ export async function createTahsinLogAction(_: unknown, formData: FormData): Pro
     ],
     nilai_tahsin: readScore(formData, 'nilai_tahsin'),
     nilai_sikap: readScore(formData, 'nilai_sikap'),
-    status: ((formData.get('status') as string) || 'lulus') as TahsinStatus,
+    status: statusTahsinSah(formData.get('status')),
+    baris_dari: readInt(formData, 'baris_dari'),
+    baris_ke: readInt(formData, 'baris_ke'),
     catatan: ((formData.get('catatan') as string) || '').trim() || null,
     setoran_date: (formData.get('setoran_date') as string) || tanggalWIB(new Date()),
     timpa: formData.get('timpa') === '1',
@@ -514,7 +559,9 @@ export async function createTahsinLogSesiAction(baris: InputSetoranTahsin[]): Pr
       ...b,
       nilai_tahsin: nilaiSah(b.nilai_tahsin),
       nilai_sikap: nilaiSah(b.nilai_sikap),
-      status: b.status === 'ulang' ? 'ulang' : 'lulus',
+      status: statusTahsinSah(b.status),
+      baris_dari: typeof b.baris_dari === 'number' ? b.baris_dari : null,
+      baris_ke: typeof b.baris_ke === 'number' ? b.baris_ke : null,
       catatan: b.catatan?.trim() || null,
     })
     if (typeof galat === 'string') gagal.push({ student_id: b.student_id, pesan: galat })

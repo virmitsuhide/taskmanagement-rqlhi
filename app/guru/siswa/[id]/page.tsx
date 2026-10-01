@@ -8,7 +8,7 @@ import { getMateriPerJilid, getHasilMateriPerSiswa, ringkasProgres, type HasilMa
 import { Button } from '@/components/ui/button'
 import { BookOpen, CheckCircle2, Sparkles } from 'lucide-react'
 import { AYAT_PER_JUZ } from '@/types'
-import type { Jenjang, TahfidzKind } from '@/types'
+import type { Jenjang, TahfidzKind, TahsinStatus } from '@/types'
 import { TAHFIDZ_KIND_META } from '@/lib/tahsin'
 import { URUTAN_JUZ_TAHFIDZ, type NodeLevel } from '@/lib/rq/peta-belajar'
 import { PetaLevel } from '@/components/siswa/PetaLevel'
@@ -21,6 +21,7 @@ import type { KodePeriode } from '@/lib/data/statistik-guru'
 import { GrafikProgres, URUTAN_PROGRES } from '@/components/siswa/GrafikProgres'
 import { getInfoSurat } from '@/lib/data/nama-surat'
 import { teksRentang } from '@/lib/rq/rentang-surat'
+import { LABEL_STATUS_TAHSIN, teksBaris } from '@/lib/rq/status-tahsin'
 
 interface PageProps {
   params: Promise<{ id: string }>
@@ -522,17 +523,19 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
                     <div className="flex items-center justify-between gap-2">
                       <p className="text-sm font-medium">
                         {jilid} · hal. {log.halaman ?? '—'}
-                        {/* Baris dari/ke tidak lagi diisi; catatan lama tetap terbaca. */}
-                        {log.baris_dari && log.baris_ke ? ` (baris ${log.baris_dari}-${log.baris_ke})` : ''}
+                        {/* Baris diisi saat halaman belum tuntas (status Lanjut, 0109). */}
+                        {teksBaris(log.baris_dari, log.baris_ke) ? ` (${teksBaris(log.baris_dari, log.baris_ke)})` : ''}
                         {log.drill ? ' · drill' : ''}
                       </p>
                       <span
                         className="text-[11px] px-2 py-0.5 rounded-full shrink-0"
                         style={log.status === 'lulus'
                           ? { background: 'var(--success-wash)', color: 'var(--success)' }
+                          : log.status === 'lanjut'
+                          ? { background: 'var(--info-wash)', color: 'var(--info)' }
                           : { background: 'var(--warning-wash)', color: 'var(--warning)' }}
                       >
-                        {log.status === 'lulus' ? 'Lulus' : 'Ulang'}
+                        {LABEL_STATUS_TAHSIN[log.status as TahsinStatus] ?? log.status}
                       </span>
                     </div>
                     <p className="text-xs text-muted-foreground mt-1">

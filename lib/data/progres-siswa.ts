@@ -59,7 +59,8 @@ export async function getProgresSiswa(studentId: string, kode: KodePeriode): Pro
       label: w.label,
       judul: w.judul,
       tahsinLulus: ts.filter(l => l.status === 'lulus' && !l.drill).length,
-      tahsinUlang: ts.filter(l => l.status !== 'lulus').length,
+      // Lanjut (halaman belum tuntas) bukan ulang — anak sedang maju pelan.
+      tahsinUlang: ts.filter(l => l.status === 'ulang').length,
       tahfidzHalaman: tf.reduce((n, l) => n + peta.bobot(l.surat_id, l.ayat_dari!, l.ayat_ke!), 0),
       tahfidzAyat: tf.reduce((n, l) => n + l.ayat_ke! - l.ayat_dari! + 1, 0),
     }

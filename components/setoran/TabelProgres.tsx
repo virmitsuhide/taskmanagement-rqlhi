@@ -15,6 +15,8 @@ import {
 } from '@/components/ui/dialog'
 import { StarInput } from '@/components/setoran/StarInput'
 import { cn } from '@/lib/utils'
+import { BARIS_MAKS, LABEL_STATUS_TAHSIN, URUTAN_STATUS_TAHSIN } from '@/lib/rq/status-tahsin'
+import type { TahsinStatus } from '@/types'
 import type { JenisRekap, ProgresSesi, SelProgres, SuntingSetoran } from '@/lib/data/rekap-sesi'
 
 const HARI = ['Ahad', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab']
@@ -59,7 +61,9 @@ function Sel({ isi, absen, hadirTanpaSetor, onSunting }: {
       {isi.map((s, i) => {
         const kelas = cn(
           'relative inline-flex min-w-8 justify-center rounded px-1 py-0.5 tabular-nums',
-          s.ulang ? 'bg-warning-wash text-warning font-semibold' : 'bg-primary-wash text-primary',
+          s.ulang ? 'bg-warning-wash text-warning font-semibold'
+            : s.lanjut ? 'bg-info-wash text-info'
+            : 'bg-primary-wash text-primary',
           onSunting && 'cursor-pointer ring-primary/40 hover:ring-2',
         )
         const konten = (
@@ -201,6 +205,9 @@ export function TabelProgres({
           </>
         )}
         <span><b className="text-warning">kuning</b> = ulang</span>
+        {jenis === 'tahsin' && (
+          <span><b className="text-info">12·b5</b> = lanjut, halaman belum tuntas (sampai baris 5)</span>
+        )}
         <span><b>I</b> / <b>S</b> / <b className="text-destructive">A</b> = izin / sakit / alfa (tercatat, bukan lubang)</span>
         <span><b className="text-warning">H</b> = hadir tapi tidak setor</span>
         <span><b className="text-destructive">⚠</b> = pekan dengan setor ≤ 2 hari</span>
@@ -222,7 +229,7 @@ export function TabelProgres({
 function DialogKoreksi({ s, nama, onTutup }: { s: SuntingSetoran; nama: string; onTutup: () => void }) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
-  const [status, setStatus] = useState<'lulus' | 'ulang'>(s.status ?? 'lulus')
+  const [status, setStatus] = useState<TahsinStatus>(s.status ?? 'lulus')
   const [yakinHapus, setYakinHapus] = useState(false)
   /*
     Bintang hanya bisa menulis kelipatan lima; nilai lama seperti 88 tampil
@@ -232,6 +239,8 @@ function DialogKoreksi({ s, nama, onTutup }: { s: SuntingSetoran; nama: string; 
   */
   const disentuh = useRef<Set<string>>(new Set())
   const tahsin = s.tabel === 'tahsin_logs'
+  // Lanjut = halaman BUKU belum tuntas; tidak berarti di tahap materi atau tanpa buku.
+  const bisaLanjut = tahsin && !s.halamanTerkunci && s.halaman !== null
   const namaNilai = tahsin ? 'nilai_tahsin' : 'nilai_tahfidz'
 
   function kirim(e: FormEvent<HTMLFormElement>) {
@@ -287,8 +296,9 @@ function DialogKoreksi({ s, nama, onTutup }: { s: SuntingSetoran; nama: string; 
           {tahsin ? (
             <>
               <input type="hidden" name="baris_dari" value={s.barisDari ?? ''} />
-              <input type="hidden" name="baris_ke" value={s.barisKe ?? ''} />
-              <div className="grid grid-cols-2 gap-3">
+              {/* Baris akhir hanya bermakna untuk Lanjut; selain itu halaman dianggap utuh. */}
+              {status !== 'lanjut' && <input type="hidden" name="baris_ke" value="" />}
+              <div className="grid gap-3 sm:grid-cols-[7rem_1fr]">
                 <div className="space-y-1.5">
                   <Label htmlFor="k_halaman">Halaman</Label>
                   {s.halamanTerkunci ? (
@@ -305,7 +315,7 @@ function DialogKoreksi({ s, nama, onTutup }: { s: SuntingSetoran; nama: string; 
                   <Label>Status</Label>
                   <input type="hidden" name="status" value={status} />
                   <div className="flex gap-1.5">
-                    {(['lulus', 'ulang'] as const).map(v => (
+                    {URUTAN_STATUS_TAHSIN.filter(v => v !== 'lanjut' || bisaLanjut || status === 'lanjut').map(v => (
                       <button
                         key={v}
                         type="button"
@@ -314,16 +324,32 @@ function DialogKoreksi({ s, nama, onTutup }: { s: SuntingSetoran; nama: string; 
                         className={cn(
                           'h-9 flex-1 rounded-md border text-sm transition-colors',
                           status === v
-                            ? v === 'lulus' ? 'border-primary bg-primary-wash font-semibold text-primary' : 'border-warning bg-warning-wash font-semibold text-warning'
+                            ? v === 'lulus' ? 'border-primary bg-primary-wash font-semibold text-primary'
+                              : v === 'lanjut' ? 'border-info bg-info-wash font-semibold text-info'
+                              : 'border-warning bg-warning-wash font-semibold text-warning'
                             : 'bg-card hover:bg-accent',
                         )}
                       >
-                        {v === 'lulus' ? 'Lulus' : 'Ulang'}
+                        {LABEL_STATUS_TAHSIN[v]}
                       </button>
                     ))}
                   </div>
                 </div>
               </div>
+              {status === 'lanjut' && bisaLanjut && (
+                <div className="space-y-1.5">
+                  <Label htmlFor="k_baris_ke">
+                    Sampai baris ke- <span className="font-normal text-muted-foreground">(opsional)</span>
+                  </Label>
+                  <Input
+                    id="k_baris_ke" name="baris_ke" type="number" inputMode="numeric"
+                    min={s.barisDari ?? 1} max={BARIS_MAKS}
+                    defaultValue={s.barisKe ?? ''}
+                    className="w-28"
+                  />
+                </div>
+              )}
+              {status === 'lanjut' && !bisaLanjut && <input type="hidden" name="baris_ke" value={s.barisKe ?? ''} />}
             </>
           ) : (
             <>

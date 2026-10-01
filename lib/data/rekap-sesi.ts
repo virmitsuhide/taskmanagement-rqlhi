@@ -4,6 +4,8 @@ import { adabRendah, bintangDariNilai } from '@/lib/rq/bintang'
 import { labelJenisTahfidz } from '@/lib/data/setoran-ganda'
 import { getInfoSurat } from '@/lib/data/nama-surat'
 import { jumlahAyatRentang, teksRentang } from '@/lib/rq/rentang-surat'
+import { LABEL_STATUS_TAHSIN, teksBaris } from '@/lib/rq/status-tahsin'
+import type { TahsinStatus } from '@/types'
 
 /**
  * Rekap bulanan per sesi untuk guru — dua halaman, satu sumber:
@@ -90,6 +92,8 @@ export interface SelProgres {
   /** Rincian lengkap untuk tooltip. */
   rinci: string
   ulang: boolean
+  /** Halaman belum tuntas (0109) — bukan kegagalan, ditandai berbeda dari ulang. */
+  lanjut: boolean
   drill: boolean
   adabRendah: boolean
   /** Bahan koreksi oleh koordinator — lihat components/setoran/TabelProgres. */
@@ -110,7 +114,7 @@ export interface SuntingSetoran {
   ayatKe: number | null
   nilai: number | null
   sikap: number | null
-  status: 'lulus' | 'ulang' | null
+  status: TahsinStatus | null
   catatan: string | null
   /**
    * Halaman tahap Gharib/Tajwid adalah turunan materi yang disetor, bukan
@@ -156,7 +160,7 @@ interface LogTahsinRekap {
   student_id: string
   setoran_date: string
   halaman: number | null
-  status: 'lulus' | 'ulang'
+  status: TahsinStatus
   drill: boolean | null
   nilai_tahsin: unknown
   nilai_sikap: unknown
@@ -190,19 +194,24 @@ function bintangTeks(nilai: number | null): string {
 
 function selTahsin(l: LogTahsinRekap, jilidMateri: Set<string>): SelProgres {
   const sikap = angka(l.nilai_sikap)
+  const baris = teksBaris(l.baris_dari, l.baris_ke)
   const posisi = l.halaman !== null
-    ? `${l.jilid?.label ?? 'Jilid'} halaman ${l.halaman}`
+    ? `${l.jilid?.label ?? 'Jilid'} halaman ${l.halaman}${baris ? ` (${baris})` : ''}`
     : l.jilid?.label ?? ''
   const mushaf = l.quran_halaman !== null ? `mushaf halaman ${l.quran_halaman}` : ''
   return {
-    label: l.halaman !== null ? String(l.halaman) : l.quran_halaman !== null ? `Q${l.quran_halaman}` : '✓',
+    // Lanjut ditandai "·b5" = sampai baris 5; tanpa nomor baris cukup "12…".
+    label: l.halaman !== null
+      ? `${l.halaman}${l.status === 'lanjut' ? (l.baris_ke !== null ? `·b${l.baris_ke}` : '…') : ''}`
+      : l.quran_halaman !== null ? `Q${l.quran_halaman}` : '✓',
     rinci: [
       [posisi, mushaf].filter(Boolean).join(' · '),
-      `${l.status === 'ulang' ? 'Ulang' : 'Lulus'}${l.drill ? ' (drill)' : ''}`,
+      `${LABEL_STATUS_TAHSIN[l.status] ?? l.status}${l.status === 'lanjut' ? ' — halaman belum tuntas' : ''}${l.drill ? ' (drill)' : ''}`,
       `Nilai ${bintangTeks(angka(l.nilai_tahsin))} · Adab ${bintangTeks(sikap)}`,
       l.catatan ?? '',
     ].filter(Boolean).join('\n'),
     ulang: l.status === 'ulang',
+    lanjut: l.status === 'lanjut',
     drill: Boolean(l.drill),
     adabRendah: adabRendah(sikap),
     sunting: {
@@ -247,6 +256,7 @@ function selTahfidz(l: LogTahfidzRekap, info: Map<number, { name_latin: string; 
       l.catatan ?? '',
     ].filter(Boolean).join('\n'),
     ulang: false,
+    lanjut: false,
     drill: false,
     adabRendah: adabRendah(sikap),
     sunting: {
