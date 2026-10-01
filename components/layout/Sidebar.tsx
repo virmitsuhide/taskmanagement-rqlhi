@@ -270,7 +270,7 @@ export function Sidebar({ role, displayName, username, lencanaKpi, ciutAwal = fa
               <NavItem href="/humas-request" icon={<ImageIcon className="h-4 w-4" />} label="Request Humas" active={isActive('/humas-request')} />
             )}
             {canPostToHome(role) && (
-              <NavItem href="/home-post" icon={<Megaphone className="h-4 w-4" />} label="Pengumuman Guru Qur'an" active={isActive('/home-post')} />
+              <NavItem href="/home-post" icon={<Megaphone className="h-4 w-4" />} label="Pengumuman" active={isActive('/home-post')} />
             )}
             {/* Menyala juga saat menulis/menyunting di /news/… */}
             {canCreateNews(role) && (

@@ -40,7 +40,7 @@ export default async function HomePostPage() {
 
   return (
     <div>
-      <DashboardHeader displayName={session.displayName} role={session.role} title="Pengumuman Guru Qur'an" />
+      <DashboardHeader displayName={session.displayName} role={session.role} title="Pengumuman" />
       <div className="p-4 md:p-8 max-w-3xl mx-auto">
         <div className="flex items-center justify-between mb-4">
           <p className="text-sm text-muted-foreground">{posts.length} post</p>

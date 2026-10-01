@@ -314,7 +314,7 @@ export function MobileNav({ role, displayName, username, lencanaKpi }: Props) {
                 <DrawerLink href="/humas-request" icon={<ImageIcon className="h-4 w-4" />} label="Request Humas" active={isActive('/humas-request')} onNavigate={close} />
               )}
               {canPostToHome(role) && (
-                <DrawerLink href="/home-post" icon={<Megaphone className="h-4 w-4" />} label="Pengumuman Guru Qur'an" active={isActive('/home-post')} onNavigate={close} />
+                <DrawerLink href="/home-post" icon={<Megaphone className="h-4 w-4" />} label="Pengumuman" active={isActive('/home-post')} onNavigate={close} />
               )}
               {canCreateNews(role) && (
                 <DrawerLink href="/humas/berita" icon={<Newspaper className="h-4 w-4" />} label="Berita" active={isActive('/humas/berita') || isActive('/news')} onNavigate={close} />
