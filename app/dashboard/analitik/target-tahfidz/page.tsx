@@ -25,6 +25,7 @@ const tanggalTeks = (iso: string) => `${Number(iso.slice(8, 10))} ${bulanTeks(is
 const UNIT_RENCANA: Record<KodeRencana, Jenjang[]> = {
   sd_clil: ['sd'],
   sd_quls: ['sd', 'sd_juara'],
+  sd_juara: ['sd_juara'],
   smp_internal: ['smp'],
   smp_eksternal: ['smp'],
 }

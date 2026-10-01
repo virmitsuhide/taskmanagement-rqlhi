@@ -12,6 +12,7 @@ import type { Jenjang } from '@/types'
 const UNIT_RENCANA: Record<KodeRencana, Jenjang[]> = {
   sd_clil: ['sd'],
   sd_quls: ['sd', 'sd_juara'],
+  sd_juara: ['sd_juara'],
   smp_internal: ['smp'],
   smp_eksternal: ['smp'],
 }

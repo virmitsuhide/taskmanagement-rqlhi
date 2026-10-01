@@ -62,8 +62,12 @@ export interface KelompokTarget {
   tingkat: number[]
   /** Tahsin: metode tiap tingkat — nama di tahsin_methods. */
   metode?: (tingkat: number) => string
-  /** Tahfidz: rencana hafalan yang dipakai sebagai isian awal. */
-  rencana?: KodeRencana
+  /**
+   * Tahfidz: rencana hafalan yang dipakai sebagai isian awal — satu untuk
+   * semua tingkat, atau per tingkat bila satu kelompok memakai dua rencana
+   * (SD Juara: kelas 1 QULS, kelas 2–6 CP TTQ sendiri).
+   */
+  rencana?: KodeRencana | ((tingkat: number) => KodeRencana)
 }
 
 const SD = [1, 2, 3, 4, 5, 6]
@@ -96,7 +100,7 @@ export function kelompokTarget(jenjang: Jenjang, jenis: JenisTarget): KelompokTa
       { kode: 'clil', label: 'CLIL', tingkat: SD, rencana: 'sd_clil' },
       { kode: 'quls', label: 'QULS', tingkat: SD, rencana: 'sd_quls' },
     ]
-    case 'sd_juara': return [{ kode: 'semua', label: 'SD Juara', tingkat: SD, rencana: 'sd_quls' }]
+    case 'sd_juara': return [{ kode: 'semua', label: 'SD Juara', tingkat: SD, rencana: t => (t === 1 ? 'sd_quls' : 'sd_juara') }]
     case 'smp': return [
       { kode: 'internal', label: 'Lulusan SD LHI', tingkat: [7, 8, 9], rencana: 'smp_internal' },
       { kode: 'eksternal', label: 'Dari luar LHI', tingkat: [7, 8, 9], rencana: 'smp_eksternal' },

@@ -69,7 +69,7 @@ export interface TingkatRencana {
   semester: [SemesterRencana, SemesterRencana]
 }
 
-export type KodeRencana = 'sd_clil' | 'sd_quls' | 'smp_internal' | 'smp_eksternal'
+export type KodeRencana = 'sd_clil' | 'sd_quls' | 'sd_juara' | 'smp_internal' | 'smp_eksternal'
 
 export interface Rencana {
   kode: KodeRencana
@@ -119,9 +119,38 @@ export const RENCANA: Record<KodeRencana, Rencana> = {
   // ayat PERTAMA juz 4. Rencana berhenti di ayat 91: target "8 juz" berarti
   // juz 3 tuntas, bukan juz 3 tuntas ditambah satu ayat juz 4 — satu ayat itu
   // cukup untuk membuat hitungan juz tuntas meleset.
+  /*
+    CAPAIAN PEMBELAJARAN TTQ SD LHI JUARA TA 2026/2027 (dikirim RQ 2026-10-01).
+    Juz 30 dari An-Nas, turun per surat; kelas VI semester I masuk juz 29
+    (Al-Mulk, Al-Qiyamah, Al-Insan, Al-Mursalat), lalu murojaah.
+
+    Hanya untuk kelas 2–6 (program reguler, metode IQRO). Kelas 1 SD Juara
+    adalah kelas QULS — tetap rencana sd_quls lewat programnya. Tingkat 1 di
+    sini tetap ditulis sesuai dokumen supaya kelas 2 berangkat dari hafalan
+    kelas 1 yang benar (bekal kumulatif kurva).
+
+    ⚠ Dokumen melompati Al-Infithar (82): kelas IV semester I berakhir di
+    Al-Muthaffifin (83), semester II mulai At-Takwir (81). Ditulis apa adanya.
+    Semester 18/12 pekan mengikuti SDIT — hanya laju; kalender RQ yang menentukan.
+  */
+  sd_juara: {
+    kode: 'sd_juara',
+    label: 'SD Juara (kelas 2–6)',
+    keterangan: 'Juz 30 tuntas kelas V + 4 surat juz 29 di kelas VI',
+    bekal: [],
+    tingkat: [
+      { tingkat: 1, semester: [smt(18, mundur(114, 109)), smt(12, mundur(108, 103))] },
+      { tingkat: 2, semester: [smt(18, mundur(102, 99)), smt(12, mundur(98, 95))] },
+      { tingkat: 3, semester: [smt(18, mundur(94, 91)), smt(12, mundur(90, 87))] },
+      { tingkat: 4, semester: [smt(18, mundur(86, 83)), smt(12, mundur(81, 80))] },
+      { tingkat: 5, semester: [smt(18, mundur(79, 78)), murojaah(12)] },
+      { tingkat: 6, semester: [smt(18, [surah(67), surah(75), surah(76), surah(77)]), murojaah(12)] },
+    ],
+  },
+
   sd_quls: {
     kode: 'sd_quls',
-    label: 'SDIT QuLS & SD Juara',
+    label: 'SDIT QuLS & SD Juara kelas 1',
     keterangan: '8 juz (30–26, 1, 2, 3) saat lulus kelas VI',
     bekal: [],
     tingkat: [
@@ -168,7 +197,7 @@ export const RENCANA: Record<KodeRencana, Rencana> = {
   },
 }
 
-export const URUTAN_RENCANA: KodeRencana[] = ['sd_clil', 'sd_quls', 'smp_internal', 'smp_eksternal']
+export const URUTAN_RENCANA: KodeRencana[] = ['sd_clil', 'sd_quls', 'sd_juara', 'smp_internal', 'smp_eksternal']
 
 // ─── Siswa → rencana ──────────────────────────────────────────────────────────
 
@@ -205,7 +234,8 @@ export function pilihRencana(siswa: {
       kode = siswa.program === 'quls' ? 'sd_quls' : 'sd_clil'
       break
     case 'sd_juara':
-      kode = 'sd_quls'
+      // Kelas 1 SD Juara = kelas QULS (KIBAR); kelas 2–6 punya CP TTQ sendiri.
+      kode = siswa.program === 'quls' ? 'sd_quls' : 'sd_juara'
       break
     case 'smp':
       kode = siswa.asal_sd_lhi ? 'smp_internal' : 'smp_eksternal'

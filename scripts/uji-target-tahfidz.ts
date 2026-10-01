@@ -94,6 +94,18 @@ async function main() {
   }
   for (const kode of URUTAN_RENCANA) {
     const kurva = buatKurva(RENCANA[kode], peta)
+    /*
+      SD Juara (CP TTQ 2026/2027) sengaja TIDAK berbentuk juz utuh: juz 29
+      hanya 4 surat, dan dokumennya melompati Al-Infithar. Yang diperiksa:
+      totalnya persis jumlah surat yang disebut dokumen — tidak lebih, tidak kurang.
+    */
+    if (kode === 'sd_juara') {
+      const surat = [...Array.from({ length: 114 - 78 + 1 }, (_, i) => 114 - i).filter(n => n !== 82), 67, 75, 76, 77]
+      const harap = surat.reduce((t, n) => t + peta.bobot(n, 1, peta.panjang(n)), 0)
+      periksa(dekat(kurva.total, harap, 1e-6),
+        `sd_juara: ${f(kurva.total)} hal = juz 30 tanpa Al-Infithar + Al-Mulk, Al-Qiyamah, Al-Insan, Al-Mursalat`)
+      continue
+    }
     const urutan = kurva.akhirJuz.map(j => j.juz)
     periksa(
       JSON.stringify(urutan) === JSON.stringify(harapanJuz[kode]),
@@ -157,7 +169,8 @@ async function main() {
     JSON.stringify(pilihRencana({ jenjang, program, kelas, asal_sd_lhi: asal }))
   periksa(pilih('sd', 'clil', '3.0') === '{"kode":"sd_clil","tingkat":3}', 'SD CLIL kelas "3.0" → sd_clil tingkat 3')
   periksa(pilih('sd', 'quls_takhassus', '4A') === '{"alasan":"takhassus"}', 'QuLS Takhassus → tanpa target')
-  periksa(pilih('sd_juara', 'reguler', '2B') === '{"kode":"sd_quls","tingkat":2}', 'SD Juara → rencana QuLS')
+  periksa(pilih('sd_juara', 'reguler', '2B') === '{"kode":"sd_juara","tingkat":2}', 'SD Juara kelas 2–6 → rencana CP TTQ SD Juara')
+  periksa(pilih('sd_juara', 'quls', '1') === '{"kode":"sd_quls","tingkat":1}', 'SD Juara kelas 1 (QULS) → rencana QuLS')
   periksa(pilih('smp', 'reguler_fd', '8C') === '{"kode":"smp_eksternal","tingkat":8}', 'SMP tanpa tanda internal → eksternal')
   periksa(pilih('smp', 'boarding_quls', '7A', true) === '{"kode":"smp_internal","tingkat":7}', 'SMP bertanda internal → internal')
   periksa(pilih('smp', 'reguler_bd', '4A') === '{"alasan":"kelas_tak_terbaca"}', 'SMP kelas 4 → tidak terbaca')

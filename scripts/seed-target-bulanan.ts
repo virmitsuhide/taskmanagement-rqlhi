@@ -9,15 +9,17 @@
  * TAHFIDZ — dari rencana per program (lib/rq/target-tahfidz.ts, disalin dari
  *   Excel target tahfidz), dibagi ke bulan menurut kalender pekan efektif —
  *   persis angka yang sudah dipakai Analitik target tahfidz.
- *     SD CLIL → sd_clil · SD QULS & SD Juara → sd_quls · SMP → internal/eksternal
+ *     SD CLIL → sd_clil · SD QULS & SD Juara kelas 1 → sd_quls ·
+ *     SD Juara kelas 2–6 → sd_juara · SMP → internal/eksternal
  *   TPAIT & SMA belum punya rencana tahfidz — dibiarkan kosong.
  *
  * TAHSIN — dari target per kelas (kurikulum_targets), dibagi rata per bulan
  *   menurut pekan efektif. Target kelas dibaca sebagai target AKHIR TAHUN;
  *   awal tahun kelas N = target kelas N−1. SMP kelas 8 punya target tengah
  *   tahun (ganjil Jilid 5, genap Al-Qur'an — ditetapkan koordinator).
- *   Hanya unit yang targetnya ada: SD CLIL (UMMI), SMP & SMA (Syajaroh).
- *   SD QULS, SD Juara, dan TPAIT belum punya target tahsin — kosong.
+ *   Hanya unit yang targetnya ada: SD CLIL (UMMI), SMP & SMA (Syajaroh),
+ *   SD Juara kelas 2–6 (IQRO, CP TTQ 2026/2027). SD QULS, SD Juara kelas 1
+ *   (QULS), dan TPAIT belum punya target tahsin — kosong.
  */
 import * as dotenv from 'dotenv'
 import { resolve } from 'path'
@@ -62,8 +64,9 @@ async function main() {
   for (const jenjang of JENJANG) {
     for (const kel of kelompokTarget(jenjang, 'tahfidz')) {
       if (!kel.rencana) continue
-      const kurva = buatKurva(RENCANA[kel.rencana], peta)
       for (const tingkat of kel.tingkat) {
+        const kode = typeof kel.rencana === 'function' ? kel.rencana(tingkat) : kel.rencana
+        const kurva = buatKurva(RENCANA[kode], peta)
         const s1 = semesterKurva(kurva, tingkat, 1)
         if (!s1) continue
         let sebelum = s1.mulai
@@ -101,10 +104,17 @@ async function main() {
     .filter(r => r.target_tahsin).map(r => [`${r.jenjang}|${r.tingkat}`, r.target_tahsin!]))
   // SMP kelas 8 (ditetapkan koordinator): semester 1 menuntaskan Jilid 5,
   // semester 2 di Al-Qur'an — jadi akhir ganjil = awal tahap Al-Qur'an.
-  const TENGAH_TAHUN: Record<string, string> = { 'smp|8': "Al-Qur'an" }
+  //
+  // SD Juara (CP TTQ 2026/2027): kelas 2 semester I Iqro' 3, II Iqro' 4 →
+  // tengah tahun masuk Jilid 4, akhir tahun masuk Jilid 5; kelas 3 semester
+  // I Jilid 5, II Jilid 6 → tengah Jilid 6, akhir Al-Qur'an. Kelas 2 berangkat
+  // dari Jilid 3: kelas 1-nya QULS (KIBAR), jadi tidak ada target IQRO kelas 1.
+  const TENGAH_TAHUN: Record<string, string> = { 'smp|8': "Al-Qur'an", 'sd_juara|2': 'Jilid 4', 'sd_juara|3': 'Jilid 6' }
   const AKHIR_TAHUN_KHUSUS: Record<string, string> = { 'smp|8': "Al-Qur'an" }
+  const AWAL_TAHUN_KHUSUS: Record<string, string> = { 'sd_juara|2': 'Jilid 3' }
   const UNIT_TAHSIN: { jenjang: Jenjang; kelompok: string }[] = [
     { jenjang: 'sd', kelompok: 'clil' }, { jenjang: 'smp', kelompok: 'semua' }, { jenjang: 'sma', kelompok: 'semua' },
+    { jenjang: 'sd_juara', kelompok: 'semua' },
   ]
   const tangga = await getTanggaTahsin()
   for (const { jenjang, kelompok } of UNIT_TAHSIN) {
@@ -116,7 +126,8 @@ async function main() {
       const kunci = `${jenjang}|${tingkat}`
       const akhirTeks = AKHIR_TAHUN_KHUSUS[kunci] ?? targetKelas.get(kunci)
       if (!akhirTeks) return
-      const sebelumTeks = i === 0 ? null : (AKHIR_TAHUN_KHUSUS[`${jenjang}|${kel.tingkat[i - 1]}`] ?? targetKelas.get(`${jenjang}|${kel.tingkat[i - 1]}`))
+      const sebelumTeks = AWAL_TAHUN_KHUSUS[kunci]
+        ?? (i === 0 ? null : (AKHIR_TAHUN_KHUSUS[`${jenjang}|${kel.tingkat[i - 1]}`] ?? targetKelas.get(`${jenjang}|${kel.tingkat[i - 1]}`)))
       const awalTahun = sebelumTeks ? kumulatifTargetKurikulum(tg, sebelumTeks) : 0
       const akhirTahun = kumulatifTargetKurikulum(tg, akhirTeks)
       const tengah = TENGAH_TAHUN[kunci] ? kumulatifTargetKurikulum(tg, TENGAH_TAHUN[kunci]) : null
