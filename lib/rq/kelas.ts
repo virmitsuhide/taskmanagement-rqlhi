@@ -90,3 +90,56 @@ export function kelasBerikutnya(jenjang: Jenjang, kelas: string | null | undefin
   if (akhir !== undefined && tingkat >= akhir) return 'lulus'
   return { naik: `${tingkat + 1}${cocok[2]}` }
 }
+
+// ─── Rombel SMP: huruf = asrama/fullday × putra/putri ───────────────────────
+
+/**
+ * Arti huruf rombel SMPIT LHI (ditetapkan RQ 2026-10-01):
+ *   A — boarding putra   B — boarding putri
+ *   C — fullday putra    D — fullday putri
+ *
+ * Kelas dan program diisi terpisah di formulir, jadi "9D, Reguler BD" bisa
+ * tercipta tanpa ada yang menyadarinya — dan anak itu tetap dianggap boarding
+ * (ikut daftar calon kelompok asrama). Aturan ini menolaknya di setiap pintu
+ * masuk: formulir, impor, dan pindah kelas.
+ */
+export const ROMBEL_SMP: Record<string, { boarding: boolean; gender: 'L' | 'P' }> = {
+  A: { boarding: true, gender: 'L' },
+  B: { boarding: true, gender: 'P' },
+  C: { boarding: false, gender: 'L' },
+  D: { boarding: false, gender: 'P' },
+}
+
+const PROGRAM_SMP_BOARDING = ['reguler_bd', 'boarding_quls']
+const PROGRAM_SMP_FULLDAY = ['reguler_fd', 'fullday_quls']
+
+function teksRombel(r: { boarding: boolean; gender: 'L' | 'P' }): string {
+  return `${r.boarding ? 'boarding' : 'fullday'} ${r.gender === 'L' ? 'putra' : 'putri'}`
+}
+
+/**
+ * Pesan galat bila huruf kelas SMP tidak cocok dengan program/gender anak;
+ * null bila cocok atau tidak bisa dinilai (kelas di luar pola 7–9 + A–D,
+ * program/gender kosong — kolom yang kosong tidak bisa dituduh bertentangan).
+ */
+export function galatRombelSmp(
+  jenjang: Jenjang,
+  kelas: string | null,
+  program: string | null,
+  gender: 'L' | 'P' | null,
+): string | null {
+  if (jenjang !== 'smp' || !kelas) return null
+  const m = kelas.trim().toUpperCase().match(/^([789])\s*([A-D])$/)
+  if (!m) return null
+  const r = ROMBEL_SMP[m[2]]
+  if (program && (PROGRAM_SMP_BOARDING.includes(program) || PROGRAM_SMP_FULLDAY.includes(program))) {
+    const boarding = PROGRAM_SMP_BOARDING.includes(program)
+    if (boarding !== r.boarding) {
+      return `Kelas ${kelas} adalah rombel ${teksRombel(r)}, tapi programnya ${boarding ? 'boarding' : 'fullday'}. Samakan kelas dan programnya.`
+    }
+  }
+  if (gender && gender !== r.gender) {
+    return `Kelas ${kelas} adalah rombel ${teksRombel(r)}, tapi siswa ini ${gender === 'L' ? 'putra' : 'putri'}.`
+  }
+  return null
+}

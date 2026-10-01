@@ -176,3 +176,31 @@ export async function getBoardingTanpaKelompok(gender: 'L' | 'P'): Promise<{ id:
     .filter(s => !sudah.has(s.id))
     .map(s => ({ id: s.id, nama: s.full_name, kelas: s.kelas }))
 }
+
+/**
+ * Keluarkan anak dari kelompok asrama bila keadaannya tidak lagi cocok:
+ * bukan siswa SMP aktif berprogram boarding, atau gendernya berbeda dengan
+ * asramanya. Dipanggil sesudah data siswa disunting — anak yang pindah ke
+ * fullday tidak boleh tertinggal di kelompok musyrifnya.
+ *
+ * Mengembalikan nama kelompok yang ditinggalkan (untuk pesan), atau null.
+ */
+export async function rapikanAnggotaAsrama(
+  studentId: string,
+  siswa: { jenjang: string; program: string | null; gender: string | null; is_active: boolean },
+): Promise<string | null> {
+  const supabase = createServerClient()
+  const { data, error } = await supabase
+    .from('asrama_anggota')
+    .select('kelompok:asrama_kelompok!asrama_anggota_kelompok_id_fkey(nama, gender)')
+    .eq('student_id', studentId)
+    .maybeSingle()
+  if (error || !data) return null
+  const k = (data as unknown as { kelompok: { nama: string; gender: string } | null }).kelompok
+  const masihCocok = siswa.is_active && siswa.jenjang === 'smp'
+    && PROGRAM_BOARDING.includes(siswa.program as typeof PROGRAM_BOARDING[number])
+    && (!k || siswa.gender === k.gender)
+  if (masihCocok) return null
+  await supabase.from('asrama_anggota').delete().eq('student_id', studentId)
+  return k?.nama ?? 'kelompok asrama'
+}

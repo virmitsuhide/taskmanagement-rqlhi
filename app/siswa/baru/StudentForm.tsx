@@ -177,7 +177,7 @@ export function StudentForm({
                 </SelectContent>
               </Select>
             </Field>
-            <Field label="Kelas" htmlFor="kelas">
+            <Field label="Kelas" htmlFor="kelas" hint={jenjang === 'smp' ? PETUNJUK_ROMBEL_SMP : undefined}>
               <KolomKelas key={jenjang} jenjang={jenjang} awal={initial?.kelas ?? ''} disabled={isPending} />
             </Field>
           </div>
@@ -189,7 +189,7 @@ export function StudentForm({
           <Field
             label="Kelas"
             htmlFor="kelas"
-            hint={<>Unit <span className="font-medium text-foreground">{JENJANG_LABELS[jenjang]}</span> &middot; ikut kelas, tidak diubah dari sini.</>}
+            hint={<>Unit <span className="font-medium text-foreground">{JENJANG_LABELS[jenjang]}</span> &middot; ikut kelas, tidak diubah dari sini.{jenjang === 'smp' && <> {PETUNJUK_ROMBEL_SMP}</>}</>}
           >
             <KolomKelas key={jenjang} jenjang={jenjang} awal={initial?.kelas ?? ''} disabled={isPending} />
           </Field>
@@ -383,6 +383,9 @@ function Field({ label, htmlFor, required, hint, className, children }: {
  * (lib/rq/kelas.ts) — dipilih, bukan diketik, supaya '1A' di SD Juara tidak
  * pernah tercipta. SD & SMP tetap diketik: rombelnya beragam.
  */
+/** Arti huruf rombel SMP — aturannya ditegakkan server (galatRombelSmp). */
+const PETUNJUK_ROMBEL_SMP = 'Huruf rombel: A boarding putra · B boarding putri · C fullday putra · D fullday putri — harus cocok dengan program & jenis kelamin.'
+
 function KolomKelas({ jenjang, awal, disabled }: { jenjang: Jenjang; awal: string; disabled: boolean }) {
   const tetap = KELAS_TETAP[jenjang]
   if (!tetap) {

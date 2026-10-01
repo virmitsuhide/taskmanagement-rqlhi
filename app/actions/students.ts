@@ -9,7 +9,8 @@ import {
 } from '@/lib/auth/permissions'
 import { hariIni, syncHalaqohMembership, syncHalaqohMemberships } from '@/lib/data/halaqoh-membership'
 import { periksaBaris, tandaiNisKembar, type BarisSiswa, type RujukanImpor } from '@/lib/rq/siswa-impor'
-import { bakukanKelas, contohKelas, KELAS_TETAP, kelasBerikutnya, kelasJelas } from '@/lib/rq/kelas'
+import { bakukanKelas, contohKelas, galatRombelSmp, KELAS_TETAP, kelasBerikutnya, kelasJelas } from '@/lib/rq/kelas'
+import { rapikanAnggotaAsrama } from '@/lib/data/asrama'
 import type { Gender, Jenjang } from '@/types'
 
 /** Ubah string kosong atau sentinel 'none' (dari Radix Select) menjadi null. */
@@ -65,6 +66,7 @@ export async function createStudentAction(_: unknown, formData: FormData) {
     return { error: 'Anda tidak memiliki izin untuk siswa program ini.' }
   }
   const galatK = galatKelas(fields.jenjang, fields.kelas)
+    ?? galatRombelSmp(fields.jenjang, fields.kelas, fields.program, fields.gender)
   if (galatK) return { error: galatK }
 
   const supabase = createServerClient()
@@ -126,6 +128,7 @@ export async function updateStudentAction(_: unknown, formData: FormData) {
   // Formulir sunting tidak mengirim jenjang — bakukan ulang dengan jenjang asli.
   fields.kelas = fields.kelas && bakukanKelas(jenjang, fields.kelas)
   const galatK = galatKelas(jenjang, fields.kelas)
+    ?? galatRombelSmp(jenjang, fields.kelas, fields.program, fields.gender)
   if (galatK) return { error: galatK }
 
   const { error } = await supabase
@@ -140,6 +143,11 @@ export async function updateStudentAction(_: unknown, formData: FormData) {
 
   if (fields.halaqoh_id !== (existing.halaqoh_id as string | null)) {
     await syncHalaqohMembership(supabase, id, fields.halaqoh_id, existing.halaqoh_id as string | null)
+  }
+
+  // Pindah ke fullday (atau nonaktif): keluar otomatis dari kelompok asrama (0110).
+  if (await rapikanAnggotaAsrama(id, { jenjang, program: fields.program, gender: fields.gender, is_active })) {
+    revalidatePath('/asrama')
   }
 
   revalidatePath('/siswa')
@@ -519,13 +527,13 @@ export async function pindahkanKelasAction(ids: string[], kelas: string) {
   const supabase = createServerClient()
   const { data, error: bacaGagal } = await supabase
     .from('students')
-    .select('id, full_name, jenjang, program')
+    .select('id, full_name, jenjang, program, gender')
     .in('id', ids)
 
   if (bacaGagal || !data) return { error: 'Gagal membaca data siswa.' }
   if (data.length !== ids.length) return { error: 'Sebagian siswa tidak ditemukan.' }
 
-  const rows = data as { id: string; full_name: string; jenjang: Jenjang; program: string | null }[]
+  const rows = data as { id: string; full_name: string; jenjang: Jenjang; program: string | null; gender: 'L' | 'P' | null }[]
 
   // Izin diperiksa per baris memakai keadaan yang TERSIMPAN, bukan yang
   // dikirim peramban — pola yang sama dengan updateStudentAction. Daftar id
@@ -546,6 +554,12 @@ export async function pindahkanKelasAction(ids: string[], kelas: string) {
       error: `'${tujuan}' belum berbentuk kelas yang utuh untuk ${JENJANG_LABELS[tolak.jenjang]} ` +
         (KELAS_TETAP[tolak.jenjang] ? `— pilih salah satu: ${contohKelas(tolak.jenjang)}.` : '— tulis tingkat lalu rombelnya, mis. 4B.'),
     }
+  }
+
+  // Rombel SMP: huruf kelas tujuan harus cocok dengan program & gender tiap anak.
+  for (const s of rows) {
+    const galat = galatRombelSmp(s.jenjang, tujuan, s.program, s.gender)
+    if (galat) return { error: `${s.full_name}: ${galat}` }
   }
 
   const { error } = await supabase

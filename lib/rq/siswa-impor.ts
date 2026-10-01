@@ -11,7 +11,7 @@
  * dikosongkan. Impor 700 baris adalah tempat kesalahan sunyi paling mahal.
  */
 import { JENJANG_LABELS } from '@/lib/auth/permissions'
-import { bakukanKelas, contohKelas, KELAS_TETAP, kelasJelas } from '@/lib/rq/kelas'
+import { bakukanKelas, contohKelas, galatRombelSmp, KELAS_TETAP, kelasJelas } from '@/lib/rq/kelas'
 import { getProgramsForJenjang, programLabel as programLabelOf, UNIT_LABELS } from '@/lib/rq/programs'
 import { methodsForJenjang } from '@/lib/tahsin'
 import type { Jenjang } from '@/types'
@@ -323,6 +323,10 @@ export function periksaBaris(
       galat.push(`Kolom Program wajib diisi untuk ${JENJANG_LABELS[jenjang]}.`)
     }
   }
+
+  // Huruf rombel SMP harus cocok dengan program & gender (A/B boarding, C/D fullday).
+  const galatRombel = galatRombelSmp(jenjang, kelasBaku, program, gender)
+  if (galatRombel) galat.push(galatRombel)
 
   // ── Halaqoh ── dicocokkan di dalam jenjangnya saja: nama halaqoh berulang
   // antar unit, dan yang benar selalu yang sejenjang dengan siswanya.
