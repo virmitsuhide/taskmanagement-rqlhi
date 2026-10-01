@@ -21,7 +21,7 @@ export const meetingTypeEnum = pgEnum('meeting_type', [
   'koor_tpait', 'koor_sdjuara', 'koor_sma',
 ])
 export const agendaTagEnum = pgEnum('agenda_tag', [
-  'keputusan', 'informasi', 'perlu_diskusi', 'tindak_lanjut', 'approval',
+  'keputusan', 'informasi', 'perlu_diskusi', 'tindak_lanjut', 'approval', 'informasi_bph', 'bahas_bph',
 ])
 export const taskPriorityEnum = pgEnum('task_priority', ['low', 'middle', 'high'])
 export const taskWeightEnum = pgEnum('task_weight', ['easy', 'medium', 'hard'])

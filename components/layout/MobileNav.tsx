@@ -18,7 +18,7 @@ import {
   canViewStudents, canViewHalaqoh, canViewAsrama, canViewTeachers, canViewUnitAnalytics,
   canManageHomepage,
   canViewKpi, canCatatSetoranGuru, canManageAllAccounts, canManagePengurus, canManageEmployees, canViewUjian, canManageTeacherProfiles,
-  canAccessKpiPublikasi, canManageRaporTemplate, canManageRiyadhoh, canViewRiyadhohAnalitik, canManageEkstra, canManageKaldik, canViewKpiBanding, canViewTasks, canViewRoutineBoard, isAdmin, canViewLaporanKurikulum, canViewPapanRapat, canViewTargetBulanan, canKelolaPanduanGuru } from '@/lib/auth/permissions'
+  canAccessKpiPublikasi, canManageRaporTemplate, canManageKalenderQuran, canManageRiyadhoh, canViewRiyadhohAnalitik, canManageEkstra, canManageKaldik, canViewKpiBanding, canViewTasks, canViewRoutineBoard, isAdmin, canViewLaporanKurikulum, canViewPapanRapat, canViewTargetBulanan, canKelolaPanduanGuru } from '@/lib/auth/permissions'
 import type { UserRole } from '@/types'
 import { logoutAction } from '@/app/actions/auth'
 import { Logo } from '@/components/brand/Logo'
@@ -382,7 +382,7 @@ export function MobileNav({ role, displayName, username, lencanaKpi }: Props) {
                 {/* Menempel di bawah template rapor: keduanya menetapkan isi
                     rapor seluruh angkatan — yang satu bentuknya, yang satu
                     penyebut kehadirannya. */}
-                {canManageRaporTemplate(role) && (
+                {canManageKalenderQuran(role) && (
                   <DrawerLink href="/kalender-quran" icon={<CalendarRange className="h-4 w-4" />} label="Kalender Qur'an" active={isActive('/kalender-quran')} onNavigate={close} />
                 )}
                 {/* Kalender pendidikan — pindahan dari aplikasi kaldikrqlhi (0085).

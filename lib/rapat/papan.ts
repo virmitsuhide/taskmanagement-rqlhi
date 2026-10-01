@@ -11,10 +11,12 @@ import type { AgendaTag, ApprovalStatus, TaskStatus } from '@/types'
  *                    biaya menunggu nominal dari bendahara
  *   tindak_lanjut  → PIC & status diambil dari tugas yang dibuat dari poin itu
  *   perlu_diskusi  → terbuka sampai ditandai selesai
+ *   bahas_bph      → terbuka sampai ditandai sudah dibahas di BPH (0111)
+ *   informasi_bph  → tidak masuk papan, sama seperti informasi
  *   keputusan      → tidak masuk papan aktif; dicatat di tabel keputusan bulanan
  */
 
-export const TAG_PAPAN: AgendaTag[] = ['approval', 'tindak_lanjut', 'perlu_diskusi']
+export const TAG_PAPAN: AgendaTag[] = ['approval', 'tindak_lanjut', 'perlu_diskusi', 'bahas_bph']
 
 export interface TugasTautan {
   id: string
@@ -48,6 +50,7 @@ export function sudahTuntas(p: PoinStatus, tugas: Pick<TugasTautan, 'status'>[] 
     case 'tindak_lanjut':
       return tugas.length > 0 && tugas.every(t => t.status === 'done')
     case 'perlu_diskusi':
+    case 'bahas_bph':
       return p.selesai_at !== null
     default:
       return false

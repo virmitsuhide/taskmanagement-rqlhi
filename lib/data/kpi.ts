@@ -15,10 +15,10 @@ export const MONTH_NAMES = [
 ]
 
 /**
- * Unit yang dinilai KPI. TPAIT & SMA sengaja tidak: gurunya sedikit dan
- * dinilai langsung oleh kepala unitnya (lihat KOOR_PENGESAH).
+ * Unit yang dinilai KPI. TPAIT, SD Juara & SMA sengaja tidak: gurunya dinilai
+ * langsung oleh kepala unitnya (lihat KOOR_PENGESAH).
  */
-export const KPI_UNITS: { key: Jenjang; label: string }[] = (['sd', 'sd_juara', 'smp'] as const)
+export const KPI_UNITS: { key: Jenjang; label: string }[] = (['sd', 'smp'] as const)
   .map(key => ({ key, label: UNIT_PENUGASAN_LABELS[key] }))
 
 /**

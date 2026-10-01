@@ -204,7 +204,8 @@ export function KalenderQuran({
             const hari = hariProgram(jadwal, { jenjang, program: p.code })
             const diatur = jadwal.some(j => j.jenjang === jenjang && j.program === p.code)
             return (
-              <li key={p.code || 'reguler'} className="flex flex-wrap items-center gap-2">
+              // Kunci kosong ≠ 'reguler': SD Juara punya program bernama kode 'reguler'.
+              <li key={p.code || '__tanpa_program'} className="flex flex-wrap items-center gap-2">
                 <span className="min-w-[10rem] flex-1 text-sm">
                   {p.label}
                   {!diatur && <span className="ml-1 text-[11px] text-muted-foreground">(bawaan)</span>}
@@ -401,7 +402,7 @@ export function KalenderQuran({
             <thead>
               <tr className="text-left">
                 <th className="border-b px-2 py-1.5">Kelas</th>
-                {programs.map(p => <th key={p.code || 'r'} className="border-b px-2 py-1.5 text-center">{p.label}</th>)}
+                {programs.map(p => <th key={p.code || '__tanpa_program'} className="border-b px-2 py-1.5 text-center">{p.label}</th>)}
               </tr>
             </thead>
             <tbody>

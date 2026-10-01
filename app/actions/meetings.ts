@@ -9,6 +9,8 @@ import {
   canEditMeeting,
   canDeleteMeeting,
   canPurgeMeeting,
+  tagNotulenUntuk,
+  AGENDA_TAG_LABELS,
 } from '@/lib/auth/permissions'
 import type { MeetingType, AgendaTag } from '@/types'
 
@@ -35,6 +37,13 @@ function tanpaKolomIzin<T extends { peserta_izin: string[] }>(baris: T): Omit<T,
 
 function kolomIzinBelumAda(error: { code?: string; message?: string } | null): boolean {
   return Boolean(error && (error.code === 'PGRST204' || error.code === '42703') && error.message?.includes('peserta_izin'))
+}
+
+/** Kategori yang tidak berlaku di jenis rapat ini (mis. "Bahas di BPH" di Rapat Kumik). */
+function galatTagRapat(type: MeetingType, poin: { tag: AgendaTag }[]): string | null {
+  const boleh = tagNotulenUntuk(type)
+  const luar = poin.find(p => !boleh.includes(p.tag))
+  return luar ? `Kategori "${AGENDA_TAG_LABELS[luar.tag] ?? luar.tag}" hanya untuk Rapat Manajemen dan rapat Koor.` : null
 }
 
 function bacaAgenda(formData: FormData) {
@@ -70,6 +79,8 @@ export async function createMeetingAction(_: unknown, formData: FormData) {
   if (!canCreateMeeting(session.role, type)) {
     return { error: 'Anda tidak memiliki izin untuk membuat rapat ini.' }
   }
+  const galatTag = galatTagRapat(type, bacaAgenda(formData))
+  if (galatTag) return { error: galatTag }
 
   const supabase = createServerClient()
 
@@ -154,6 +165,8 @@ export async function updateMeetingAction(_: unknown, formData: FormData) {
     }
     type = requestedType
   }
+  const galatTagUbah = galatTagRapat(type, bacaAgenda(formData))
+  if (galatTagUbah) return { error: galatTagUbah }
 
   const ubahan = {
       type,

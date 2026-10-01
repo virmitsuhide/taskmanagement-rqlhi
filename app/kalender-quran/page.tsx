@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { CalendarRange, ChevronLeft, ChevronRight } from 'lucide-react'
 import { getSession } from '@/lib/auth/session'
 import {
-  canManageRaporTemplate, canManageStudents, getManageableJenjang, JENJANG_LABELS, kalenderPerProgram,
+  canManageKalenderQuran, canManageStudents, getManageableJenjang, JENJANG_LABELS, kalenderPerProgram,
 } from '@/lib/auth/permissions'
 import { getCurrentTerm } from '@/lib/data/terms'
 import { getKalender, getKelasPerAngkatan } from '@/lib/data/kalender-quran'
@@ -41,7 +41,7 @@ export default async function KalenderQuranPage({ searchParams }: PageProps) {
   const session = await getSession()
   if (!session) redirect('/login')
 
-  const unitBoleh = getManageableJenjang(session.role).filter(j => canManageRaporTemplate(session.role, j))
+  const unitBoleh = getManageableJenjang(session.role).filter(j => canManageKalenderQuran(session.role, j))
   if (unitBoleh.length === 0) redirect('/dashboard')
 
   const sp = await searchParams
@@ -74,7 +74,10 @@ export default async function KalenderQuranPage({ searchParams }: PageProps) {
     .flatMap(([t, daftar]) => daftar.map(e => ({ tanggal: t, judul: e.title, libur: adalahLibur(e) })))
 
   // '' = anak tanpa program; ia tetap punya jadwal dan TM sendiri.
-  const programs = [{ code: '', label: 'Reguler / tanpa program' }, ...PROGRAMS_BY_JENJANG[unit]]
+  // Baris kode kosong = siswa tanpa program. Di unit yang punya program bernama
+  // "Reguler" (SD Juara) labelnya dibedakan supaya tidak ada dua "Reguler".
+  const adaReguler = PROGRAMS_BY_JENJANG[unit].some(p => p.code === 'reguler')
+  const programs = [{ code: '', label: adaReguler ? 'Tanpa program' : 'Reguler / tanpa program' }, ...PROGRAMS_BY_JENJANG[unit]]
 
   const params = { unit, angkatan: String(tingkat), bulan: bulanKode }
   const href = (g: Record<string, string | undefined>) => hrefDengan(PATH, params, g)
@@ -148,7 +151,7 @@ export default async function KalenderQuranPage({ searchParams }: PageProps) {
                 agenda={agenda}
                 kelasPerAngkatan={kelasPerAngkatan}
                 hariIni={hariIni}
-                bolehUbah={canManageRaporTemplate(session.role, unit)}
+                bolehUbah={canManageKalenderQuran(session.role, unit)}
                 programBoleh={programs.filter(p => canManageStudents(session.role, unit, p.code)).map(p => p.code)}
                 bolehSeluruhAngkatan={!kalenderPerProgram(session.role, unit)}
               />

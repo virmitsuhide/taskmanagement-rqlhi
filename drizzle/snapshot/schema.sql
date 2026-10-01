@@ -18,7 +18,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp" WITH SCHEMA extensions;
 
 CREATE TYPE public.absensi_status AS ENUM ('hadir', 'izin', 'sakit', 'alfa');
 CREATE TYPE public.academic_semester AS ENUM ('ganjil', 'genap');
-CREATE TYPE public.agenda_tag AS ENUM ('keputusan', 'informasi', 'perlu_diskusi', 'tindak_lanjut', 'approval');
+CREATE TYPE public.agenda_tag AS ENUM ('keputusan', 'informasi', 'perlu_diskusi', 'tindak_lanjut', 'approval', 'informasi_bph', 'bahas_bph');
 CREATE TYPE public.asrama_level AS ENUM ('high', 'middle', 'low', 'spesial');
 CREATE TYPE public.content_priority AS ENUM ('low', 'medium', 'high');
 CREATE TYPE public.content_request_type AS ENUM ('flyer_ujian', 'flyer_lain', 'video', 'lain_lain');

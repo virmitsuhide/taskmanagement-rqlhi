@@ -57,10 +57,15 @@ export function AksiApproval({ id, status }: { id: string; status: ApprovalStatu
   return <TombolAksi label="Batalkan keputusan" varian="ghost" jalankan={() => putuskanApprovalAction(id, 'menunggu')} />
 }
 
-export function AksiDiskusi({ id, selesai }: { id: string; selesai: boolean }) {
+export function AksiDiskusi({ id, selesai, bph = false }: { id: string; selesai: boolean; bph?: boolean }) {
   return selesai
     ? <TombolAksi label="Buka lagi" varian="ghost" jalankan={() => tandaiDiskusiSelesaiAction(id, false)} />
-    : <TombolAksi label="Tandai selesai" varian="default" sukses="Diskusi ditandai selesai" jalankan={() => tandaiDiskusiSelesaiAction(id, true)} />
+    : <TombolAksi
+        label={bph ? 'Tandai sudah dibahas di BPH' : 'Tandai selesai'}
+        varian="default"
+        sukses={bph ? 'Ditandai sudah dibahas di BPH' : 'Diskusi ditandai selesai'}
+        jalankan={() => tandaiDiskusiSelesaiAction(id, true)}
+      />
 }
 
 export function AksiArsip({ id, arsip }: { id: string; arsip: boolean }) {

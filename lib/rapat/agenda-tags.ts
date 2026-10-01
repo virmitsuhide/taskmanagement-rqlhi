@@ -28,6 +28,14 @@ export const AGENDA_TAG_STYLES: Record<AgendaTag, { badge: string; bar: string }
     badge: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-900',
     bar: 'bg-amber-500',
   },
+  informasi_bph: {
+    badge: 'bg-teal-50 text-teal-700 border-teal-200 dark:bg-teal-950 dark:text-teal-300 dark:border-teal-900',
+    bar: 'bg-teal-500',
+  },
+  bahas_bph: {
+    badge: 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950 dark:text-rose-300 dark:border-rose-900',
+    bar: 'bg-rose-500',
+  },
 }
 
 /** Dipakai bila ada baris lama dengan tag di luar daftar (mis. data pra-migrasi). */

@@ -5,7 +5,7 @@ import {
 } from 'lucide-react'
 import {
   canViewFinance, canViewFinanceNotes, canViewGukarRecap, canViewHalaqoh, canViewHumasRequests, canViewKpi,
-  canViewStudents, canViewTasks, canViewUnitAnalytics, canCreateNews, canManageHomepage, canManageRaporTemplate,
+  canViewStudents, canViewTasks, canViewUnitAnalytics, canCreateNews, canManageHomepage, canManageRaporTemplate, canManageKalenderQuran,
   canPostToHome, getAnalyticsJenjang, getAnalyticsProgramScope, getCreatableMeetingTypes, getManageableJenjang, getUjianUnits, ujianHanyaQuls,
   getViewableMeetingTypes, ROLE_LABELS, getAccessibleDashboards, DASHBOARD_LABELS, canManageEkstra,
 } from '@/lib/auth/permissions'
@@ -217,7 +217,7 @@ const PINTASAN: Record<KunciPintasan, Pintasan & { boleh: (r: UserRole) => boole
   siswa: { href: '/siswa', label: 'Siswa', ket: 'Data & capaian per anak', ikon: <Users className="h-4 w-4" />, boleh: canViewStudents },
   ujian: { href: '/ujian/kelola', label: 'Pengajuan Ujian', ket: 'Jadwalkan & nilai ujian', ikon: <ScrollText className="h-4 w-4" />, boleh: r => getUjianUnits(r).length > 0 },
   templateRapor: { href: '/rapor-quran/template', label: 'Template Rapor', ket: 'Lembar rapor Qur’an unit', ikon: <LayoutTemplate className="h-4 w-4" />, boleh: r => canManageRaporTemplate(r) },
-  kalenderQuran: { href: '/kalender-quran', label: 'Kalender Qur’an', ket: 'Hari aktif & jumlah TM', ikon: <CalendarRange className="h-4 w-4" />, boleh: r => canManageRaporTemplate(r) },
+  kalenderQuran: { href: '/kalender-quran', label: 'Kalender Qur’an', ket: 'Hari aktif & jumlah TM', ikon: <CalendarRange className="h-4 w-4" />, boleh: r => canManageKalenderQuran(r) },
   postBeranda: { href: '/home-post/baru', label: 'Pengumuman', ket: 'Beranda & dashboard guru', ikon: <Megaphone className="h-4 w-4" />, boleh: canPostToHome },
   beranda: { href: '/humas/beranda', label: 'Kelola Beranda', ket: 'Seksi, header & footer', ikon: <LayoutTemplate className="h-4 w-4" />, boleh: canManageHomepage },
   request: { href: '/humas-request', label: 'Request Humas', ket: 'Flyer, video, konten', ikon: <Inbox className="h-4 w-4" />, boleh: canViewHumasRequests },

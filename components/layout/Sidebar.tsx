@@ -17,7 +17,7 @@ import {
   canAccessProgramMenu, canEditAbout,
   canViewStudents, canViewHalaqoh, canViewAsrama, canViewTeachers, canViewUnitAnalytics,
   canManageHomepage, canViewKpi, canCatatSetoranGuru, canManageAllAccounts, canManagePengurus, canManageEmployees, canViewUjian,
-  canAccessKpiPublikasi, canManageRaporTemplate, canManageRiyadhoh, canViewRiyadhohAnalitik, canManageEkstra, canManageKaldik, canViewKpiBanding, canViewTasks, canViewRoutineBoard,
+  canAccessKpiPublikasi, canManageRaporTemplate, canManageKalenderQuran, canManageRiyadhoh, canViewRiyadhohAnalitik, canManageEkstra, canManageKaldik, canViewKpiBanding, canViewTasks, canViewRoutineBoard,
   isAdmin, canViewLaporanKurikulum, canViewPapanRapat, canViewTargetBulanan, canKelolaPanduanGuru,
 } from '@/lib/auth/permissions'
 import type { UserRole } from '@/types'
@@ -345,7 +345,7 @@ export function Sidebar({ role, displayName, username, lencanaKpi, ciutAwal = fa
               {/* Menempel di bawah template rapor: keduanya menetapkan isi
                   rapor seluruh angkatan — yang satu bentuknya, yang satu
                   penyebut kehadirannya. */}
-              {canManageRaporTemplate(role) && (
+              {canManageKalenderQuran(role) && (
                 <NavItem href="/kalender-quran" icon={<CalendarRange className="h-4 w-4" />} label="Kalender Qur'an" active={isActive('/kalender-quran')} />
               )}
               {/* Kalender pendidikan — pindahan dari aplikasi kaldikrqlhi (0085).

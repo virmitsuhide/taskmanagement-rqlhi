@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import {
-  CheckCircle2, ClipboardCheck, Gavel, ListTodo, MessagesSquare, Wallet, UserX, ExternalLink, Check,
+  CheckCircle2, ClipboardCheck, Gavel, ListTodo, MessagesSquare, Landmark, Wallet, UserX, ExternalLink, Check,
 } from 'lucide-react'
 import { getSession } from '@/lib/auth/session'
 import {
@@ -72,6 +72,7 @@ export default async function PapanRapatPage({ searchParams }: PageProps) {
   const approval = papan.poin.filter(p => p.tag === 'approval')
   const tindakLanjut = papan.poin.filter(p => p.tag === 'tindak_lanjut')
   const diskusi = papan.poin.filter(p => p.tag === 'perlu_diskusi')
+  const bahasBph = papan.poin.filter(p => p.tag === 'bahas_bph')
   // Yang sudah tuntas turun ke bawah kolom — yang masih perlu diurus terbaca dulu.
   const urut = (xs: PoinPapan[]) => [...xs].sort((a, b) => Number(sudahTuntas(a, a.tugas)) - Number(sudahTuntas(b, b.tugas)))
 
@@ -125,8 +126,8 @@ export default async function PapanRapatPage({ searchParams }: PageProps) {
           </div>
         )}
 
-        {/* ── Tiga kolom papan ── */}
-        <div className="grid items-start gap-4 lg:grid-cols-3">
+        {/* ── Kolom papan ── */}
+        <div className="grid items-start gap-4 md:grid-cols-2 xl:grid-cols-4">
           <Kolom judul="Approval" ikon={<ClipboardCheck className="h-4 w-4" />} jumlah={approval.length}
             kosong={arsip ? 'Belum ada approval di arsip.' : 'Tidak ada approval yang perlu diurus.'}>
             {urut(approval).map(p => <KartuApproval key={p.id} p={p} role={session.role} arsip={arsip} />)}
@@ -138,6 +139,11 @@ export default async function PapanRapatPage({ searchParams }: PageProps) {
           <Kolom judul="Perlu Diskusi Lanjut" ikon={<MessagesSquare className="h-4 w-4" />} jumlah={diskusi.length}
             kosong={arsip ? 'Belum ada diskusi di arsip.' : 'Tidak ada diskusi yang menggantung.'}>
             {urut(diskusi).map(p => <KartuDiskusi key={p.id} p={p} role={session.role} arsip={arsip} />)}
+          </Kolom>
+          {/* Poin yang perlu dibawa ke rapat BPH (0111) — dari Rapat Manajemen & rapat Koor. */}
+          <Kolom judul="Bahas di BPH" ikon={<Landmark className="h-4 w-4" />} jumlah={bahasBph.length}
+            kosong={arsip ? 'Belum ada poin BPH di arsip.' : 'Tidak ada poin yang menunggu dibahas di BPH.'}>
+            {urut(bahasBph).map(p => <KartuDiskusi key={p.id} p={p} role={session.role} arsip={arsip} bph />)}
           </Kolom>
         </div>
 
@@ -363,22 +369,22 @@ function KartuTindakLanjut({ p, role, arsip }: { p: PoinPapan; role: UserRole; a
   )
 }
 
-function KartuDiskusi({ p, role, arsip }: { p: PoinPapan; role: UserRole; arsip: boolean }) {
+function KartuDiskusi({ p, role, arsip, bph = false }: { p: PoinPapan; role: UserRole; arsip: boolean; bph?: boolean }) {
   const selesai = p.selesai_at !== null
   const boleh = canKelolaPapanRapat(role, p.rapat.type)
   return (
     <Kartu p={p} tuntas={selesai} aksi={
       boleh ? (
         <>
-          {!arsip && <AksiDiskusi id={p.id} selesai={selesai} />}
+          {!arsip && <AksiDiskusi id={p.id} selesai={selesai} bph={bph} />}
           {(arsip || selesai) && <span className="ml-auto"><AksiArsip id={p.id} arsip={!arsip} /></span>}
         </>
       ) : undefined
     }>
       <Markdown content={p.discussion} className="line-clamp-4 text-sm" />
       {selesai
-        ? <Lencana warna="success"><Check className="h-3 w-3" />Selesai · {tgl(p.selesai_at!)}</Lencana>
-        : <Lencana warna="info"><MessagesSquare className="h-3 w-3" />Menunggu dibahas</Lencana>}
+        ? <Lencana warna="success"><Check className="h-3 w-3" />{bph ? 'Sudah dibahas di BPH' : 'Selesai'} · {tgl(p.selesai_at!)}</Lencana>
+        : <Lencana warna="info"><MessagesSquare className="h-3 w-3" />{bph ? 'Menunggu dibahas di BPH' : 'Menunggu dibahas'}</Lencana>}
     </Kartu>
   )
 }

@@ -98,7 +98,8 @@ export async function tandaiDiskusiSelesaiAction(agendaId: string, selesai: bool
   const s = await siapkan(agendaId)
   if ('error' in s) return { error: s.error }
   if (!canKelolaPapanRapat(s.session.role, s.poin.rapat.type)) return { error: 'Anda tidak bisa mengubah poin rapat ini.' }
-  if (s.poin.tag !== 'perlu_diskusi') return { error: 'Poin ini bukan diskusi lanjut.' }
+  // "Bahas di BPH" memakai penanda yang sama: terbuka sampai sudah dibahas.
+  if (s.poin.tag !== 'perlu_diskusi' && s.poin.tag !== 'bahas_bph') return { error: 'Poin ini bukan diskusi lanjut.' }
   if (!selesai && s.poin.diarsipkan_at) return { error: 'Kembalikan poin ke papan dulu sebelum membukanya lagi.' }
 
   const { error } = await s.supabase.from('agenda_items').update({

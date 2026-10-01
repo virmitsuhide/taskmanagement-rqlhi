@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { createServerClient } from '@/lib/supabase/server'
 import { getSession } from '@/lib/auth/session'
-import { canManageRaporTemplate, canManageStudents, kalenderPerProgram } from '@/lib/auth/permissions'
+import { canManageKalenderQuran, canManageStudents, kalenderPerProgram } from '@/lib/auth/permissions'
 import { HARI_PILIHAN, hariKe, hariProgram, tanggalRentang } from '@/lib/rq/kalender-quran'
 import { getJadwalKalender, getKelasPerAngkatan } from '@/lib/data/kalender-quran'
 import { PROGRAMS_BY_JENJANG } from '@/lib/rq/programs'
@@ -21,7 +21,7 @@ const PATH = '/kalender-quran'
 async function izin(jenjang: Jenjang) {
   const session = await getSession()
   if (!session) return { galat: 'Sesi tidak valid.' as const, session: null }
-  if (!canManageRaporTemplate(session.role, jenjang)) return { galat: 'Tidak memiliki izin.' as const, session: null }
+  if (!canManageKalenderQuran(session.role, jenjang)) return { galat: 'Tidak memiliki izin.' as const, session: null }
   return { galat: null, session }
 }
 

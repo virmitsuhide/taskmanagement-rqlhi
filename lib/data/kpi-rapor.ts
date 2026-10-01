@@ -156,8 +156,8 @@ export async function getKpiRapor(
 
   if (!teacher) return null
 
-  // Koordinator unit — SD Juara disahkan Koor SD Juara (0099); guru QULS SD
-  // yang unitnya sd memakai Koor SD. Lihat koorPengesah(). Guru
+  // Koordinator unit — guru QULS SD yang unitnya sd memakai Koor SD (SD
+  // Juara tidak lagi ber-KPI sejak 2026-10-01). Lihat koorPengesah(). Guru
   // berlingkup yayasan (0052) memakai Kepala RQ, dan nama itulah yang tercetak
   // di kolom tanda tangan lembar rapornya.
   const lingkupGuru =

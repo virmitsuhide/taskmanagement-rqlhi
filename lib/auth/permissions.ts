@@ -1173,6 +1173,26 @@ export const AGENDA_TAG_LABELS: Record<AgendaTag, string> = {
   perlu_diskusi: 'Perlu Diskusi Lanjut',
   tindak_lanjut: 'Tindak Lanjut',
   approval:      'Approval',
+  informasi_bph: 'Informasi BPH',
+  bahas_bph:     'Bahas di BPH',
+}
+
+/**
+ * Kategori notulen khusus BPH (0111). Hanya bermakna di rapat yang membawa
+ * urusan ke BPH — Rapat Manajemen dan rapat-rapat Koor; rapat lain tidak
+ * menawarkannya.
+ */
+export const TAG_BPH: AgendaTag[] = ['informasi_bph', 'bahas_bph']
+const RAPAT_DENGAN_BPH: MeetingType[] = [
+  'manajemen',
+  'koor_sd', 'koor_smp', 'koor_tpait', 'koor_sdjuara', 'koor_sma',
+  'koor_x_sd', 'koor_x_smp', 'koor_x_boarding',
+]
+
+/** Kategori notulen yang boleh dipilih di sebuah jenis rapat, urut seperti AGENDA_TAG_LABELS. */
+export function tagNotulenUntuk(type: MeetingType): AgendaTag[] {
+  const semua = Object.keys(AGENDA_TAG_LABELS) as AgendaTag[]
+  return RAPAT_DENGAN_BPH.includes(type) ? semua : semua.filter(t => !TAG_BPH.includes(t))
 }
 
 export const MEETING_TYPE_LABELS: Record<MeetingType, string> = {
@@ -1366,11 +1386,11 @@ export function canPrintKpiRapor(role: UserRole): boolean {
  * memelihara petanya sendiri.
  */
 const KOOR_PENGESAH: Record<Jenjang, UserRole | null> = {
-  // TPAIT & SMA sengaja tanpa KPI: gurunya sedikit dan dinilai langsung oleh
-  // kepala unitnya, di luar sistem ini.
+  // TPAIT, SD Juara & SMA sengaja tanpa KPI: gurunya dinilai langsung oleh
+  // kepala unitnya, di luar sistem ini (SD Juara sejak 2026-10-01).
   paud: null,
   sd: 'koor_sd',
-  sd_juara: 'koor_sdjuara',
+  sd_juara: null,
   smp: 'koor_smp',
   sma: null,
 }
@@ -1709,6 +1729,18 @@ export function canSubmitUjian(role: UserRole): boolean {
  * guru memakainya, tapi tidak boleh mengubah bentuk rapor seluruh angkatan.
  */
 export function canManageRaporTemplate(role: UserRole, jenjang?: Jenjang | null): boolean {
+  // Template rapor SD Juara diurus Kepala RQ & Kumik, bukan Koor SD Juara
+  // (keputusan RQ 2026-10-01).
+  if (role === 'koor_sdjuara') return false
+  return canManageStudents(role, jenjang)
+}
+
+/**
+ * Kalender Qur'an (hari aktif & jumlah TM per program). Dulu menumpang izin
+ * template rapor; dipisah sejak Koor SD Juara tidak lagi memegang template
+ * tapi tetap memegang kalender unitnya.
+ */
+export function canManageKalenderQuran(role: UserRole, jenjang?: Jenjang | null): boolean {
   return canManageStudents(role, jenjang)
 }
 

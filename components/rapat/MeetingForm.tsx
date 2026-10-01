@@ -1,6 +1,6 @@
 'use client'
 
-import { useActionState } from 'react'
+import { useActionState, useState } from 'react'
 import { useAgendaItems } from '@/hooks/useMeetings'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -11,7 +11,7 @@ import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle }
 import { RichTextEditor } from '@/components/ui/rich-text-editor'
 import { Plus, Trash2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { MEETING_TYPE_LABELS, AGENDA_TAG_LABELS } from '@/lib/auth/permissions'
+import { MEETING_TYPE_LABELS, AGENDA_TAG_LABELS, tagNotulenUntuk } from '@/lib/auth/permissions'
 import { agendaTagStyle } from '@/lib/rapat/agenda-tags'
 import type { MeetingType, AgendaTag, Meeting, AgendaItem } from '@/types'
 
@@ -26,6 +26,8 @@ const DISCUSSION_PLACEHOLDER: Record<AgendaTag, string> = {
   perlu_diskusi: 'Poin yang belum tuntas dan perlu dibahas di rapat berikutnya...',
   tindak_lanjut: 'Latar belakang tindak lanjut...',
   approval:      'Approval penggunaan anggaran / alokasi SDM / request pengurus — sebutkan nominal, pihak, dan hasil persetujuan...',
+  informasi_bph: 'Informasi dari/untuk BPH yang perlu diketahui peserta rapat...',
+  bahas_bph:     'Poin yang perlu dibawa dan dibahas di rapat BPH...',
 }
 
 /** Kelompok field bertajuk, dipisah garis dari kelompok di atasnya. */
@@ -49,6 +51,10 @@ interface Props {
 
 export function MeetingForm({ allowedTypes, action, defaultValues, submitLabel = 'Simpan Rapat' }: Props) {
   const [state, formAction, isPending] = useActionState(action, null)
+  // Jenis rapat dilacak di sini karena kategori BPH hanya berlaku di Rapat
+  // Manajemen & rapat Koor — daftar kategori ikut berubah saat jenisnya diganti.
+  const [jenis, setJenis] = useState<MeetingType>(defaultValues?.type ?? allowedTypes[0])
+  const tagBoleh = tagNotulenUntuk(jenis)
   const { items, add, remove, update } = useAgendaItems(
     defaultValues?.agenda_items?.map(a => ({
       id: a.id,
@@ -89,7 +95,14 @@ export function MeetingForm({ allowedTypes, action, defaultValues, submitLabel =
                 <Label htmlFor="type">Jenis Rapat</Label>
                 <Select
                   name="type"
-                  defaultValue={defaultValues?.type ?? allowedTypes[0]}
+                  value={jenis}
+                  onValueChange={v => {
+                    const baru = v as MeetingType
+                    setJenis(baru)
+                    // Poin berkategori BPH tidak sah di jenis rapat yang baru — kembalikan ke Informasi.
+                    const boleh = tagNotulenUntuk(baru)
+                    items.forEach((it, i) => { if (!boleh.includes(it.tag as AgendaTag)) update(i, 'tag', 'informasi') })
+                  }}
                   required
                 >
                   <SelectTrigger id="type" className="w-full">
@@ -228,7 +241,7 @@ export function MeetingForm({ allowedTypes, action, defaultValues, submitLabel =
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        {(Object.entries(AGENDA_TAG_LABELS) as [AgendaTag, string][]).map(([val, label]) => (
+                        {(Object.entries(AGENDA_TAG_LABELS) as [AgendaTag, string][]).filter(([val]) => tagBoleh.includes(val)).map(([val, label]) => (
                           <SelectItem key={val} value={val}>
                             <span className="flex items-center gap-2">
                               <span className={cn('h-2 w-2 rounded-full', agendaTagStyle(val).bar)} aria-hidden />

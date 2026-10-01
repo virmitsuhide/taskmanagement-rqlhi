@@ -52,7 +52,10 @@ export type MeetingType =
   | 'koor_sdjuara'
   | 'koor_sma'
 
-export type AgendaTag = 'keputusan' | 'informasi' | 'perlu_diskusi' | 'tindak_lanjut' | 'approval'
+export type AgendaTag =
+  | 'keputusan' | 'informasi' | 'perlu_diskusi' | 'tindak_lanjut' | 'approval'
+  /** Kategori BPH (0111) — hanya di Rapat Manajemen & rapat Koor (tagNotulenUntuk). */
+  | 'informasi_bph' | 'bahas_bph'
 
 export type TaskPriority = 'low' | 'middle' | 'high'
 
