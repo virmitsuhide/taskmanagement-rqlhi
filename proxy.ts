@@ -15,6 +15,8 @@ const ADMIN_PREFIXES = [
   '/profil',
   '/halaqoh',
   '/siswa',
+  // Setoran sebulan per guru untuk koordinator (koreksi & hapus).
+  '/setoran',
   '/ustadz',
   // Hanya sisi pengurus modul ujian. /ujian dan /ujian/rekap sengaja tidak
   // masuk — keduanya halaman publik yang boleh dibuka tanpa login.
@@ -109,6 +111,7 @@ export const config: ProxyConfig = {
     '/profil/:path*',
     '/halaqoh/:path*',
     '/siswa/:path*',
+    '/setoran/:path*',
     '/ustadz/:path*',
     '/ujian/kelola/:path*',
     '/ujian/ajukan/:path*',

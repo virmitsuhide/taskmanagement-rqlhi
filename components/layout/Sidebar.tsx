@@ -9,7 +9,7 @@ import {
   Users, UserCog, BookMarked, BarChart3, LayoutTemplate, Info, Wallet, CalendarRange, CalendarDays,
   ClipboardCheck, KeyRound, ScrollText, Repeat, IdCard, UsersRound, Briefcase, Stamp, Scale, ListChecks, Kanban,
   PanelLeftClose, PanelLeftOpen, CalendarHeart, Lock, UserRound,
-  Crosshair, LibraryBig,
+  Crosshair, LibraryBig, Table2,
 } from 'lucide-react'
 import { DASHBOARD_LABELS, getAccessibleDashboards, ROLE_LABELS , canManageTeacherProfiles } from '@/lib/auth/permissions'
 import {
@@ -300,6 +300,9 @@ export function Sidebar({ role, displayName, username, lencanaKpi, ciutAwal = fa
               )}
               {canViewHalaqoh(role) && (
                 <NavItem href="/halaqoh" icon={<BookMarked className="h-4 w-4" />} label="Halaqoh" active={isActive('/halaqoh')} />
+              )}
+              {canViewHalaqoh(role) && (
+                <NavItem href="/setoran" icon={<Table2 className="h-4 w-4" />} label="Setoran Siswa" active={isActive('/setoran')} />
               )}
               {canViewStudents(role) && (
                 <NavItem href="/siswa" icon={<Users className="h-4 w-4" />} label="Siswa" active={isActive('/siswa')} />

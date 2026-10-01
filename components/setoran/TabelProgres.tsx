@@ -4,8 +4,8 @@ import { useRef, useState, useTransition, type FormEvent } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { Pencil } from 'lucide-react'
-import { updateSetoranAction } from '@/app/actions/setoran-koreksi'
+import { Pencil, Trash2 } from 'lucide-react'
+import { deleteSetoranAction, updateSetoranAction } from '@/app/actions/setoran-koreksi'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -208,7 +208,7 @@ export function TabelProgres({
           <span className="h-2 w-2 rounded-full bg-destructive" /> adab ≤ 2,5★
         </span>
         {bisaSunting && (
-          <span className="inline-flex items-center gap-1"><Pencil className="h-3 w-3" /> klik sel untuk mengoreksi</span>
+          <span className="inline-flex items-center gap-1"><Pencil className="h-3 w-3" /> klik sel untuk mengoreksi / menghapus</span>
         )}
       </div>
 
@@ -223,6 +223,7 @@ function DialogKoreksi({ s, nama, onTutup }: { s: SuntingSetoran; nama: string; 
   const router = useRouter()
   const [pending, startTransition] = useTransition()
   const [status, setStatus] = useState<'lulus' | 'ulang'>(s.status ?? 'lulus')
+  const [yakinHapus, setYakinHapus] = useState(false)
   /*
     Bintang hanya bisa menulis kelipatan lima; nilai lama seperti 88 tampil
     sebagai 4★ (= 90). Tanpa penanda ini, mengoreksi adab saja akan ikut
@@ -245,6 +246,23 @@ function DialogKoreksi({ s, nama, onTutup }: { s: SuntingSetoran; nama: string; 
         return
       }
       toast.success(tahsin ? 'Setoran dikoreksi — posisi siswa dihitung ulang.' : 'Setoran dikoreksi.')
+      onTutup()
+      router.refresh()
+    })
+  }
+
+  function hapus() {
+    if (!yakinHapus) {
+      setYakinHapus(true)
+      return
+    }
+    startTransition(async () => {
+      const hasil = await deleteSetoranAction(s.tabel, s.id)
+      if (hasil.error) {
+        toast.error(hasil.error)
+        return
+      }
+      toast.success(tahsin ? 'Setoran dihapus — posisi siswa dihitung ulang.' : 'Setoran dihapus.')
       onTutup()
       router.refresh()
     })
@@ -333,9 +351,22 @@ function DialogKoreksi({ s, nama, onTutup }: { s: SuntingSetoran; nama: string; 
             </p>
           )}
 
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={onTutup} disabled={pending}>Batal</Button>
-            <Button type="submit" disabled={pending}>{pending ? 'Menyimpan…' : 'Simpan koreksi'}</Button>
+          <DialogFooter className="gap-2 sm:justify-between">
+            {/* Dua langkah: sel tabel mudah salah klik, dan hapus tidak bisa dibatalkan. */}
+            <Button
+              type="button"
+              variant={yakinHapus ? 'destructive' : 'ghost'}
+              className={cn(!yakinHapus && 'text-destructive hover:text-destructive')}
+              onClick={hapus}
+              disabled={pending}
+            >
+              <Trash2 className="h-4 w-4 mr-1" />
+              {yakinHapus ? 'Yakin hapus?' : 'Hapus setoran'}
+            </Button>
+            <div className="flex gap-2">
+              <Button type="button" variant="outline" onClick={onTutup} disabled={pending}>Batal</Button>
+              <Button type="submit" disabled={pending}>{pending ? 'Menyimpan…' : 'Simpan koreksi'}</Button>
+            </div>
           </DialogFooter>
         </form>
       </DialogContent>

@@ -8,7 +8,7 @@ import {
   ImageIcon, Megaphone, FileText, User, LogOut, GraduationCap, Newspaper, LayoutGrid,
   Users, UserCog, BookMarked, BarChart3, LayoutTemplate, Info, Wallet, CalendarRange, CalendarDays,
   ClipboardCheck, KeyRound, ScrollText, Repeat, IdCard, UsersRound, Briefcase, Stamp, Scale, ListChecks, Kanban, CalendarHeart, Lock, UserRound,
-  Crosshair, LibraryBig,
+  Crosshair, LibraryBig, Table2,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
@@ -340,6 +340,9 @@ export function MobileNav({ role, displayName, username, lencanaKpi }: Props) {
                 )}
                 {canViewHalaqoh(role) && (
                   <DrawerLink href="/halaqoh" icon={<BookMarked className="h-4 w-4" />} label="Halaqoh" active={isActive('/halaqoh')} onNavigate={close} />
+                )}
+                {canViewHalaqoh(role) && (
+                  <DrawerLink href="/setoran" icon={<Table2 className="h-4 w-4" />} label="Setoran Siswa" active={isActive('/setoran')} onNavigate={close} />
                 )}
                 {canViewStudents(role) && (
                   <DrawerLink href="/siswa" icon={<Users className="h-4 w-4" />} label="Siswa" active={isActive('/siswa')} onNavigate={close} />
