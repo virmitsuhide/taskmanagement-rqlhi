@@ -8,8 +8,10 @@ export default async function GuruSiswaPage() {
   const session = await getTeacherSession()
   if (!session) redirect('/guru/login')
 
-  const students = await getTeacherStudents(session.teacherId)
-  const halaqohCount = new Set(students.map(s => s.halaqoh_id ?? 'none')).size
+  // Ikut anak kelompok asrama yang diampu (0110) — musyrif boarding tidak
+  // memegang halaqoh sekolah, jadi tanpa ini daftarnya kosong.
+  const students = await getTeacherStudents(session.teacherId, { denganAsrama: true })
+  const halaqohCount = new Set(students.map(s => (!s.pengampu_sekolah && s.asrama_kelompok) ? `asrama:${s.asrama_kelompok}` : s.halaqoh_id ?? 'none')).size
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--secondary)' }}>
@@ -22,7 +24,7 @@ export default async function GuruSiswaPage() {
             Siswa Saya
           </h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            {students.length} siswa di {halaqohCount} halaqoh
+            {students.length} siswa di {halaqohCount} halaqoh/kelompok
           </p>
         </div>
 

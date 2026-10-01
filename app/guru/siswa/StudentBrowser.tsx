@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 import { Check, MessageCircle, Pencil, Search, X } from 'lucide-react'
 import { simpanWaliPhoneAction } from '@/app/actions/wali-phone'
 import { cn, initials } from '@/lib/utils'
+import { LencanaLevel } from '@/components/asrama/LencanaLevel'
 import type { TeacherStudentRow } from '@/lib/data/teacher'
 
 interface Props {
@@ -47,7 +48,10 @@ const KELOMPOK: { key: Kelompok; label: string }[] = [
 /** Kunci pengelompokan sekaligus label judulnya. */
 function kunci(s: TeacherStudentRow, by: Kelompok): string {
   switch (by) {
-    case 'sesi': return s.sesi ? `Sesi ${s.sesi}` : 'Tanpa Sesi'
+    // Anak yang hanya diampu di asrama (0110) dikelompokkan per kelompok asramanya.
+    case 'sesi':
+      if (!s.pengampu_sekolah && s.asrama_kelompok) return `Asrama · ${s.asrama_kelompok}`
+      return s.sesi ? `Sesi ${s.sesi}` : 'Tanpa Sesi'
     case 'kelas': return s.kelas ? `Kelas ${s.kelas}` : 'Tanpa Kelas'
   }
 }
@@ -161,6 +165,7 @@ export function StudentBrowser({ students }: Props) {
                           <div className="min-w-0 flex-1">
                             <p className="flex items-center gap-1.5 text-sm font-medium">
                               <span className="truncate">{s.full_name}</span>
+                              <LencanaLevel level={s.level} />
                               {s.tahsin_drill_sejak && (
                                 <span
                                   className="shrink-0 rounded-full bg-warning-wash px-1.5 py-px text-[10px] font-semibold text-warning"
@@ -231,13 +236,14 @@ export function StudentBrowser({ students }: Props) {
                                 ? <span className="font-mono text-foreground">{phone}</span>
                                 : <span className="italic">belum ada nomor</span>}
                             </span>
-                            <button
+                            {/* Nomor wali diurus pengampu sekolah, bukan pengampu asrama. */}
+                            {s.pengampu_sekolah && <button
                               type="button"
                               onClick={() => { setEditing(s.id); setDraft(phone ?? '') }}
                               className="inline-flex h-7 items-center rounded-md border px-2 text-[11px] text-muted-foreground transition-colors hover:text-foreground"
                             >
                               <Pencil className="mr-1 h-3 w-3" />{phone ? 'Ubah' : 'Isi nomor'}
-                            </button>
+                            </button>}
                             {phone && (
                               <a
                                 href={`https://wa.me/${phone}`}

@@ -1,4 +1,5 @@
 import { createServerClient } from '@/lib/supabase/server'
+import { levelSah, type LevelAsrama } from '@/lib/rq/asrama'
 import { getJuzDrillPerSiswa } from '@/lib/data/drill-tahfidz'
 
 /**
@@ -67,16 +68,60 @@ export interface TeacherStudentRow {
   last_tahfidz_date: string | null
   /** Banyaknya setoran tahfidz — ukuran kasar keaktifan hafalan. */
   tahfidz_count: number
+  /** Anak halaqoh sekolah guru ini (bukan hanya anak asramanya). */
+  pengampu_sekolah: boolean
+  /** Nama kelompok asrama yang diampu guru ini (0110); null = bukan anak asramanya. */
+  asrama_kelompok: string | null
+  /** Level anak boarding (0110). */
+  level: LevelAsrama | null
+}
+
+/**
+ * Anak kelompok asrama yang diampu guru (0110): id siswa → nama kelompok,
+ * beserta levelnya. Dibaca langsung di sini, bukan lewat lib/data/asrama,
+ * supaya tidak membentuk lingkaran impor (asrama → riyadhoh → teacher).
+ * Tabel belum ada (sebelum 0110) = kosong.
+ */
+async function anakAsramaGuru(teacherId: string): Promise<Map<string, { kelompok: string; level: LevelAsrama | null }>> {
+  const hasil = new Map<string, { kelompok: string; level: LevelAsrama | null }>()
+  const supabase = createServerClient()
+  const { data: kelompok, error } = await supabase
+    .from('asrama_kelompok').select('id, nama').eq('pengampu_id', teacherId).eq('is_active', true)
+  if (error || !kelompok?.length) return hasil
+  const nama = new Map((kelompok as { id: string; nama: string }[]).map(k => [k.id, k.nama]))
+  const { data: anggota } = await supabase
+    .from('asrama_anggota').select('student_id, kelompok_id, level').in('kelompok_id', [...nama.keys()])
+  for (const a of (anggota ?? []) as { student_id: string; kelompok_id: string; level: string | null }[]) {
+    hasil.set(a.student_id, { kelompok: nama.get(a.kelompok_id) ?? 'Asrama', level: levelSah(a.level) })
+  }
+  return hasil
 }
 
 /**
  * Daftar siswa yang diampu guru, lengkap dengan posisi tahsin & tanggal
  * setoran terakhir. Dipakai di /guru/siswa dan antrian dashboard.
  */
-export async function getTeacherStudents(teacherId: string): Promise<TeacherStudentRow[]> {
+export async function getTeacherStudents(
+  teacherId: string,
+  /**
+   * denganAsrama: ikut sertakan anak kelompok asrama yang diampu (0110) —
+   * hanya untuk tampilan "Siswa Saya". Sengaja tidak bawaan: pemakai lain
+   * (pengajuan ujian, antrian dashboard) memakai daftar ini sebagai
+   * "anak yang boleh saya urus di sekolah".
+   */
+  opts: { denganAsrama?: boolean } = {},
+): Promise<TeacherStudentRow[]> {
   const supabase = createServerClient()
-  const halaqohIds = await getTeacherHalaqohIds(teacherId)
-  if (halaqohIds.length === 0) return []
+  const [halaqohIds, asrama] = await Promise.all([
+    getTeacherHalaqohIds(teacherId),
+    opts.denganAsrama ? anakAsramaGuru(teacherId) : Promise.resolve(new Map<string, { kelompok: string; level: LevelAsrama | null }>()),
+  ])
+  if (halaqohIds.length === 0 && asrama.size === 0) return []
+  const saring = [
+    halaqohIds.length ? `halaqoh_id.in.(${halaqohIds.join(',')})` : null,
+    asrama.size ? `id.in.(${[...asrama.keys()].join(',')})` : null,
+  ].filter(Boolean).join(',')
+  const sekolah = new Set(halaqohIds)
 
   const { data: students } = await supabase
     .from('students')
@@ -87,7 +132,7 @@ export async function getTeacherStudents(teacherId: string): Promise<TeacherStud
       current_method:tahsin_methods!students_current_method_id_fkey(name),
       current_jilid:jilid_levels!students_current_jilid_id_fkey(label, is_terminal)
     `)
-    .in('halaqoh_id', halaqohIds)
+    .or(saring)
     .eq('is_active', true)
     .order('full_name')
 
@@ -159,5 +204,8 @@ export async function getTeacherStudents(teacherId: string): Promise<TeacherStud
     last_tahfidz_surat: tahfidzMap.get(r.id)?.surat ?? null,
     last_tahfidz_date: tahfidzMap.get(r.id)?.date ?? null,
     tahfidz_count: tahfidzMap.get(r.id)?.count ?? 0,
+    pengampu_sekolah: r.halaqoh_id !== null && sekolah.has(r.halaqoh_id),
+    asrama_kelompok: asrama.get(r.id)?.kelompok ?? null,
+    level: asrama.get(r.id)?.level ?? null,
   }))
 }

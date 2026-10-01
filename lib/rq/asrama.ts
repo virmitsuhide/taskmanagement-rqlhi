@@ -37,3 +37,12 @@ export const LABEL_GENDER_ASRAMA: Record<'L' | 'P', string> = {
   L: 'Asrama Putra',
   P: 'Asrama Putri',
 }
+
+/**
+ * Setoran TAHSIN lewat jalur asrama — DITUTUP sementara (keputusan RQ
+ * 2026-10-01). Posisi tahsin anak boarding ditetapkan dulu oleh capaian yang
+ * diinput pengampu sekolah; pengampu asrama untuk sementara hanya melihatnya
+ * di Tahsin Asrama dan mencatat tahfidz. Ubah ke true untuk membukanya —
+ * formulir dan server action sama-sama membaca konstanta ini.
+ */
+export const TAHSIN_ASRAMA_DIBUKA = false

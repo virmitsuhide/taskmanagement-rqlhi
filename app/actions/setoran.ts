@@ -7,6 +7,7 @@ import { getTeacherSession } from '@/lib/auth/teacher-session'
 import { aksesSetoran } from '@/lib/data/riyadhoh'
 import { bolehEkstra } from '@/lib/data/ekstra'
 import { bolehAsrama } from '@/lib/data/asrama'
+import { TAHSIN_ASRAMA_DIBUKA } from '@/lib/rq/asrama'
 import { catatDrillSetelahZiyadah } from '@/lib/data/drill-tahfidz'
 import { bolehLintasSurat, periksaRentang } from '@/lib/rq/rentang-surat'
 import { periksaBacaanQuran, posisiLanjut, type BacaanQuran } from '@/lib/rq/bacaan-quran'
@@ -141,6 +142,7 @@ type AksesSetoran = 'reguler' | 'riyadhoh' | 'ekstra' | 'asrama'
  */
 async function tentukanAkses(
   teacherId: string,
+  jenis: 'tahsin' | 'tahfidz',
   input: { student_id: string; setoran_date: string; ekstra_slot_id?: string | null; asrama?: boolean },
 ): Promise<{ akses: AksesSetoran; jalur: string | null } | string> {
   const ekstraSlotId = input.ekstra_slot_id || null
@@ -150,6 +152,9 @@ async function tentukanAkses(
       : 'Anak ini bukan peserta aktif slot ekstra Anda.'
   }
   if (input.asrama) {
+    if (jenis === 'tahsin' && !TAHSIN_ASRAMA_DIBUKA) {
+      return 'Setoran tahsin asrama belum dibuka — capaian tahsin dicatat pengampu sekolah dulu.'
+    }
     return (await bolehAsrama(teacherId, input.student_id, input.setoran_date))
       ? { akses: 'asrama', jalur: JALUR_ASRAMA }
       : 'Anak ini bukan anggota kelompok asrama Anda.'
@@ -186,7 +191,7 @@ async function simpanSetoranTahsin(teacherId: string, input: InputSetoranTahsin)
   // Guru halaqoh siswa ini, atau pengampu Riyadhoh pada Sabtu kelompoknya.
   // Jalur ekstra dicek terpisah: pengampu slot ekstra bukan guru halaqoh anak,
   // dan setorannya ditandai supaya tidak masuk laporan orang tua halaqoh.
-  const izin = await tentukanAkses(teacherId, input)
+  const izin = await tentukanAkses(teacherId, 'tahsin', input)
   if (typeof izin === 'string') return izin
   const { akses, jalur } = izin
 
@@ -651,7 +656,7 @@ async function simpanSetoranTahfidz(teacherId: string, input: InputSetoranTahfid
   // Guru halaqoh siswa ini, atau pengampu Riyadhoh pada Sabtu kelompoknya.
   // Jalur ekstra dicek terpisah: pengampu slot ekstra bukan guru halaqoh anak,
   // dan setorannya ditandai supaya tidak masuk laporan orang tua halaqoh.
-  const izin = await tentukanAkses(teacherId, input)
+  const izin = await tentukanAkses(teacherId, 'tahfidz', input)
   if (typeof izin === 'string') return izin
   const { akses, jalur } = izin
 

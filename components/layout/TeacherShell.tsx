@@ -1,7 +1,7 @@
 import { punyaSlotEkstra } from '@/lib/data/ekstra'
 import { punyaKelompokAsrama } from '@/lib/data/asrama'
+import { getTeacherHalaqohIds } from '@/lib/data/teacher'
 import {
-  BedDouble,
   LayoutDashboard, Users, CalendarCheck,
   BarChart3, ScrollText, GraduationCap, IdCard, ClipboardCheck, ListChecks,
   Table2, UserCheck,
@@ -40,7 +40,7 @@ export async function TeacherShell({ children }: { children: React.ReactNode }) 
   // halaman masuk tidak perlu menu yang belum boleh ia pakai.
   if (!session) return <>{children}</>
 
-  const [bolehGukar, unitUjian, konteks, raporBaru, notifUjian, kue, riyadhoh, pengampuEkstra, pengampuAsrama] = await Promise.all([
+  const [bolehGukar, unitUjian, konteks, raporBaru, notifUjian, kue, riyadhoh, pengampuEkstra, pengampuAsrama, halaqohSekolah] = await Promise.all([
     bolehMengampuGukar(session.teacherId),
     getUnitUjianGuru(session.teacherId),
     getKonteksPengumuman(session.teacherId),
@@ -57,9 +57,14 @@ export async function TeacherShell({ children }: { children: React.ReactNode }) 
     kelompokPengampu(session.teacherId),
     // Pengampu slot ekstra (0091) — menu Ekstra hanya untuk mereka.
     punyaSlotEkstra(session.teacherId).catch(() => false),
-    // Pengampu kelompok asrama boarding (0110) — menu Halaqoh Asrama.
+    // Pengampu kelompok asrama boarding (0110) — menu Tahsin/Tahfidz Asrama.
     punyaKelompokAsrama(session.teacherId).catch(() => false),
+    getTeacherHalaqohIds(session.teacherId),
   ])
+  // Musyrif boarding yang tidak mengampu halaqoh sekolah tidak perlu menu
+  // Sesi Tahsin/Tahfidz sekolah — layarnya akan kosong. Guru yang memegang
+  // keduanya melihat empat-empatnya.
+  const tampilSesiSekolah = halaqohSekolah.length > 0 || !pengampuAsrama
 
   // Diambil di kerangka, bukan di tiap halaman: loncengnya ada di bilah atas
   // yang melekat di semua halaman portal, jadi datanya harus ikut ke mana pun.
@@ -89,8 +94,20 @@ export async function TeacherShell({ children }: { children: React.ReactNode }) 
         // sendiri dengan isian yang berbeda, jadi satu menu pasti menyembunyikan
         // salah satunya — dan yang tersembunyi selama ini tahfidz, yang halamannya
         // sudah ada tapi tak punya jalan masuk dari navigasi.
-        { label: 'Sesi Tahsin', href: '/guru/setoran/tahsin/sesi', icon: <ListChecks /> },
-        { label: 'Sesi Tahfidz', href: '/guru/setoran/tahfidz/sesi', icon: <ListChecks /> },
+        ...(tampilSesiSekolah
+          ? [
+              { label: 'Sesi Tahsin', href: '/guru/setoran/tahsin/sesi', icon: <ListChecks /> },
+              { label: 'Sesi Tahfidz', href: '/guru/setoran/tahfidz/sesi', icon: <ListChecks /> },
+            ]
+          : []),
+        // Halaqoh asrama (0110): formulir sesi yang sama, jalur asrama. Tahsin
+        // sementara hanya lihat (TAHSIN_ASRAMA_DIBUKA).
+        ...(pengampuAsrama
+          ? [
+              { label: 'Tahsin Asrama', href: '/guru/setoran/tahsin/asrama', icon: <ListChecks /> },
+              { label: 'Tahfidz Asrama', href: '/guru/setoran/tahfidz/asrama', icon: <ListChecks /> },
+            ]
+          : []),
         // Catatan Adab kini tab di dalam Progres per Sesi (/guru/adab).
         { label: 'Progres per Sesi', href: '/guru/progres', icon: <Table2 />, juga: ['/guru/adab'] },
         { label: 'Capaian Bulanan', href: '/guru/capaian', icon: <CalendarCheck /> },
@@ -101,7 +118,6 @@ export async function TeacherShell({ children }: { children: React.ReactNode }) 
         // Rapor semester memakai format yang ditetapkan koordinator (0082).
         { label: 'Rapor Qur’an', href: '/guru/rapor-quran', icon: <ScrollText /> },
         ...(riyadhoh.length > 0 ? [{ label: 'Riyadhoh Sabtu', href: '/guru/riyadhoh', icon: <CalendarHeart /> }] : []),
-        ...(pengampuAsrama ? [{ label: 'Halaqoh Asrama', href: '/guru/asrama', icon: <BedDouble /> }] : []),
         { label: 'Statistik', href: '/guru/statistik', icon: <BarChart3 /> },
       ],
     },

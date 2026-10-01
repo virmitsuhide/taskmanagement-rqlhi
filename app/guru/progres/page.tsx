@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { getTeacherSession } from '@/lib/auth/teacher-session'
-import { getHalaqohSesiGuru, pilihHalaqoh } from '@/lib/data/setoran-sesi'
+import { getHalaqohSesiGuru, pilihHalaqoh, type HalaqohSesi } from '@/lib/data/setoran-sesi'
+import { getKelompokAsrama } from '@/lib/data/asrama'
 import { getProgresSesi, type JenisRekap } from '@/lib/data/rekap-sesi'
 import { currentPeriod, isValidPeriod } from '@/lib/finance/period'
 import { FilterSesiBulan } from '@/components/setoran/FilterSesiBulan'
@@ -26,9 +27,26 @@ export default async function ProgresSesiPage({ searchParams }: PageProps) {
   const periode = isValidPeriod(params.periode ?? '') ? params.periode! : currentPeriod()
   const jenis: JenisRekap = params.jenis === 'tahfidz' ? 'tahfidz' : 'tahsin'
 
-  const daftar = await getHalaqohSesiGuru(session.teacherId)
+  /*
+    Kelompok asrama yang diampu (0110) ikut tampil sebagai "sesi" di sini,
+    berkunci "asrama-<id>" — progresnya dihitung dari daftar anggotanya,
+    bukan dari halaqoh.
+  */
+  const [sekolah, asrama] = await Promise.all([
+    getHalaqohSesiGuru(session.teacherId),
+    getKelompokAsrama({ pengampuId: session.teacherId }),
+  ])
+  const daftar: HalaqohSesi[] = [
+    ...sekolah,
+    ...asrama.map(k => ({ id: `asrama-${k.id}`, name: `Asrama · ${k.nama}`, sesi: null, jenjang: 'smp' as const })),
+  ]
   const halaqoh = pilihHalaqoh(daftar, params.halaqoh)
-  const data = halaqoh ? await getProgresSesi(halaqoh.id, periode, jenis) : null
+  const kelompokAsrama = halaqoh?.id.startsWith('asrama-') ? asrama.find(k => `asrama-${k.id}` === halaqoh.id) : undefined
+  const data = !halaqoh
+    ? null
+    : kelompokAsrama
+      ? await getProgresSesi({ siswa: kelompokAsrama.anggota.map(a => a.student_id) }, periode, jenis)
+      : await getProgresSesi(halaqoh.id, periode, jenis)
   // Tanggal WIB hari ini — penanda kolom dan pemisah hari yang belum tiba.
   const hariIni = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' })
 
