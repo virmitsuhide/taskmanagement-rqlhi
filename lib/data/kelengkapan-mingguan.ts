@@ -6,7 +6,9 @@ import type { PeriodKey } from '@/lib/finance/period'
  *
  * Definisinya sama dengan kelengkapan bulanan versi "setoran per sesi":
  * seorang siswa dihitung TERISI untuk sebuah pekan bila ia punya setoran
- * tahsin atau tahfidz yang `setoran_date`-nya jatuh di pekan itu. Yang tidak
+ * tahsin atau tahfidz yang `setoran_date`-nya jatuh di pekan itu, ATAU ia
+ * tercatat tidak hadir (izin/sakit/alfa) di presensi pekan itu. Catatan
+ * presensi tidak ikut dihitung "terlambat" — hanya setoran. Yang tidak
  * bisa ikut dibagi per pekan hanyalah capaian akhir bulanan
  * (`halaman_akhir_tahsin`), karena kolom itu tidak bertanggal.
  *
@@ -120,13 +122,18 @@ export async function getKelengkapanMingguan(
     const dari = pekan[0].dari
     const sampai = pekan[pekan.length - 1].sampai
     type Log = { student_id: string; setoran_date: string; created_at: string | null }
-    const [logTahsin, logTahfidz] = await Promise.all([
+    const [logTahsin, logTahfidz, absen] = await Promise.all([
       fetchAll<Log>(() => supabase
         .from('tahsin_logs').select('student_id, setoran_date, created_at')
         .gte('setoran_date', dari).lte('setoran_date', sampai).order('id')),
       fetchAll<Log>(() => supabase
         .from('tahfidz_logs').select('student_id, setoran_date, created_at')
         .gte('setoran_date', dari).lte('setoran_date', sampai).order('id')),
+      // Tabel presensi tanpa kolom id — kunci utamanya (student_id, tanggal).
+      fetchAll<{ student_id: string; tanggal: string }>(() => supabase
+        .from('absensi_harian').select('student_id, tanggal')
+        .in('status', ['izin', 'sakit', 'alfa'])
+        .gte('tanggal', dari).lte('tanggal', sampai).order('tanggal').order('student_id')),
     ])
 
     const idxPekan = (tgl: string) => pekan.findIndex(p => tgl >= p.dari && tgl <= p.sampai)
@@ -151,6 +158,19 @@ export async function getKelengkapanMingguan(
         arr[i].terlambat += 1
         terlambat += 1
       }
+    }
+
+    // Anak yang tercatat tidak hadir pekan itu juga terhitung terisi.
+    for (const a of absen) {
+      const h = halaqohOf.get(a.student_id)
+      const i = idxPekan(a.tanggal)
+      if (!h || i < 0) continue
+      let arr = isi.get(h)
+      if (!arr) {
+        arr = pekan.map(() => ({ siswa: new Set<string>(), terlambat: 0 }))
+        isi.set(h, arr)
+      }
+      arr[i].siswa.add(a.student_id)
     }
 
     const perHalaqoh: Record<string, PekanHalaqoh[]> = {}

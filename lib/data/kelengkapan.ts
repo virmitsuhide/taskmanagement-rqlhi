@@ -12,7 +12,11 @@ import type { Jenjang } from '@/types'
  *
  * Seorang siswa dihitung TERISI untuk sebuah bulan bila salah satu benar:
  *   · capaian akhir bulannya (`halaman_akhir_tahsin`) sudah diisi, atau
- *   · ia punya setoran tahsin / ziyadah tahfidz di bulan itu.
+ *   · ia punya setoran tahsin / ziyadah tahfidz di bulan itu, atau
+ *   · ia tercatat TIDAK HADIR (izin/sakit/alfa) di presensi bulan itu — anak
+ *     yang memang tidak datang tidak bisa disetorkan, dan gurunya sudah
+ *     mencatat keadaannya. Yang tercatat HADIR tanpa setoran tetap belum
+ *     terisi: itulah yang perlu ditagih.
  * Kolom awal bulanan tidak dipakai: ia bisa terisi otomatis dari bulan
  * sebelumnya lewat tombol salin, dan memakainya sebagai penanda akan membuat
  * bulan yang belum dinilai sama sekali terlihat sudah dikerjakan.
@@ -33,7 +37,7 @@ export interface KelengkapanRow {
   sesi: number | null
   pengampu: string
   totalSiswa: number
-  /** Siswa yang capaian akhir bulannya sudah diisi, atau yang punya setoran bulan itu. */
+  /** Siswa yang capaian akhir bulannya sudah diisi, punya setoran, atau tercatat tidak hadir bulan itu. */
   terisi: number
   percent: number
 }
@@ -121,13 +125,19 @@ export async function getKelengkapan(
     // membaca setoran yang sama, jadi kedua bagian itu tidak boleh berselisih.
     const dari = `${periods[0]}-01`
     const sampai = akhirBulan(period)
-    const [logTahsin, logTahfidz] = await Promise.all([
+    const [logTahsin, logTahfidz, absen] = await Promise.all([
       fetchAll<{ student_id: string; setoran_date: string }>(() => supabase
         .from('tahsin_logs').select('student_id, setoran_date')
         .gte('setoran_date', dari).lte('setoran_date', sampai).order('id')),
       fetchAll<{ student_id: string; setoran_date: string }>(() => supabase
         .from('tahfidz_logs').select('student_id, setoran_date')
         .gte('setoran_date', dari).lte('setoran_date', sampai).order('id')),
+      // Presensi tidak hadir, dalam bentuk yang sama dengan setoran. Tabel ini
+      // tanpa kolom id — kunci utamanya (student_id, tanggal).
+      fetchAll<{ student_id: string; setoran_date: string }>(() => supabase
+        .from('absensi_harian').select('student_id, setoran_date:tanggal')
+        .in('status', ['izin', 'sakit', 'alfa'])
+        .gte('tanggal', dari).lte('tanggal', sampai).order('tanggal').order('student_id')),
     ])
 
     /** Siswa yang dihitung terisi per bulan: capaian akhir bulanan ATAU ada setoran. */
@@ -135,7 +145,7 @@ export async function getKelengkapan(
     for (const m of monthly) {
       if (m.halaman_akhir_tahsin.trim()) terisiPer.get(m.period.slice(0, 7))?.add(m.student_id)
     }
-    for (const l of [...logTahsin, ...logTahfidz]) terisiPer.get(l.setoran_date.slice(0, 7))?.add(l.student_id)
+    for (const l of [...logTahsin, ...logTahfidz, ...absen]) terisiPer.get(l.setoran_date.slice(0, 7))?.add(l.student_id)
 
     const milikKita = new Set(studentIds)
 

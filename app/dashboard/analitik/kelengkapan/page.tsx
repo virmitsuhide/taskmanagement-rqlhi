@@ -219,7 +219,7 @@ export default async function KelengkapanPage({ searchParams }: PageProps) {
                 </div>
               </div>
               <p className="px-5 pb-3 text-[11px] text-muted-foreground">
-                Per pekan (Senin–Ahad): siswa terisi bila punya setoran tahsin/tahfidz pekan itu.
+                Per pekan (Senin–Ahad): siswa terisi bila punya setoran tahsin/tahfidz pekan itu, atau tercatat izin/sakit/alfa di presensi.
                 Terlambat = dicatat lebih dari 2 hari setelah tanggal setoran. Capaian akhir
                 bulanan tidak bertanggal, jadi hanya ikut di kolom Terisi &amp; Total.
               </p>
