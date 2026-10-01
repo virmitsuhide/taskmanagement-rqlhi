@@ -87,9 +87,14 @@ export async function TeacherShell({ children }: { children: React.ReactNode }) 
         // Daftar hadir mendahului setoran: yang pertama dilakukan saat pertemuan
         // dimulai adalah melihat siapa yang datang (0081).
         // Satu layar yang merangkai hadir → setor → catatan untuk sesi yang sedang berjalan.
-        { label: 'Mulai Sesi', href: '/guru/sesi', icon: <Play /> },
         // Rekap sebulan kini tab di dalam Daftar Hadir (/guru/absensi/rekap).
-        { label: 'Daftar Hadir', href: '/guru/absensi', icon: <UserCheck /> },
+        // Keduanya bekerja per halaqoh sekolah — musyrif/ah murni tidak memakainya.
+        ...(musyrifSaja
+          ? []
+          : [
+              { label: 'Mulai Sesi', href: '/guru/sesi', icon: <Play /> },
+              { label: 'Daftar Hadir', href: '/guru/absensi', icon: <UserCheck /> },
+            ]),
         // Setor tahsin/tahfidz satu anak dibuka dari profil anak (Siswa Saya →
         // nama anak → tombol Setor), bukan dari menu — sidebar guru terlalu panjang.
         // Satu sesi sekaligus — cara yang lebih cepat saat seluruh halaqoh setor.
