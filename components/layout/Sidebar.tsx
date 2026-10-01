@@ -9,13 +9,13 @@ import {
   Users, UserCog, BookMarked, BarChart3, LayoutTemplate, Info, Wallet, CalendarRange, CalendarDays,
   ClipboardCheck, KeyRound, ScrollText, Repeat, IdCard, UsersRound, Briefcase, Stamp, Scale, ListChecks, Kanban,
   PanelLeftClose, PanelLeftOpen, CalendarHeart, Lock, UserRound,
-  Crosshair, LibraryBig, Table2,
+  Crosshair, LibraryBig, Table2, BedDouble,
 } from 'lucide-react'
 import { DASHBOARD_LABELS, getAccessibleDashboards, ROLE_LABELS , canManageTeacherProfiles } from '@/lib/auth/permissions'
 import {
   canViewTerms, canViewGukarRecap, canViewFinance, canViewFinanceNotes, canPostToHome, canViewHumasRequests, canCreateNews,
   canAccessProgramMenu, canEditAbout,
-  canViewStudents, canViewHalaqoh, canViewTeachers, canViewUnitAnalytics,
+  canViewStudents, canViewHalaqoh, canViewAsrama, canViewTeachers, canViewUnitAnalytics,
   canManageHomepage, canViewKpi, canCatatSetoranGuru, canManageAllAccounts, canManagePengurus, canManageEmployees, canViewUjian,
   canAccessKpiPublikasi, canManageRaporTemplate, canManageRiyadhoh, canViewRiyadhohAnalitik, canManageEkstra, canManageKaldik, canViewKpiBanding, canViewTasks, canViewRoutineBoard,
   isAdmin, canViewLaporanKurikulum, canViewPapanRapat, canViewTargetBulanan, canKelolaPanduanGuru,
@@ -289,7 +289,7 @@ export function Sidebar({ role, displayName, username, lencanaKpi, ciutAwal = fa
         </div>
 
         {/* Tahsin & Tahfidz section */}
-        {(canViewStudents(role) || canViewHalaqoh(role) || canViewTeachers(role) || canViewTerms(role) || canViewUjian(role) || canManageEkstra(role)) && (
+        {(canViewStudents(role) || canViewHalaqoh(role) || canViewAsrama(role) || canViewTeachers(role) || canViewTerms(role) || canViewUjian(role) || canManageEkstra(role)) && (
           <div>
             <p className={cn('px-2 mb-2 text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/50', SEMBUNYI_SAAT_CIUT)}>
               Tahsin &amp; Tahfidz
@@ -303,6 +303,9 @@ export function Sidebar({ role, displayName, username, lencanaKpi, ciutAwal = fa
               )}
               {canViewHalaqoh(role) && (
                 <NavItem href="/setoran" icon={<Table2 className="h-4 w-4" />} label="Setoran Siswa" active={isActive('/setoran')} />
+              )}
+              {canViewAsrama(role) && (
+                <NavItem href="/asrama" icon={<BedDouble className="h-4 w-4" />} label="Halaqoh Asrama" active={isActive('/asrama')} />
               )}
               {canViewStudents(role) && (
                 <NavItem href="/siswa" icon={<Users className="h-4 w-4" />} label="Siswa" active={isActive('/siswa')} />

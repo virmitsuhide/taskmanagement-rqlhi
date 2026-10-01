@@ -1269,6 +1269,27 @@ export function canManageSetoran(role: UserRole, jenjang?: Jenjang | null, progr
   return canManageStudents(role, jenjang, program)
 }
 
+// Halaqoh asrama (0110)
+//
+// Div Qur'an BPA (putra) dan BPI (putri) mengelola kelompok asrama: pengampu,
+// anggota, dan level anak. Keduanya MELIHAT asrama putra maupun putri — rapat
+// Koor x Boarding membahas keduanya — tapi hanya MENGUBAH asramanya sendiri.
+/** Boleh membuka halaman asrama (kelompok, level, progres setoran). */
+export function canViewAsrama(role: UserRole): boolean {
+  return ['kepala_rq', 'kumik', 'koor_smp', 'div_quran_bpa', 'div_quran_bpi'].includes(role)
+}
+
+/**
+ * Boleh mengubah kelompok asrama ber-gender ini — termasuk mengoreksi
+ * setoran anggotanya. Tanpa gender: boleh mengubah setidaknya satu asrama.
+ */
+export function canManageAsrama(role: UserRole, gender?: 'L' | 'P' | null): boolean {
+  if (role === 'kepala_rq' || role === 'kumik') return true
+  if (role === 'div_quran_bpa') return !gender || gender === 'L'
+  if (role === 'div_quran_bpi') return !gender || gender === 'P'
+  return false
+}
+
 /**
  * Boleh menyunting & menghapus catatan pembinaan guru/karyawan.
  *

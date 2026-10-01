@@ -16,6 +16,7 @@ import { PerbandinganSetoranDialog } from '@/components/setoran/PerbandinganSeto
 import type { SetoranGanda } from '@/lib/data/setoran-ganda'
 import type { SiswaSesiTahfidz } from '@/lib/data/setoran-sesi'
 import { tanggalWIB } from '@/lib/rq/ujian'
+import { LencanaLevel } from '@/components/asrama/LencanaLevel'
 
 type Jenis = 'ziyadah' | 'murojaah_baru' | 'murojaah_lama'
 const JENIS: Jenis[] = ['ziyadah', 'murojaah_baru', 'murojaah_lama']
@@ -79,13 +80,15 @@ const SELECT_CLASS =
   'h-9 rounded-md border bg-transparent px-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50'
 
 /** Setoran tahfidz satu sesi dalam satu layar — pola yang sama dengan tahsin. */
-export function SetoranSesiTahfidz({ siswa, surat, tanggalTetap, ekstraSlotId }: {
+export function SetoranSesiTahfidz({ siswa, surat, tanggalTetap, ekstraSlotId, asrama }: {
   siswa: SiswaSesiTahfidz[]
   surat: SuratPilihan[]
   /** Tanggal terkunci — Riyadhoh hanya boleh dicatat pada Sabtunya. */
   tanggalTetap?: string
   /** Setoran pertemuan ekstra (0091): tiap baris ditandai slot ini. */
   ekstraSlotId?: string
+  /** Setoran halaqoh asrama (0110): tiap baris dicatat lewat jalur asrama. */
+  asrama?: boolean
 }) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
@@ -127,6 +130,7 @@ export function SetoranSesiTahfidz({ siswa, surat, tanggalTetap, ekstraSlotId }:
         catatan: v.catatan || null,
         setoran_date: tanggal,
         ekstra_slot_id: ekstraSlotId ?? null,
+        asrama: asrama ?? false,
       }
     })
 
@@ -232,6 +236,7 @@ export function SetoranSesiTahfidz({ siswa, surat, tanggalTetap, ekstraSlotId }:
                 <span className="min-w-0 flex-1">
                   <span className="flex flex-wrap items-center gap-1.5 text-[15px] font-semibold">
                     {s.full_name}
+                    <LencanaLevel level={s.level} />
                     {s.drill.map(d => (
                       <span
                         key={d.juz}

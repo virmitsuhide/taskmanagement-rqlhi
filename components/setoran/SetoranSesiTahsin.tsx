@@ -23,6 +23,7 @@ import type { KelompokKlasikal } from '@/lib/data/kelompok-klasikal'
 import type { HasilMateri } from '@/lib/data/materi-tahsin'
 import { anggotaDariPengaturan, usulanKelompok } from '@/lib/rq/klasikal'
 import { tanggalWIB } from '@/lib/rq/ujian'
+import { LencanaLevel } from '@/components/asrama/LencanaLevel'
 import { BARIS_MAKS, LABEL_STATUS_TAHSIN, URUTAN_STATUS_TAHSIN } from '@/lib/rq/status-tahsin'
 import type { TahsinStatus } from '@/types'
 
@@ -180,7 +181,7 @@ function modus(xs: number[]): number | null {
  * baris per anggota yang hadir sebelum dikirim, jadi aturan server (jilid,
  * halaman terakhir, drill, setoran ganda) tetap berlaku per anak.
  */
-export function SetoranSesiTahsin({ siswa, surat, halaqohId, pengaturan, tanggalTetap, ekstraSlotId, hrefSatuSatu }: {
+export function SetoranSesiTahsin({ siswa, surat, halaqohId, pengaturan, tanggalTetap, ekstraSlotId, asrama, hrefSatuSatu }: {
   siswa: SiswaSesiTahsin[]
   surat: SuratPilihan[]
   halaqohId: string
@@ -190,6 +191,8 @@ export function SetoranSesiTahsin({ siswa, surat, halaqohId, pengaturan, tanggal
   tanggalTetap?: string
   /** Setoran pertemuan ekstra (0091): tiap baris ditandai slot ini. */
   ekstraSlotId?: string
+  /** Setoran halaqoh asrama (0110): tiap baris dicatat lewat jalur asrama. */
+  asrama?: boolean
   /**
    * Tautan setor satu-satu per anak (id ditempel di ujungnya) — Riyadhoh:
    * anak yang belum punya jilid awal ditetapkan lewat sana, pada Sabtunya.
@@ -347,6 +350,7 @@ export function SetoranSesiTahsin({ siswa, surat, halaqohId, pengaturan, tanggal
         catatan: v.catatan || null,
         setoran_date: tanggal,
         ekstra_slot_id: ekstraSlotId ?? null,
+        asrama: asrama ?? false,
       })
     }
     for (const g of daftarKelompok) {
@@ -380,6 +384,7 @@ export function SetoranSesiTahsin({ siswa, surat, halaqohId, pengaturan, tanggal
           catatan: ['Klasikal', kg.catatan.trim(), kg.catatanAnak[s.id]?.trim()].filter(Boolean).join(' · '),
           setoran_date: tanggal,
           ekstra_slot_id: ekstraSlotId ?? null,
+          asrama: asrama ?? false,
         })
       }
     }
@@ -569,7 +574,7 @@ export function SetoranSesiTahsin({ siswa, surat, halaqohId, pengaturan, tanggal
                                 className="h-5 w-5 accent-primary"
                               />
                               <span className="min-w-0 flex-1">
-                                <span className="block truncate text-sm">{s.full_name}</span>
+                                <span className="flex items-center gap-1.5 truncate text-sm">{s.full_name}<LencanaLevel level={s.level} /></span>
                                 {teksLanjut(s) && <span className="block text-[11px] text-info">{teksLanjut(s)}</span>}
                                 {isian[s.id]?.galat && <span role="alert" className="block text-[11px] text-destructive">{isian[s.id].galat}</span>}
                               </span>
@@ -660,6 +665,7 @@ export function SetoranSesiTahsin({ siswa, surat, halaqohId, pengaturan, tanggal
                 <span className="min-w-0 flex-1">
                   <span className="flex flex-wrap items-center gap-1.5 text-[15px] font-semibold">
                     {s.full_name}
+                    <LencanaLevel level={s.level} />
                     {s.drill_sejak && (
                       <span className="rounded-full bg-warning-wash px-1.5 py-px text-[10px] font-semibold text-warning">DRILL</span>
                     )}

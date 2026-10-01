@@ -6,13 +6,14 @@ import { createServerClient } from '@/lib/supabase/server'
 import { getTeacherSession } from '@/lib/auth/teacher-session'
 import { aksesSetoran } from '@/lib/data/riyadhoh'
 import { bolehEkstra } from '@/lib/data/ekstra'
+import { bolehAsrama } from '@/lib/data/asrama'
 import { catatDrillSetelahZiyadah } from '@/lib/data/drill-tahfidz'
 import { bolehLintasSurat, periksaRentang } from '@/lib/rq/rentang-surat'
 import { periksaBacaanQuran, posisiLanjut, type BacaanQuran } from '@/lib/rq/bacaan-quran'
 import { getMateriPerJilid, getHasilMateriPerSiswa, ringkasProgres, type HasilMateri } from '@/lib/data/materi-tahsin'
 import {
   periksaGandaTahsin, arsipkanTahsinSamaHari, periksaGandaTahfidz, arsipkanTahfidzSamaHari,
-  tautkanPengganti, type SetoranGanda,
+  tautkanPengganti, JALUR_ASRAMA, type SetoranGanda,
 } from '@/lib/data/setoran-ganda'
 import type { TahsinStatus, TahfidzKind } from '@/types'
 import { tanggalWIB } from '@/lib/rq/ujian'
@@ -124,6 +125,48 @@ export interface InputSetoranTahsin {
   timpa?: boolean
   /** Setoran pertemuan EKSTRA (0091): slot tempat setoran ini dicatat. */
   ekstra_slot_id?: string | null
+  /** Setoran halaqoh ASRAMA (0110), dicatat pengampu asrama anak. */
+  asrama?: boolean
+}
+
+type AksesSetoran = 'reguler' | 'riyadhoh' | 'ekstra' | 'asrama'
+
+/**
+ * Siapa yang mencatat, lewat jalur mana. Jalur dipilih oleh FORMULIR
+ * (ekstra_slot_id / asrama), bukan ditebak dari siapa gurunya: seorang guru
+ * bisa sekaligus pengampu sekolah dan pengampu asrama anak yang sama, dan
+ * setoran malam di asrama tidak boleh menimpa setoran pagi di sekolah.
+ *
+ * Mengembalikan pesan galat bila guru tidak berhak lewat jalur itu.
+ */
+async function tentukanAkses(
+  teacherId: string,
+  input: { student_id: string; setoran_date: string; ekstra_slot_id?: string | null; asrama?: boolean },
+): Promise<{ akses: AksesSetoran; jalur: string | null } | string> {
+  const ekstraSlotId = input.ekstra_slot_id || null
+  if (ekstraSlotId) {
+    return (await bolehEkstra(teacherId, input.student_id, ekstraSlotId, input.setoran_date))
+      ? { akses: 'ekstra', jalur: ekstraSlotId }
+      : 'Anak ini bukan peserta aktif slot ekstra Anda.'
+  }
+  if (input.asrama) {
+    return (await bolehAsrama(teacherId, input.student_id, input.setoran_date))
+      ? { akses: 'asrama', jalur: JALUR_ASRAMA }
+      : 'Anak ini bukan anggota kelompok asrama Anda.'
+  }
+  const akses = await aksesSetoran(teacherId, input.student_id, input.setoran_date)
+  return akses ? { akses, jalur: null } : 'Anda tidak mengampu siswa ini.'
+}
+
+/** Kolom penanda jalur pada baris setoran baru. */
+function kolomJalur(akses: AksesSetoran, jalur: string | null): Record<string, unknown> {
+  // Setoran Sabtu, ekstra, dan asrama tetap setoran biasa — posisi berjalan
+  // terus — hanya ditandai asalnya. Kolom tidak disebut di jalur sekolah,
+  // supaya setoran tetap tersimpan sebelum migrasinya dijalankan.
+  if (akses === 'riyadhoh') return { riyadhoh: true }
+  if (akses === 'ekstra') return { ekstra_slot_id: jalur }
+  if (akses === 'asrama') return { asrama: true }
+  return {}
 }
 
 /**
@@ -143,11 +186,9 @@ async function simpanSetoranTahsin(teacherId: string, input: InputSetoranTahsin)
   // Guru halaqoh siswa ini, atau pengampu Riyadhoh pada Sabtu kelompoknya.
   // Jalur ekstra dicek terpisah: pengampu slot ekstra bukan guru halaqoh anak,
   // dan setorannya ditandai supaya tidak masuk laporan orang tua halaqoh.
-  const ekstraSlotId = input.ekstra_slot_id || null
-  const akses = ekstraSlotId
-    ? ((await bolehEkstra(teacherId, studentId, ekstraSlotId, input.setoran_date)) ? 'ekstra' as const : null)
-    : await aksesSetoran(teacherId, studentId, input.setoran_date)
-  if (!akses) return ekstraSlotId ? 'Anak ini bukan peserta aktif slot ekstra Anda.' : 'Anda tidak mengampu siswa ini.'
+  const izin = await tentukanAkses(teacherId, input)
+  if (typeof izin === 'string') return izin
+  const { akses, jalur } = izin
 
   if (!jilidId) return 'Jilid wajib dipilih.'
 
@@ -323,10 +364,10 @@ async function simpanSetoranTahsin(teacherId: string, input: InputSetoranTahsin)
       nilai: input.nilai_tahsin,
       sikap: input.nilai_sikap,
       catatan: input.catatan,
-    }, ekstraSlotId)
+    }, jalur)
     if (ganda) return { ganda }
   } else {
-    const hasil = await arsipkanTahsinSamaHari(supabase, teacherId, studentId, input.setoran_date, ekstraSlotId)
+    const hasil = await arsipkanTahsinSamaHari(supabase, teacherId, studentId, input.setoran_date, jalur)
     if ('galat' in hasil) return hasil.galat
     arsipIds = hasil.arsipIds
     if (arsipIds.length > 0) {
@@ -346,11 +387,7 @@ async function simpanSetoranTahsin(teacherId: string, input: InputSetoranTahsin)
     teacher_id: teacherId,
     halaqoh_id: student.halaqoh_id,
     setoran_date: input.setoran_date,
-    // Setoran Sabtu tetap setoran biasa — posisi hafalan berjalan terus —
-    // hanya ditandai asalnya (0087). Tidak disebut bila bukan Riyadhoh,
-    // supaya setoran sekolah tetap tersimpan sebelum 0087 dijalankan.
-    ...(akses === 'riyadhoh' ? { riyadhoh: true } : {}),
-    ...(akses === 'ekstra' ? { ekstra_slot_id: ekstraSlotId } : {}),
+    ...kolomJalur(akses, jalur),
     method_id: methodId,
     jilid_id: jilidId,
     halaman: halamanTersimpan,
@@ -602,6 +639,8 @@ export interface InputSetoranTahfidz {
   timpa?: boolean
   /** Lihat InputSetoranTahsin.ekstra_slot_id. */
   ekstra_slot_id?: string | null
+  /** Lihat InputSetoranTahsin.asrama. */
+  asrama?: boolean
 }
 
 const JENIS_SETORAN_TAHFIDZ: TahfidzKind[] = ['ziyadah', 'murojaah_baru', 'murojaah_lama']
@@ -612,11 +651,9 @@ async function simpanSetoranTahfidz(teacherId: string, input: InputSetoranTahfid
   // Guru halaqoh siswa ini, atau pengampu Riyadhoh pada Sabtu kelompoknya.
   // Jalur ekstra dicek terpisah: pengampu slot ekstra bukan guru halaqoh anak,
   // dan setorannya ditandai supaya tidak masuk laporan orang tua halaqoh.
-  const ekstraSlotId = input.ekstra_slot_id || null
-  const akses = ekstraSlotId
-    ? ((await bolehEkstra(teacherId, studentId, ekstraSlotId, input.setoran_date)) ? 'ekstra' as const : null)
-    : await aksesSetoran(teacherId, studentId, input.setoran_date)
-  if (!akses) return ekstraSlotId ? 'Anak ini bukan peserta aktif slot ekstra Anda.' : 'Anda tidak mengampu siswa ini.'
+  const izin = await tentukanAkses(teacherId, input)
+  if (typeof izin === 'string') return izin
+  const { akses, jalur } = izin
 
   if (!JENIS_SETORAN_TAHFIDZ.includes(input.kind)) return 'Jenis setoran tidak dikenal.'
   if (!suratId) return 'Surat wajib dipilih.'
@@ -654,10 +691,10 @@ async function simpanSetoranTahfidz(teacherId: string, input: InputSetoranTahfid
     const ganda = await periksaGandaTahfidz(supabase, studentId, input.setoran_date, {
       kind: input.kind, surat_id: suratId, ayat_dari: ayatDari, surat_ke_id: suratKeId, ayat_ke: ayatKe,
       nilai: input.nilai_tahfidz, sikap: input.nilai_sikap, catatan: input.catatan,
-    }, ekstraSlotId)
+    }, jalur)
     if (ganda) return { ganda }
   } else {
-    const hasil = await arsipkanTahfidzSamaHari(supabase, teacherId, studentId, input.setoran_date, input.kind, ekstraSlotId)
+    const hasil = await arsipkanTahfidzSamaHari(supabase, teacherId, studentId, input.setoran_date, input.kind, jalur)
     if ('galat' in hasil) return hasil.galat
     arsipIds = hasil.arsipIds
   }
@@ -669,11 +706,7 @@ async function simpanSetoranTahfidz(teacherId: string, input: InputSetoranTahfid
     teacher_id: teacherId,
     halaqoh_id: student.halaqoh_id,
     setoran_date: input.setoran_date,
-    // Setoran Sabtu tetap setoran biasa — posisi hafalan berjalan terus —
-    // hanya ditandai asalnya (0087). Tidak disebut bila bukan Riyadhoh,
-    // supaya setoran sekolah tetap tersimpan sebelum 0087 dijalankan.
-    ...(akses === 'riyadhoh' ? { riyadhoh: true } : {}),
-    ...(akses === 'ekstra' ? { ekstra_slot_id: ekstraSlotId } : {}),
+    ...kolomJalur(akses, jalur),
     kind: input.kind,
     surat_id: suratId,
     ayat_dari: ayatDari,

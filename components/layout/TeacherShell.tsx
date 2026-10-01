@@ -1,5 +1,7 @@
 import { punyaSlotEkstra } from '@/lib/data/ekstra'
+import { punyaKelompokAsrama } from '@/lib/data/asrama'
 import {
+  BedDouble,
   LayoutDashboard, Users, CalendarCheck,
   BarChart3, ScrollText, GraduationCap, IdCard, ClipboardCheck, ListChecks,
   Table2, UserCheck,
@@ -38,7 +40,7 @@ export async function TeacherShell({ children }: { children: React.ReactNode }) 
   // halaman masuk tidak perlu menu yang belum boleh ia pakai.
   if (!session) return <>{children}</>
 
-  const [bolehGukar, unitUjian, konteks, raporBaru, notifUjian, kue, riyadhoh, pengampuEkstra] = await Promise.all([
+  const [bolehGukar, unitUjian, konteks, raporBaru, notifUjian, kue, riyadhoh, pengampuEkstra, pengampuAsrama] = await Promise.all([
     bolehMengampuGukar(session.teacherId),
     getUnitUjianGuru(session.teacherId),
     getKonteksPengumuman(session.teacherId),
@@ -55,6 +57,8 @@ export async function TeacherShell({ children }: { children: React.ReactNode }) 
     kelompokPengampu(session.teacherId),
     // Pengampu slot ekstra (0091) — menu Ekstra hanya untuk mereka.
     punyaSlotEkstra(session.teacherId).catch(() => false),
+    // Pengampu kelompok asrama boarding (0110) — menu Halaqoh Asrama.
+    punyaKelompokAsrama(session.teacherId).catch(() => false),
   ])
 
   // Diambil di kerangka, bukan di tiap halaman: loncengnya ada di bilah atas
@@ -97,6 +101,7 @@ export async function TeacherShell({ children }: { children: React.ReactNode }) 
         // Rapor semester memakai format yang ditetapkan koordinator (0082).
         { label: 'Rapor Qur’an', href: '/guru/rapor-quran', icon: <ScrollText /> },
         ...(riyadhoh.length > 0 ? [{ label: 'Riyadhoh Sabtu', href: '/guru/riyadhoh', icon: <CalendarHeart /> }] : []),
+        ...(pengampuAsrama ? [{ label: 'Halaqoh Asrama', href: '/guru/asrama', icon: <BedDouble /> }] : []),
         { label: 'Statistik', href: '/guru/statistik', icon: <BarChart3 /> },
       ],
     },

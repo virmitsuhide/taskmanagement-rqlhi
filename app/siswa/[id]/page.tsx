@@ -1,7 +1,9 @@
 import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
 import { getSession } from '@/lib/auth/session'
-import { canManageEkstra, canManageSetoran, canManageStudents, canViewStudents, JENJANG_LABELS } from '@/lib/auth/permissions'
+import { canManageAsrama, canManageEkstra, canManageSetoran, canManageStudents, canViewAsrama, canViewStudents, JENJANG_LABELS } from '@/lib/auth/permissions'
+import { genderAsramaSiswa, getLevelPerSiswa } from '@/lib/data/asrama'
+import { LencanaLevel } from '@/components/asrama/LencanaLevel'
 import { createServerClient } from '@/lib/supabase/server'
 import { SetoranKoreksi, type SetoranItem } from '@/components/siswa/SetoranKoreksi'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
@@ -41,7 +43,12 @@ export default async function StudentDetailPage({ params }: PageProps) {
   if (!student) notFound()
   const jenjang = student.jenjang as Jenjang
   const program = student.program as string | null
-  if (!canViewStudents(session.role, jenjang, program)) redirect('/siswa')
+  // Pengelola asrama (0110) boleh membuka anak anggota asrama walau bukan
+  // pengelola siswa SMP — dari tabel progres asrama namanya menaut ke sini.
+  const [genderAsrama, levelMap] = await Promise.all([genderAsramaSiswa(id), getLevelPerSiswa([id])])
+  const lewatAsrama = genderAsrama !== null && canViewAsrama(session.role)
+  if (!canViewStudents(session.role, jenjang, program) && !lewatAsrama) redirect('/siswa')
+  const level = levelMap.get(id) ?? null
 
   const canEdit = canManageStudents(session.role, jenjang, program)
 
@@ -70,6 +77,7 @@ export default async function StudentDetailPage({ params }: PageProps) {
   // Riwayat setoran hanya diambil untuk yang berwenang mengoreksinya;
   // bagi yang lain, tiga query ini sia-sia.
   const canKoreksi = canManageSetoran(session.role, jenjang, program)
+    || (genderAsrama !== null && canManageAsrama(session.role, genderAsrama))
   const setoranItems: SetoranItem[] = canKoreksi ? await ambilSetoran(supabase, id) : []
 
   // ── Perjalanan Qur'an, setoran 12 pekan, riwayat ujian lengkap ──
@@ -157,7 +165,10 @@ export default async function StudentDetailPage({ params }: PageProps) {
             <div className="flex-1 min-w-[200px]">
               <p className="text-xs font-bold uppercase tracking-[0.1em] text-warning">Siswa · {JENJANG_LABELS[student.jenjang as Jenjang]}</p>
               <div className="mt-1.5 flex items-center gap-2 flex-wrap">
-                <h1 className="text-3xl leading-tight">{student.full_name}</h1>
+                <h1 className="text-3xl leading-tight">
+                  {student.full_name}
+                  <LencanaLevel level={level} className="ml-2 align-middle text-xs" />
+                </h1>
                 <span className="text-sm">{genderIcon}</span>
                 {!student.is_active && <span className="rounded-md bg-warning-wash px-2 py-0.5 text-xs font-semibold text-warning">Nonaktif</span>}
                 {bookingEkstra && (canManageEkstra(session.role)

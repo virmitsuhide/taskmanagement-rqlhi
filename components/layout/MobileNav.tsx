@@ -8,14 +8,14 @@ import {
   ImageIcon, Megaphone, FileText, User, LogOut, GraduationCap, Newspaper, LayoutGrid,
   Users, UserCog, BookMarked, BarChart3, LayoutTemplate, Info, Wallet, CalendarRange, CalendarDays,
   ClipboardCheck, KeyRound, ScrollText, Repeat, IdCard, UsersRound, Briefcase, Stamp, Scale, ListChecks, Kanban, CalendarHeart, Lock, UserRound,
-  Crosshair, LibraryBig, Table2,
+  Crosshair, LibraryBig, Table2, BedDouble,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
   DASHBOARD_LABELS, getAccessibleDashboards, DEFAULT_DASHBOARD,
   canViewTerms, canViewGukarRecap, canViewFinance, canViewFinanceNotes, canPostToHome, canViewHumasRequests, canCreateNews,
   canAccessProgramMenu, canEditAbout,
-  canViewStudents, canViewHalaqoh, canViewTeachers, canViewUnitAnalytics,
+  canViewStudents, canViewHalaqoh, canViewAsrama, canViewTeachers, canViewUnitAnalytics,
   canManageHomepage,
   canViewKpi, canCatatSetoranGuru, canManageAllAccounts, canManagePengurus, canManageEmployees, canViewUjian, canManageTeacherProfiles,
   canAccessKpiPublikasi, canManageRaporTemplate, canManageRiyadhoh, canViewRiyadhohAnalitik, canManageEkstra, canManageKaldik, canViewKpiBanding, canViewTasks, canViewRoutineBoard, isAdmin, canViewLaporanKurikulum, canViewPapanRapat, canViewTargetBulanan, canKelolaPanduanGuru } from '@/lib/auth/permissions'
@@ -331,7 +331,7 @@ export function MobileNav({ role, displayName, username, lencanaKpi }: Props) {
             </ul>
           </div>
 
-          {(canViewStudents(role) || canViewHalaqoh(role) || canViewTeachers(role) || canViewTerms(role) || canViewUjian(role) || canManageEkstra(role)) && (
+          {(canViewStudents(role) || canViewHalaqoh(role) || canViewAsrama(role) || canViewTeachers(role) || canViewTerms(role) || canViewUjian(role) || canManageEkstra(role)) && (
             <div>
               <p className="px-2 mb-2 text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/50">Tahsin &amp; Tahfidz</p>
               <ul className="space-y-1">
@@ -343,6 +343,9 @@ export function MobileNav({ role, displayName, username, lencanaKpi }: Props) {
                 )}
                 {canViewHalaqoh(role) && (
                   <DrawerLink href="/setoran" icon={<Table2 className="h-4 w-4" />} label="Setoran Siswa" active={isActive('/setoran')} onNavigate={close} />
+                )}
+                {canViewAsrama(role) && (
+                  <DrawerLink href="/asrama" icon={<BedDouble className="h-4 w-4" />} label="Halaqoh Asrama" active={isActive('/asrama')} onNavigate={close} />
                 )}
                 {canViewStudents(role) && (
                   <DrawerLink href="/siswa" icon={<Users className="h-4 w-4" />} label="Siswa" active={isActive('/siswa')} onNavigate={close} />

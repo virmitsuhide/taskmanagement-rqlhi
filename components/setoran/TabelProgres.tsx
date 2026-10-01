@@ -17,6 +17,7 @@ import { StarInput } from '@/components/setoran/StarInput'
 import { cn } from '@/lib/utils'
 import { BARIS_MAKS, LABEL_STATUS_TAHSIN, URUTAN_STATUS_TAHSIN } from '@/lib/rq/status-tahsin'
 import type { TahsinStatus } from '@/types'
+import { LencanaLevel } from '@/components/asrama/LencanaLevel'
 import type { JenisRekap, ProgresSesi, SelProgres, SuntingSetoran } from '@/lib/data/rekap-sesi'
 
 const HARI = ['Ahad', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab']
@@ -70,6 +71,7 @@ function Sel({ isi, absen, hadirTanpaSetor, onSunting }: {
           <>
             {s.label}
             {s.drill && <sup className="ml-0.5 text-[8px] font-bold">D</sup>}
+            {s.asrama && <sup className="ml-0.5 text-[8px] font-bold" aria-label="asrama">A</sup>}
             {s.adabRendah && (
               <span className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-destructive" aria-label="adab rendah" />
             )}
@@ -109,6 +111,7 @@ export function TabelProgres({
 }) {
   const [sunting, setSunting] = useState<{ s: SuntingSetoran; nama: string } | null>(null)
   const adaSetoran = data.baris.some(b => b.jumlahHari > 0)
+  const adaAsrama = data.baris.some(b => Object.values(b.sel).some(xs => xs.some(x => x.asrama)))
 
   return (
     <div className="rounded-2xl border bg-card">
@@ -145,9 +148,12 @@ export function TabelProgres({
             {data.baris.map(b => (
               <tr key={b.id} className="border-b last:border-0">
                 <td className="sticky left-0 z-10 bg-card px-3 py-2 align-top">
-                  <Link href={`${tautanSiswa}${b.id}`} className="font-medium text-foreground hover:underline">
-                    {b.nama}
-                  </Link>
+                  <span className="flex flex-wrap items-center gap-1.5">
+                    <Link href={`${tautanSiswa}${b.id}`} className="font-medium text-foreground hover:underline">
+                      {b.nama}
+                    </Link>
+                    <LencanaLevel level={b.level} />
+                  </span>
                   <span className="mt-0.5 block text-[11px] text-muted-foreground">
                     {b.jumlahHari.toLocaleString('id-ID')} hari setor
                     {Object.keys(b.absen).length > 0 && <> · {Object.keys(b.absen).length} tidak hadir</>}
@@ -205,6 +211,7 @@ export function TabelProgres({
           </>
         )}
         <span><b className="text-warning">kuning</b> = ulang</span>
+        {adaAsrama && <span><b className="text-primary">A</b> = setoran di asrama</span>}
         {jenis === 'tahsin' && (
           <span><b className="text-info">12·b5</b> = lanjut, halaman belum tuntas (sampai baris 5)</span>
         )}

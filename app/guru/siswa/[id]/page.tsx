@@ -3,6 +3,9 @@ import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
 import { getTeacherSession } from '@/lib/auth/teacher-session'
 import { canTeacherAccessStudent } from '@/lib/data/teacher'
+import { bolehAsrama, getLevelPerSiswa } from '@/lib/data/asrama'
+import { hariIniWIB } from '@/lib/data/riyadhoh'
+import { LencanaLevel } from '@/components/asrama/LencanaLevel'
 import { createServerClient } from '@/lib/supabase/server'
 import { getMateriPerJilid, getHasilMateriPerSiswa, ringkasProgres, type HasilMateri } from '@/lib/data/materi-tahsin'
 import { Button } from '@/components/ui/button'
@@ -45,8 +48,18 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
   const { setoran, periode: periodeDiminta } = await searchParams
   const kodeProgres: KodePeriode = URUTAN_PROGRES.includes(periodeDiminta as KodePeriode) ? (periodeDiminta as KodePeriode) : 'bulan'
 
-  const allowed = await canTeacherAccessStudent(session.teacherId, id)
-  if (!allowed) redirect('/guru/siswa')
+  /*
+    Pengampu sekolah membuka halaman ini seperti biasa. Pengampu ASRAMA (0110)
+    juga boleh melihat riwayat anak kelompoknya — progresnya satu — tapi
+    tanpa tombol setor & rapor: setoran asrama dicatat dari menu Asrama,
+    dan rapor tetap urusan pengampu sekolah.
+  */
+  const [pengampuSekolah, levelMap] = await Promise.all([
+    canTeacherAccessStudent(session.teacherId, id),
+    getLevelPerSiswa([id]),
+  ])
+  if (!pengampuSekolah && !(await bolehAsrama(session.teacherId, id, hariIniWIB()))) redirect('/guru/siswa')
+  const level = levelMap.get(id) ?? null
 
   const supabase = createServerClient()
   const { data: studentRaw } = await supabase
@@ -318,6 +331,7 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
                 style={{ fontFamily: 'var(--font-playfair), Georgia, serif' }}
               >
                 {student.full_name}
+                <LencanaLevel level={level} className="ml-2 align-middle text-xs" />
               </h1>
               <p className="text-xs text-muted-foreground mt-0.5">
                 {JENJANG_LABELS[student.jenjang as Jenjang]}
@@ -394,6 +408,7 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
               </div>
             </div>
             {/* Di HP tombolnya berjajar dua kolom selebar layar; di layar lebar tetap satu kolom di kanan. */}
+            {pengampuSekolah && (
             <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:shrink-0 sm:flex-col [&>*]:w-full">
               {/* Anak yang sudah Lulus Tahsin tidak punya progres tahsin lagi —
                   tombol utamanya menjadi setor tahfidz. */}
@@ -420,6 +435,7 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
                 </Button>
               )}
             </div>
+            )}
           </div>
         </div>
 

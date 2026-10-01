@@ -6,6 +6,8 @@ import { getInfoSurat } from '@/lib/data/nama-surat'
 import { jumlahAyatRentang, teksRentang } from '@/lib/rq/rentang-surat'
 import { LABEL_STATUS_TAHSIN, teksBaris } from '@/lib/rq/status-tahsin'
 import type { TahsinStatus } from '@/types'
+import { getLevelPerSiswa } from '@/lib/data/asrama'
+import type { LevelAsrama } from '@/lib/rq/asrama'
 
 /**
  * Rekap bulanan per sesi untuk guru — dua halaman, satu sumber:
@@ -52,6 +54,24 @@ async function ambilSemua<T>(
 
 interface SiswaRingkas { id: string; full_name: string; kelas: string | null; halaqoh_id: string }
 
+/**
+ * Siapa yang direkap: anggota halaqoh (id-nya), atau daftar siswa tertentu —
+ * kelompok asrama (0110), yang bukan satu halaqoh.
+ */
+export type SasaranRekap = string | { siswa: string[] }
+
+async function siswaSasaran(supabase: Supabase, sasaran: SasaranRekap): Promise<SiswaRingkas[]> {
+  if (typeof sasaran === 'string') return siswaHalaqoh(supabase, [sasaran])
+  if (sasaran.siswa.length === 0) return []
+  const { data } = await supabase
+    .from('students')
+    .select('id, full_name, kelas, halaqoh_id')
+    .in('id', sasaran.siswa)
+    .eq('is_active', true)
+    .order('full_name')
+  return (data ?? []) as SiswaRingkas[]
+}
+
 async function siswaHalaqoh(supabase: Supabase, halaqohIds: string[]): Promise<SiswaRingkas[]> {
   if (halaqohIds.length === 0) return []
   const { data } = await supabase
@@ -94,6 +114,8 @@ export interface SelProgres {
   ulang: boolean
   /** Halaman belum tuntas (0109) — bukan kegagalan, ditandai berbeda dari ulang. */
   lanjut: boolean
+  /** Dicatat di halaqoh asrama (0110), bukan di sekolah. */
+  asrama: boolean
   drill: boolean
   adabRendah: boolean
   /** Bahan koreksi oleh koordinator — lihat components/setoran/TabelProgres. */
@@ -127,6 +149,8 @@ export interface BarisProgres {
   id: string
   nama: string
   kelas: string | null
+  /** Level anak boarding (0110); null = bukan anak asrama. */
+  level: LevelAsrama | null
   /** tanggal 'YYYY-MM-DD' → setoran hari itu (tahfidz bisa >1 jenis). */
   sel: Record<string, SelProgres[]>
   /** Jumlah hari anak ini setor di bulan itu. */
@@ -165,6 +189,8 @@ interface LogTahsinRekap {
   nilai_tahsin: unknown
   nilai_sikap: unknown
   catatan: string | null
+  /** Ada setelah 0110; tidak ada = setoran sekolah. */
+  asrama?: boolean | null
   quran_halaman: number | null
   quran_surat_id: number | null
   quran_ayat_dari: number | null
@@ -185,6 +211,7 @@ interface LogTahfidzRekap {
   nilai_tahfidz: unknown
   nilai_sikap: unknown
   catatan: string | null
+  asrama?: boolean | null
   surat: { name_latin: string } | null
 }
 
@@ -208,10 +235,12 @@ function selTahsin(l: LogTahsinRekap, jilidMateri: Set<string>): SelProgres {
       [posisi, mushaf].filter(Boolean).join(' · '),
       `${LABEL_STATUS_TAHSIN[l.status] ?? l.status}${l.status === 'lanjut' ? ' — halaman belum tuntas' : ''}${l.drill ? ' (drill)' : ''}`,
       `Nilai ${bintangTeks(angka(l.nilai_tahsin))} · Adab ${bintangTeks(sikap)}`,
+      l.asrama ? 'Setoran asrama' : '',
       l.catatan ?? '',
     ].filter(Boolean).join('\n'),
     ulang: l.status === 'ulang',
     lanjut: l.status === 'lanjut',
+    asrama: Boolean(l.asrama),
     drill: Boolean(l.drill),
     adabRendah: adabRendah(sikap),
     sunting: {
@@ -253,10 +282,12 @@ function selTahfidz(l: LogTahfidzRekap, info: Map<number, { name_latin: string; 
     rinci: [
       judul,
       `Nilai ${bintangTeks(angka(l.nilai_tahfidz))} · Adab ${bintangTeks(sikap)}`,
+      l.asrama ? 'Setoran asrama' : '',
       l.catatan ?? '',
     ].filter(Boolean).join('\n'),
     ulang: false,
     lanjut: false,
+    asrama: Boolean(l.asrama),
     drill: false,
     adabRendah: adabRendah(sikap),
     sunting: {
@@ -278,11 +309,12 @@ function selTahfidz(l: LogTahfidzRekap, info: Map<number, { name_latin: string; 
   }
 }
 
-export async function getProgresSesi(halaqohId: string, periode: string, jenis: JenisRekap): Promise<ProgresSesi> {
+export async function getProgresSesi(sasaran: SasaranRekap, periode: string, jenis: JenisRekap): Promise<ProgresSesi> {
   const supabase = createServerClient()
-  const siswa = await siswaHalaqoh(supabase, [halaqohId])
+  const siswa = await siswaSasaran(supabase, sasaran)
   if (siswa.length === 0) return { tanggal: hariSekolah(periode), baris: [] }
   const ids = siswa.map(s => s.id)
+  const levelPromise = getLevelPerSiswa(ids)
   const { awal, akhir } = rentangBulan(periode)
 
   const perSiswa = new Map<string, { tanggal: string; sel: SelProgres; posisi: string | null }[]>()
@@ -292,7 +324,8 @@ export async function getProgresSesi(halaqohId: string, periode: string, jenis: 
   if (jenis === 'tahsin') {
     const logs = await ambilSemua<LogTahsinRekap>((dari, sampai) => supabase
       .from('tahsin_logs')
-      .select('id, jilid_id, baris_dari, baris_ke, student_id, setoran_date, halaman, status, drill, nilai_tahsin, nilai_sikap, catatan, quran_halaman, quran_surat_id, quran_ayat_dari, quran_ayat_ke, jilid:jilid_levels!tahsin_logs_jilid_id_fkey(label)')
+      // '*' supaya kolom asrama (0110) ikut bila sudah ada, tanpa menggagalkan kueri bila belum.
+      .select('*, jilid:jilid_levels!tahsin_logs_jilid_id_fkey(label)')
       .in('student_id', ids)
       .gte('setoran_date', awal)
       .lt('setoran_date', akhir)
@@ -366,6 +399,7 @@ export async function getProgresSesi(halaqohId: string, periode: string, jenis: 
     pekan.set(senin, [...(pekan.get(senin) ?? []), t])
   }
 
+  const level = await levelPromise
   const semuaTanggal = new Set<string>(sekolah)
   const baris: BarisProgres[] = siswa.map(s => {
     const daftar = perSiswa.get(s.id) ?? []
@@ -396,6 +430,7 @@ export async function getProgresSesi(halaqohId: string, periode: string, jenis: 
       id: s.id,
       nama: s.full_name,
       kelas: s.kelas,
+      level: level.get(s.id) ?? null,
       sel,
       jumlahHari: Object.keys(sel).length,
       awal: posisi[0] ?? null,

@@ -1,6 +1,8 @@
 import { createServerClient } from '@/lib/supabase/server'
 import type { Jenjang } from '@/types'
 import { getTeacherHalaqohIds } from '@/lib/data/teacher'
+import { getLevelPerSiswa } from '@/lib/data/asrama'
+import type { LevelAsrama } from '@/lib/rq/asrama'
 import { getJuzDrillPerSiswa, type JuzDrillSiswa } from '@/lib/data/drill-tahfidz'
 import {
   getMateriPerJilid, getHasilMateriPerSiswa, type MateriTahsin, type HasilMateri,
@@ -80,6 +82,8 @@ export interface SiswaSesiTahsin {
    * bila guru tidak mengisinya. null = mulai halaman dari awal.
    */
   lanjut: { baris_ke: number | null } | null
+  /** Level anak boarding (0110); null = bukan anak asrama / belum ditetapkan. */
+  level: LevelAsrama | null
 }
 
 /**
@@ -146,10 +150,11 @@ export async function getSiswaSesiTahsin(sasaran: SasaranSesi): Promise<SiswaSes
   // Materi dan capaiannya diambil sekali untuk seluruh sesi, bukan per anak:
   // satu halaqoh umumnya berisi anak-anak pada tahap yang sama, sehingga
   // pengambilan per anak berarti mengulang jawaban yang identik belasan kali.
-  const [perJilid, hasilMateri, lanjut] = await Promise.all([
+  const [perJilid, hasilMateri, lanjut, level] = await Promise.all([
     getMateriPerJilid(rows.map(r => r.current_jilid_id ?? '')),
     getHasilMateriPerSiswa(rows.map(r => r.id)),
     lanjutTerbuka(supabase, rows),
+    getLevelPerSiswa(rows.map(r => r.id)),
   ])
 
   return rows.map(s => ({
@@ -171,6 +176,7 @@ export async function getSiswaSesiTahsin(sasaran: SasaranSesi): Promise<SiswaSes
     materi: perJilid.get(s.current_jilid_id ?? '') ?? [],
     materi_hasil: Object.fromEntries(hasilMateri.get(s.id) ?? []),
     lanjut: lanjut.get(s.id) ?? null,
+    level: level.get(s.id) ?? null,
   }))
 }
 
@@ -186,6 +192,8 @@ export interface SiswaSesiTahfidz {
   terakhir: { surat_id: number; surat: string; ayat_ke: number } | null
   /** Juz yang ziyadahnya tuntas tapi ujiannya belum diajukan (0065). */
   drill: JuzDrillSiswa[]
+  /** Level anak boarding (0110); null = bukan anak asrama / belum ditetapkan. */
+  level: LevelAsrama | null
 }
 
 export async function getSiswaSesiTahfidz(sasaran: SasaranSesi): Promise<SiswaSesiTahfidz[]> {
@@ -199,7 +207,10 @@ export async function getSiswaSesiTahfidz(sasaran: SasaranSesi): Promise<SiswaSe
   const rows = (siswa ?? []) as { id: string; full_name: string; kelas: string | null; jenjang: Jenjang | null }[]
   if (rows.length === 0) return []
 
-  const drill = await getJuzDrillPerSiswa(rows.map(r => r.id))
+  const [drill, level] = await Promise.all([
+    getJuzDrillPerSiswa(rows.map(r => r.id)),
+    getLevelPerSiswa(rows.map(r => r.id)),
+  ])
 
   const { data: logs } = await supabase
     .from('tahfidz_logs')
@@ -218,5 +229,5 @@ export async function getSiswaSesiTahfidz(sasaran: SasaranSesi): Promise<SiswaSe
     }
   }
 
-  return rows.map(r => ({ ...r, terakhir: terakhir.get(r.id) ?? null, drill: drill.get(r.id) ?? [] }))
+  return rows.map(r => ({ ...r, terakhir: terakhir.get(r.id) ?? null, drill: drill.get(r.id) ?? [], level: level.get(r.id) ?? null }))
 }

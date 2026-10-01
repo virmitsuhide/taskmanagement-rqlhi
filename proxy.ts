@@ -17,6 +17,8 @@ const ADMIN_PREFIXES = [
   '/siswa',
   // Setoran sebulan per guru untuk koordinator (koreksi & hapus).
   '/setoran',
+  // Halaqoh asrama boarding (0110) — Div Qur'an BPA/BPI.
+  '/asrama',
   '/ustadz',
   // Hanya sisi pengurus modul ujian. /ujian dan /ujian/rekap sengaja tidak
   // masuk — keduanya halaman publik yang boleh dibuka tanpa login.
@@ -112,6 +114,7 @@ export const config: ProxyConfig = {
     '/halaqoh/:path*',
     '/siswa/:path*',
     '/setoran/:path*',
+    '/asrama/:path*',
     '/ustadz/:path*',
     '/ujian/kelola/:path*',
     '/ujian/ajukan/:path*',

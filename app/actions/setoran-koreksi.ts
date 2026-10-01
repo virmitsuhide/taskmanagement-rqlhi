@@ -3,7 +3,8 @@
 import { revalidatePath } from 'next/cache'
 import { createServerClient } from '@/lib/supabase/server'
 import { getSession } from '@/lib/auth/session'
-import { canManageSetoran } from '@/lib/auth/permissions'
+import { canManageAsrama, canManageSetoran } from '@/lib/auth/permissions'
+import { genderAsramaSiswa } from '@/lib/data/asrama'
 import { recalcPosisi, recalcMutqin } from '@/lib/rq/hitung-ulang-setoran'
 import { BARIS_MAKS, statusTahsinSah } from '@/lib/rq/status-tahsin'
 import type { Jenjang } from '@/types'
@@ -50,8 +51,13 @@ async function guard(
     .maybeSingle()
 
   if (!student) return { error: 'Siswa tidak ditemukan.' }
+  // Pengelola asrama (0110) membetulkan setoran anak asramanya sendiri —
+  // BPA asrama putra, BPI asrama putri.
   if (!canManageSetoran(session.role, student.jenjang as Jenjang, student.program as string | null)) {
-    return { error: 'Anda tidak memiliki izin untuk siswa ini.' }
+    const gender = await genderAsramaSiswa(student.id)
+    if (!gender || !canManageAsrama(session.role, gender)) {
+      return { error: 'Anda tidak memiliki izin untuk siswa ini.' }
+    }
   }
 
   return { studentId: student.id }
@@ -61,6 +67,8 @@ function refresh(studentId: string) {
   revalidatePath(`/siswa/${studentId}`)
   revalidatePath(`/guru/siswa/${studentId}`)
   revalidatePath('/dashboard/analitik/kelengkapan')
+  revalidatePath('/setoran')
+  revalidatePath('/asrama')
 }
 
 // ── Hapus ────────────────────────────────────────────────────────────────────
