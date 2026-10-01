@@ -1676,6 +1676,22 @@ export function canManageUjian(role: UserRole, unit: UjianUnit): boolean {
 }
 
 /**
+ * Div Qur'an BPA/BPI hanya MENGAJUKAN ujian anak boarding segendernya
+ * (keputusan RQ 2026-10-01): BPA anak boarding putra, BPI putri. Antrean SMP
+ * tetap dikelola bersama Koor SMP; yang dipersempit hanya siapa yang boleh
+ * mereka ajukan, dan lonceng pengajuan baru hanya untuk anak boarding itu.
+ * null = tidak dibatasi gender boarding.
+ */
+export function getUjianBoardingScope(role: UserRole): 'L' | 'P' | null {
+  if (role === 'div_quran_bpa') return 'L'
+  if (role === 'div_quran_bpi') return 'P'
+  return null
+}
+
+/** Program SMP yang tinggal di asrama — dasar getUjianBoardingScope. */
+export const PROGRAM_SMP_BOARDING = ['reguler_bd', 'boarding_quls'] as const
+
+/**
  * Boleh mengajukan ujian lewat dashboard pengurus.
  *
  * Pengaju utamanya guru lewat portal /guru; koordinator diberi hak yang sama

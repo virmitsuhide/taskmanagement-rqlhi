@@ -1,5 +1,5 @@
 import { createServerClient } from '@/lib/supabase/server'
-import { getKoorUnitUjian, ujianHanyaQuls } from '@/lib/auth/permissions'
+import { getKoorUnitUjian, getUjianBoardingScope, PROGRAM_SMP_BOARDING, ujianHanyaQuls } from '@/lib/auth/permissions'
 import { getUjianGuru } from '@/lib/data/ujian'
 import { getTahfidzLabel, formatTahsinLevels } from '@/lib/rq/ujian'
 import type { TahfidzTipe, UjianSiswa, UjianUnit, UserRole } from '@/types'
@@ -45,6 +45,7 @@ interface BarisTahfidz {
   status: string; jadwal: string | null; created_at: string
   created_by_teacher: string | null; created_by_user: string | null
   dijadwalkan_at: string | null; selesai_at: string | null
+  student_id?: string | null
 }
 
 /**
@@ -155,10 +156,13 @@ export async function getNotifUjianGuru(teacherId: string): Promise<NotifUjianGu
 /**
  * Role yang menerima kabar pengajuan baru, beserta unitnya.
  *
- * Sengaja hanya koordinator unit — merekalah yang menjadwalkan. Kepala RQ,
- * Kumik, dan BPA/BPI memang boleh mengelola antrian, tapi memberi tahu semua
- * yang berwenang berarti setiap pengajuan membunyikan lima lonceng untuk satu
+ * Sengaja hanya koordinator unit — merekalah yang menjadwalkan. Kepala RQ
+ * dan Kumik memang boleh mengelola antrian, tapi memberi tahu semua yang
+ * berwenang berarti setiap pengajuan membunyikan lima lonceng untuk satu
  * pekerjaan yang cukup dikerjakan satu orang. Petanya: getKoorUnitUjian.
+ *
+ * Div Qur'an BPA/BPI (2026-10-01) ikut dikabari, tapi hanya untuk pengajuan
+ * di antrean SMP yang memuat anak boarding segendernya (getUjianBoardingScope).
  */
 
 export interface NotifUjianKoor {
@@ -169,7 +173,8 @@ export interface NotifUjianKoor {
 
 export async function getNotifUjianKoor(userId: string, role: UserRole): Promise<NotifUjianKoor> {
   const kosong: NotifUjianKoor = { items: [], baruCount: 0 }
-  const unit = getKoorUnitUjian(role)
+  const boarding = getUjianBoardingScope(role)
+  const unit = boarding ? 'SMP' : getKoorUnitUjian(role)
   if (!unit) return kosong
 
   try {
@@ -178,7 +183,7 @@ export async function getNotifUjianKoor(userId: string, role: UserRole): Promise
 
     // Koor QULS SD berbagi antrean SD: loncengnya hanya berbunyi untuk anak QULS.
     const quls = ujianHanyaQuls(role)
-    let kueriTahfidz = supabase.from('ujian_tahfidz').select(KOLOM_TAHFIDZ).eq('unit', unit).gte('created_at', sejak)
+    let kueriTahfidz = supabase.from('ujian_tahfidz').select(`${KOLOM_TAHFIDZ}, student_id`).eq('unit', unit).gte('created_at', sejak)
     let kueriTahsin = supabase.from('ujian_tahsin').select(KOLOM_TAHSIN).eq('unit', unit).gte('created_at', sejak)
     if (quls) {
       kueriTahfidz = kueriTahfidz.eq('is_quls', true)
@@ -191,13 +196,30 @@ export async function getNotifUjianKoor(userId: string, role: UserRole): Promise
     ])
     if (tahfidz.error || tahsin.error) return kosong
 
+    // BPA/BPI: hanya baris yang memuat anak boarding segender.
+    let barisTahfidz = (tahfidz.data ?? []) as unknown as BarisTahfidz[]
+    let barisTahsin = (tahsin.data ?? []) as unknown as BarisTahsin[]
+    if (boarding) {
+      const ids = [...new Set([
+        ...barisTahfidz.map(r => r.student_id),
+        ...barisTahsin.flatMap(r => r.siswa.map(x => x.student_id)),
+      ].filter((x): x is string => Boolean(x)))]
+      const { data: anak } = ids.length
+        ? await supabase.from('students').select('id').in('id', ids)
+            .eq('gender', boarding).in('program', [...PROGRAM_SMP_BOARDING])
+        : { data: [] }
+      const milik = new Set(((anak ?? []) as { id: string }[]).map(a => a.id))
+      barisTahfidz = barisTahfidz.filter(r => r.student_id && milik.has(r.student_id))
+      barisTahsin = barisTahsin.filter(r => r.siswa.some(x => x.student_id && milik.has(x.student_id)))
+    }
+
     const loncengDibuka = (user.data?.notifications_seen_at as string | null | undefined) ?? null
     // Titik penanda padam begitu halaman kelola dibuka — di sanalah pengajuan
     // benar-benar ditindaklanjuti, bukan saat loncengnya dilirik.
     const kelolaDibuka = (user.data?.ujian_seen_at as string | null | undefined) ?? null
 
     const items: NotifUjian[] = []
-    for (const r of (tahfidz.data ?? []) as unknown as BarisTahfidz[]) {
+    for (const r of barisTahfidz) {
       if (r.created_by_user === userId || riwayatTanpaTanggal(r)) continue
       items.push({
         id: `tahfidz:${r.id}:diajukan`, jenis: 'diajukan', ujian: 'tahfidz',
@@ -205,7 +227,7 @@ export async function getNotifUjianKoor(userId: string, role: UserRole): Promise
         dibaca: r.status !== 'diajukan' || (kelolaDibuka !== null && r.created_at <= kelolaDibuka),
       })
     }
-    for (const r of (tahsin.data ?? []) as unknown as BarisTahsin[]) {
+    for (const r of barisTahsin) {
       if (r.created_by_user === userId) continue
       items.push({
         id: `tahsin:${r.id}:diajukan`, jenis: 'diajukan', ujian: 'tahsin',

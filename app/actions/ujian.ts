@@ -6,6 +6,7 @@ import { getSession } from '@/lib/auth/session'
 import { getTeacherSession } from '@/lib/auth/teacher-session'
 import {
   canManageUjian, canManageUjianBaris, canSubmitUjian, getUjianProgramScope, getUjianUnits, ujianHanyaQuls,
+  getUjianBoardingScope, PROGRAM_SMP_BOARDING,
 } from '@/lib/auth/permissions'
 import { getUnitsUjianGuru } from '@/lib/data/ujian'
 import { cocokkanLevelUjian, getTahfidzLabel, UJIAN_UNIT_JENJANG, type TahapLevel, tanggalWIB } from '@/lib/rq/ujian'
@@ -51,6 +52,31 @@ interface Pengaju {
    * Program yang boleh; null = seluruh siswa unit.
    */
   program: readonly string[] | null
+  /**
+   * Div Qur'an BPA/BPI: hanya anak boarding SMP ber-gender ini
+   * (getUjianBoardingScope). null = tidak dibatasi.
+   */
+  boarding: 'L' | 'P' | null
+}
+
+/**
+ * Pastikan setiap siswa yang diajukan BPA/BPI adalah anak boarding SMP aktif
+ * segender. Siswa tanpa id (nama diketik bebas) ditolak: tanpa id, tidak ada
+ * yang bisa memastikan anak itu anak asrama.
+ */
+async function galatBoarding(gender: 'L' | 'P', studentIds: (string | null | undefined)[]): Promise<string | null> {
+  const label = gender === 'L' ? 'putra' : 'putri'
+  if (studentIds.length === 0 || studentIds.some(id => !id)) {
+    return `Pilih siswa dari saran nama — Anda hanya mengajukan anak boarding ${label}.`
+  }
+  const ids = [...new Set(studentIds as string[])]
+  const { data } = await createServerClient()
+    .from('students').select('id, full_name, jenjang, program, gender, is_active').in('id', ids)
+  const rows = (data ?? []) as { id: string; full_name: string; jenjang: string; program: string | null; gender: string | null; is_active: boolean }[]
+  if (rows.length !== ids.length) return 'Sebagian siswa tidak ditemukan.'
+  const luar = rows.find(r => !r.is_active || r.jenjang !== 'smp' || r.gender !== gender
+    || !PROGRAM_SMP_BOARDING.includes(r.program as typeof PROGRAM_SMP_BOARDING[number]))
+  return luar ? `${luar.full_name} bukan anak boarding ${label} — Anda hanya mengajukan anak boarding ${label}.` : null
 }
 
 const HANYA_QULS = 'Koor QULS SD hanya mengajukan dan mengelola ujian anak QULS.'
@@ -73,7 +99,7 @@ async function guardPengaju(unitDiminta?: UjianUnit): Promise<Pengaju | { error:
     if (!unit) {
       return { error: 'Akun Anda belum punya unit mengajar, jadi belum bisa mengajukan ujian. Hubungi koordinator.' }
     }
-    return { unit, teacherId: guru.teacherId, userId: null, program: null }
+    return { unit, teacherId: guru.teacherId, userId: null, program: null, boarding: null }
   }
 
   const pengurus = await getSession()
@@ -81,7 +107,11 @@ async function guardPengaju(unitDiminta?: UjianUnit): Promise<Pengaju | { error:
     const units = getUjianUnits(pengurus.role)
     const unit = unitDiminta && units.includes(unitDiminta) ? unitDiminta : units[0]
     if (!unit) return { error: 'Anda tidak berwenang mengajukan ujian.' }
-    return { unit, teacherId: null, userId: pengurus.userId, program: getUjianProgramScope(pengurus.role) }
+    return {
+      unit, teacherId: null, userId: pengurus.userId,
+      program: getUjianProgramScope(pengurus.role),
+      boarding: getUjianBoardingScope(pengurus.role),
+    }
   }
 
   return { error: 'Sesi tidak valid atau tidak memiliki izin.' }
@@ -181,6 +211,10 @@ export async function createTahfidzUjianAction(input: {
   if (!namaSiswa) return { error: 'Nama siswa wajib diisi.' }
   if (!namaFlyer) return { error: 'Nama untuk flyer wajib diisi.' }
   if (!kelas) return { error: 'Kelas wajib diisi.' }
+  if (pengaju.boarding) {
+    const galat = await galatBoarding(pengaju.boarding, [input.student_id])
+    if (galat) return { error: galat }
+  }
 
   try {
     const supabase = createServerClient()
@@ -299,6 +333,11 @@ export async function createTahsinUjianAction(input: {
     if (siswa.some(s => s.student_id && !milik.has(s.student_id))) {
       return { error: 'Ada siswa yang bukan dari halaqoh Anda.' }
     }
+  }
+
+  if (pengaju.boarding) {
+    const galat = await galatBoarding(pengaju.boarding, siswa.map(s => s.student_id))
+    if (galat) return { error: galat }
   }
 
   const idSiswa = siswa.map(s => s.student_id).filter((id): id is string => Boolean(id))
@@ -762,6 +801,8 @@ export async function cariSiswaUjianAction(
     .ilike('full_name', `%${q}%`)
   if (idHalaqoh) kueriSiswa = kueriSiswa.in('id', idHalaqoh)
   if (pengaju.program) kueriSiswa = kueriSiswa.in('program', [...pengaju.program])
+  // BPA/BPI: saran nama hanya anak boarding segender — anak lain tidak bisa diajukan.
+  if (pengaju.boarding) kueriSiswa = kueriSiswa.in('program', [...PROGRAM_SMP_BOARDING]).eq('gender', pengaju.boarding)
 
   const { data: siswa } = await kueriSiswa.order('full_name').limit(8)
 
@@ -815,6 +856,12 @@ export async function catatRiwayatTahfidzAction(input: InputRiwayatTahfidz & { u
   const pengurus = await getSession()
   if (!pengurus || !canManageUjian(pengurus.role, input.unit)) {
     return { error: 'Hanya pengurus unit yang bisa mencatat riwayat ujian.' }
+  }
+  // BPA/BPI: riwayat pun hanya untuk anak boarding segendernya.
+  const boarding = getUjianBoardingScope(pengurus.role)
+  if (boarding) {
+    const galat = await galatBoarding(boarding, [input.student_id])
+    if (galat) return { error: galat }
   }
 
   const hasil = await simpanRiwayatTahfidz(pengurus.userId, input, {
