@@ -23,6 +23,7 @@ import type { KelompokKlasikal } from '@/lib/data/kelompok-klasikal'
 import type { HasilMateri } from '@/lib/data/materi-tahsin'
 import { anggotaDariPengaturan, usulanKelompok } from '@/lib/rq/klasikal'
 import { tanggalWIB } from '@/lib/rq/ujian'
+import { tahapBerlaku } from '@/lib/tahsin'
 import { LencanaLevel } from '@/components/asrama/LencanaLevel'
 import { BARIS_MAKS, LABEL_STATUS_TAHSIN, URUTAN_STATUS_TAHSIN } from '@/lib/rq/status-tahsin'
 import type { TahsinStatus } from '@/types'
@@ -216,7 +217,9 @@ export function SetoranSesiTahsin({ siswa: siswaAsli, surat, halaqohId, pengatur
       ? { ...s, jilid_id: j.id, jilid_label: j.label, total_halaman: j.total_halaman, baca_quran: j.baca_quran, halaman: j.total_halaman !== null ? 1 : null }
       : s
   }), [siswaAsli, jilidAwal, awalDipilih])
-  const pilihanAwal = (s: SiswaSesiTahsin) => (s.method_id ? jilidAwal[s.method_id] : undefined) ?? []
+  // Tahap khusus unit disaring per anak: KIBAR "Pra" hanya untuk anak SD Juara.
+  const pilihanAwal = (s: SiswaSesiTahsin) =>
+    ((s.method_id ? jilidAwal[s.method_id] : undefined) ?? []).filter(j => tahapBerlaku(j.metode, j.label, s.jenjang))
   function tetapkanAwal(ids: string[], jilidId: string) {
     setAwalDipilih(prev => {
       const next = { ...prev }

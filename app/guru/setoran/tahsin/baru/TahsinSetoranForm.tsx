@@ -17,7 +17,7 @@ import {
 import { PilihMateri, type PilihanMateri } from '@/components/setoran/PilihMateri'
 import type { SuratPilihan } from '@/components/setoran/SetoranSesiTahfidz'
 import type { HasilMateri, MateriTahsin } from '@/lib/data/materi-tahsin'
-import { methodsForJenjang } from '@/lib/tahsin'
+import { methodsForJenjang, tahapBerlaku } from '@/lib/tahsin'
 import type { Jenjang } from '@/types'
 import { tanggalWIB } from '@/lib/rq/ujian'
 import { BARIS_MAKS, LABEL_STATUS_TAHSIN } from '@/lib/rq/status-tahsin'
@@ -104,9 +104,13 @@ export function TahsinSetoranForm({
     [selectedStudent, methods],
   )
 
+  // Tahap khusus unit (mis. KIBAR "Pra" hanya SD LHI Juara) — lihat tahapBerlaku.
+  const namaMetode = methods.find(m => m.id === methodId)?.name
   const jilidOptions = useMemo(
-    () => jilidLevels.filter(j => j.method_id === methodId).sort((a, b) => a.order_num - b.order_num),
-    [jilidLevels, methodId],
+    () => jilidLevels
+      .filter(j => j.method_id === methodId && tahapBerlaku(namaMetode, j.label, selectedStudent?.jenjang as Jenjang | undefined))
+      .sort((a, b) => a.order_num - b.order_num),
+    [jilidLevels, methodId, namaMetode, selectedStudent],
   )
 
   // Saat ganti siswa, sync metode & jilid ke posisi siswa

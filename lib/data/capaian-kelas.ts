@@ -6,7 +6,7 @@ import { getInfoSurat } from '@/lib/data/nama-surat'
 import { hitungJuzHafalan, posisiJuz, URUTAN_JUZ } from '@/lib/rq/hafalan'
 import { mencapaiTarget } from '@/lib/rq/level'
 import { UNIT_LABELS, UNIT_ORDER } from '@/lib/rq/programs'
-import { JENJANG_METHODS, methodsForProgram } from '@/lib/tahsin'
+import { JENJANG_METHODS, methodsForProgram, tahapBerlaku } from '@/lib/tahsin'
 import type { Jenjang } from '@/types'
 
 /**
@@ -31,7 +31,8 @@ export const BELUM_TERCATAT = 'Belum tercatat'
 
 /** Urutan kolom tahsin — ordinal, tidak pernah diurut menurut jumlah. */
 const URUTAN_TAHSIN = [
-  'Jilid 1', 'Jilid 2', 'Jilid 3', 'Jilid 4', 'Jilid 5', 'Jilid 6',
+  // Pra = buku sebelum Jilid 1 (KIBAR SD LHI Juara saja — tahapBerlaku).
+  'Pra', 'Jilid 1', 'Jilid 2', 'Jilid 3', 'Jilid 4', 'Jilid 5', 'Jilid 6',
   "Al-Qur'an", 'Gharib', 'Tajwid', 'Lulus',
 ] as const
 
@@ -151,6 +152,7 @@ function tingkatOf(kelas: string | null): number | null {
 /** Satukan label jilid_levels lintas metode menjadi kolom laporan. */
 function kolomTahsin(level: BarisLevel): string {
   if (level.is_terminal) return 'Lulus'
+  if (/^pra/i.test(level.label.trim())) return 'Pra'
   const jilid = /^jilid\s*([1-6])/i.exec(level.label)
   if (jilid) return `Jilid ${jilid[1]}`
   const l = level.label.toLowerCase()
@@ -563,7 +565,10 @@ export async function getCapaianKelas(jenjangBoleh: Jenjang[], opsi: { sampai?: 
       )
       const metodeResmi = new Set(methodsForProgram(jenjang, jalur === 'quls' ? siswa[0]?.program : null) ?? JENJANG_METHODS[jenjang])
       const tetapTahsin = new Set([
-        ...levels.filter(l => metodeResmi.has(namaMetode.get(l.method_id) ?? '')).map(kolomTahsin),
+        // Tahap khusus unit (KIBAR "Pra" hanya SD Juara) tidak menjadi kolom
+        // tetap di unit lain — kolom itu akan selalu kosong di sana.
+        ...levels.filter(l => metodeResmi.has(namaMetode.get(l.method_id) ?? '')
+          && tahapBerlaku(namaMetode.get(l.method_id), l.label, jenjang)).map(kolomTahsin),
         BELUM_TERCATAT,
       ])
 

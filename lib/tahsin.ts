@@ -66,6 +66,26 @@ export function methodsForJenjang<T extends { name: string }>(
   return methods.filter(m => berlaku.includes(m.name))
 }
 
+/**
+ * Tahap metode yang hanya berlaku di unit tertentu — label tahap (huruf kecil)
+ * → unit yang memakainya. Tahap yang tidak disebut berlaku di semua unit.
+ *
+ * KIBAR SD LHI Juara memakai buku "Pra" sebelum Jilid 1 (Pra, Jilid 1–3,
+ * Al-Qur'an, Lulus Tahsin); KIBAR SD LHI langsung mulai Jilid 1. Keduanya
+ * satu metode di jilid_levels, jadi Pra disembunyikan dari unit lain di sini:
+ * formulir siswa, pilihan jilid awal, dan kolom tabel capaian.
+ */
+const TAHAP_KHUSUS_UNIT: Partial<Record<string, Record<string, Jenjang[]>>> = {
+  [METHOD.KIBAR]: { pra: ['sd_juara'] },
+}
+
+/** Apakah tahap `label` metode `metode` berlaku bagi siswa unit `jenjang`. Tanpa jenjang/metode: berlaku. */
+export function tahapBerlaku(metode: string | null | undefined, label: string, jenjang: Jenjang | null | undefined): boolean {
+  if (!metode || !jenjang) return true
+  const khusus = TAHAP_KHUSUS_UNIT[metode]?.[label.trim().toLowerCase()]
+  return !khusus || khusus.includes(jenjang)
+}
+
 // ─── Tampilan jenis setoran tahfidz ─────────────────────────────────
 export interface TahfidzKindMeta {
   label: string

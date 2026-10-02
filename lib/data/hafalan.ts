@@ -1,6 +1,7 @@
 import { cache } from 'react'
 import { createServerClient } from '@/lib/supabase/server'
-import { daftarJuzLulus, hitungJuzHafalan, juzSelesaiSetoran, juzTerjauh } from '@/lib/rq/hafalan'
+import { daftarJuzLulus, hitungJuzHafalan, juzSelesaiSetoran, juzTerjauh, posisiJuz, URUTAN_JUZ } from '@/lib/rq/hafalan'
+import type { HafalanSaran } from '@/lib/rq/saran-surat'
 
 /**
  * Id siswa unit TANPA urutan hafalan (SMA — lihat urutanBebas di
@@ -274,4 +275,38 @@ export function juzGabunganPerSiswa(
     gabungan.set(id, Math.max(gabungan.get(id) ?? 0, n))
   }
   return gabungan
+}
+
+/**
+ * Posisi hafalan per siswa untuk SARAN surat muroja'ah (PilihSurat): juz yang
+ * sudah tuntas dan juz yang sedang dihafal.
+ *
+ *   - berjalan : juz terjauh yang punya setoran (juz_progress, ayat > 0);
+ *   - tuntas   : juz teruji (ujian lulus) ∪ — kecuali urutan bebas (SMA) —
+ *                juz sebelum juz berjalan dalam urutan hafalan RQ.
+ *
+ * Hanya bahan saran, bukan aturan: yang tidak tercatat di sini tetap boleh
+ * dimuroja'ah (lihat lib/rq/saran-surat.ts).
+ */
+export async function getHafalanSaran(studentIds: string[]): Promise<Map<string, HafalanSaran>> {
+  const hasil = new Map<string, HafalanSaran>()
+  if (studentIds.length === 0) return hasil
+  const supabase = createServerClient()
+  const [teruji, progresRes, bebas] = await Promise.all([
+    getJuzTerujiPerSiswa(studentIds),
+    supabase.from('juz_progress').select('student_id, juz_number, ayat_hafal, mutqin').in('student_id', studentIds),
+    getSiswaUrutanBebas(),
+  ])
+  const berjalan = juzBerjalanPerSiswa((progresRes.data ?? []) as BarisJuzProgress[])
+  for (const id of studentIds) {
+    const b = berjalan.get(id) ?? null
+    const tuntas = new Set(teruji.get(id) ?? [])
+    if (b !== null && !bebas.has(id)) {
+      const p = posisiJuz(b)
+      if (p !== null) for (const j of URUTAN_JUZ.slice(0, p - 1)) tuntas.add(j)
+    }
+    if (b !== null) tuntas.delete(b)
+    hasil.set(id, { tuntas: [...tuntas].sort((x, y) => x - y), berjalan: b })
+  }
+  return hasil
 }

@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import { getJuzTerujiPerSiswa } from '@/lib/data/hafalan'
+import { getHafalanSaran, getJuzTerujiPerSiswa } from '@/lib/data/hafalan'
 import { getTeacherSession } from '@/lib/auth/teacher-session'
 import { getTeacherHalaqohIds } from '@/lib/data/teacher'
 import { createServerClient } from '@/lib/supabase/server'
@@ -47,8 +47,13 @@ export default async function NewTahfidzSetoranPage({ searchParams }: PageProps)
 
   // Juz teruji per siswa — untuk hint muroja'ah lama. Sumbernya ujian yang
   // sudah selesai, bukan centang "mutqin" di setoran yang sudah dicabut.
-  const juzTeruji = await getJuzTerujiPerSiswa(students.map(s => s.id))
+  // Ditambah juz tuntas & juz berjalan untuk saran surat di isian muroja'ah.
+  const [juzTeruji, hafalan] = await Promise.all([
+    getJuzTerujiPerSiswa(students.map(s => s.id)),
+    getHafalanSaran(students.map(s => s.id)),
+  ])
   const completedJuzByStudent: Record<string, number[]> = Object.fromEntries(juzTeruji)
+  const hafalanByStudent = Object.fromEntries(hafalan)
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--secondary)' }}>
@@ -82,6 +87,7 @@ export default async function NewTahfidzSetoranPage({ searchParams }: PageProps)
             students={students}
             surat={suratRes.data ?? []}
             completedJuzByStudent={completedJuzByStudent}
+            hafalanByStudent={hafalanByStudent}
             defaultStudentId={defaultStudentId}
             antrian={antrian}
           />

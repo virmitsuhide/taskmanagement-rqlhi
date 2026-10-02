@@ -51,13 +51,15 @@ const METHODS: MethodSeed[] = [
       { label: 'Lulus Tahsin', order_num: 13, total_pages: null, is_quran: false, is_terminal: true },
     ],
   },
-  // KIBAR — 3 jilid (38 hal) → Talaqqi Al-Qur'an → Lulus
-  { name: 'KIBAR', description: '3 jilid (38 hal) → Talaqqi Al-Qur’an',
+  // KIBAR — [Pra (28 hal), khusus SD Juara] → 3 jilid (38 hal) → Al-Qur'an → Lulus.
+  // Pra hanya berlaku di SD LHI Juara; unit lain menyembunyikannya (tahapBerlaku, lib/tahsin.ts).
+  { name: 'KIBAR', description: '[Pra — SD Juara] → 3 jilid (38 hal) → Al-Qur’an',
     levels: [
+      { label: 'Pra', order_num: 0, total_pages: 28, is_quran: false },
       { label: 'Jilid 1', order_num: 1, total_pages: 38, is_quran: false },
       { label: 'Jilid 2', order_num: 2, total_pages: 38, is_quran: false },
       { label: 'Jilid 3', order_num: 3, total_pages: 38, is_quran: false },
-      { label: 'Talaqqi Al-Qur’an', order_num: 4, total_pages: null, is_quran: true },
+      { label: 'Al-Qur’an', order_num: 4, total_pages: null, is_quran: true },
       { label: 'Lulus Tahsin', order_num: 5, total_pages: null, is_quran: false, is_terminal: true },
     ],
   },

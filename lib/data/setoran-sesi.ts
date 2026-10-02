@@ -4,6 +4,8 @@ import { getTeacherHalaqohIds, type JenisSetoran } from '@/lib/data/teacher'
 import { getLevelPerSiswa } from '@/lib/data/asrama'
 import type { LevelAsrama } from '@/lib/rq/asrama'
 import { getJuzDrillPerSiswa, type JuzDrillSiswa } from '@/lib/data/drill-tahfidz'
+import { getHafalanSaran } from '@/lib/data/hafalan'
+import type { HafalanSaran } from '@/lib/rq/saran-surat'
 import {
   getMateriPerJilid, getHasilMateriPerSiswa, type MateriTahsin, type HasilMateri,
 } from '@/lib/data/materi-tahsin'
@@ -63,6 +65,8 @@ export interface SiswaSesiTahsin {
   id: string
   full_name: string
   kelas: string | null
+  /** Unit siswa — tahap khusus unit (KIBAR "Pra" hanya SD Juara, tahapBerlaku). */
+  jenjang: Jenjang | null
   method_id: string | null
   jilid_id: string | null
   jilid_label: string | null
@@ -130,7 +134,7 @@ export async function getSiswaSesiTahsin(sasaran: SasaranSesi): Promise<SiswaSes
   const { data } = await supabase
     .from('students')
     .select(
-      'id, full_name, kelas, current_method_id, current_jilid_id, current_jilid_page, tahsin_drill_sejak,' +
+      'id, full_name, kelas, jenjang, current_method_id, current_jilid_id, current_jilid_page, tahsin_drill_sejak,' +
       ' current_quran_halaman, current_quran_surat_id, current_quran_ayat,' +
       ' jilid:jilid_levels!students_current_jilid_id_fkey(label, total_pages, baca_quran, is_terminal)',
     )
@@ -139,7 +143,7 @@ export async function getSiswaSesiTahsin(sasaran: SasaranSesi): Promise<SiswaSes
     .order('full_name')
 
   const rows = ((data ?? []) as unknown as Array<{
-    id: string; full_name: string; kelas: string | null
+    id: string; full_name: string; kelas: string | null; jenjang: Jenjang | null
     current_method_id: string | null; current_jilid_id: string | null; current_jilid_page: number | null
     tahsin_drill_sejak: string | null
     current_quran_halaman: number | null; current_quran_surat_id: number | null; current_quran_ayat: number | null
@@ -162,6 +166,7 @@ export async function getSiswaSesiTahsin(sasaran: SasaranSesi): Promise<SiswaSes
     id: s.id,
     full_name: s.full_name,
     kelas: s.kelas,
+    jenjang: s.jenjang,
     method_id: s.current_method_id,
     jilid_id: s.current_jilid_id,
     jilid_label: s.jilid?.label ?? null,
@@ -185,6 +190,8 @@ export async function getSiswaSesiTahsin(sasaran: SasaranSesi): Promise<SiswaSes
 export interface PilihanJilidAwal {
   id: string
   label: string
+  /** Nama metodenya — untuk tahapBerlaku (tahap khusus unit). */
+  metode: string
   total_halaman: number | null
   baca_quran: boolean
 }
@@ -203,17 +210,17 @@ export async function getPilihanJilidAwal(siswa: SiswaSesiTahsin[]): Promise<Rec
   if (metode.length === 0) return {}
   const { data } = await createServerClient()
     .from('jilid_levels')
-    .select('id, method_id, label, total_pages, baca_quran')
+    .select('id, method_id, label, total_pages, baca_quran, metode:tahsin_methods(name)')
     .in('method_id', metode)
     .eq('is_terminal', false)
     .order('order_num')
-  const baris = (data ?? []) as { id: string; method_id: string; label: string; total_pages: number | null; baca_quran: boolean }[]
+  const baris = (data ?? []) as unknown as { id: string; method_id: string; label: string; total_pages: number | null; baca_quran: boolean; metode: { name: string } | null }[]
   const berMateri = await getMateriPerJilid(baris.map(b => b.id))
 
   const hasil: Record<string, PilihanJilidAwal[]> = {}
   for (const b of baris) {
     if ((berMateri.get(b.id)?.length ?? 0) > 0) continue
-    ;(hasil[b.method_id] ??= []).push({ id: b.id, label: b.label, total_halaman: b.total_pages, baca_quran: Boolean(b.baca_quran) })
+    ;(hasil[b.method_id] ??= []).push({ id: b.id, label: b.label, metode: b.metode?.name ?? '', total_halaman: b.total_pages, baca_quran: Boolean(b.baca_quran) })
   }
   return hasil
 }
@@ -232,6 +239,8 @@ export interface SiswaSesiTahfidz {
   drill: JuzDrillSiswa[]
   /** Level anak boarding (0110); null = bukan anak asrama / belum ditetapkan. */
   level: LevelAsrama | null
+  /** Juz tuntas & berjalan — saran surat muroja'ah (getHafalanSaran). */
+  hafalan: HafalanSaran
 }
 
 export async function getSiswaSesiTahfidz(sasaran: SasaranSesi): Promise<SiswaSesiTahfidz[]> {
@@ -245,9 +254,10 @@ export async function getSiswaSesiTahfidz(sasaran: SasaranSesi): Promise<SiswaSe
   const rows = (siswa ?? []) as { id: string; full_name: string; kelas: string | null; jenjang: Jenjang | null }[]
   if (rows.length === 0) return []
 
-  const [drill, level] = await Promise.all([
+  const [drill, level, hafalan] = await Promise.all([
     getJuzDrillPerSiswa(rows.map(r => r.id)),
     getLevelPerSiswa(rows.map(r => r.id)),
+    getHafalanSaran(rows.map(r => r.id)),
   ])
 
   const { data: logs } = await supabase
@@ -267,5 +277,8 @@ export async function getSiswaSesiTahfidz(sasaran: SasaranSesi): Promise<SiswaSe
     }
   }
 
-  return rows.map(r => ({ ...r, terakhir: terakhir.get(r.id) ?? null, drill: drill.get(r.id) ?? [], level: level.get(r.id) ?? null }))
+  return rows.map(r => ({
+    ...r, terakhir: terakhir.get(r.id) ?? null, drill: drill.get(r.id) ?? [], level: level.get(r.id) ?? null,
+    hafalan: hafalan.get(r.id) ?? { tuntas: [], berjalan: null },
+  }))
 }

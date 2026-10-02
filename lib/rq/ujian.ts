@@ -76,7 +76,8 @@ const JILID = (n: number, awalan = 'Jilid') => Array.from({ length: n }, (_, i) 
 export const TAHSIN_LEVELS: Record<UjianUnit, string[]> = {
   TPAIT: [...JILID(6), "Al-Qur'an"],
   SD: [...JILID(6), "Al-Qur'an", 'Gharib', 'Tajwid'],
-  'SD Juara': [...JILID(3, 'KIBAR Jilid'), ...JILID(6, "Iqro' Jilid"), "Al-Qur'an"],
+  // KIBAR SD Juara diawali buku Pra (lib/tahsin.ts → tahapBerlaku).
+  'SD Juara': ['KIBAR Pra', ...JILID(3, 'KIBAR Jilid'), ...JILID(6, "Iqro' Jilid"), "Al-Qur'an"],
   SMP: JILID(5),
   SMA: JILID(5),
 }
@@ -448,6 +449,10 @@ export function cocokkanLevelUjian(tahapan: TahapLevel[], level: string, metode?
   if (awalan) {
     if (metode && rapikan(metode) !== awalan[1]) return null
     l = l.slice(awalan[0].length)
+    // "KIBAR Pra" → tahap "Pra": setelah awalan metode dibuang, nama tahap
+    // yang bukan jilid bernomor bisa langsung cocok persis.
+    const persisTanpaMetode = tahapan.find(t => rapikan(t.label) === l)
+    if (persisTanpaMetode) return persisTanpaMetode
   }
 
   const jilid = /jilid\s*(\d+)/.exec(l)

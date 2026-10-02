@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label'
 import { cn } from '@/lib/utils'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { JENJANG_LABELS } from '@/lib/auth/permissions'
-import { methodsForJenjang } from '@/lib/tahsin'
+import { methodsForJenjang, tahapBerlaku } from '@/lib/tahsin'
 import { getProgramsForJenjang } from '@/lib/rq/programs'
 import { bakukanKelas, contohKelas, KELAS_TETAP } from '@/lib/rq/kelas'
 import type { Jenjang, Halaqoh, TahsinMethod, JilidLevel } from '@/types'
@@ -104,9 +104,13 @@ export function StudentForm({
     () => methodsForJenjang(jenjang, methods, programKini),
     [jenjang, methods, programKini],
   )
+  // Tahap khusus unit (mis. KIBAR "Pra" hanya SD LHI Juara) — lihat tahapBerlaku.
+  const namaMetode = methods.find(m => m.id === methodId)?.name
   const jilidOptions = useMemo(
-    () => (methodId === NONE ? [] : jilidLevels.filter(j => j.method_id === methodId).sort((a, b) => a.order_num - b.order_num)),
-    [jilidLevels, methodId],
+    () => (methodId === NONE ? [] : jilidLevels
+      .filter(j => j.method_id === methodId && tahapBerlaku(namaMetode, j.label, jenjang))
+      .sort((a, b) => a.order_num - b.order_num)),
+    [jilidLevels, methodId, namaMetode, jenjang],
   )
 
   /** Buang metode terpilih kalau ia tak lagi berlaku untuk unit/program baru. */

@@ -16,6 +16,8 @@ import { TAHFIDZ_KIND_META } from '@/lib/tahsin'
 import { bolehLintasSurat, jumlahAyatRentang, periksaRentang } from '@/lib/rq/rentang-surat'
 import type { TahfidzKind } from '@/types'
 import { tanggalWIB } from '@/lib/rq/ujian'
+import { PilihSurat } from '@/components/setoran/PilihSurat'
+import { saranMurojaah, suratTercatatHafal, type HafalanSaran } from '@/lib/rq/saran-surat'
 
 interface StudentOption {
   id: string
@@ -34,6 +36,8 @@ interface Props {
   surat: SuratOption[]
   /** Juz teruji per siswa (dari ujian yang selesai) — untuk hint muroja'ah lama. */
   completedJuzByStudent?: Record<string, number[]>
+  /** Juz tuntas & berjalan per siswa — saran surat muroja'ah (getHafalanSaran). */
+  hafalanByStudent?: Record<string, HafalanSaran>
   defaultStudentId?: string
   /** Urutan anak dari layar Mulai sesi — untuk tombol "Simpan & berikutnya". */
   antrian?: string[]
@@ -41,7 +45,7 @@ interface Props {
 
 const today = () => tanggalWIB(new Date())
 
-export function TahfidzSetoranForm({ students, surat, completedJuzByStudent = {}, defaultStudentId, antrian }: Props) {
+export function TahfidzSetoranForm({ students, surat, completedJuzByStudent = {}, hafalanByStudent = {}, defaultStudentId, antrian }: Props) {
   const router = useRouter()
   const initialStudent = students.find(s => s.id === defaultStudentId) ?? null
   const [studentId, setStudentId] = useState(defaultStudentId ?? '')
@@ -116,6 +120,7 @@ export function TahfidzSetoranForm({ students, surat, completedJuzByStudent = {}
         kind={kind}
         surat={surat}
         completedJuz={completedJuz}
+        hafalan={hafalanByStudent[studentId]}
         onCancel={() => router.back()}
         lanjut={(pending: boolean) => (
           <TombolLanjut students={students} studentId={studentId} antrian={antrian} jenis="tahfidz" disabled={pending} />
@@ -127,13 +132,14 @@ export function TahfidzSetoranForm({ students, surat, completedJuzByStudent = {}
 
 // ─── Setoran harian (ziyadah / muroja'ah baru / lama) ───────────────
 function DailySubForm({
-  studentId, kind, surat, completedJuz, onCancel, lanjut,
+  studentId, kind, surat, completedJuz, hafalan, onCancel, lanjut,
 }: {
   lanjut?: (pending: boolean) => React.ReactNode
   studentId: string
   kind: Exclude<TahfidzKind, 'tasmi'>
   surat: SuratOption[]
   completedJuz: number[]
+  hafalan?: HafalanSaran
   onCancel: () => void
 }) {
   const [state, formAction, isPending] = useActionState(createTahfidzLogAction, null)
@@ -162,11 +168,10 @@ function DailySubForm({
     : 0
   const ayatOutOfRange = Boolean(galatRentang)
 
-  const pilihanSurat = surat.map(s => (
-    <SelectItem key={s.id} value={String(s.id)}>
-      {s.id}. {s.name_latin} ({s.total_ayat} ayat)
-    </SelectItem>
-  ))
+  // Muroja'ah: surat yang sudah dihafal ditaruh di atas; yang di luar itu
+  // tetap boleh, hanya diberi keterangan (lib/rq/saran-surat.ts).
+  const saran = lintas ? saranMurojaah(kind, hafalan) : null
+  const hafal = lintas ? suratTercatatHafal(hafalan) : null
 
   return (
     <form onSubmit={kirim.onSubmit} className="space-y-5">
@@ -191,10 +196,8 @@ function DailySubForm({
             <div className="grid grid-cols-[minmax(0,1fr)_88px] gap-3">
               <div className="min-w-0 space-y-1.5">
                 <Label htmlFor="surat_id">Dari surat *</Label>
-                <Select name="surat_id" value={suratId} onValueChange={setSuratId} required>
-                  <SelectTrigger id="surat_id" className="w-full min-w-0"><SelectValue placeholder="Pilih surat" /></SelectTrigger>
-                  <SelectContent className="max-h-72">{pilihanSurat}</SelectContent>
-                </Select>
+                <PilihSurat id="surat_id" name="surat_id" surat={surat} value={suratId} onChange={setSuratId}
+                  saran={saran} hafal={hafal} required disabled={isPending} />
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="ayat_dari">Ayat *</Label>
@@ -209,15 +212,9 @@ function DailySubForm({
             <div className="grid grid-cols-[minmax(0,1fr)_88px] gap-3">
               <div className="min-w-0 space-y-1.5">
                 <Label htmlFor="surat_ke">Sampai surat</Label>
-                <Select value={suratKe} onValueChange={setSuratKe}>
-                  <SelectTrigger id="surat_ke" className="w-full min-w-0"><SelectValue /></SelectTrigger>
-                  <SelectContent className="max-h-72">
-                    <SelectItem value="sama">
-                      {selectedSurat ? `Surat yang sama (${selectedSurat.name_latin})` : 'Surat yang sama'}
-                    </SelectItem>
-                    {pilihanSurat}
-                  </SelectContent>
-                </Select>
+                <PilihSurat id="surat_ke" surat={surat} value={suratKe === 'sama' ? '' : suratKe}
+                  onChange={v => setSuratKe(v || 'sama')} saran={saran} hafal={hafal} disabled={isPending}
+                  kosong={selectedSurat ? `Surat yang sama (${selectedSurat.name_latin})` : 'Surat yang sama'} />
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="ayat_ke">Ayat *</Label>
@@ -235,10 +232,8 @@ function DailySubForm({
             <div className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_120px] gap-3">
               <div className="min-w-0 space-y-1.5">
                 <Label htmlFor="surat_id">Surat *</Label>
-                <Select name="surat_id" value={suratId} onValueChange={setSuratId} required>
-                  <SelectTrigger id="surat_id" className="w-full min-w-0"><SelectValue placeholder="Pilih surat" /></SelectTrigger>
-                  <SelectContent className="max-h-72">{pilihanSurat}</SelectContent>
-                </Select>
+                <PilihSurat id="surat_id" name="surat_id" surat={surat} value={suratId} onChange={setSuratId}
+                  required disabled={isPending} />
               </div>
               <div className="space-y-1.5">
                 <Label>Juz</Label>

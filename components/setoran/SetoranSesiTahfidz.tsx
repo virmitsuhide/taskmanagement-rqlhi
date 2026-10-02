@@ -17,6 +17,8 @@ import type { SetoranGanda } from '@/lib/data/setoran-ganda'
 import type { SiswaSesiTahfidz } from '@/lib/data/setoran-sesi'
 import { tanggalWIB } from '@/lib/rq/ujian'
 import { LencanaLevel } from '@/components/asrama/LencanaLevel'
+import { PilihSurat } from '@/components/setoran/PilihSurat'
+import { saranMurojaah, suratTercatatHafal } from '@/lib/rq/saran-surat'
 
 type Jenis = 'ziyadah' | 'murojaah_baru' | 'murojaah_lama'
 const JENIS: Jenis[] = ['ziyadah', 'murojaah_baru', 'murojaah_lama']
@@ -75,9 +77,6 @@ function ayatAkhir(v: Pick<Isian, 'kind' | 'ayat_dari' | 'ayat_ke'>): number {
   if (v.ayat_ke) return Number(v.ayat_ke)
   return v.kind === 'ziyadah' && v.ayat_dari ? Number(v.ayat_dari) : NaN
 }
-
-const SELECT_CLASS =
-  'h-9 rounded-md border bg-transparent px-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50'
 
 /** Setoran tahfidz satu sesi dalam satu layar — pola yang sama dengan tahsin. */
 export function SetoranSesiTahfidz({ siswa, surat, tanggalTetap, ekstraSlotId, asrama }: {
@@ -281,17 +280,9 @@ export function SetoranSesiTahfidz({ siswa, surat, tanggalTetap, ekstraSlotId, a
                       <div className="flex items-end gap-2">
                         <div className="min-w-0 flex-1 space-y-1">
                           <label className="text-xs font-medium" htmlFor={`surat-${s.id}`}>Dari surat</label>
-                          <select
-                            id={`surat-${s.id}`}
-                            value={v.surat_id}
-                            onChange={e => ubah(s.id, { surat_id: e.target.value })}
-                            className={cn(SELECT_CLASS, 'w-full')}
-                          >
-                            <option value="">Pilih surat…</option>
-                            {surat.map(x => (
-                              <option key={x.id} value={x.id}>{x.id}. {x.name_latin} ({x.total_ayat})</option>
-                            ))}
-                          </select>
+                          <PilihSurat id={`surat-${s.id}`} surat={surat} value={v.surat_id}
+                            onChange={x => ubah(s.id, { surat_id: x })} disabled={pending}
+                            saran={saranMurojaah(v.kind, s.hafalan)} hafal={suratTercatatHafal(s.hafalan)} />
                         </div>
                         <Stepper
                           label="Ayat"
@@ -304,17 +295,10 @@ export function SetoranSesiTahfidz({ siswa, surat, tanggalTetap, ekstraSlotId, a
                       <div className="flex items-end gap-2">
                         <div className="min-w-0 flex-1 space-y-1">
                           <label className="text-xs font-medium" htmlFor={`suratke-${s.id}`}>Sampai surat</label>
-                          <select
-                            id={`suratke-${s.id}`}
-                            value={v.surat_ke_id}
-                            onChange={e => ubah(s.id, { surat_ke_id: e.target.value })}
-                            className={cn(SELECT_CLASS, 'w-full')}
-                          >
-                            <option value="">{info ? `Surat yang sama (${info.name_latin})` : 'Surat yang sama'}</option>
-                            {surat.map(x => (
-                              <option key={x.id} value={x.id}>{x.id}. {x.name_latin} ({x.total_ayat})</option>
-                            ))}
-                          </select>
+                          <PilihSurat id={`suratke-${s.id}`} surat={surat} value={v.surat_ke_id}
+                            onChange={x => ubah(s.id, { surat_ke_id: x })} disabled={pending}
+                            saran={saranMurojaah(v.kind, s.hafalan)} hafal={suratTercatatHafal(s.hafalan)}
+                            kosong={info ? `Surat yang sama (${info.name_latin})` : 'Surat yang sama'} />
                         </div>
                         <Stepper
                           label="Ayat"
@@ -329,17 +313,8 @@ export function SetoranSesiTahfidz({ siswa, surat, tanggalTetap, ekstraSlotId, a
                     <div className="flex flex-wrap items-end gap-2">
                       <div className="min-w-0 flex-1 space-y-1">
                         <label className="text-xs font-medium" htmlFor={`surat-${s.id}`}>Surat</label>
-                        <select
-                          id={`surat-${s.id}`}
-                          value={v.surat_id}
-                          onChange={e => ubah(s.id, { surat_id: e.target.value })}
-                          className={cn(SELECT_CLASS, 'w-full')}
-                        >
-                          <option value="">Pilih surat…</option>
-                          {surat.map(x => (
-                            <option key={x.id} value={x.id}>{x.id}. {x.name_latin} ({x.total_ayat})</option>
-                          ))}
-                        </select>
+                        <PilihSurat id={`surat-${s.id}`} surat={surat} value={v.surat_id}
+                          onChange={x => ubah(s.id, { surat_id: x })} disabled={pending} />
                       </div>
                       {/* Ziyadah: ayat awal melanjutkan setoran terakhir; ayat akhir
                           mulai dari situ — ketuk ▶ sebanyak ayat hafalan baru. */}

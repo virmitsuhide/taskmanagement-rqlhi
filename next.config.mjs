@@ -9,6 +9,12 @@ const nextConfig = {
     },
   },
   images: {
+    // Next 16 menolak gambar remote yang host-nya teresolusi ke IP privat
+    // (perlindungan SSRF). DNS jaringan kantor menjawab *.supabase.co dengan
+    // alamat IPv6 lokal (fd00:…), sehingga di server dev SEMUA thumbnail
+    // Supabase ditolak 400 — yang tampil hanya sisa cache lama. Dilonggarkan
+    // HANYA saat development; di produksi perlindungannya tetap berlaku.
+    dangerouslyAllowLocalIP: process.env.NODE_ENV === 'development',
     remotePatterns: [
       {
         protocol: 'https',
