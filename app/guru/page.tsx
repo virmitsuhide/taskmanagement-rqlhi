@@ -65,7 +65,9 @@ export default async function TeacherHomePage() {
   const keTahfidz = (s: (typeof students)[number]) =>
     hanyaAsrama(s) || jenisGuru(s) === 'tahfidz' || (jenisGuru(s) === null && s.lulus_tahsin)
   const tglAcuan = (s: (typeof students)[number]) =>
-    hanyaAsrama(s) || jenisGuru(s) === 'tahfidz' ? s.last_tahfidz_date : s.last_setoran_date
+    hanyaAsrama(s) || jenisGuru(s) === 'tahfidz' ? s.last_tahfidz_date
+    : jenisGuru(s) === 'tahsin' ? s.last_tahsin_date
+    : s.last_setoran_date
   const peranSemua = [...peranHalaqoh.values()]
   const adaTahsin = peranSemua.length === 0 || peranSemua.some(j => j !== 'tahfidz')
   const adaTahfidz = peranSemua.length === 0 || peranSemua.some(j => j !== 'tahsin')

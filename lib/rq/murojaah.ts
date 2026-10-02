@@ -69,6 +69,22 @@ export interface RekapMurojaah {
   kaliLama: number
 }
 
+/**
+ * Nomor surat yang dimuroja'ah, per jenis — urut mushaf, tiap surat sekali.
+ * Muroja'ah lintas surat menyebut semua surat yang dilewati (suratDilewati),
+ * sama seperti halamanRentang menghitung halamannya.
+ */
+export function suratMurojaah(logs: (RentangSetoran & { kind: string })[]): Record<JenisMurojaah, number[]> {
+  const per: Record<JenisMurojaah, Set<number>> = { baru: new Set(), lama: new Set() }
+  for (const l of logs) {
+    const jenis = jenisMurojaah(l.kind)
+    if (!jenis) continue
+    const daftar = l.surat_ke_id !== null && l.surat_ke_id !== l.surat_id ? suratDilewati(l.surat_id, l.surat_ke_id) : [l.surat_id]
+    for (const s of daftar) per[jenis].add(s)
+  }
+  return { baru: [...per.baru].sort((a, b) => a - b), lama: [...per.lama].sort((a, b) => a - b) }
+}
+
 export const REKAP_MUROJAAH_KOSONG: RekapMurojaah = { baru: 0, lama: 0, kaliBaru: 0, kaliLama: 0 }
 
 /** Rekap muroja'ah dari setoran tahfidz apa pun jenisnya — yang bukan muroja'ah dilewati. */

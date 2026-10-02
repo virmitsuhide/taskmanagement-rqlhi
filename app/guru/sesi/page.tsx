@@ -61,7 +61,8 @@ export default async function MulaiSesiPage({ searchParams }: PageProps) {
   // Antrian setor: anak halaqoh ini yang hadir, paling lama belum setor di atas.
   // Guru khusus tahfidz diukur dari setoran tahfidz; guru khusus tahsin tidak
   // mengantre anak yang sudah Lulus Tahsin — tidak ada yang bisa ia catat.
-  const tglSetor = (s: (typeof semuaSiswa)[number]) => jenisGuru === 'tahfidz' ? s.last_tahfidz_date : s.last_setoran_date
+  const tglSetor = (s: (typeof semuaSiswa)[number]) =>
+    jenisGuru === 'tahfidz' ? s.last_tahfidz_date : jenisGuru === 'tahsin' ? s.last_tahsin_date : s.last_setoran_date
   const anak = semuaSiswa.filter(s => s.halaqoh_id === halaqoh?.id && !(jenisGuru === 'tahsin' && s.lulus_tahsin))
   const sudahSetor = anak.filter(s => tglSetor(s) === hariIni)
   const tidakHadirBelumSetor = anak.filter(s => tidakHadir.has(s.id) && tglSetor(s) !== hariIni).length

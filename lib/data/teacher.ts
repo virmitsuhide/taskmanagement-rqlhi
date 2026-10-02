@@ -89,7 +89,10 @@ export interface TeacherStudentRow {
   tahsin_drill_sejak: string | null
   /** Juz tahfidz yang sedang drill (ziyadah tuntas, ujian 1 juz belum diajukan — 0065). */
   tahfidz_drill_juz: number[]
+  /** Setoran terakhir APA PUN — tahsin, ziyadah, atau muroja'ah. */
   last_setoran_date: string | null
+  /** Setoran tahsin terakhir saja — antrian guru khusus tahsin (SMA). */
+  last_tahsin_date: string | null
   /** Sesi halaqoh (1-3). Null kalau halaqohnya belum punya sesi. */
   sesi: number | null
   /** Nomor HP wali — dipakai mengirim laporan lewat WhatsApp. */
@@ -227,10 +230,13 @@ export async function getTeacherStudents(
     current_jilid_page: r.current_jilid_page,
     tahsin_drill_sejak: r.tahsin_drill_sejak,
     tahfidz_drill_juz: (drillTahfidz.get(r.id) ?? []).map(d => d.juz).sort((a, b) => b - a),
-    // Anak yang sudah Lulus Tahsin tidak setor tahsin lagi: setoran
-    // terakhirnya adalah tahfidz. Tanpa ini ia terus menumpuk di antrian
-    // sebagai "sekian hari belum setor".
-    last_setoran_date: (r.current_jilid?.is_terminal ? tahfidzMap.get(r.id)?.date : lastMap.get(r.id)) ?? null,
+    // Setoran apa pun terhitung setor — muroja'ah juga, bukan hanya tahsin.
+    // Dulu hanya tahsin (kecuali anak Lulus Tahsin), sehingga anak yang hari
+    // itu muroja'ah saja tetap menumpuk di antrian "belum setor". Tanggal
+    // ISO, jadi yang terbesar menurut teks adalah yang terbaru.
+    last_setoran_date: [lastMap.get(r.id), tahfidzMap.get(r.id)?.date]
+      .filter((d): d is string => Boolean(d)).sort().at(-1) ?? null,
+    last_tahsin_date: lastMap.get(r.id) ?? null,
     sesi: r.halaqoh?.sesi ?? null,
     wali_phone: r.wali_phone,
     wali_name: r.wali_name,

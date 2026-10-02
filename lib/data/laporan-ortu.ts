@@ -3,7 +3,7 @@ import { createServerClient } from '@/lib/supabase/server'
 import { getHalaqohSesiGuru, type HalaqohSesi } from '@/lib/data/setoran-sesi'
 import { getPetaHalaman } from '@/lib/data/target-tahfidz'
 import { halamanHafalan } from '@/lib/rq/target-tahfidz'
-import { rekapMurojaah } from '@/lib/rq/murojaah'
+import { rekapMurojaah, suratMurojaah } from '@/lib/rq/murojaah'
 import { getInfoSurat } from '@/lib/data/nama-surat'
 import { getJuzTerujiPerSiswa, getSiswaUrutanBebas, gabungJuz, juzSetoranPerSiswa, type BarisJuzProgress } from '@/lib/data/hafalan'
 import { ttdSrc } from '@/lib/kpi/ttd-berkas'
@@ -180,7 +180,11 @@ export async function getLaporanOrtu(
         // Tasmi' bukan muroja'ah dan tidak ikut dihitung.
         ...(() => {
           const m = rekapMurojaah(peta, tf)
-          return { murojaah: m.kaliBaru + m.kaliLama, murojaahBaruHalaman: m.baru, murojaahLamaHalaman: m.lama }
+          const surat = suratMurojaah(tf)
+          return {
+            murojaah: m.kaliBaru + m.kaliLama, murojaahBaruHalaman: m.baru, murojaahLamaHalaman: m.lama,
+            murojaahBaruSurat: surat.baru.map(namaSurat), murojaahLamaSurat: surat.lama.map(namaSurat),
+          }
         })(),
       },
       ujian: ujianPer.get(s.id) ?? [],

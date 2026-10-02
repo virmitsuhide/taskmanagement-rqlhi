@@ -48,6 +48,9 @@ export interface AnakLaporan {
     /** Halaman muroja'ah dalam periode — volume baca, tiap setoran dijumlah. */
     murojaahBaruHalaman: number
     murojaahLamaHalaman: number
+    /** Nama surat yang dimuroja'ah dalam periode, urut mushaf, tiap surat sekali. */
+    murojaahBaruSurat: string[]
+    murojaahLamaSurat: string[]
     /** Total hafalan saat ini dalam halaman mushaf menurut urutan hafalan RQ. */
     totalHalaman: number
   }
@@ -130,11 +133,30 @@ export function rentangLaporan(
 
 // ─── Angka ───────────────────────────────────────────────────────────────────
 
-/** "baru 6,5 hal. · lama 4 hal." — jenis yang nol tidak ditulis. */
-export function teksMurojaah(t: { murojaahBaruHalaman: number; murojaahLamaHalaman: number }): string {
+/** Surat yang disebut paling banyak per jenis; sisanya diringkas "+N surat lain". */
+const SURAT_MAKS = 6
+
+function daftarSurat(nama: string[]): string {
+  if (nama.length <= SURAT_MAKS) return nama.join(', ')
+  return `${nama.slice(0, SURAT_MAKS).join(', ')} +${nama.length - SURAT_MAKS} surat lain`
+}
+
+/**
+ * "baru: Al-Mulk, Al-Qalam (6,5 hal.) · lama: An-Naba' (4 hal.)" — jenis yang
+ * nol tidak ditulis. Wali perlu tahu SURAT mana yang diulang supaya bisa
+ * ikut menyimak di rumah, bukan hanya berapa halamannya.
+ */
+export function teksMurojaah(t: {
+  murojaahBaruHalaman: number; murojaahLamaHalaman: number
+  murojaahBaruSurat: string[]; murojaahLamaSurat: string[]
+}): string {
+  const satu = (jenis: string, halaman: number, surat: string[]) =>
+    surat.length > 0
+      ? `${jenis}: ${daftarSurat(surat)} (${angka1(halaman)} hal.)`
+      : `${jenis} ${angka1(halaman)} hal.`
   return [
-    t.murojaahBaruHalaman > 0 ? `baru ${angka1(t.murojaahBaruHalaman)} hal.` : null,
-    t.murojaahLamaHalaman > 0 ? `lama ${angka1(t.murojaahLamaHalaman)} hal.` : null,
+    t.murojaahBaruHalaman > 0 ? satu('baru', t.murojaahBaruHalaman, t.murojaahBaruSurat) : null,
+    t.murojaahLamaHalaman > 0 ? satu('lama', t.murojaahLamaHalaman, t.murojaahLamaSurat) : null,
   ].filter(Boolean).join(' · ')
 }
 
