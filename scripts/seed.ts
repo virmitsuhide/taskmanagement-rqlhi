@@ -30,13 +30,19 @@ async function seed() {
   for (const user of USERS) {
     const password_hash = await bcrypt.hash(user.password, 10)
 
-    const { error } = await supabase.from('users').upsert(
-      { username: user.username, password_hash, role: user.role, display_name: user.display_name },
-      { onConflict: 'username' }
-    )
+    // ON CONFLICT DO NOTHING — akun yang sudah ada tidak boleh tertimpa password/nama/role-nya
+    const { data, error } = await supabase
+      .from('users')
+      .upsert(
+        { username: user.username, password_hash, role: user.role, display_name: user.display_name },
+        { onConflict: 'username', ignoreDuplicates: true }
+      )
+      .select('username')
 
     if (error) {
       console.error(`✗ ${user.username}: ${error.message}`)
+    } else if (!data?.length) {
+      console.log(`- ${user.username.padEnd(14)} sudah ada, dilewati`)
     } else {
       console.log(`✓ ${user.username.padEnd(14)} password: ${user.password}`)
     }
