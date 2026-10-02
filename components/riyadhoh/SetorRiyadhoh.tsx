@@ -4,7 +4,7 @@ import { ChevronLeft } from 'lucide-react'
 import { getTeacherSession } from '@/lib/auth/teacher-session'
 import { createServerClient } from '@/lib/supabase/server'
 import { getHadirRiyadhoh, getPesertaKelompok, getSabtuPengampu } from '@/lib/data/riyadhoh'
-import { getSiswaSesiTahfidz, getSiswaSesiTahsin } from '@/lib/data/setoran-sesi'
+import { getPilihanJilidAwal, getSiswaSesiTahfidz, getSiswaSesiTahsin } from '@/lib/data/setoran-sesi'
 import { LABEL_KELOMPOK } from '@/lib/rq/riyadhoh'
 import { SetoranSesiTahfidz, type SuratPilihan } from '@/components/setoran/SetoranSesiTahfidz'
 import { SetoranSesiTahsin } from '@/components/setoran/SetoranSesiTahsin'
@@ -30,6 +30,7 @@ export async function SetorRiyadhoh({ jenis, diminta }: { jenis: 'tahsin' | 'tah
     createServerClient().from('surat_master').select('id, name_latin, total_ayat, juz_start').order('id'),
   ])
   const ids = peserta.filter(p => !hadir[p.id] || hadir[p.id] === 'hadir').map(p => p.id)
+  const siswaTahsin = jenis === 'tahsin' && ids.length > 0 ? await getSiswaSesiTahsin({ siswa: ids }) : []
   const surat = (suratRes.data ?? []) as SuratPilihan[]
   const tanggalTeks = new Date(`${terpilih.tanggal}T00:00:00`).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long' })
 
@@ -82,12 +83,13 @@ export async function SetorRiyadhoh({ jenis, diminta }: { jenis: 'tahsin' | 'tah
         ) : jenis === 'tahsin' ? (
           <SetoranSesiTahsin
             key={terpilih.tanggal}
-            siswa={await getSiswaSesiTahsin({ siswa: ids })}
+            siswa={siswaTahsin}
             surat={surat}
             halaqohId=""
             pengaturan={null}
             tanggalTetap={terpilih.tanggal}
             hrefSatuSatu={`/guru/setoran/tahsin/baru?riyadhoh=${terpilih.tanggal}&student=`}
+            jilidAwal={await getPilihanJilidAwal(siswaTahsin)}
           />
         ) : (
           <SetoranSesiTahfidz

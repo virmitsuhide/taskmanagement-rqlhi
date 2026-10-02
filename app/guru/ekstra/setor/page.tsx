@@ -4,7 +4,7 @@ import { ChevronLeft } from 'lucide-react'
 import { getTeacherSession } from '@/lib/auth/teacher-session'
 import { createServerClient } from '@/lib/supabase/server'
 import { getHadirEkstra, getSlotGuru, labelSlot } from '@/lib/data/ekstra'
-import { getSiswaSesiTahfidz, getSiswaSesiTahsin } from '@/lib/data/setoran-sesi'
+import { getPilihanJilidAwal, getSiswaSesiTahfidz, getSiswaSesiTahsin } from '@/lib/data/setoran-sesi'
 import { SetoranSesiTahfidz, type SuratPilihan } from '@/components/setoran/SetoranSesiTahfidz'
 import { SetoranSesiTahsin } from '@/components/setoran/SetoranSesiTahsin'
 
@@ -32,6 +32,7 @@ export default async function SetorEkstraPage({ searchParams }: { searchParams: 
   const ids = anggota.filter(p => !tidakHadir.has(p.id)).map(p => p.student_id!)
 
   const { data: suratRows } = await createServerClient().from('surat_master').select('id, name_latin, total_ayat, juz_start').order('id')
+  const siswaTahsin = jenis === 'tahsin' && ids.length > 0 ? await getSiswaSesiTahsin({ siswa: ids }) : []
   const surat = (suratRows ?? []) as SuratPilihan[]
   const tanggalTeks = new Date(`${tanggal}T00:00:00+07:00`).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'Asia/Jakarta' })
 
@@ -55,8 +56,9 @@ export default async function SetorEkstraPage({ searchParams }: { searchParams: 
             Tidak ada peserta LHI yang hadir dan sudah ditautkan ke data siswa.
           </div>
         ) : jenis === 'tahsin' ? (
-          <SetoranSesiTahsin key={`${aktif.id}|${tanggal}`} siswa={await getSiswaSesiTahsin({ siswa: ids })} surat={surat}
-            halaqohId="" pengaturan={null} tanggalTetap={tanggal} ekstraSlotId={aktif.id} />
+          <SetoranSesiTahsin key={`${aktif.id}|${tanggal}`} siswa={siswaTahsin} surat={surat}
+            halaqohId="" pengaturan={null} tanggalTetap={tanggal} ekstraSlotId={aktif.id}
+            jilidAwal={await getPilihanJilidAwal(siswaTahsin)} />
         ) : (
           <SetoranSesiTahfidz key={`${aktif.id}|${tanggal}`} siswa={await getSiswaSesiTahfidz({ siswa: ids })} surat={surat}
             tanggalTetap={tanggal} ekstraSlotId={aktif.id} />

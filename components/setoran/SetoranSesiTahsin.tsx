@@ -18,7 +18,7 @@ import {
 } from '@/components/setoran/BacaanQuranInput'
 import { PilihMateri, type PilihanMateri } from '@/components/setoran/PilihMateri'
 import type { SuratPilihan } from '@/components/setoran/SetoranSesiTahfidz'
-import type { SiswaSesiTahsin } from '@/lib/data/setoran-sesi'
+import type { PilihanJilidAwal, SiswaSesiTahsin } from '@/lib/data/setoran-sesi'
 import type { KelompokKlasikal } from '@/lib/data/kelompok-klasikal'
 import type { HasilMateri } from '@/lib/data/materi-tahsin'
 import { anggotaDariPengaturan, usulanKelompok } from '@/lib/rq/klasikal'
@@ -181,7 +181,7 @@ function modus(xs: number[]): number | null {
  * baris per anggota yang hadir sebelum dikirim, jadi aturan server (jilid,
  * halaman terakhir, drill, setoran ganda) tetap berlaku per anak.
  */
-export function SetoranSesiTahsin({ siswa, surat, halaqohId, pengaturan, tanggalTetap, ekstraSlotId, asrama, hrefSatuSatu }: {
+export function SetoranSesiTahsin({ siswa: siswaAsli, surat, halaqohId, pengaturan, tanggalTetap, ekstraSlotId, asrama, hrefSatuSatu, jilidAwal = {} }: {
   siswa: SiswaSesiTahsin[]
   surat: SuratPilihan[]
   halaqohId: string
@@ -198,8 +198,37 @@ export function SetoranSesiTahsin({ siswa, surat, halaqohId, pengaturan, tanggal
    * anak yang belum punya jilid awal ditetapkan lewat sana, pada Sabtunya.
    */
   hrefSatuSatu?: string
+  /**
+   * Pilihan jilid awal per metode (getPilihanJilidAwal). Anak tanpa jilid yang
+   * metodenya ada di sini bisa ditetapkan jilid awalnya di layar ini, lalu
+   * setor seperti anak lain; selebihnya tetap lewat setor satu-satu.
+   */
+  jilidAwal?: Record<string, PilihanJilidAwal[]>
 }) {
   const router = useRouter()
+  // Jilid awal yang dipilih guru untuk anak yang belum punya posisi: id anak →
+  // id jilid. Baru tersimpan bersama setoran pertamanya — server menjadikan
+  // jilid & halaman setoran itu posisi awal anak.
+  const [awalDipilih, setAwalDipilih] = useState<Record<string, string>>({})
+  const siswa = useMemo(() => siswaAsli.map(s => {
+    const j = !s.jilid_id && s.method_id ? jilidAwal[s.method_id]?.find(x => x.id === awalDipilih[s.id]) : undefined
+    return j
+      ? { ...s, jilid_id: j.id, jilid_label: j.label, total_halaman: j.total_halaman, baca_quran: j.baca_quran, halaman: j.total_halaman !== null ? 1 : null }
+      : s
+  }), [siswaAsli, jilidAwal, awalDipilih])
+  const pilihanAwal = (s: SiswaSesiTahsin) => (s.method_id ? jilidAwal[s.method_id] : undefined) ?? []
+  function tetapkanAwal(ids: string[], jilidId: string) {
+    setAwalDipilih(prev => {
+      const next = { ...prev }
+      for (const id of ids) {
+        if (jilidId) next[id] = jilidId
+        else delete next[id]
+      }
+      return next
+    })
+    // Anak yang baru ditetapkan langsung tercentang — ia memang hendak setor.
+    if (jilidId) setIsian(prev => Object.fromEntries(Object.entries(prev).map(([id, v]) => [id, ids.includes(id) ? { ...v, dipilih: true } : v])))
+  }
   const [pending, startTransition] = useTransition()
   // Anak yang hari itu sudah punya setoran: menunggu keputusan guru.
   const [ganda, setGanda] = useState<SetoranGanda[]>([])
@@ -211,6 +240,8 @@ export function SetoranSesiTahsin({ siswa, surat, halaqohId, pengaturan, tanggal
 
   const bisaDisetor = siswa.filter(s => s.jilid_id)
   const tanpaJilid = siswa.filter(s => !s.jilid_id)
+  const tanpaJilidPilih = tanpaJilid.filter(s => pilihanAwal(s).length > 0)
+  const tanpaJilidLain = tanpaJilid.filter(s => pilihanAwal(s).length === 0)
   const perId = useMemo(() => new Map(siswa.map(s => [s.id, s])), [siswa])
 
   // Keanggotaan kelompok: id anak → kunci kelompok, null = individual.
@@ -483,6 +514,10 @@ export function SetoranSesiTahsin({ siswa, surat, halaqohId, pengaturan, tanggal
         )}
       </div>
 
+      {tanpaJilidPilih.length > 0 && (
+        <JilidAwalPanel anak={tanpaJilidPilih} pilihan={pilihanAwal} onPilih={tetapkanAwal} disabled={pending} />
+      )}
+
       <ul className="space-y-2">
         {daftarKelompok.map(g => {
           const kg = kelompok[g.kunci]
@@ -671,7 +706,19 @@ export function SetoranSesiTahsin({ siswa, surat, halaqohId, pengaturan, tanggal
                     )}
                   </span>
                   <span className="block text-xs text-muted-foreground">
-                    {s.jilid_label}{s.total_halaman && s.halaman ? ` · hal. ${s.halaman}/${s.total_halaman}` : ''}
+                    {awalDipilih[s.id] && (
+                      <span className="mr-1 inline-flex items-center gap-1 rounded-full bg-info-wash px-1.5 py-px text-[10px] font-semibold text-info">
+                        JILID AWAL
+                        <button
+                          type="button"
+                          onClick={e => { e.preventDefault(); tetapkanAwal([s.id], '') }}
+                          className="underline-offset-2 hover:underline"
+                        >
+                          ganti
+                        </button>
+                      </span>
+                    )}
+                    {s.jilid_label}{s.total_halaman && s.halaman && !awalDipilih[s.id] ? ` · hal. ${s.halaman}/${s.total_halaman}` : ''}
                     {teksLanjut(s) && <span className="font-medium text-info"> · {teksLanjut(s)}</span>}
                     {s.baca_quran && s.quran.surat_id
                       ? ` · 📖 ${namaSurat(surat, s.quran.surat_id)}${s.quran.ayat ? `:${s.quran.ayat}` : ''}`
@@ -789,14 +836,14 @@ export function SetoranSesiTahsin({ siswa, surat, halaqohId, pengaturan, tanggal
         })}
       </ul>
 
-      {tanpaJilid.length > 0 && (
+      {tanpaJilidLain.length > 0 && (
         <p className="rounded-lg bg-muted px-3 py-2 text-xs text-muted-foreground">
-          {tanpaJilid.length} anak belum punya jilid awal. Setoran pertamanya lewat setor satu-satu untuk menetapkan metode &amp; jilid:{' '}
+          {tanpaJilidLain.length} anak belum punya metode/jilid awal yang bisa dipilih di sini. Setoran pertamanya lewat setor satu-satu:{' '}
           {hrefSatuSatu
-            ? tanpaJilid.map((s, i) => (
+            ? tanpaJilidLain.map((s, i) => (
                 <span key={s.id}>{i > 0 && ', '}<Link href={hrefSatuSatu + s.id} className="font-medium text-primary hover:underline">{s.full_name.split(' ')[0]}</Link></span>
               ))
-            : <>{tanpaJilid.map(s => s.full_name.split(' ')[0]).join(', ')} — <Link href="/guru/setoran/tahsin/baru" className="text-primary hover:underline">setor satu-satu</Link></>}
+            : <>{tanpaJilidLain.map(s => s.full_name.split(' ')[0]).join(', ')} — <Link href="/guru/setoran/tahsin/baru" className="text-primary hover:underline">setor satu-satu</Link></>}
           .
         </p>
       )}
@@ -808,6 +855,63 @@ export function SetoranSesiTahsin({ siswa, surat, halaqohId, pengaturan, tanggal
           {pending ? 'Menyimpan…' : jumlahDipilih > 0 ? `Simpan ${jumlahDipilih} setoran` : 'Centang anak yang setor'}
         </Button>
       </div>
+    </div>
+  )
+}
+
+/**
+ * Penetapan jilid awal di layar sesi. Anak yang dipilihkan jilidnya pindah ke
+ * daftar setoran di bawah (tercentang, halaman bawaan 1) dan disetor bersama
+ * anak lain; jilid & halaman setoran pertama itulah yang menjadi posisinya.
+ */
+function JilidAwalPanel({ anak, pilihan, onPilih, disabled }: {
+  anak: SiswaSesiTahsin[]
+  pilihan: (s: SiswaSesiTahsin) => PilihanJilidAwal[]
+  onPilih: (ids: string[], jilidId: string) => void
+  disabled?: boolean
+}) {
+  // "Untuk semua" hanya bila semua anak semetode — pilihannya sama persis.
+  const satuMetode = anak.length > 1 && new Set(anak.map(s => s.method_id)).size === 1
+  return (
+    <div className="space-y-3 rounded-2xl border border-info/40 bg-info-wash/40 p-3">
+      <div>
+        <p className="text-sm font-semibold">{anak.length} anak belum punya jilid awal</p>
+        <p className="text-xs text-muted-foreground">
+          Pilih jilid tempat anak mulai. Anak lalu muncul di daftar setoran — isi halamannya seperti biasa; setoran pertama ini menjadi posisi awalnya.
+        </p>
+      </div>
+      {satuMetode && (
+        <label className="flex flex-wrap items-center gap-2 text-xs font-medium">
+          Semua anak mulai di
+          <select
+            value="" disabled={disabled}
+            onChange={e => onPilih(anak.map(s => s.id), e.target.value)}
+            className="h-9 rounded-xl border bg-card px-3 text-sm"
+          >
+            <option value="">— pilih jilid —</option>
+            {pilihan(anak[0]).map(j => <option key={j.id} value={j.id}>{j.label}</option>)}
+          </select>
+        </label>
+      )}
+      <ul className="divide-y rounded-xl border bg-card">
+        {anak.map(s => (
+          <li key={s.id} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2">
+            <span className="min-w-0 text-sm">
+              {s.full_name}
+              {s.kelas && <span className="text-xs text-muted-foreground"> · Kelas {s.kelas}</span>}
+            </span>
+            <select
+              value="" disabled={disabled}
+              aria-label={`Jilid awal ${s.full_name}`}
+              onChange={e => onPilih([s.id], e.target.value)}
+              className="h-9 rounded-xl border bg-card px-3 text-sm"
+            >
+              <option value="">— jilid awal —</option>
+              {pilihan(s).map(j => <option key={j.id} value={j.id}>{j.label}</option>)}
+            </select>
+          </li>
+        ))}
+      </ul>
     </div>
   )
 }

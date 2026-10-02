@@ -180,6 +180,43 @@ export async function getSiswaSesiTahsin(sasaran: SasaranSesi): Promise<SiswaSes
   }))
 }
 
+/** Satu pilihan jilid awal untuk anak yang belum punya posisi tahsin. */
+export interface PilihanJilidAwal {
+  id: string
+  label: string
+  total_halaman: number | null
+  baca_quran: boolean
+}
+
+/**
+ * Jilid yang boleh dipilih sebagai titik awal, per metode anak yang belum
+ * punya jilid — supaya setoran pertamanya bisa lewat layar sesi, tidak harus
+ * setor satu-satu.
+ *
+ * Tahap terminal (Lulus Tahsin) jelas bukan titik awal. Tahap berbasis materi
+ * (Gharib/Tajwid UMMI) juga dikecualikan: isiannya butuh daftar materi yang
+ * dimuat per anak, jadi anak yang mulai di sana tetap lewat setor satu-satu.
+ */
+export async function getPilihanJilidAwal(siswa: SiswaSesiTahsin[]): Promise<Record<string, PilihanJilidAwal[]>> {
+  const metode = [...new Set(siswa.filter(s => !s.jilid_id && s.method_id).map(s => s.method_id!))]
+  if (metode.length === 0) return {}
+  const { data } = await createServerClient()
+    .from('jilid_levels')
+    .select('id, method_id, label, total_pages, baca_quran')
+    .in('method_id', metode)
+    .eq('is_terminal', false)
+    .order('order_num')
+  const baris = (data ?? []) as { id: string; method_id: string; label: string; total_pages: number | null; baca_quran: boolean }[]
+  const berMateri = await getMateriPerJilid(baris.map(b => b.id))
+
+  const hasil: Record<string, PilihanJilidAwal[]> = {}
+  for (const b of baris) {
+    if ((berMateri.get(b.id)?.length ?? 0) > 0) continue
+    ;(hasil[b.method_id] ??= []).push({ id: b.id, label: b.label, total_halaman: b.total_pages, baca_quran: Boolean(b.baca_quran) })
+  }
+  return hasil
+}
+
 // ─── Tahfidz ─────────────────────────────────────────────────────────────────
 
 export interface SiswaSesiTahfidz {

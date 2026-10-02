@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { getTeacherSession } from '@/lib/auth/teacher-session'
 import { createServerClient } from '@/lib/supabase/server'
-import { getHalaqohSesiGuru, getSiswaSesiTahsin, pilihHalaqoh } from '@/lib/data/setoran-sesi'
+import { getHalaqohSesiGuru, getPilihanJilidAwal, getSiswaSesiTahsin, pilihHalaqoh } from '@/lib/data/setoran-sesi'
 import { PilihSesi } from '@/components/setoran/PilihSesi'
 import { SetoranSesiTahsin } from '@/components/setoran/SetoranSesiTahsin'
 import { getKelompokKlasikal } from '@/lib/data/kelompok-klasikal'
@@ -31,6 +31,15 @@ export default async function SetoranSesiTahsinPage({ searchParams }: PageProps)
   ])
   // Kunci ikut pengaturan: setelah kelompok diubah, layar setoran dibangun ulang dari pengaturan baru.
   const kunciPengaturan = kelompok.kelompok.map(k => `${k.id}:${k.anggota.join(',')}`).join('|')
+  const [jilidAwal, jumlahLulus] = await Promise.all([
+    getPilihanJilidAwal(siswa),
+    // Sesi kosong di sini belum tentu sesi tanpa anak: anak yang sudah Lulus
+    // Tahsin disaring keluar (setorannya tinggal tahfidz).
+    halaqoh && siswa.length === 0
+      ? supabase.from('students').select('id', { count: 'exact', head: true })
+          .eq('halaqoh_id', halaqoh.id).eq('is_active', true).then(r => r.count ?? 0)
+      : Promise.resolve(0),
+  ])
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--secondary)' }}>
@@ -58,8 +67,15 @@ export default async function SetoranSesiTahsinPage({ searchParams }: PageProps)
           <>
             <PilihSesi daftar={daftar} terpilih={halaqoh.id} basePath="/guru/setoran/tahsin/sesi" />
             {siswa.length === 0 ? (
-              <div className="rounded-2xl border border-dashed bg-muted/30 py-10 text-center text-sm text-muted-foreground">
-                Belum ada siswa di sesi ini.
+              <div className="rounded-2xl border border-dashed bg-muted/30 px-4 py-10 text-center text-sm text-muted-foreground">
+                {jumlahLulus > 0 ? (
+                  <>
+                    Semua {jumlahLulus} anak di sesi ini sudah <b>Lulus Tahsin</b> — setorannya tinggal tahfidz.{' '}
+                    <Link href={`/guru/setoran/tahfidz/sesi?halaqoh=${halaqoh.id}`} className="font-medium text-primary hover:underline">
+                      Buka Setor Tahfidz →
+                    </Link>
+                  </>
+                ) : 'Belum ada siswa di sesi ini.'}
               </div>
             ) : (
               // key: berganti sesi = isian baru, bukan sisa centang sesi sebelumnya.
@@ -69,6 +85,7 @@ export default async function SetoranSesiTahsinPage({ searchParams }: PageProps)
                 surat={(suratRes.data ?? []) as SuratPilihan[]}
                 halaqohId={halaqoh.id}
                 pengaturan={kelompok.tabelAda ? kelompok.kelompok : null}
+                jilidAwal={jilidAwal}
               />
             )}
           </>

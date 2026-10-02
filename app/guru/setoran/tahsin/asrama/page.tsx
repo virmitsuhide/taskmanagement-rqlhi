@@ -4,7 +4,7 @@ import { Lock } from 'lucide-react'
 import { getTeacherSession } from '@/lib/auth/teacher-session'
 import { createServerClient } from '@/lib/supabase/server'
 import { getKelompokAsrama } from '@/lib/data/asrama'
-import { getSiswaSesiTahsin } from '@/lib/data/setoran-sesi'
+import { getPilihanJilidAwal, getSiswaSesiTahsin } from '@/lib/data/setoran-sesi'
 import { TAHSIN_ASRAMA_DIBUKA } from '@/lib/rq/asrama'
 import { LABEL_STATUS_TAHSIN } from '@/lib/rq/status-tahsin'
 import { SetoranSesiTahsin } from '@/components/setoran/SetoranSesiTahsin'
@@ -81,7 +81,7 @@ export default async function TahsinAsramaPage({ searchParams }: PageProps) {
         {judul}
         <PilihKelompokAsrama daftar={daftar} terpilih={kelompok.id} basePath="/guru/setoran/tahsin/asrama" />
         <SetoranSesiTahsin key={kelompok.id} siswa={siswa} surat={(suratRes.data ?? []) as SuratPilihan[]}
-          halaqohId="" pengaturan={null} asrama />
+          halaqohId="" pengaturan={null} asrama jilidAwal={await getPilihanJilidAwal(siswa)} />
       </Bingkai>
     )
   }
