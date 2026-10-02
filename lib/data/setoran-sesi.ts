@@ -1,6 +1,6 @@
 import { createServerClient } from '@/lib/supabase/server'
 import type { Jenjang } from '@/types'
-import { getTeacherHalaqohIds } from '@/lib/data/teacher'
+import { getTeacherHalaqohIds, type JenisSetoran } from '@/lib/data/teacher'
 import { getLevelPerSiswa } from '@/lib/data/asrama'
 import type { LevelAsrama } from '@/lib/rq/asrama'
 import { getJuzDrillPerSiswa, type JuzDrillSiswa } from '@/lib/data/drill-tahfidz'
@@ -25,8 +25,9 @@ export interface HalaqohSesi {
   jenjang: Jenjang
 }
 
-export async function getHalaqohSesiGuru(teacherId: string): Promise<HalaqohSesi[]> {
-  const ids = await getTeacherHalaqohIds(teacherId)
+export async function getHalaqohSesiGuru(teacherId: string, jenis?: JenisSetoran): Promise<HalaqohSesi[]> {
+  // jenis: hanya sesi tempat guru boleh mencatat setoran jenis itu (guru SMA).
+  const ids = await getTeacherHalaqohIds(teacherId, jenis)
   if (ids.length === 0) return []
   const supabase = createServerClient()
   const { data } = await supabase

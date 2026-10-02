@@ -1,5 +1,21 @@
+import { cache } from 'react'
 import { createServerClient } from '@/lib/supabase/server'
-import { daftarJuzSelesai, juzSelesaiSetoran, juzTerjauh, totalJuzHafalan } from '@/lib/rq/hafalan'
+import { daftarJuzLulus, hitungJuzHafalan, juzSelesaiSetoran, juzTerjauh } from '@/lib/rq/hafalan'
+
+/**
+ * Id siswa unit TANPA urutan hafalan (SMA — lihat urutanBebas di
+ * lib/rq/hafalan.ts). Bagi mereka juz dihitung dari ujian yang lulus satu per
+ * satu, dan setoran harian tidak menyimpulkan juz apa pun.
+ *
+ * Termasuk siswa nonaktif: riwayat ujian alumni tetap dihitung dengan aturan
+ * unitnya. Dibungkus cache(): satu permintaan halaman memanggilnya dari banyak
+ * fungsi analitik sekaligus.
+ */
+export const getSiswaUrutanBebas = cache(async (): Promise<Set<string>> => {
+  const { data, error } = await createServerClient().from('students').select('id').eq('jenjang', 'sma')
+  if (error || !data) return new Set()
+  return new Set((data as { id: string }[]).map(r => r.id))
+})
 
 /**
  * Capaian hafalan seorang anak, digabung dari dua sumber yang berbeda sifat.
@@ -91,6 +107,7 @@ export async function getJuzUjianPerSiswa(): Promise<Map<string, number>> {
     .or(LULUS)
 
   const peta = new Map<string, number>()
+  const bebas = await getSiswaUrutanBebas()
   // Modul ujian bisa saja belum dimigrasikan di lingkungan tertentu. Analitik
   // hafalan yang sudah ada tidak boleh ikut mati karenanya — tanpa data ujian
   // hasilnya kembali persis seperti sebelum penggabungan ini ada.
@@ -102,7 +119,7 @@ export async function getJuzUjianPerSiswa(): Promise<Map<string, number>> {
     daftar.push(String(r.juz))
     perSiswa.set(r.student_id, daftar)
   }
-  for (const [id, daftar] of perSiswa) peta.set(id, totalJuzHafalan(daftar))
+  for (const [id, daftar] of perSiswa) peta.set(id, hitungJuzHafalan(daftar, bebas.has(id)))
   return peta
 }
 
@@ -118,19 +135,22 @@ export async function getJuzTerujiPerSiswa(studentIds: string[]): Promise<Map<st
   if (studentIds.length === 0) return peta
 
   const supabase = createServerClient()
-  const { data, error } = await supabase
-    .from('ujian_tahfidz')
-    .select('student_id, juz')
-    .in('student_id', studentIds)
-    .eq('status', 'selesai')
-    .or(LULUS)
+  const [{ data, error }, bebas] = await Promise.all([
+    supabase
+      .from('ujian_tahfidz')
+      .select('student_id, juz')
+      .in('student_id', studentIds)
+      .eq('status', 'selesai')
+      .or(LULUS),
+    getSiswaUrutanBebas(),
+  ])
   if (error || !data) return peta
 
   const perSiswa = new Map<string, string[]>()
   for (const r of data as { student_id: string; juz: string }[]) {
     perSiswa.set(r.student_id, [...(perSiswa.get(r.student_id) ?? []), String(r.juz)])
   }
-  for (const [id, daftar] of perSiswa) peta.set(id, daftarJuzSelesai(totalJuzHafalan(daftar)))
+  for (const [id, daftar] of perSiswa) peta.set(id, daftarJuzLulus(daftar, bebas.has(id)))
   return peta
 }
 
@@ -150,19 +170,22 @@ export async function getJuzUjianSiswa(
   studentId: string,
 ): Promise<{ selesai: Set<number>; jumlah: number; terakhir: string | null }> {
   const supabase = createServerClient()
-  const { data, error } = await supabase
-    .from('ujian_tahfidz')
-    .select('juz, jadwal, updated_at')
-    .eq('student_id', studentId)
-    .eq('status', 'selesai')
-    .or(LULUS)
+  const [{ data, error }, bebas] = await Promise.all([
+    supabase
+      .from('ujian_tahfidz')
+      .select('juz, jadwal, updated_at')
+      .eq('student_id', studentId)
+      .eq('status', 'selesai')
+      .or(LULUS),
+    getSiswaUrutanBebas(),
+  ])
 
   if (error || !data || data.length === 0) {
     return { selesai: new Set(), jumlah: 0, terakhir: null }
   }
 
   const rows = data as { juz: string; jadwal: string | null; updated_at: string | null }[]
-  const jumlah = totalJuzHafalan(rows.map(r => String(r.juz)))
+  const selesai = daftarJuzLulus(rows.map(r => String(r.juz)), bebas.has(studentId))
 
   // `jadwal` adalah waktu ujian yang sesungguhnya; updated_at dipakai hanya
   // bila jadwalnya tidak pernah diisi — catatan lama banyak yang begitu.
@@ -172,8 +195,8 @@ export async function getJuzUjianSiswa(
     .sort()
 
   return {
-    selesai: new Set(daftarJuzSelesai(jumlah)),
-    jumlah,
+    selesai: new Set(selesai),
+    jumlah: selesai.length,
     terakhir: tanggal.at(-1) ?? null,
   }
 }
@@ -185,10 +208,12 @@ export async function getJuzUjianSiswa(
  * Baris tanpa ayat dan tanpa mutqin diabaikan: barisnya ada, tapi belum ada
  * yang dihafal di sana.
  */
-export function juzSetoranPerSiswa(rows: BarisJuzProgress[]): Map<string, number> {
+export function juzSetoranPerSiswa(rows: BarisJuzProgress[], bebas?: ReadonlySet<string>): Map<string, number> {
   const juzPerSiswa = new Map<string, number[]>()
   for (const r of rows) {
     if ((r.ayat_hafal ?? 0) <= 0 && !r.mutqin) continue
+    // Urutan bebas (SMA): setoran tidak menyimpulkan juz tuntas — hanya ujian.
+    if (bebas?.has(r.student_id)) continue
     const daftar = juzPerSiswa.get(r.student_id) ?? []
     daftar.push(r.juz_number)
     juzPerSiswa.set(r.student_id, daftar)
@@ -240,8 +265,10 @@ export function gabungJuz(setoran: number, ujian: number): JuzHafalan {
 export function juzGabunganPerSiswa(
   rowsJuzProgress: BarisJuzProgress[],
   juzUjian: Map<string, number>,
+  /** Siswa urutan bebas (getSiswaUrutanBebas) — setorannya tidak dihitung. */
+  bebas?: ReadonlySet<string>,
 ): Map<string, number> {
-  const setoran = juzSetoranPerSiswa(rowsJuzProgress)
+  const setoran = juzSetoranPerSiswa(rowsJuzProgress, bebas)
   const gabungan = new Map<string, number>(setoran)
   for (const [id, n] of juzUjian) {
     gabungan.set(id, Math.max(gabungan.get(id) ?? 0, n))

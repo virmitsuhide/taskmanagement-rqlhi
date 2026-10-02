@@ -6,8 +6,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { PilihSiswa } from './PilihSiswa'
-import { PREDIKAT_OPTIONS, UJIAN_UNIT_SEKOLAH, getTahfidzLabel, tanggalWIB } from '@/lib/rq/ujian'
-import { ringkasHafalan } from '@/lib/rq/hafalan'
+import { PREDIKAT_OPTIONS, UJIAN_UNIT_JENJANG, UJIAN_UNIT_SEKOLAH, getTahfidzLabel, tanggalWIB } from '@/lib/rq/ujian'
+import { urutanBebas } from '@/lib/rq/hafalan'
 import { catatRiwayatTahfidzAction, type SaranSiswa } from '@/app/actions/ujian'
 import type { TahfidzTipe, UjianPredikat, UjianUnit } from '@/types'
 
@@ -35,9 +35,12 @@ export function FormRiwayatTahfidz({ units }: { units: UjianUnit[] }) {
   const [tersimpan, setTersimpan] = useState<string[]>([])
   const [pending, startTransition] = useTransition()
 
-  const cakupan = tipe === '3_juz' ? 3 : tipe === '5_juz' ? 5 : 1
+  // SMA (urutan bebas) tidak memakai tasmi' 3/5 juz — hanya juz'iyyah.
+  const tanpaTasmi = urutanBebas(UJIAN_UNIT_JENJANG[unit])
+  const tipeEfektif: TahfidzTipe = tanpaTasmi ? '1_juz' : tipe
+  const cakupan = tipeEfektif === '3_juz' ? 3 : tipeEfektif === '5_juz' ? 5 : 1
   const pratinjau = juzDari
-    ? tipe === '1_juz' ? juzDari : juzSampai ? `${Math.min(+juzDari, +juzSampai)}-${Math.max(+juzDari, +juzSampai)}` : ''
+    ? tipeEfektif === '1_juz' ? juzDari : juzSampai ? `${Math.min(+juzDari, +juzSampai)}-${Math.max(+juzDari, +juzSampai)}` : ''
     : ''
 
   function simpan(e: React.FormEvent) {
@@ -50,9 +53,9 @@ export function FormRiwayatTahfidz({ units }: { units: UjianUnit[] }) {
       const hasil = await catatRiwayatTahfidzAction({
         unit,
         student_id: siswa.id,
-        tipe,
+        tipe: tipeEfektif,
         juz_dari: Number(juzDari),
-        juz_sampai: tipe === '1_juz' ? null : Number(juzSampai),
+        juz_sampai: tipeEfektif === '1_juz' ? null : Number(juzSampai),
         tanggal,
         penguji,
         predikat,
@@ -62,7 +65,7 @@ export function FormRiwayatTahfidz({ units }: { units: UjianUnit[] }) {
         setError(hasil.error)
         return
       }
-      const label = `${siswa.full_name.split(' ')[0]} — ${getTahfidzLabel(tipe, pratinjau)}`
+      const label = `${siswa.full_name.split(' ')[0]} — ${getTahfidzLabel(tipeEfektif, pratinjau)}`
       setTersimpan(prev => [label, ...prev])
       toast.success(`Tercatat: ${label}`)
       setJuzDari('')
@@ -91,7 +94,7 @@ export function FormRiwayatTahfidz({ units }: { units: UjianUnit[] }) {
         <Label>Siswa</Label>
         <PilihSiswa key={unit} unit={unit} terpilih={siswa} onPilih={setSiswa} />
         {siswa && (
-          <p className="text-xs text-muted-foreground">Tercatat sekarang: {ringkasHafalan(siswa.sudahSampai)}.</p>
+          <p className="text-xs text-muted-foreground">Tercatat sekarang: {siswa.ringkas}.</p>
         )}
       </div>
 
@@ -99,21 +102,21 @@ export function FormRiwayatTahfidz({ units }: { units: UjianUnit[] }) {
         <div className="space-y-1.5">
           <Label htmlFor="tipe_riwayat">Jenis</Label>
           <select
-            id="tipe_riwayat" value={tipe}
+            id="tipe_riwayat" value={tipeEfektif}
             onChange={e => { setTipe(e.target.value as TahfidzTipe); setJuzSampai('') }}
             className={SELECT_CLASS}
           >
             <option value="1_juz">Tasmi&apos; 1 Juz (juz&apos;iyyah)</option>
-            <option value="3_juz">Tasmi&apos; 3 Juz</option>
-            <option value="5_juz">Tasmi&apos; 5 Juz</option>
+            {!tanpaTasmi && <option value="3_juz">Tasmi&apos; 3 Juz</option>}
+            {!tanpaTasmi && <option value="5_juz">Tasmi&apos; 5 Juz</option>}
           </select>
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="juz_dari">{tipe === '1_juz' ? 'Nomor juz' : `Rentang ${cakupan} juz`}</Label>
+          <Label htmlFor="juz_dari">{tipeEfektif === '1_juz' ? 'Nomor juz' : `Rentang ${cakupan} juz`}</Label>
           <div className="flex items-center gap-2">
-            <Input id="juz_dari" type="number" min={1} max={30} required placeholder={tipe === '1_juz' ? '30' : 'dari'}
+            <Input id="juz_dari" type="number" min={1} max={30} required placeholder={tipeEfektif === '1_juz' ? '30' : 'dari'}
               value={juzDari} onChange={e => setJuzDari(e.target.value)} className="h-9" />
-            {tipe !== '1_juz' && (
+            {tipeEfektif !== '1_juz' && (
               <>
                 <span className="text-muted-foreground">–</span>
                 <Input aria-label="Sampai juz" type="number" min={1} max={30} required placeholder="sampai"
@@ -154,7 +157,7 @@ export function FormRiwayatTahfidz({ units }: { units: UjianUnit[] }) {
 
       {pratinjau && (
         <p className="rounded-lg bg-info-wash px-3 py-2 text-sm text-info">
-          Akan tercatat: {getTahfidzLabel(tipe, pratinjau)} · status Selesai
+          Akan tercatat: {getTahfidzLabel(tipeEfektif, pratinjau)} · status Selesai
         </p>
       )}
 

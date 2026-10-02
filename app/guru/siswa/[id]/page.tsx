@@ -54,8 +54,11 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
     tanpa tombol setor & rapor: setoran asrama dicatat dari menu Asrama,
     dan rapor tetap urusan pengampu sekolah.
   */
-  const [pengampuSekolah, levelMap] = await Promise.all([
+  const [pengampuSekolah, bolehTahsin, bolehTahfidz, levelMap] = await Promise.all([
     canTeacherAccessStudent(session.teacherId, id),
+    // Guru SMA berperan khusus: tombol setor hanya untuk jenis yang boleh ia catat.
+    canTeacherAccessStudent(session.teacherId, id, 'tahsin'),
+    canTeacherAccessStudent(session.teacherId, id, 'tahfidz'),
     getLevelPerSiswa([id]),
   ])
   if (!pengampuSekolah && !(await bolehAsrama(session.teacherId, id, hariIniWIB()))) redirect('/guru/siswa')
@@ -412,18 +415,22 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
             <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:shrink-0 sm:flex-col [&>*]:w-full">
               {/* Anak yang sudah Lulus Tahsin tidak punya progres tahsin lagi —
                   tombol utamanya menjadi setor tahfidz. */}
-              {student.current_jilid?.is_terminal ? (
-                <Button asChild style={{ background: 'var(--primary)', borderColor: 'var(--primary)' }}>
-                  <Link href={tahfidzUrl}>+ Setor Tahfidz</Link>
-                </Button>
+              {student.current_jilid?.is_terminal || !bolehTahsin ? (
+                bolehTahfidz && (
+                  <Button asChild style={{ background: 'var(--primary)', borderColor: 'var(--primary)' }}>
+                    <Link href={tahfidzUrl}>+ Setor Tahfidz</Link>
+                  </Button>
+                )
               ) : (
                 <>
                   <Button asChild style={{ background: 'var(--primary)', borderColor: 'var(--primary)' }}>
                     <Link href={setoranUrl}>+ Setor Tahsin</Link>
                   </Button>
-                  <Button asChild variant="outline">
-                    <Link href={tahfidzUrl}>+ Setor Tahfidz</Link>
-                  </Button>
+                  {bolehTahfidz && (
+                    <Button asChild variant="outline">
+                      <Link href={tahfidzUrl}>+ Setor Tahfidz</Link>
+                    </Button>
+                  )}
                 </>
               )}
               <Button asChild variant="outline">
@@ -524,11 +531,11 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
           {!logs || logs.length === 0 ? (
             <div className="rounded-2xl border border-dashed bg-muted/30 py-8 text-center text-sm text-muted-foreground">
               Belum ada setoran tercatat.
-              <div className="mt-3">
+              {pengampuSekolah && bolehTahsin && <div className="mt-3">
                 <Button asChild size="sm" variant="outline">
                   <Link href={setoranUrl}>Catat setoran pertama</Link>
                 </Button>
-              </div>
+              </div>}
             </div>
           ) : (
             <div className="rounded-2xl border bg-card divide-y">
@@ -597,11 +604,11 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
           {tahfidzLogs.length === 0 ? (
             <div className="rounded-2xl border border-dashed bg-muted/30 py-8 text-center text-sm text-muted-foreground">
               Belum ada setoran tahfidz.
-              <div className="mt-3">
+              {pengampuSekolah && bolehTahfidz && <div className="mt-3">
                 <Button asChild size="sm" variant="outline">
                   <Link href={tahfidzUrl}>Catat setoran tahfidz</Link>
                 </Button>
-              </div>
+              </div>}
             </div>
           ) : (
             <div className="rounded-2xl border bg-card divide-y">

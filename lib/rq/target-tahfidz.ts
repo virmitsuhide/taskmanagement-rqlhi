@@ -698,7 +698,12 @@ export interface RincianHafalan {
  */
 export function rincianHafalan(
   peta: PetaHalaman,
-  juzTuntas: number,
+  /**
+   * Jumlah juz tuntas menurut urutan hafalan RQ — atau DAFTAR nomor juznya
+   * bagi unit tanpa urutan (SMA, urutanBebas): juz itu saja yang penuh, dan
+   * tidak ada materi yang disimpulkan dari setoran terjauh.
+   */
+  juzTuntas: number | number[],
   ziyadah: { surat_id: number; ayat_dari: number | null; ayat_ke: number | null }[],
   jenjang: Jenjang | null | undefined,
 ): RincianHafalan {
@@ -711,11 +716,12 @@ export function rincianHafalan(
     for (let i = Math.max(1, dari); i <= Math.min(n, ke); i++) a[i] = 1
   }
 
-  for (const juz of URUTAN_JUZ.slice(0, Math.max(0, juzTuntas))) {
+  const bebas = Array.isArray(juzTuntas)
+  for (const juz of bebas ? juzTuntas : URUTAN_JUZ.slice(0, Math.max(0, juzTuntas))) {
     for (const r of rentangJuz(juz, peta)) tandai(r.surat, r.dari, r.ke!)
   }
 
-  const urutan = urutanHafalanJenjang(jenjang, peta)
+  const urutan = bebas ? [] : urutanHafalanJenjang(jenjang, peta)
   let terjauh: { i: number; ayat: number } | null = null
   for (const z of ziyadah) {
     if (z.ayat_dari === null || z.ayat_ke === null) continue
@@ -756,7 +762,7 @@ export function rincianHafalan(
 /** Total hafalan dalam halaman — lihat rincianHafalan. */
 export function halamanHafalan(
   peta: PetaHalaman,
-  juzTuntas: number,
+  juzTuntas: number | number[],
   ziyadah: { surat_id: number; ayat_dari: number | null; ayat_ke: number | null }[],
   jenjang: Jenjang | null | undefined,
 ): number {

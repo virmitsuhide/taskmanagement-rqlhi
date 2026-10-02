@@ -19,7 +19,8 @@ export default async function NewTahfidzSetoranPage({ searchParams }: PageProps)
   const ok = okQs === '1'
 
   const supabase = createServerClient()
-  const halaqohIds = await getTeacherHalaqohIds(session.teacherId)
+  // Hanya halaqoh tempat guru boleh mencatat tahfidz (guru tahsin SMA tidak).
+  const halaqohIds = await getTeacherHalaqohIds(session.teacherId, 'tahfidz')
 
   const [studentsRes, suratRes] = await Promise.all([
     halaqohIds.length > 0

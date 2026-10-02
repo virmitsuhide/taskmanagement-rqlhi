@@ -17,7 +17,7 @@ export default async function SetoranSesiTahsinPage({ searchParams }: PageProps)
   if (!session) redirect('/guru/login')
 
   const { halaqoh: diminta } = await searchParams
-  const daftar = await getHalaqohSesiGuru(session.teacherId)
+  const daftar = await getHalaqohSesiGuru(session.teacherId, 'tahsin')
   const halaqoh = pilihHalaqoh(daftar, diminta)
   // Daftar surat ikut dimuat di sini, bukan di dalam komponen: anak di tahap
   // Al-Qur'an (dan di Gharib/Tajwid) mencatat surat & ayat bacaannya, dan 114

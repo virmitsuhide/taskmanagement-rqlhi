@@ -10,9 +10,12 @@ import {
 } from '@/lib/auth/permissions'
 import { getUnitsUjianGuru } from '@/lib/data/ujian'
 import { cocokkanLevelUjian, getTahfidzLabel, UJIAN_UNIT_JENJANG, type TahapLevel, tanggalWIB } from '@/lib/rq/ujian'
-import { getTeacherHalaqohIds, getTeacherStudents } from '@/lib/data/teacher'
+import { canTeacherAccessStudent, getTeacherHalaqohIds, getTeacherStudents } from '@/lib/data/teacher'
 import { tautkanUjianKeDrill } from '@/lib/data/drill-tahfidz'
-import { totalJuzHafalan } from '@/lib/rq/hafalan'
+import { juzLulusBebas, ringkasHafalan, ringkasJuzBebas, totalJuzHafalan, urutanBebas } from '@/lib/rq/hafalan'
+
+/** SMA (urutan bebas) hanya mengenal ujian 1 juz — tidak ada tasmi' 3/5 juz. */
+const TANPA_TASMI = "Unit ini tidak memakai tasmi' 3/5 juz — ajukan ujian 1 juz."
 import type {
   TahfidzTipe,
   UjianPredikat,
@@ -211,6 +214,13 @@ export async function createTahfidzUjianAction(input: {
   if (!namaSiswa) return { error: 'Nama siswa wajib diisi.' }
   if (!namaFlyer) return { error: 'Nama untuk flyer wajib diisi.' }
   if (!kelas) return { error: 'Kelas wajib diisi.' }
+  if (input.tipe !== '1_juz' && urutanBebas(UJIAN_UNIT_JENJANG[pengaju.unit])) return { error: TANPA_TASMI }
+  // Guru hanya mengajukan ujian tahfidz anak yang tahfidznya ia pegang — guru
+  // tahsin SMA (halaqoh_teachers.role) tidak. Anak yang belum terdaftar
+  // (student_id null) tidak bisa diperiksa dan dibiarkan seperti sebelumnya.
+  if (pengaju.teacherId && input.student_id && !(await canTeacherAccessStudent(pengaju.teacherId, input.student_id, 'tahfidz'))) {
+    return { error: 'Ujian tahfidz diajukan oleh guru tahfidz anak ini.' }
+  }
   if (pengaju.boarding) {
     const galat = await galatBoarding(pengaju.boarding, [input.student_id])
     if (galat) return { error: galat }
@@ -329,7 +339,8 @@ export async function createTahsinUjianAction(input: {
   // Id siswa datang dari peramban. Formulir guru memang hanya menawarkan anak
   // halaqohnya, tapi kiriman bisa diubah — jadi diperiksa ulang di sini.
   if (pengaju.teacherId) {
-    const milik = new Set((await getTeacherStudents(pengaju.teacherId)).map(s => s.id))
+    // Hanya anak yang tahsinnya dipegang guru ini (guru tahfidz SMA tidak).
+    const milik = new Set((await getTeacherStudents(pengaju.teacherId, { jenis: 'tahsin' })).map(s => s.id))
     if (siswa.some(s => s.student_id && !milik.has(s.student_id))) {
       return { error: 'Ada siswa yang bukan dari halaqoh Anda.' }
     }
@@ -746,8 +757,17 @@ export interface SaranSiswa {
   kelas: string | null
   /** Program siswa; dipakai mencentang QULS otomatis. */
   program: string | null
-  /** Posisi juz terjauh yang sudah tercatat. 0 = belum pernah ujian. */
+  /**
+   * Posisi juz terjauh yang sudah tercatat. 0 = belum pernah ujian. Bagi
+   * siswa urutan bebas (SMA): banyaknya juz berbeda yang tercatat.
+   */
   sudahSampai: number
+  /** SMA: tanpa urutan hafalan & tanpa tasmi' 3/5 juz (urutanBebas). */
+  urutanBebas: boolean
+  /** Urutan bebas: nomor juz yang sudah tercatat (diajukan/diuji), 1→30. */
+  juzTercatat: number[]
+  /** Ringkasan capaian untuk layar, mis. '5 juz (30, 29, 28, 27, 26)'. */
+  ringkas: string
 }
 
 /**
@@ -788,14 +808,16 @@ export async function cariSiswaUjianAction(
   */
   let idHalaqoh: string[] | null = null
   if (pengaju.teacherId) {
-    const milik = await getTeacherStudents(pengaju.teacherId)
+    // Saran nama hanya untuk form ujian tahfidz: anak yang tahfidznya dipegang
+    // guru ini (guru tahsin SMA tidak melihat siapa pun di sini).
+    const milik = await getTeacherStudents(pengaju.teacherId, { jenis: 'tahfidz' })
     if (milik.length === 0) return []
     idHalaqoh = milik.map(s => s.id)
   }
 
   let kueriSiswa = supabase
     .from('students')
-    .select('id, full_name, kelas, program, halaqoh:halaqoh!students_halaqoh_id_fkey(program)')
+    .select('id, full_name, kelas, program, jenjang, halaqoh:halaqoh!students_halaqoh_id_fkey(program)')
     .in('jenjang', jenjang)
     .eq('is_active', true)
     .ilike('full_name', `%${q}%`)
@@ -822,17 +844,26 @@ export async function cariSiswaUjianAction(
   }
 
   return (siswa as unknown as Array<{
-    id: string; full_name: string; kelas: string | null; program: string | null
+    id: string; full_name: string; kelas: string | null; program: string | null; jenjang: string
     halaqoh: { program: string | null } | null
-  }>).map(s => ({
-    id: s.id,
-    full_name: s.full_name,
-    kelas: s.kelas,
-    // Program halaqoh jadi cadangan — lihat siswaQuls. Dengan ini centang
-    // QULS di form sudah benar sebelum pengaju sempat menyentuhnya.
-    program: s.program ?? s.halaqoh?.program ?? null,
-    sudahSampai: totalJuzHafalan(perSiswa.get(s.id) ?? []),
-  }))
+  }>).map(s => {
+    const teks = perSiswa.get(s.id) ?? []
+    const bebas = urutanBebas(s.jenjang)
+    const tercatat = bebas ? juzLulusBebas(teks) : []
+    const sudahSampai = bebas ? tercatat.length : totalJuzHafalan(teks)
+    return {
+      id: s.id,
+      full_name: s.full_name,
+      kelas: s.kelas,
+      // Program halaqoh jadi cadangan — lihat siswaQuls. Dengan ini centang
+      // QULS di form sudah benar sebelum pengaju sempat menyentuhnya.
+      program: s.program ?? s.halaqoh?.program ?? null,
+      sudahSampai,
+      urutanBebas: bebas,
+      juzTercatat: tercatat,
+      ringkas: bebas ? ringkasJuzBebas(tercatat) : ringkasHafalan(sudahSampai),
+    }
+  })
 }
 
 // ─── Riwayat ujian tahfidz lama (koordinator) ────────────────────────────────
@@ -952,6 +983,7 @@ async function simpanRiwayatTahfidz(
     return { error: 'Riwayat hanya untuk ujian yang sudah terjadi — tanggalnya tidak boleh di masa depan.' }
   }
   if (!PREDIKAT_SAH.includes(input.predikat)) return { error: 'Predikat wajib dipilih.' }
+  if (input.tipe !== '1_juz' && aturan.jenjang.some(j => urutanBebas(j))) return { error: TANPA_TASMI }
 
   const dari = Number(input.juz_dari)
   if (!Number.isInteger(dari) || dari < 1 || dari > 30) return { error: 'Nomor juz harus 1–30.' }
@@ -1107,7 +1139,8 @@ export async function daftarHalaqohUjianTahsinAction(unit: UjianUnit): Promise<U
     .order('sesi')
   if (pengaju.program) kueri = kueri.in('program', [...pengaju.program])
   if (pengaju.teacherId) {
-    const milik = await getTeacherHalaqohIds(pengaju.teacherId)
+    // Halaqoh tempat guru memegang tahsin — guru tahfidz SMA tidak mengajukan ujian tahsin.
+    const milik = await getTeacherHalaqohIds(pengaju.teacherId, 'tahsin')
     if (milik.length === 0) return []
     kueri = kueri.in('id', milik)
   }

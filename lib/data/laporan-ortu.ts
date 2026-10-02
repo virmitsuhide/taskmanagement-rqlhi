@@ -5,7 +5,7 @@ import { getPetaHalaman } from '@/lib/data/target-tahfidz'
 import { halamanHafalan } from '@/lib/rq/target-tahfidz'
 import { rekapMurojaah } from '@/lib/rq/murojaah'
 import { getInfoSurat } from '@/lib/data/nama-surat'
-import { getJuzTerujiPerSiswa, gabungJuz, juzSetoranPerSiswa, type BarisJuzProgress } from '@/lib/data/hafalan'
+import { getJuzTerujiPerSiswa, getSiswaUrutanBebas, gabungJuz, juzSetoranPerSiswa, type BarisJuzProgress } from '@/lib/data/hafalan'
 import { ttdSrc } from '@/lib/kpi/ttd-berkas'
 import { sapaanName } from '@/lib/auth/permissions'
 import { juzTerjauh, posisiJuz } from '@/lib/rq/hafalan'
@@ -108,7 +108,9 @@ export async function getLaporanOrtu(
 
   // Hari pertemuan: tanggal yang ada setoran siapa pun di sesi ini.
   const hariPertemuan = new Set([...tahsin.map(l => l.setoran_date), ...tahfidz.map(l => l.setoran_date)])
-  const setoranTuntas = juzSetoranPerSiswa(progres)
+  // SMA (urutan bebas): juz tuntas hanya dari ujian, dihitung per juz.
+  const bebas = await getSiswaUrutanBebas()
+  const setoranTuntas = juzSetoranPerSiswa(progres, bebas)
   const namaSurat = (id: number) => surat.get(id)?.name_latin ?? `Surat ${id}`
 
   const ujianPer = new Map<string, string[]>()
@@ -169,11 +171,11 @@ export async function getLaporanOrtu(
           ? `${namaSurat(terakhir.surat_id)} ${terakhir.ayat_dari}${terakhir.ayat_ke && terakhir.ayat_ke !== terakhir.ayat_dari ? `–${terakhir.ayat_ke}` : ''}`
           : null,
         juzTuntas: juz.total,
-        sedangJuz: sedang !== null && (posisiJuz(sedang) ?? 0) > juz.total ? sedang : null,
+        sedangJuz: sedang !== null && (bebas.has(s.id) ? !(juzTeruji.get(s.id) ?? []).includes(sedang) : (posisiJuz(sedang) ?? 0) > juz.total) ? sedang : null,
         ziyadahHalaman: halaman,
         ziyadahAyat: sudah.size,
         ziyadahSetoran: tf.filter(l => ZIYADAH.includes(l.kind)).length,
-        totalHalaman: halamanHafalan(peta, juz.total, ziyadahSemua.filter(z => z.student_id === s.id), s.jenjang),
+        totalHalaman: halamanHafalan(peta, bebas.has(s.id) ? juzTeruji.get(s.id) ?? [] : juz.total, ziyadahSemua.filter(z => z.student_id === s.id), s.jenjang),
         // Muroja'ah dalam halaman — volume baca: tiap setoran dijumlah.
         // Tasmi' bukan muroja'ah dan tidak ikut dihitung.
         ...(() => {

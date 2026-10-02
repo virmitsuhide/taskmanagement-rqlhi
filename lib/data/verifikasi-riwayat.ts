@@ -1,6 +1,6 @@
 import { createServerClient } from '@/lib/supabase/server'
 import { UNIT_LABELS } from '@/lib/rq/programs'
-import { juzTerjauh, kewajibanUjian, posisiJuz, totalJuzHafalan, type KewajibanUjian } from '@/lib/rq/hafalan'
+import { juzTerjauh, kewajibanUjian, posisiJuz, totalJuzHafalan, urutanBebas, type KewajibanUjian } from '@/lib/rq/hafalan'
 import { UJIAN_UNIT_JENJANG, unitUjianDariJenjang } from '@/lib/rq/ujian'
 import type { Jenjang, UjianUnit } from '@/types'
 
@@ -131,6 +131,9 @@ export async function getStatusHafalan(
   for (const s of siswaRows) {
     const unit = unitUjianDariJenjang(s.jenjang)
     if (!unit) continue
+    // SMA (urutan bebas): tanpa urutan hafalan, tidak ada ujian yang bisa
+    // disimpulkan "semestinya sudah ditempuh" — riwayatnya dicatat langsung.
+    if (urutanBebas(s.jenjang)) continue
     const juzSetoran = juzTerjauh(setoranPer.get(s.id) ?? [])
     const posSetoran = juzSetoran === null ? 0 : (posisiJuz(juzSetoran) ?? 1) - 1
     const catatan = ujianPer.get(s.id) ?? []

@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation'
 import { createServerClient } from '@/lib/supabase/server'
 import { getTeacherSession } from '@/lib/auth/teacher-session'
 import { aksesSetoran } from '@/lib/data/riyadhoh'
+import { canTeacherAccessStudent } from '@/lib/data/teacher'
 import { bolehEkstra } from '@/lib/data/ekstra'
 import { bolehAsrama } from '@/lib/data/asrama'
 import { TAHSIN_ASRAMA_DIBUKA } from '@/lib/rq/asrama'
@@ -159,8 +160,13 @@ async function tentukanAkses(
       ? { akses: 'asrama', jalur: JALUR_ASRAMA }
       : 'Anak ini bukan anggota kelompok asrama Anda.'
   }
-  const akses = await aksesSetoran(teacherId, input.student_id, input.setoran_date)
-  return akses ? { akses, jalur: null } : 'Anda tidak mengampu siswa ini.'
+  const akses = await aksesSetoran(teacherId, input.student_id, input.setoran_date, jenis)
+  if (akses) return { akses, jalur: null }
+  // Guru halaqoh anak ini, tapi perannya jenis setoran lain (guru SMA khusus
+  // tahsin/tahfidz) — pesannya dibedakan supaya tidak terbaca salah halaqoh.
+  return (await canTeacherAccessStudent(teacherId, input.student_id))
+    ? `Anda pengampu ${jenis === 'tahsin' ? 'tahfidz' : 'tahsin'} anak ini — setoran ${jenis} dicatat guru ${jenis}nya.`
+    : 'Anda tidak mengampu siswa ini.'
 }
 
 /** Kolom penanda jalur pada baris setoran baru. */

@@ -1,7 +1,6 @@
 import Link from 'next/link'
 import { ScrollText } from 'lucide-react'
 
-import { ringkasHafalan } from '@/lib/rq/hafalan'
 import type { HafalanUjianUnit } from '@/lib/data/analytics'
 
 /**
@@ -92,7 +91,7 @@ export function HafalanUjianBoard({ units, tampilTeratas = true }: {
                       <Link href={`/siswa/${s.id}`} className="min-w-0 flex-1 truncate hover:underline">
                         {s.name}
                       </Link>
-                      <span className="shrink-0 text-xs text-muted-foreground" title={ringkasHafalan(s.juz)}>
+                      <span className="shrink-0 text-xs text-muted-foreground" title={s.ringkas}>
                         {s.juz} juz
                       </span>
                     </li>

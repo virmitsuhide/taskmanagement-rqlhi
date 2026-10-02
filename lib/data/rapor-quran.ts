@@ -4,7 +4,7 @@ import { getPetaHalaman } from '@/lib/data/target-tahfidz'
 import { rincianHafalan } from '@/lib/rq/target-tahfidz'
 import { formatCapaian } from '@/lib/rq/halaman'
 import { getInfoSurat } from '@/lib/data/nama-surat'
-import { getJuzTerujiPerSiswa, gabungJuz, juzSetoranPerSiswa, type BarisJuzProgress } from '@/lib/data/hafalan'
+import { getJuzTerujiPerSiswa, getSiswaUrutanBebas, gabungJuz, juzSetoranPerSiswa, type BarisJuzProgress } from '@/lib/data/hafalan'
 import { juzTerjauh, posisiJuz } from '@/lib/rq/hafalan'
 import { getRekapAbsensi } from '@/lib/data/absensi'
 import { getKalender, tmPerSiswa } from '@/lib/data/kalender-quran'
@@ -241,7 +241,9 @@ export async function getBahanRaporSesi(
   // TM dihitung per anak: satu halaqoh bisa berisi anak reguler dan anak
   // QULS sekaligus, dan yang QULS punya satu hari sesi lebih banyak.
   const tm = tmPerSiswa(siswa, kalender, term.start_date, term.end_date)
-  const setoranTuntas = juzSetoranPerSiswa(progres)
+  // SMA (urutan bebas): juz tuntas hanya dari ujian, dihitung per juz.
+  const bebas = await getSiswaUrutanBebas()
+  const setoranTuntas = juzSetoranPerSiswa(progres, bebas)
   const namaSurat = (id: number) => surat.get(id)?.name_latin ?? `Surat ${id}`
   const semesterRomawi = term.semester === 'ganjil' ? 'I' : 'II'
   const hariIni = formatTanggal(new Date().toISOString())
@@ -255,7 +257,7 @@ export async function getBahanRaporSesi(
     const terakhir = ziyadahSemua.find(z => z.student_id === s.id)
     const juz = gabungJuz(setoranTuntas.get(s.id) ?? 0, (juzTeruji.get(s.id) ?? []).length)
     const sedang = juzTerjauh(progres.filter(p => p.student_id === s.id && p.ayat_hafal > 0).map(p => p.juz_number))
-    const hafalan = rincianHafalan(peta, juz.total, ziyadahSemua.filter(z => z.student_id === s.id), s.jenjang)
+    const hafalan = rincianHafalan(peta, bebas.has(s.id) ? juzTeruji.get(s.id) ?? [] : juz.total, ziyadahSemua.filter(z => z.student_id === s.id), s.jenjang)
     const isian = isianPer.get(s.id)
     const template = templateUntuk(templates, s.jenjang, s.kelas, jenis)
 
@@ -279,7 +281,7 @@ export async function getBahanRaporSesi(
         ? `QS. ${namaSurat(terakhir.surat_id)} ayat ${terakhir.ayat_dari}${terakhir.ayat_ke && terakhir.ayat_ke !== terakhir.ayat_dari ? `–${terakhir.ayat_ke}` : ''}`
         : '',
       juz_tuntas: juz.total > 0 ? `${juz.total} juz` : '',
-      juz_berjalan: sedang !== null && (posisiJuz(sedang) ?? 0) > juz.total ? `Juz ${sedang}` : '',
+      juz_berjalan: sedang !== null && (bebas.has(s.id) ? !(juzTeruji.get(s.id) ?? []).includes(sedang) : (posisiJuz(sedang) ?? 0) > juz.total) ? `Juz ${sedang}` : '',
       // Dibulatkan ke bawah per aturan RQ, dengan panjang juz sebenarnya
       // (juz 30 = 23 halaman) — bukan sisa bagi 20.
       total_hafalan: hafalan.halaman > 0 ? formatCapaian(hafalan.capaian) : '',

@@ -1,5 +1,5 @@
 import { createServerClient } from '@/lib/supabase/server'
-import { getJuzUjianPerSiswa, juzGabunganPerSiswa, type BarisJuzProgress } from '@/lib/data/hafalan'
+import { getJuzUjianPerSiswa, getSiswaUrutanBebas, juzGabunganPerSiswa, type BarisJuzProgress } from '@/lib/data/hafalan'
 import { cache } from 'react'
 import { UNIT_LABELS, UNIT_ORDER } from '@/lib/rq/programs'
 import { tanggalWIB } from '@/lib/rq/ujian'
@@ -296,7 +296,7 @@ export async function getTargetTahfidz(jenjangBoleh: Jenjang[], tanggal = tangga
     if (siswaRows.error) throw new Error(`Data siswa tidak terbaca: ${siswaRows.error}`)
   }
 
-  const juzTuntas = juzGabunganPerSiswa(juzProgress.rows, juzUjian)
+  const juzTuntas = juzGabunganPerSiswa(juzProgress.rows, juzUjian, await getSiswaUrutanBebas())
   const ziyadahPerSiswa = new Map<string, { surat_id: number; ayat_dari: number | null; ayat_ke: number }[]>()
   for (const l of logs.rows) {
     const daftar = ziyadahPerSiswa.get(l.student_id) ?? []

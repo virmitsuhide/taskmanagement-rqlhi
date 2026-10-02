@@ -23,7 +23,8 @@ export default async function NewTahsinSetoranPage({ searchParams }: PageProps) 
   const ok = okQs === '1'
 
   const supabase = createServerClient()
-  const halaqohIds = await getTeacherHalaqohIds(session.teacherId)
+  // Hanya halaqoh tempat guru boleh mencatat tahsin (guru tahfidz SMA tidak).
+  const halaqohIds = await getTeacherHalaqohIds(session.teacherId, 'tahsin')
 
   // Mode Riyadhoh: anak kelompok pengampu ini yang hadir/belum dicatat pada
   // Sabtu itu — bukan anak halaqohnya. Tanggal dikunci ke Sabtu tersebut;

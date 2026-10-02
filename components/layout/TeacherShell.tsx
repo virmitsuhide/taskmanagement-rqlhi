@@ -1,6 +1,6 @@
 import { punyaSlotEkstra } from '@/lib/data/ekstra'
 import { punyaKelompokAsrama } from '@/lib/data/asrama'
-import { getTeacherHalaqohIds } from '@/lib/data/teacher'
+import { getTeacherHalaqohPeran } from '@/lib/data/teacher'
 import {
   LayoutDashboard, Users, CalendarCheck,
   BarChart3, ScrollText, GraduationCap, IdCard, ClipboardCheck, ListChecks,
@@ -40,7 +40,7 @@ export async function TeacherShell({ children }: { children: React.ReactNode }) 
   // halaman masuk tidak perlu menu yang belum boleh ia pakai.
   if (!session) return <>{children}</>
 
-  const [bolehGukar, unitUjian, konteks, raporBaru, notifUjian, kue, riyadhoh, pengampuEkstra, pengampuAsrama, halaqohSekolah] = await Promise.all([
+  const [bolehGukar, unitUjian, konteks, raporBaru, notifUjian, kue, riyadhoh, pengampuEkstra, pengampuAsrama, peranHalaqoh] = await Promise.all([
     bolehMengampuGukar(session.teacherId),
     getUnitUjianGuru(session.teacherId),
     getKonteksPengumuman(session.teacherId),
@@ -59,8 +59,15 @@ export async function TeacherShell({ children }: { children: React.ReactNode }) 
     punyaSlotEkstra(session.teacherId).catch(() => false),
     // Pengampu kelompok asrama boarding (0110) — menu Tahsin/Tahfidz Asrama.
     punyaKelompokAsrama(session.teacherId).catch(() => false),
-    getTeacherHalaqohIds(session.teacherId),
+    getTeacherHalaqohPeran(session.teacherId),
   ])
+  const halaqohSekolah = [...peranHalaqoh.keys()]
+  // Guru SMA berperan khusus (halaqoh_teachers.role): menu sesi jenis lain
+  // akan kosong, jadi tidak ditampilkan. Guru tanpa halaqoh tetap melihat
+  // keduanya, seperti sebelumnya.
+  const peran = [...peranHalaqoh.values()]
+  const adaTahsin = halaqohSekolah.length === 0 || peran.some(j => j !== 'tahfidz')
+  const adaTahfidz = halaqohSekolah.length === 0 || peran.some(j => j !== 'tahsin')
   // Musyrif boarding yang tidak mengampu halaqoh sekolah tidak perlu menu
   // Sesi Tahsin/Tahfidz sekolah — layarnya akan kosong. Guru yang memegang
   // keduanya melihat empat-empatnya.
@@ -104,8 +111,8 @@ export async function TeacherShell({ children }: { children: React.ReactNode }) 
         // sudah ada tapi tak punya jalan masuk dari navigasi.
         ...(tampilSesiSekolah
           ? [
-              { label: 'Sesi Tahsin', href: '/guru/setoran/tahsin/sesi', icon: <ListChecks /> },
-              { label: 'Sesi Tahfidz', href: '/guru/setoran/tahfidz/sesi', icon: <ListChecks /> },
+              ...(adaTahsin ? [{ label: 'Sesi Tahsin', href: '/guru/setoran/tahsin/sesi', icon: <ListChecks /> }] : []),
+              ...(adaTahfidz ? [{ label: 'Sesi Tahfidz', href: '/guru/setoran/tahfidz/sesi', icon: <ListChecks /> }] : []),
             ]
           : []),
         // Halaqoh asrama (0110): formulir sesi yang sama, jalur asrama. Tahsin

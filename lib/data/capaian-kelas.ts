@@ -1,9 +1,9 @@
 import { createServerClient } from '@/lib/supabase/server'
-import { getJuzUjianPerSiswa, juzBerjalanPerSiswa, juzGabunganPerSiswa, type BarisJuzProgress } from '@/lib/data/hafalan'
+import { getJuzUjianPerSiswa, getSiswaUrutanBebas, juzBerjalanPerSiswa, juzGabunganPerSiswa, type BarisJuzProgress } from '@/lib/data/hafalan'
 import { getTargetTahfidz, getTargetTahfidzSemua } from '@/lib/data/target-tahfidz'
 import { ayatPerJuz } from '@/lib/rq/batas-juz'
 import { getInfoSurat } from '@/lib/data/nama-surat'
-import { posisiJuz, totalJuzHafalan, URUTAN_JUZ } from '@/lib/rq/hafalan'
+import { hitungJuzHafalan, posisiJuz, URUTAN_JUZ } from '@/lib/rq/hafalan'
 import { mencapaiTarget } from '@/lib/rq/level'
 import { UNIT_LABELS, UNIT_ORDER } from '@/lib/rq/programs'
 import { JENJANG_METHODS, methodsForProgram } from '@/lib/tahsin'
@@ -298,17 +298,18 @@ function posisiTahfidz(berjalan: number, tuntas: number): { blok: number; kolom:
  * Penentu blok & kolom tahfidz untuk sekumpulan siswa — satu-satunya aturan,
  * dipakai laporan pengurus dan portal guru supaya angkanya tidak pernah berbeda.
  */
-function pembacaTahfidz(juzProgress: BarisJuzProgress[], juzUjian: Map<string, number>) {
+function pembacaTahfidz(juzProgress: BarisJuzProgress[], juzUjian: Map<string, number>, bebas: ReadonlySet<string>) {
   const berjalan = juzBerjalanPerSiswa(juzProgress)
-  const tuntasSetoran = juzGabunganPerSiswa(juzProgress, juzUjian)
+  const tuntasSetoran = juzGabunganPerSiswa(juzProgress, juzUjian, bebas)
   const tuntasMutqin = new Map<string, number>()
   for (const r of juzProgress) {
-    if (!r.mutqin) continue
+    // Urutan bebas (SMA): juz tuntas hanya dari ujian, bukan setoran/mutqin.
+    if (!r.mutqin || bebas.has(r.student_id)) continue
     const p = posisiJuz(r.juz_number) ?? 0
     if (p > (tuntasMutqin.get(r.student_id) ?? 0)) tuntasMutqin.set(r.student_id, p)
   }
   return (id: string) => {
-    const pBerjalan = berjalan.has(id) ? (posisiJuz(berjalan.get(id)!) ?? 0) : 0
+    const pBerjalan = berjalan.has(id) && !bebas.has(id) ? (posisiJuz(berjalan.get(id)!) ?? 0) : 0
     const tuntas = Math.max(tuntasSetoran.get(id) ?? 0, tuntasMutqin.get(id) ?? 0)
     return { tuntas, letak: posisiTahfidz(pBerjalan, tuntas) }
   }
@@ -458,7 +459,7 @@ export async function getCapaianKelas(jenjangBoleh: Jenjang[], opsi: { sampai?: 
 
   // Juz tuntas: yang terjauh dari kenaikan juz (mutqin), ujian, dan juz
   // sebelum juz yang sedang disetor.
-  const bacaTahfidz = pembacaTahfidz(juzProgress, juzUjian)
+  const bacaTahfidz = pembacaTahfidz(juzProgress, juzUjian, await getSiswaUrutanBebas())
 
   const namaSurat = (id: number) => infoSurat.get(id)?.name_latin ?? `Surah ${id}`
   const ayat = (dari: number | null, ke: number | null) =>
@@ -640,7 +641,8 @@ async function riwayatSampai(supabase: ReturnType<typeof createServerClient>, sa
   const teksUjian = new Map<string, string[]>()
   for (const r of ujian) { const d = teksUjian.get(r.student_id) ?? []; d.push(String(r.juz)); teksUjian.set(r.student_id, d) }
   const juzUjian = new Map<string, number>()
-  for (const [id, d] of teksUjian) juzUjian.set(id, totalJuzHafalan(d))
+  const bebas = await getSiswaUrutanBebas()
+  for (const [id, d] of teksUjian) juzUjian.set(id, hitungJuzHafalan(d, bebas.has(id)))
   return { bergerakSesudah, jilidNaik, juzNaik, juzUjian }
 }
 
@@ -746,7 +748,7 @@ export async function getPosisiUnit(jenjang: Jenjang): Promise<PosisiUnit> {
   const levelById = new Map(((levelRes.data ?? []) as BarisLevel[]).map(l => [l.id, l]))
   const jilidLog = new Map<string, string | null>()
   for (const l of logTahsin) if (!jilidLog.get(l.student_id)) jilidLog.set(l.student_id, l.jilid_id)
-  const bacaTahfidz = pembacaTahfidz(juzProgress, juzUjian)
+  const bacaTahfidz = pembacaTahfidz(juzProgress, juzUjian, await getSiswaUrutanBebas())
 
   const siswa: PosisiSiswaUnit[] = siswaRows.map(s => {
     const lvSiswa = s.current_jilid_id ? levelById.get(s.current_jilid_id) : undefined

@@ -4,7 +4,7 @@ import { getHalaqohSesiGuru, type HalaqohSesi } from '@/lib/data/setoran-sesi'
 import { getPetaHalaman, getTargetTahfidz } from '@/lib/data/target-tahfidz'
 import { levelDariTahap, levelOrder } from '@/lib/rq/level'
 import { halamanHafalan, tahunAjaranDari } from '@/lib/rq/target-tahfidz'
-import { getJuzTerujiPerSiswa, gabungJuz, juzSetoranPerSiswa, type BarisJuzProgress } from '@/lib/data/hafalan'
+import { getJuzTerujiPerSiswa, getSiswaUrutanBebas, gabungJuz, juzSetoranPerSiswa, type BarisJuzProgress } from '@/lib/data/hafalan'
 import { juzTerjauh, posisiJuz } from '@/lib/rq/hafalan'
 import { tanggalWIB } from '@/lib/rq/ujian'
 import type { Jenjang } from '@/types'
@@ -445,12 +445,14 @@ export async function getStatistikGuru(
   // bukan posisi di kurva rencana program. Kurva CLIL hanya 3 juz (±63
   // halaman), sehingga anak CLIL yang sudah 6 juz dulu mentok di 63 dan
   // setorannya di Al-Baqarah tidak terhitung. Lihat halamanHafalan().
-  const setoranTuntas = juzSetoranPerSiswa(progresJuz)
+  // SMA (urutan bebas): juz tuntas hanya dari ujian, dihitung per juz.
+  const bebas = await getSiswaUrutanBebas()
+  const setoranTuntas = juzSetoranPerSiswa(progresJuz, bebas)
   const ziyadahPer = new Map<string, typeof ziyadahSemua>()
   for (const z of ziyadahSemua) ziyadahPer.set(z.student_id, [...(ziyadahPer.get(z.student_id) ?? []), z])
   const tahfidzTertinggi = teratas(siswa.flatMap(s => {
     const juz = gabungJuz(setoranTuntas.get(s.id) ?? 0, (juzTeruji.get(s.id) ?? []).length)
-    const halaman = halamanHafalan(peta, juz.total, ziyadahPer.get(s.id) ?? [], s.jenjang)
+    const halaman = halamanHafalan(peta, bebas.has(s.id) ? juzTeruji.get(s.id) ?? [] : juz.total, ziyadahPer.get(s.id) ?? [], s.jenjang)
     if (halaman <= 0) return []
     const juzBerjalan = juzTerjauh(progresJuz.filter(p => p.student_id === s.id && p.ayat_hafal > 0).map(p => p.juz_number))
     return [{
@@ -460,7 +462,7 @@ export async function getStatistikGuru(
       satuan: 'halaman',
       keterangan: [
         juz.total > 0 ? `${juz.total} juz tuntas${juz.sumber === 'ujian' ? ' (ujian)' : ''}` : null,
-        juzBerjalan !== null && (posisiJuz(juzBerjalan) ?? 0) > juz.total ? `sedang juz ${juzBerjalan}` : null,
+        juzBerjalan !== null && (bebas.has(s.id) ? !(juzTeruji.get(s.id) ?? []).includes(juzBerjalan) : (posisiJuz(juzBerjalan) ?? 0) > juz.total) ? `sedang juz ${juzBerjalan}` : null,
       ].filter(Boolean).join(' · ') || null,
     }]
   }))

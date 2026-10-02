@@ -6,7 +6,6 @@ import { Check, Search, X } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { cariSiswaUjianAction, type SaranSiswa } from '@/app/actions/ujian'
-import { ringkasHafalan } from '@/lib/rq/hafalan'
 import type { UjianUnit } from '@/types'
 
 interface Props {
@@ -90,7 +89,7 @@ export function PilihSiswa({ unit, terpilih, onPilih, kecualikan }: Props) {
             {terpilih.full_name}
           </p>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            Kelas {terpilih.kelas ?? '—'} &middot; {ringkasHafalan(terpilih.sudahSampai)}
+            Kelas {terpilih.kelas ?? '—'} &middot; {terpilih.ringkas}
           </p>
         </div>
         <Button type="button" size="sm" variant="ghost" onClick={() => onPilih(null)}>
@@ -143,7 +142,7 @@ export function PilihSiswa({ unit, terpilih, onPilih, kecualikan }: Props) {
             >
               <span className="text-sm font-medium">{s.full_name}</span>
               <span className="text-[11px] text-muted-foreground">
-                Kelas {s.kelas ?? '—'} &middot; {ringkasHafalan(s.sudahSampai)}
+                Kelas {s.kelas ?? '—'} &middot; {s.ringkas}
               </span>
             </button>
           ))}

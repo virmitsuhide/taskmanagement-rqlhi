@@ -3,7 +3,7 @@ import { LencanaLevel } from '@/components/asrama/LencanaLevel'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { getTeacherSession } from '@/lib/auth/teacher-session'
-import { getTeacherStudents } from '@/lib/data/teacher'
+import { getTeacherHalaqohPeran, getTeacherStudents } from '@/lib/data/teacher'
 import { getTeacherWeeklyStats, getTeacherHalaqohSummary } from '@/lib/data/teacher-stats'
 import { getKonteksPengumuman, getPengumumanGuru } from '@/lib/data/pengumuman-guru'
 import { TandaiPengumumanTerbaca } from '@/components/guru/TandaiPengumumanTerbaca'
@@ -34,7 +34,7 @@ export default async function TeacherHomePage() {
   const now = new Date()
   const dateLabel = `${DAY_ID[now.getDay()]}, ${now.getDate()} ${MONTH_ID[now.getMonth()]} ${now.getFullYear()}`
 
-  const [students, weekly, halaqohSummary, konteks, unitUjian, pengajuan, notifUjian, tersembunyi, daftarSesi] = await Promise.all([
+  const [students, weekly, halaqohSummary, konteks, unitUjian, pengajuan, notifUjian, tersembunyi, daftarSesi, peranHalaqoh] = await Promise.all([
     // Ikut anak kelompok asrama (0110) — musyrif boarding tidak memegang
     // halaqoh sekolah, dan tanpa ini dashboard-nya bilang "belum mengampu".
     getTeacherStudents(session.teacherId, { denganAsrama: true }),
@@ -46,6 +46,7 @@ export default async function TeacherHomePage() {
     getNotifUjianGuru(session.teacherId),
     getKartuTersembunyi(session.teacherId),
     getHalaqohSesiGuru(session.teacherId),
+    getTeacherHalaqohPeran(session.teacherId),
   ])
   const berikut = sesiBerikutnya(daftarSesi)
   const jumlahSiswaBerikut = berikut
@@ -59,7 +60,15 @@ export default async function TeacherHomePage() {
     tanggal tahsinnya milik pengampu sekolah, bukan ukuran kerja musyrif.
   */
   const hanyaAsrama = (s: (typeof students)[number]) => !s.pengampu_sekolah && s.asrama_kelompok !== null
-  const tglAcuan = (s: (typeof students)[number]) => hanyaAsrama(s) ? s.last_tahfidz_date : s.last_setoran_date
+  // Guru SMA berperan khusus (halaqoh_teachers.role) di halaqoh anak itu.
+  const jenisGuru = (s: (typeof students)[number]) => s.halaqoh_id ? peranHalaqoh.get(s.halaqoh_id) ?? null : null
+  const keTahfidz = (s: (typeof students)[number]) =>
+    hanyaAsrama(s) || jenisGuru(s) === 'tahfidz' || (jenisGuru(s) === null && s.lulus_tahsin)
+  const tglAcuan = (s: (typeof students)[number]) =>
+    hanyaAsrama(s) || jenisGuru(s) === 'tahfidz' ? s.last_tahfidz_date : s.last_setoran_date
+  const peranSemua = [...peranHalaqoh.values()]
+  const adaTahsin = peranSemua.length === 0 || peranSemua.some(j => j !== 'tahfidz')
+  const adaTahfidz = peranSemua.length === 0 || peranSemua.some(j => j !== 'tahsin')
   const setorHariIni = students.filter(s => tglAcuan(s) === todayStr).length
   const belumSetor = students.filter(s => daysAgo(tglAcuan(s)) !== 0)
   // Antrian: prioritaskan yang paling lama belum setor
@@ -165,8 +174,8 @@ export default async function TeacherHomePage() {
 
         {/* Quick action */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-8">
-          <QuickAction href="/guru/setoran/tahsin/baru" icon={<BookOpen className="h-[18px] w-[18px]" />} title="Setor Tahsin" desc="Catat bacaan jilid harian" />
-          <QuickAction href="/guru/setoran/tahfidz/baru" icon={<Sparkles className="h-[18px] w-[18px]" />} title="Setor Tahfidz" desc="Ziyadah / muroja'ah" />
+          {adaTahsin && <QuickAction href="/guru/setoran/tahsin/baru" icon={<BookOpen className="h-[18px] w-[18px]" />} title="Setor Tahsin" desc="Catat bacaan jilid harian" />}
+          {adaTahfidz && <QuickAction href="/guru/setoran/tahfidz/baru" icon={<Sparkles className="h-[18px] w-[18px]" />} title="Setor Tahfidz" desc="Ziyadah / muroja'ah" />}
           <QuickAction href="/guru/siswa" icon={<Users className="h-[18px] w-[18px]" />} title="Siswa Saya" desc="Lihat semua siswa & progress" />
         </div>
 
@@ -210,7 +219,7 @@ export default async function TeacherHomePage() {
                       <Link
                         href={hanyaAsrama(s)
                           ? '/guru/setoran/tahfidz/asrama'
-                          : s.lulus_tahsin ? `/guru/setoran/tahfidz/baru?student=${s.id}` : `/guru/setoran/tahsin/baru?student=${s.id}`}
+                          : keTahfidz(s) ? `/guru/setoran/tahfidz/baru?student=${s.id}` : `/guru/setoran/tahsin/baru?student=${s.id}`}
                         className="text-xs px-3 py-1.5 rounded-md text-white shrink-0"
                         style={{ background: 'var(--primary)' }}
                       >

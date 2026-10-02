@@ -142,6 +142,62 @@ export function ringkasHafalan(total: number): string {
   return `${total} juz (${daftar.join(', ')})`
 }
 
+// ─── Urutan bebas (SMA) ──────────────────────────────────────────────────────
+//
+// Semua aturan di atas bersandar pada urutan hafalan yang tetap. SMA LHI tidak
+// punya urutan itu: anak menghafal juz mana saja, diuji 1 juz, lalu lanjut —
+// tanpa tasmi' 3/5 juz. Di sana satu catatan ujian TIDAK menyimpulkan juz
+// lain; jumlah juz = banyaknya juz berbeda yang sudah lulus ujian, dan
+// setoran harian tidak ikut menghitung juz sama sekali.
+
+/** Jenjang tanpa urutan hafalan baku. */
+const JENJANG_URUTAN_BEBAS: ReadonlySet<string> = new Set(['sma'])
+
+export function urutanBebas(jenjang: string | null | undefined): boolean {
+  return jenjang ? JENJANG_URUTAN_BEBAS.has(jenjang) : false
+}
+
+/**
+ * Nomor juz yang tercakup sekumpulan catatan ujian, tanpa menyimpulkan juz
+ * lain — urut 1→30. Rentang ("1-5") diurai menjadi juz-juznya, untuk berjaga
+ * bila ada catatan tasmi' lama; SMA sendiri tidak memakai tasmi'.
+ */
+export function juzLulusBebas(juzTeksList: string[]): number[] {
+  const hasil = new Set<number>()
+  for (const teks of juzTeksList) {
+    const angka = String(teks).split(/[^0-9]+/).filter(Boolean).map(Number)
+    if (angka.length === 2 && /-/.test(String(teks))) {
+      const [a, b] = [Math.min(...angka), Math.max(...angka)]
+      for (let j = a; j <= b; j++) if (posisiJuz(j) !== null) hasil.add(j)
+    } else {
+      for (const j of angka) if (posisiJuz(j) !== null) hasil.add(j)
+    }
+  }
+  return [...hasil].sort((a, b) => a - b)
+}
+
+/** Jumlah juz hafalan dari catatan ujian, menurut aturan unit anak. */
+export function hitungJuzHafalan(juzTeksList: string[], bebas: boolean): number {
+  return bebas ? juzLulusBebas(juzTeksList).length : totalJuzHafalan(juzTeksList)
+}
+
+/** Nomor juz yang sudah tuntas, menurut aturan unit anak. */
+export function daftarJuzLulus(juzTeksList: string[], bebas: boolean): number[] {
+  return bebas ? juzLulusBebas(juzTeksList) : daftarJuzSelesai(totalJuzHafalan(juzTeksList))
+}
+
+/** Juz yang masih boleh diajukan anak urutan bebas: semua yang belum lulus, 30 → 1. */
+export function juzTersediaBebas(lulus: number[]): number[] {
+  const sudah = new Set(lulus)
+  return Array.from({ length: 30 }, (_, i) => 30 - i).filter(j => !sudah.has(j))
+}
+
+/** "3 juz (2, 15, 30)" — padanan ringkasHafalan() untuk urutan bebas. */
+export function ringkasJuzBebas(lulus: number[]): string {
+  if (lulus.length === 0) return 'Belum ada catatan ujian'
+  return `${lulus.length} juz (${lulus.join(', ')})`
+}
+
 // ─── Kewajiban ujian: juz'iyyah per juz & tasmi' per blok ────────────────────
 
 /**

@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Segmen } from './Segmen'
 import { TAHSIN_LEVELS, UJIAN_UNIT_SEKOLAH, getTahfidzLabel } from '@/lib/rq/ujian'
-import { juzTersedia, ringkasHafalan } from '@/lib/rq/hafalan'
+import { juzTersedia, juzTersediaBebas } from '@/lib/rq/hafalan'
 import { PilihSiswa } from './PilihSiswa'
 import type { SaranSiswa, SiswaHalaqoh, UstadzHalaqoh } from '@/app/actions/ujian'
 import {
@@ -88,7 +88,8 @@ function FormTahfidz({ unit, redirectTo }: { unit: UjianUnit; redirectTo: string
 
   // Juz yang sudah dilewati tidak ditawarkan lagi. Anak yang sudah juz'iyyah
   // juz 26 hanya melihat 1-25, sebab 30-26 pasti sudah lewat.
-  const pilihanJuz = juzTersedia(siswa?.sudahSampai ?? 0)
+  // SMA (urutan bebas): semua juz yang belum tercatat, tanpa menyimpulkan apa pun.
+  const pilihanJuz = siswa?.urutanBebas ? juzTersediaBebas(siswa.juzTercatat) : juzTersedia(siswa?.sudahSampai ?? 0)
   const [juz, setJuz] = useState('')
 
   // Berganti siswa mengubah daftar juz-nya, jadi pilihan lama bisa jadi tidak
@@ -99,6 +100,8 @@ function FormTahfidz({ unit, redirectTo }: { unit: UjianUnit; redirectTo: string
   function pilihSiswa(s: SaranSiswa | null) {
     setSiswa(s)
     setJuz('')
+    // Unit tanpa tasmi' 3/5 juz (SMA): tipenya selalu 1 juz.
+    if (s?.urutanBebas) setTipe('1_juz')
     if (s) {
       // Nama flyer diisi awal dengan nama depannya saja — pengaju tinggal
       // menyingkat sisanya, alih-alih mengetik ulang dari nol.
@@ -179,8 +182,8 @@ function FormTahfidz({ unit, redirectTo }: { unit: UjianUnit; redirectTo: string
               className={SELECT_CLASS}
             >
               <option value="1_juz">1 Juz — Tasmi&apos; Juz</option>
-              <option value="3_juz">3 Juz — Tasmi&apos; 3 Juz</option>
-              <option value="5_juz">5 Juz — Tasmi&apos; 5 Juz</option>
+              {!siswa.urutanBebas && <option value="3_juz">3 Juz — Tasmi&apos; 3 Juz</option>}
+              {!siswa.urutanBebas && <option value="5_juz">5 Juz — Tasmi&apos; 5 Juz</option>}
             </select>
           </div>
 
@@ -193,7 +196,7 @@ function FormTahfidz({ unit, redirectTo }: { unit: UjianUnit; redirectTo: string
                 </select>
                 {siswa.sudahSampai > 0 && (
                   <p className="text-xs text-muted-foreground">
-                    Juz yang sudah dilewati tidak ditawarkan — {ringkasHafalan(siswa.sudahSampai)}.
+                    {siswa.urutanBebas ? 'Juz yang sudah tercatat' : 'Juz yang sudah dilewati'} tidak ditawarkan — {siswa.ringkas}.
                   </p>
                 )}
               </>

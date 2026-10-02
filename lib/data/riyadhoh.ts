@@ -1,5 +1,5 @@
 import { createServerClient } from '@/lib/supabase/server'
-import { canTeacherAccessStudent } from '@/lib/data/teacher'
+import { canTeacherAccessStudent, type JenisSetoran } from '@/lib/data/teacher'
 import { ikutRiyadhoh, pesertaBawaan, type KelompokRiyadhoh } from '@/lib/rq/riyadhoh'
 
 /**
@@ -141,7 +141,8 @@ export async function getPesertaKelompok(kelompok: KelompokRiyadhoh, teacherId?:
 
 /**
  * Siapa yang boleh mencatat setoran seorang anak pada sebuah tanggal:
- *   'reguler'  — guru halaqoh sekolahnya (setiap hari, seperti biasa);
+ *   'reguler'  — guru halaqoh sekolahnya (setiap hari, seperti biasa) yang
+ *                boleh mencatat `jenis` itu (guru SMA khusus tahsin/tahfidz);
  *   'riyadhoh' — pengampu Riyadhoh kelompok anak itu, HANYA pada Sabtu yang
  *                dijadwalkan untuk kelompoknya, dan anak itu peserta;
  *   null       — tidak boleh.
@@ -150,8 +151,8 @@ export async function getPesertaKelompok(kelompok: KelompokRiyadhoh, teacherId?:
  * anak itu di hari lain, dan setoran yang ia catat di hari sekolah akan
  * menyelinap ke riwayat halaqoh yang bukan miliknya.
  */
-export async function aksesSetoran(teacherId: string, studentId: string, tanggal: string): Promise<'reguler' | 'riyadhoh' | null> {
-  if (await canTeacherAccessStudent(teacherId, studentId)) return 'reguler'
+export async function aksesSetoran(teacherId: string, studentId: string, tanggal: string, jenis?: JenisSetoran): Promise<'reguler' | 'riyadhoh' | null> {
+  if (await canTeacherAccessStudent(teacherId, studentId, jenis)) return 'reguler'
   return (await bolehRiyadhoh(teacherId, studentId, tanggal)) ? 'riyadhoh' : null
 }
 

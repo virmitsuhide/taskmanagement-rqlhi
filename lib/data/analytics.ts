@@ -1,7 +1,7 @@
 import { createServerClient } from '@/lib/supabase/server'
 import { UNIT_ORDER, UNIT_LABELS, PROGRAMS_BY_JENJANG, programLabel, cocokProgram } from '@/lib/rq/programs'
-import { juzTerjauh, totalJuzHafalan } from '@/lib/rq/hafalan'
-import { getJuzUjianPerSiswa, juzGabunganPerSiswa } from '@/lib/data/hafalan'
+import { daftarJuzLulus, juzTerjauh, ringkasHafalan, ringkasJuzBebas, urutanBebas } from '@/lib/rq/hafalan'
+import { getJuzUjianPerSiswa, getSiswaUrutanBebas, juzGabunganPerSiswa } from '@/lib/data/hafalan'
 import { getPetaHalaman, getTargetTahfidzSemua, ringkasSiswaTarget } from '@/lib/data/target-tahfidz'
 import { halamanRentang, jenisMurojaah } from '@/lib/rq/murojaah'
 import { getPredikatLabel, tanggalWIB } from '@/lib/rq/ujian'
@@ -531,6 +531,7 @@ export async function getUnitLearning(program: readonly string[] | null = null):
       student_id: string; juz_number: number; ayat_hafal: number; mutqin: boolean
     }[],
     juzUjianUnit,
+    await getSiswaUrutanBebas(),
   )
 
   // Program buckets (capaian + ujian) per (jenjang, program)
@@ -739,7 +740,7 @@ export async function getUnitHafalanBoards(program: readonly string[] | null = n
   // Jumlah juz diambil dari sumber yang paling jauh — setoran atau ujian.
   // Lihat lib/data/hafalan.ts: anak yang masih di program tahsin tidak pernah
   // punya setoran ziyadah, jadi tanpa ini capaian ujiannya terbaca nol.
-  const juzGabungan = juzGabunganPerSiswa(jpRows, juzUjian)
+  const juzGabungan = juzGabunganPerSiswa(jpRows, juzUjian, await getSiswaUrutanBebas())
 
   return UNIT_ORDER.map(jenjang => {
     const us = students.filter(s => s.jenjang === jenjang)
@@ -986,7 +987,8 @@ export interface HafalanUjianUnit {
   rataJuz: number
   /** Berapa siswa pada tiap jumlah juz — untuk batang sebaran. */
   sebaran: { juz: number; siswa: number }[]
-  top10: { id: string; name: string; kelas: string | null; juz: number }[]
+  /** ringkas: '5 juz (30, 29, …)' — urutan RQ, atau juz lulusnya bagi SMA. */
+  top10: { id: string; name: string; kelas: string | null; juz: number; ringkas: string }[]
 }
 
 /** @param program penyempitan program (koor QULS SD); kosong = seluruh program. */
@@ -1016,12 +1018,18 @@ export async function getHafalanUjianPerUnit(program: readonly string[] | null =
   return UNIT_ORDER.map(jenjang => {
     const anak = siswa
       .filter(s => s.jenjang === jenjang && perSiswa.has(s.id))
-      .map(s => ({
-        id: s.id,
-        name: s.full_name,
-        kelas: s.kelas,
-        juz: totalJuzHafalan(perSiswa.get(s.id) ?? []),
-      }))
+      .map(s => {
+        // SMA tanpa urutan hafalan: juz = juz berbeda yang lulus ujian.
+        const bebas = urutanBebas(s.jenjang)
+        const lulus = daftarJuzLulus(perSiswa.get(s.id) ?? [], bebas)
+        return {
+          id: s.id,
+          name: s.full_name,
+          kelas: s.kelas,
+          juz: lulus.length,
+          ringkas: bebas ? ringkasJuzBebas(lulus) : ringkasHafalan(lulus.length),
+        }
+      })
       .filter(a => a.juz > 0)
 
     const totalJuz = anak.reduce((n, a) => n + a.juz, 0)

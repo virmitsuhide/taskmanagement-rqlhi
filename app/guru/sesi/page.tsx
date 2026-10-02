@@ -4,7 +4,7 @@ import { BookOpen, CheckCircle2, FileText, HeartHandshake, ListChecks, Sparkles 
 import { getTeacherSession } from '@/lib/auth/teacher-session'
 import { getHalaqohSesiGuru, pilihHalaqoh } from '@/lib/data/setoran-sesi'
 import { getAbsensiTanggal, getSiswaSesi } from '@/lib/data/absensi'
-import { getTeacherStudents } from '@/lib/data/teacher'
+import { getTeacherHalaqohPeran, getTeacherStudents } from '@/lib/data/teacher'
 import { labelTanggalPanjang, type StatusAbsensi } from '@/lib/rq/absensi'
 import { tanggalWIB } from '@/lib/rq/ujian'
 import { sesiJam } from '@/lib/rq/sesi'
@@ -29,7 +29,10 @@ export default async function MulaiSesiPage({ searchParams }: PageProps) {
   if (!session) redirect('/guru/login')
 
   const { halaqoh: diminta } = await searchParams
-  const daftar = await getHalaqohSesiGuru(session.teacherId)
+  const [daftar, peranHalaqoh] = await Promise.all([
+    getHalaqohSesiGuru(session.teacherId),
+    getTeacherHalaqohPeran(session.teacherId),
+  ])
   // Tanpa ?halaqoh= → halaqoh yang sesinya paling dekat.
   const bawaan = sesiBerikutnya(daftar)?.halaqoh.id
   const halaqoh = pilihHalaqoh(daftar, diminta ?? bawaan)
@@ -49,13 +52,24 @@ export default async function MulaiSesiPage({ searchParams }: PageProps) {
   const sudahAbsen = absensi.baris.length > 0
   const tidakHadir = new Set(absensi.baris.filter(b => b.status !== 'hadir').map(b => b.student_id))
 
+  // Guru SMA berperan khusus di halaqohnya (halaqoh_teachers.role): hanya
+  // tahsin atau hanya tahfidz. null = keduanya, seperti guru unit lain.
+  const jenisGuru = halaqoh ? peranHalaqoh.get(halaqoh.id) ?? null : null
+  const bolehTahsin = jenisGuru !== 'tahfidz'
+  const bolehTahfidz = jenisGuru !== 'tahsin'
+
   // Antrian setor: anak halaqoh ini yang hadir, paling lama belum setor di atas.
-  const anak = semuaSiswa.filter(s => s.halaqoh_id === halaqoh?.id)
-  const sudahSetor = anak.filter(s => s.last_setoran_date === hariIni)
-  const tidakHadirBelumSetor = anak.filter(s => tidakHadir.has(s.id) && s.last_setoran_date !== hariIni).length
+  // Guru khusus tahfidz diukur dari setoran tahfidz; guru khusus tahsin tidak
+  // mengantre anak yang sudah Lulus Tahsin — tidak ada yang bisa ia catat.
+  const tglSetor = (s: (typeof semuaSiswa)[number]) => jenisGuru === 'tahfidz' ? s.last_tahfidz_date : s.last_setoran_date
+  const anak = semuaSiswa.filter(s => s.halaqoh_id === halaqoh?.id && !(jenisGuru === 'tahsin' && s.lulus_tahsin))
+  const sudahSetor = anak.filter(s => tglSetor(s) === hariIni)
+  const tidakHadirBelumSetor = anak.filter(s => tidakHadir.has(s.id) && tglSetor(s) !== hariIni).length
   const antrian = anak
-    .filter(s => s.last_setoran_date !== hariIni && !tidakHadir.has(s.id))
-    .sort((a, b) => (a.last_setoran_date ?? '').localeCompare(b.last_setoran_date ?? ''))
+    .filter(s => tglSetor(s) !== hariIni && !tidakHadir.has(s.id))
+    .sort((a, b) => (tglSetor(a) ?? '').localeCompare(tglSetor(b) ?? ''))
+  const hrefSetor = (s: (typeof semuaSiswa)[number]) =>
+    jenisGuru === 'tahfidz' || (jenisGuru === null && s.lulus_tahsin) ? '/guru/setoran/tahfidz/baru' : '/guru/setoran/tahsin/baru'
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--secondary)' }}>
@@ -126,17 +140,17 @@ export default async function MulaiSesiPage({ searchParams }: PageProps) {
               <section className="rounded-2xl border bg-card p-4 md:p-5">
                 <Langkah nomor={2} judul="Setoran" selesai={anak.length > 0 && antrian.length === 0}
                   ket="Isi seluruh halaqoh sekaligus, atau setor satu per satu dari antrian." />
-                <div className="mt-4 grid gap-2 sm:grid-cols-2">
-                  <Link href={`/guru/setoran/tahsin/sesi?halaqoh=${halaqoh.id}`}
+                <div className={cn('mt-4 grid gap-2', bolehTahsin && bolehTahfidz && 'sm:grid-cols-2')}>
+                  {bolehTahsin && <Link href={`/guru/setoran/tahsin/sesi?halaqoh=${halaqoh.id}`}
                     className="flex items-center gap-3 rounded-xl bg-primary px-4 py-3 text-primary-foreground transition-opacity hover:opacity-90">
                     <ListChecks className="h-5 w-5 shrink-0" />
                     <span className="text-sm font-semibold leading-tight">Setor tahsin<br /><span className="text-xs font-normal opacity-80">satu sesi sekaligus</span></span>
-                  </Link>
-                  <Link href={`/guru/setoran/tahfidz/sesi?halaqoh=${halaqoh.id}`}
-                    className="flex items-center gap-3 rounded-xl border px-4 py-3 transition-colors hover:border-primary/40">
-                    <Sparkles className="h-5 w-5 shrink-0 text-primary" />
-                    <span className="text-sm font-semibold leading-tight">Setor tahfidz<br /><span className="text-xs font-normal text-muted-foreground">satu sesi sekaligus</span></span>
-                  </Link>
+                  </Link>}
+                  {bolehTahfidz && <Link href={`/guru/setoran/tahfidz/sesi?halaqoh=${halaqoh.id}`}
+                    className={cn('flex items-center gap-3 rounded-xl px-4 py-3 transition-colors', bolehTahsin ? 'border hover:border-primary/40' : 'bg-primary text-primary-foreground hover:opacity-90')}>
+                    <Sparkles className={cn('h-5 w-5 shrink-0', bolehTahsin && 'text-primary')} />
+                    <span className="text-sm font-semibold leading-tight">Setor tahfidz<br /><span className={cn('text-xs font-normal', bolehTahsin ? 'text-muted-foreground' : 'opacity-80')}>satu sesi sekaligus</span></span>
+                  </Link>}
                 </div>
 
                 <div className="mt-5">
@@ -162,7 +176,7 @@ export default async function MulaiSesiPage({ searchParams }: PageProps) {
                             </p>
                           </div>
                           <Link
-                            href={`${s.lulus_tahsin ? '/guru/setoran/tahfidz/baru' : '/guru/setoran/tahsin/baru'}?student=${s.id}&antrian=${antrian.map(a => a.id).join(',')}`}
+                            href={`${hrefSetor(s)}?student=${s.id}&antrian=${antrian.map(a => a.id).join(',')}`}
                             className="shrink-0 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground"
                           >
                             Setor

@@ -9,7 +9,7 @@ import { SetoranKoreksi, type SetoranItem } from '@/components/siswa/SetoranKore
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { Button } from '@/components/ui/button'
 import { Pencil, Phone, Mail, GraduationCap, BookOpen } from 'lucide-react'
-import { totalJuzHafalan, ringkasHafalan } from '@/lib/rq/hafalan'
+import { juzLulusBebas, ringkasHafalan, ringkasJuzBebas, totalJuzHafalan, urutanBebas } from '@/lib/rq/hafalan'
 import { tanggalWIB } from '@/lib/rq/ujian'
 import { tingkatOf } from '@/lib/rq/sesi'
 import { getRiwayatUjianSiswa } from '@/lib/data/riwayat-ujian-siswa'
@@ -72,7 +72,9 @@ export default async function StudentDetailPage({ params }: PageProps) {
 
   // Yang dihitung catatan terjauh, bukan jumlah catatannya: tiga kali ujian
   // juz 30 tetap satu juz.
-  const juzHafalan = totalJuzHafalan(ujian.map(u => String(u.juz)))
+  // SMA (urutan bebas): juz berbeda yang tercatat, tanpa menyimpulkan juz lain.
+  const juzBebas = urutanBebas(jenjang) ? juzLulusBebas(ujian.map(u => String(u.juz))) : null
+  const juzHafalan = juzBebas ? juzBebas.length : totalJuzHafalan(ujian.map(u => String(u.juz)))
 
   // Riwayat setoran hanya diambil untuk yang berwenang mengoreksinya;
   // bagi yang lain, tiga query ini sia-sia.
@@ -299,7 +301,7 @@ export default async function StudentDetailPage({ params }: PageProps) {
             {/* ── Riwayat ujian (tahsin & tahfidz) ── */}
             <section className="rounded-2xl border bg-card p-5">
               <h2 className="font-heading text-xl font-medium leading-tight">Riwayat ujian</h2>
-              <p className="mt-0.5 text-xs text-muted-foreground">{juzHafalan > 0 ? ringkasHafalan(juzHafalan) : 'Tahsin & tahfidz'}</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">{juzHafalan > 0 ? (juzBebas ? ringkasJuzBebas(juzBebas) : ringkasHafalan(juzHafalan)) : 'Tahsin & tahfidz'}</p>
               {riwayatUjian.length === 0 ? (
                 <p className="mt-4 text-sm text-muted-foreground">Belum ada ujian tercatat.</p>
               ) : (

@@ -15,7 +15,7 @@ export default async function SetoranSesiTahfidzPage({ searchParams }: PageProps
   if (!session) redirect('/guru/login')
 
   const { halaqoh: diminta } = await searchParams
-  const daftar = await getHalaqohSesiGuru(session.teacherId)
+  const daftar = await getHalaqohSesiGuru(session.teacherId, 'tahfidz')
   const halaqoh = pilihHalaqoh(daftar, diminta)
 
   const supabase = createServerClient()

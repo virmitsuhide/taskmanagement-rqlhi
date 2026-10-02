@@ -2,30 +2,62 @@ import { createServerClient } from '@/lib/supabase/server'
 import { levelSah, type LevelAsrama } from '@/lib/rq/asrama'
 import { getJuzDrillPerSiswa } from '@/lib/data/drill-tahfidz'
 
+export type JenisSetoran = 'tahsin' | 'tahfidz'
+
+/** halaqoh_teachers.role yang membatasi guru ke satu jenis setoran. */
+function jenisDariPeran(role: string | null): JenisSetoran | null {
+  return role === 'tahsin' || role === 'tahfidz' ? role : null
+}
+
 /**
- * Ambil semua halaqoh_id yang diampu seorang guru.
- * Sumber: wali_teacher_id di tabel halaqoh + relasi halaqoh_teachers.
+ * Halaqoh yang diampu seorang guru, beserta jenis setoran yang boleh ia
+ * catat di sana: null = keduanya (bawaan), 'tahsin'/'tahfidz' = hanya itu.
+ *
+ * Pembatasan datang dari halaqoh_teachers.role. Di sebagian besar unit satu
+ * guru memegang tahsin dan tahfidz sekaligus (role 'pengampu'). SMA LHI
+ * berbeda: satu guru tahsin untuk semua anak, dua guru tahfidz — guru tahsin
+ * tidak boleh mencatat tahfidz dan sebaliknya. Baris halaqoh_teachers yang
+ * berperan khusus mengalahkan status wali: wali halaqoh SMA (guru tahfidz)
+ * tetap hanya tahfidz.
  */
-export async function getTeacherHalaqohIds(teacherId: string): Promise<string[]> {
+export async function getTeacherHalaqohPeran(teacherId: string): Promise<Map<string, JenisSetoran | null>> {
   const supabase = createServerClient()
   const [waliRes, memberRes] = await Promise.all([
     supabase.from('halaqoh').select('id').eq('wali_teacher_id', teacherId),
-    supabase.from('halaqoh_teachers').select('halaqoh_id').eq('teacher_id', teacherId),
+    supabase.from('halaqoh_teachers').select('halaqoh_id, role').eq('teacher_id', teacherId),
   ])
 
-  const ids = new Set<string>()
-  for (const row of waliRes.data ?? []) ids.add(row.id)
-  for (const row of memberRes.data ?? []) ids.add(row.halaqoh_id)
-  return [...ids]
+  const hasil = new Map<string, JenisSetoran | null>()
+  for (const row of waliRes.data ?? []) hasil.set(row.id, null)
+  for (const row of (memberRes.data ?? []) as { halaqoh_id: string; role: string | null }[]) {
+    const jenis = jenisDariPeran(row.role)
+    if (jenis || !hasil.has(row.halaqoh_id)) hasil.set(row.halaqoh_id, jenis)
+  }
+  return hasil
+}
+
+/**
+ * Ambil semua halaqoh_id yang diampu seorang guru.
+ * Sumber: wali_teacher_id di tabel halaqoh + relasi halaqoh_teachers.
+ *
+ * `jenis` diisi = hanya halaqoh tempat guru boleh mencatat setoran jenis itu
+ * (lihat getTeacherHalaqohPeran). Tanpa `jenis` = semua halaqohnya, untuk
+ * keperluan melihat (profil, rapor, statistik).
+ */
+export async function getTeacherHalaqohIds(teacherId: string, jenis?: JenisSetoran): Promise<string[]> {
+  const peran = await getTeacherHalaqohPeran(teacherId)
+  return [...peran].filter(([, j]) => !jenis || j === null || j === jenis).map(([id]) => id)
 }
 
 /**
  * Apakah guru boleh mengakses (lihat/setor) data seorang siswa?
- * True jika siswa berada di salah satu halaqoh yang diampu guru.
+ * True jika siswa berada di salah satu halaqoh yang diampu guru — dan, bila
+ * `jenis` diisi, guru boleh mencatat setoran jenis itu di halaqoh tersebut.
  */
 export async function canTeacherAccessStudent(
   teacherId: string,
   studentId: string,
+  jenis?: JenisSetoran,
 ): Promise<boolean> {
   const supabase = createServerClient()
   const { data: student } = await supabase
@@ -35,7 +67,7 @@ export async function canTeacherAccessStudent(
     .maybeSingle()
 
   if (!student?.halaqoh_id) return false
-  const halaqohIds = await getTeacherHalaqohIds(teacherId)
+  const halaqohIds = await getTeacherHalaqohIds(teacherId, jenis)
   return halaqohIds.includes(student.halaqoh_id)
 }
 
@@ -109,11 +141,12 @@ export async function getTeacherStudents(
    * (pengajuan ujian, antrian dashboard) memakai daftar ini sebagai
    * "anak yang boleh saya urus di sekolah".
    */
-  opts: { denganAsrama?: boolean } = {},
+  /** jenis: hanya anak yang boleh disetor jenis ini oleh guru (getTeacherHalaqohIds). */
+  opts: { denganAsrama?: boolean; jenis?: JenisSetoran } = {},
 ): Promise<TeacherStudentRow[]> {
   const supabase = createServerClient()
   const [halaqohIds, asrama] = await Promise.all([
-    getTeacherHalaqohIds(teacherId),
+    getTeacherHalaqohIds(teacherId, opts.jenis),
     opts.denganAsrama ? anakAsramaGuru(teacherId) : Promise.resolve(new Map<string, { kelompok: string; level: LevelAsrama | null }>()),
   ])
   if (halaqohIds.length === 0 && asrama.size === 0) return []
