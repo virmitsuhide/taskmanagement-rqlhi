@@ -1,6 +1,6 @@
 import { cn } from '@/lib/utils'
 import {
-  angka1, labelTotalHafalan, tambahHafalan, teksMurojaah,
+  angka1, labelTotalHafalan, tambahHafalan, teksMurojaah, teksTahsinPeriode,
   type AnakLaporan, type LaporanOrtu,
 } from '@/lib/rq/laporan-ortu'
 
@@ -135,7 +135,7 @@ function BarisAnak({ a, no, pertemuan, tahsin, tahfidz }: { a: AnakLaporan; no: 
         <p>{a.tahsin.posisi ?? '—'}</p>
         {a.tahsin.setoran > 0 && (
           <p className="text-[10px] text-muted-foreground">
-            +{a.tahsin.lulus} hal. lulus{a.tahsin.setoran > a.tahsin.lulus ? ` · ${a.tahsin.setoran} setoran` : ''}
+            {teksTahsinPeriode(a.tahsin) ?? 'belum ada halaman lulus'} · {a.tahsin.setoran}× setor
           </p>
         )}
       </td>}

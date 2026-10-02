@@ -41,6 +41,19 @@ function besok(iso: string): string {
   return d.toISOString().slice(0, 10)
 }
 
+/**
+ * Setoran tahsin TERAKHIR periode itu, bila berstatus Lanjut (0109): halaman
+ * yang belum tuntas beserta barisnya. Baris awal kosong = mulai dari baris 1;
+ * baris akhir kosong = guru tidak mengisinya.
+ */
+function barisLanjut(ts: { setoran_date: string; created_at: string; status: string; halaman: number | null; baris_dari: number | null; baris_ke: number | null }[]): string | null {
+  const akhir = [...ts].sort((a, b) => (a.setoran_date + a.created_at).localeCompare(b.setoran_date + b.created_at)).at(-1)
+  if (!akhir || akhir.status !== 'lanjut' || akhir.halaman === null) return null
+  if (akhir.baris_ke === null) return `hal. ${akhir.halaman} (belum tuntas)`
+  const dari = akhir.baris_dari ?? 1
+  return `hal. ${akhir.halaman} baris ${dari === akhir.baris_ke ? dari : `${dari}–${akhir.baris_ke}`}`
+}
+
 export async function getSesiGuruLaporan(teacherId: string): Promise<HalaqohSesi[]> {
   return getHalaqohSesiGuru(teacherId)
 }
@@ -68,14 +81,17 @@ export async function getLaporanOrtu(
   const waktuDari = `${periode.dari}T00:00:00+07:00`
   const waktuSampai = `${besok(periode.sampai)}T00:00:00+07:00`
   const kosong = <T,>() => Promise.resolve([] as T[])
-  type LogTahsin = { id: string; student_id: string; setoran_date: string; status: string; drill: boolean | null }
+  type LogTahsin = {
+    id: string; student_id: string; setoran_date: string; created_at: string; status: string; drill: boolean | null
+    halaman: number | null; baris_dari: number | null; baris_ke: number | null
+  }
   type LogTahfidz = { id: string; student_id: string; setoran_date: string; kind: string; surat_id: number; ayat_dari: number | null; surat_ke_id: number | null; ayat_ke: number | null }
   type Ziyadah = { student_id: string; surat_id: number; ayat_dari: number | null; ayat_ke: number | null; setoran_date: string; created_at: string }
 
   const [guruRes, tahsinSemua, tahfidzSemua, ziyadahSemua, progres, juzTeruji, ujianTf, ujianTs, peta, surat, logEkstra] = await Promise.all([
     supabase.from('teachers').select('full_name, sapaan, nickname, signature_path').eq('id', teacherId).maybeSingle(),
     ids.length ? ambilSemua<LogTahsin>((a, b) =>
-      supabase.from('tahsin_logs').select('id, student_id, setoran_date, status, drill')
+      supabase.from('tahsin_logs').select('id, student_id, setoran_date, created_at, status, drill, halaman, baris_dari, baris_ke')
         .in('student_id', ids).gte('setoran_date', periode.dari).lte('setoran_date', periode.sampai).range(a, b)) : kosong<LogTahsin>(),
     ids.length ? ambilSemua<LogTahfidz>((a, b) =>
       supabase.from('tahfidz_logs').select('id, student_id, setoran_date, kind, surat_id, ayat_dari, surat_ke_id, ayat_ke')
@@ -164,6 +180,7 @@ export async function getLaporanOrtu(
         posisi: posisiTahsin,
         setoran: ts.length,
         lulus: ts.filter(l => l.status === 'lulus' && !l.drill).length,
+        baris: barisLanjut(ts),
         selesai: Boolean(s.jilid?.is_terminal),
       },
       tahfidz: {

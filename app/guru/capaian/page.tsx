@@ -106,51 +106,50 @@ export default async function CapaianBulananPage({ searchParams }: PageProps) {
     ((monthlyRows ?? []) as StudentMonthly[]).map(row => [row.student_id, row]),
   )
 
-  const belumAkhir = students.filter(s => !monthly[s.id]?.halaman_akhir_tahsin).length
   const href = (g: { periode?: string; halaqoh?: string }) =>
     `/guru/capaian?${new URLSearchParams({ periode: g.periode ?? period, halaqoh: g.halaqoh ?? activeHalaqoh?.id ?? '' }).toString()}`
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--secondary)' }}>
       <div className="mx-auto max-w-6xl space-y-6 px-4 py-6 md:px-8 md:py-8">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-          <div className="min-w-0">
+        {/* Judul selebar halaman; pilihan sesi & bulan di bilah alat tersendiri
+            di bawahnya. Dulu keduanya berbagi satu baris, sehingga judul
+            terjepit menjadi lima baris di layar laptop. Jumlah yang belum
+            punya capaian akhir sudah ada di kotak kemajuan — tidak diulang. */}
+        <header className="min-w-0">
             <p className="text-xs font-bold uppercase tracking-[0.12em] text-accent-warm">Capaian bulanan</p>
             <h1 className="mt-2 font-heading text-3xl leading-tight tracking-tight md:text-[34px]">
               Awal dan akhir bulan tiap anak
-              {activeHalaqoh && students.length > 0 && (
-                <em className="block">
-                  — {belumAkhir > 0 ? `${belumAkhir} belum punya capaian akhir.` : 'semua sudah punya capaian akhir.'}
-                </em>
-              )}
             </h1>
-            <p className="mt-2 max-w-2xl text-sm text-muted-foreground md:text-base">
+            <p className="mt-2 max-w-3xl text-sm text-muted-foreground md:text-base">
               {kelompokAsrama
                 ? 'Capaian awal dan akhir bulan anak asrama dari catatan sekolahnya — hanya lihat; dirangkum dan dibetulkan oleh pengampu sekolah.'
                 : 'Pengganti lembar DB Y1–Y6. Rangkum otomatis dari setoran, lalu betulkan yang perlu — dasar rapor dan rekap semester.'}
             </p>
-          </div>
+        </header>
 
           {halaqohList.length > 0 && (
-            <div className="flex flex-wrap items-center gap-2 lg:shrink-0">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               {(
-                <nav aria-label="Pilih halaqoh" className="flex flex-wrap gap-1 rounded-xl bg-muted p-1">
+                <nav aria-label="Pilih halaqoh" className="-mx-4 flex gap-1 overflow-x-auto px-4 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0">
+                  <div className="flex shrink-0 gap-1 rounded-xl bg-muted p-1 sm:flex-wrap">
                   {halaqohList.map(h => (
                     <Link
                       key={h.id}
                       href={href({ halaqoh: h.id })}
                       aria-current={h.id === activeHalaqoh?.id ? 'page' : undefined}
                       className={cn(
-                        'rounded-lg px-3 py-1.5 text-sm font-bold transition-colors',
+                        'whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-bold transition-colors',
                         h.id === activeHalaqoh?.id ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
                       )}
                     >
                       {h.name}
                     </Link>
                   ))}
+                  </div>
                 </nav>
               )}
-              <div className="flex items-center gap-1.5">
+              <div className="flex shrink-0 items-center gap-1.5">
                 <Link href={href({ periode: shiftPeriod(period, -1) })} aria-label="Bulan sebelumnya"
                   className="flex size-10 items-center justify-center rounded-xl border bg-card hover:bg-accent">
                   <ChevronLeft className="size-4" />
@@ -165,7 +164,6 @@ export default async function CapaianBulananPage({ searchParams }: PageProps) {
               </div>
             </div>
           )}
-        </div>
 
         {halaqohList.length === 0 ? (
           <div className="rounded-2xl border border-dashed bg-muted/30 py-10 text-center text-sm text-muted-foreground">

@@ -11,6 +11,7 @@ import { hariIni, syncHalaqohMembership, syncHalaqohMemberships } from '@/lib/da
 import { periksaBaris, tandaiNisKembar, type BarisSiswa, type RujukanImpor } from '@/lib/rq/siswa-impor'
 import { bakukanKelas, contohKelas, galatRombelSmp, KELAS_TETAP, kelasBerikutnya, kelasJelas } from '@/lib/rq/kelas'
 import { rapikanAnggotaAsrama } from '@/lib/data/asrama'
+import { tanggalWIB, unitUjianDariJenjang } from '@/lib/rq/ujian'
 import type { Gender, Jenjang } from '@/types'
 
 /** Ubah string kosong atau sentinel 'none' (dari Radix Select) menjadi null. */
@@ -104,7 +105,7 @@ export async function updateStudentAction(_: unknown, formData: FormData) {
 
   const supabase = createServerClient()
   const { data: existing } = await supabase
-    .from('students').select('jenjang, program, halaqoh_id').eq('id', id).single()
+    .from('students').select('jenjang, program, halaqoh_id, current_jilid_id, current_jilid_page, tahsin_drill_sejak').eq('id', id).single()
   // Keadaan LAMA diperiksa terpisah dari yang baru. Tanpa itu, seorang koor
   // bisa menarik siswa milik koor lain ke lingkupnya sendiri hanya dengan
   // mengganti kolom program di formulir.
@@ -131,14 +132,36 @@ export async function updateStudentAction(_: unknown, formData: FormData) {
     ?? galatRombelSmp(jenjang, fields.kelas, fields.program, fields.gender)
   if (galatK) return { error: galatK }
 
+  /*
+    Anak DRILL yang jilidnya diganti pengurus. Drill = menunggu ujian jilid
+    yang sedang dijalani; begitu jilidnya diganti, tanda itu tidak berlaku
+    lagi dan dihapus. Lihat catatLulusDiLuarSistem untuk kelulusannya.
+  */
+  const jilidLama = existing.current_jilid_id as string | null
+  const gantiJilidDrill = Boolean(existing.tahsin_drill_sejak) && fields.current_jilid_id !== jilidLama
+  // Anak drill berada di halaman TERAKHIR jilid lamanya. Bila pengurus hanya
+  // mengganti jilid tanpa menyentuh halaman, halaman itu terbawa ke ujung
+  // jilid baru — jadi dimulai dari 1, sama seperti kenaikan lewat ujian.
+  if (gantiJilidDrill && fields.current_jilid_id && fields.current_jilid_page === existing.current_jilid_page) {
+    fields.current_jilid_page = 1
+  }
+
   const { error } = await supabase
     .from('students')
-    .update({ ...fields, jenjang, is_active })
+    .update({ ...fields, jenjang, is_active, ...(gantiJilidDrill ? { tahsin_drill_sejak: null } : {}) })
     .eq('id', id)
 
   if (error) {
     if (error.code === '23505') return { error: 'NIS sudah dipakai siswa lain.' }
     return { error: 'Gagal memperbarui siswa.' }
+  }
+
+  if (gantiJilidDrill && jilidLama && fields.current_jilid_id) {
+    await catatLulusDiLuarSistem(supabase, {
+      studentId: id, nama: fields.full_name, jenjang, program: fields.program,
+      jilidLama, jilidBaru: fields.current_jilid_id, userId: session.userId, oleh: session.displayName,
+    })
+    revalidatePath('/ujian')
   }
 
   if (fields.halaqoh_id !== (existing.halaqoh_id as string | null)) {
@@ -153,6 +176,68 @@ export async function updateStudentAction(_: unknown, formData: FormData) {
   revalidatePath('/siswa')
   revalidatePath(`/siswa/${id}`)
   redirect(`/siswa/${id}`)
+}
+
+/**
+ * Anak drill yang ujiannya terjadi DI LUAR SISTEM, lalu jilidnya dinaikkan
+ * pengurus lewat formulir siswa. Dicatat persis seperti kelulusan lewat
+ * sistem (lihat naikkan jilid di app/actions/ujian.ts), bertanggal hari itu:
+ *   - ujian tahsin berstatus selesai, predikat lulus, level = jilid lama —
+ *     supaya tampil di riwayat ujian anak & daftar ujian selesai;
+ *   - jilid_promotions lama → baru yang menunjuk ujian itu — supaya ikut
+ *     terhitung "kenaikan jilid" di analitik.
+ *
+ * Hanya bila jilid baru LEBIH TINGGI pada metode yang sama. Diturunkan atau
+ * pindah metode = koreksi isian, bukan kelulusan: drill tetap dihapus
+ * (pemanggilnya), tapi tidak ada yang dicatat lulus.
+ *
+ * Gagal mencatat tidak menggagalkan penyuntingan — posisi baru sudah
+ * tersimpan; galatnya ditulis ke log server.
+ */
+async function catatLulusDiLuarSistem(
+  supabase: ReturnType<typeof createServerClient>,
+  a: {
+    studentId: string; nama: string; jenjang: Jenjang; program: string | null
+    jilidLama: string; jilidBaru: string; userId: string; oleh: string
+  },
+): Promise<void> {
+  const { data } = await supabase.from('jilid_levels')
+    .select('id, label, order_num, method_id').in('id', [a.jilidLama, a.jilidBaru])
+  const tahap = (data ?? []) as { id: string; label: string; order_num: number; method_id: string }[]
+  const lama = tahap.find(t => t.id === a.jilidLama)
+  const baru = tahap.find(t => t.id === a.jilidBaru)
+  if (!lama || !baru || lama.method_id !== baru.method_id || baru.order_num <= lama.order_num) return
+
+  const unit = unitUjianDariJenjang(a.jenjang)
+  if (!unit) return
+  const sekarang = new Date().toISOString()
+  const { data: ujian, error: gagalUjian } = await supabase.from('ujian_tahsin').insert({
+    unit,
+    is_quls: Boolean(a.program?.includes('quls')),
+    nama_kelompok: 'Ujian di luar sistem',
+    sesi: '-',
+    level: lama.label,
+    siswa: [{ nama: a.nama, predikat: 'lulus', level: lama.label, student_id: a.studentId }],
+    jadwal: sekarang,
+    selesai_at: sekarang,
+    status: 'selesai',
+    catatan: `Ujian tidak lewat sistem — dicatat ${a.oleh} saat menaikkan jilid ke ${baru.label}.`,
+    created_by_user: a.userId,
+  }).select('id').single()
+  if (gagalUjian || !ujian) {
+    console.error('[siswa] gagal mencatat ujian di luar sistem:', gagalUjian?.message)
+    return
+  }
+
+  const { error: gagalNaik } = await supabase.from('jilid_promotions').insert({
+    student_id: a.studentId,
+    from_jilid_id: lama.id,
+    to_jilid_id: baru.id,
+    promotion_date: tanggalWIB(new Date()),
+    catatan: `Lulus ujian tahsin ${lama.label} (di luar sistem, dicatat ${a.oleh})`,
+    source_ujian_id: ujian.id,
+  })
+  if (gagalNaik) console.error('[siswa] gagal mencatat kenaikan jilid:', gagalNaik.message)
 }
 
 // ─── Impor massal ───────────────────────────────────────────────────

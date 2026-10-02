@@ -2,8 +2,9 @@ import { Target } from 'lucide-react'
 import { capaianSemua, kurikulumBulan } from '@/lib/data/analitik-cache'
 import { BELUM_TERCATAT, type MatriksCapaian } from '@/lib/data/capaian-kelas'
 import { JENJANG_LABELS } from '@/lib/auth/permissions'
+import { UNIT_LABELS, UNIT_ORDER } from '@/lib/rq/programs'
 import { formatPeriod, monthName } from '@/lib/finance/period'
-import { Panel, GroupLabel, Slicer } from '@/components/dashboard/kit'
+import { Panel } from '@/components/dashboard/kit'
 import { CapaianKelompokPanel } from '@/components/dashboard/CapaianKelompok'
 import { Seksi, Kunci, type InfoSeksi } from './seksi'
 import type { Jenjang } from '@/types'
@@ -18,7 +19,7 @@ import type { Jenjang } from '@/types'
  * per angkatan versi rekap bulanan (halaman Kurikulum) tidak ditampilkan
  * lagi di sini karena sudah diwakili matriks.
  */
-export async function SeksiCapaian({ info, jenjang, program = null, fokus, bulan, unitCapaian, hrefUnit, tanpaTargetAngkatan }: {
+export async function SeksiCapaian({ info, jenjang, program = null, fokus, bulan, tanpaTargetAngkatan }: {
   info: InfoSeksi
   jenjang: Jenjang | null
   /**
@@ -28,24 +29,21 @@ export async function SeksiCapaian({ info, jenjang, program = null, fokus, bulan
   program?: readonly string[] | null
   fokus: 'semua' | 'tahsin' | 'tahfidz'
   bulan: string
-  /**
-   * Unit yang dibuka di seksi ini saat halaman memilih "Semua" (?cunit=).
-   * Semua unit sekaligus terlalu panjang — satu unit per tampilan.
-   */
-  unitCapaian?: string | null
-  hrefUnit?: (u: Jenjang) => string
   /** Koordinator unit: tabel target per angkatan tidak perlu, sudah terwakili matriks. */
   tanpaTargetAngkatan?: boolean
 }) {
   const [capaian, kurikulum] = await Promise.all([capaianSemua(), kurikulumBulan(bulan)])
-  const semuaKelompok = capaian.kelompok.filter(k => (!jenjang || k.jenjang === jenjang) && (!program || k.jalur === 'quls'))
-  const unitAda = [...new Set(semuaKelompok.filter(k => k.siswa > 0).map(k => k.jenjang))]
-  // Tanpa unit terkunci: tampilkan satu unit, dipilih lewat saringan di bawah.
-  const unitTampil: Jenjang | null = jenjang
-    ?? (unitAda.includes(unitCapaian as Jenjang) ? (unitCapaian as Jenjang) : unitAda[0] ?? null)
-  const kelompok = semuaKelompok.filter(k => !unitTampil || k.jenjang === unitTampil)
-  const angkatan = kurikulum.rows.filter(r => !unitTampil || r.jenjang === unitTampil)
-  const unit = [...new Set(kelompok.map(k => k.jenjang))]
+  /*
+    Cakupan unit HANYA dari filter Unit di atas halaman. Dulu seksi ini punya
+    saringan unit kedua (?cunit=) dan, pada pilihan "Semua", hanya membuka
+    satu unit — dua filter unit di satu halaman, dan "Semua" yang tidak
+    menampilkan semua. Kini "Semua" = seluruh unit yang sudah punya siswa,
+    berurutan menurut jenjang; kelompok tanpa siswa tidak ditampilkan.
+  */
+  const kelompok = capaian.kelompok.filter(k =>
+    (!jenjang || k.jenjang === jenjang) && (!program || k.jalur === 'quls') && k.siswa > 0)
+  const unit = UNIT_ORDER.filter(u => kelompok.some(k => k.jenjang === u))
+  const angkatan = kurikulum.rows.filter(r => unit.includes(r.jenjang))
 
   const siswa = kelompok.reduce((n, k) => n + k.siswa, 0)
   const persen = (pilih: (k: typeof kelompok[number]) => MatriksCapaian[]) => {
@@ -59,7 +57,7 @@ export async function SeksiCapaian({ info, jenjang, program = null, fokus, bulan
     return (
       <Seksi info={info} judul="Capaian per Kelas" pertanyaan="Di jilid dan juz mana siswa tiap kelas berada?">
         <p className="rounded-2xl border border-dashed p-6 text-center text-sm text-muted-foreground bg-muted/30">
-          Belum ada siswa aktif di unit ini.
+          {jenjang ? 'Belum ada siswa aktif di unit ini.' : 'Belum ada siswa aktif di unit mana pun.'}
         </p>
       </Seksi>
     )
@@ -80,30 +78,27 @@ export async function SeksiCapaian({ info, jenjang, program = null, fokus, bulan
         </>
       }
     >
-      {!jenjang && unitAda.length > 1 && hrefUnit && (
-        <Slicer
-          label="Unit"
-          options={unitAda.map(u => ({
-            label: JENJANG_LABELS[u],
-            href: `${hrefUnit(u)}#${info.id}`,
-            active: unitTampil === u,
-            count: semuaKelompok.filter(k => k.jenjang === u).reduce((n, k) => n + k.siswa, 0),
-          }))}
-        />
-      )}
       {unit.map(u => {
         const diUnit = kelompok.filter(k => k.jenjang === u)
+        const siswaUnit = diUnit.reduce((n, k) => n + k.siswa, 0)
         return (
-          <div key={u} className="space-y-4">
+          <section key={u} className="space-y-5" aria-labelledby={`capaian-unit-${u}`}>
+            {/* Kepala unit: penanda yang terbaca dari jauh di antara tabel-tabel
+                besar — dulu hanya teks kapital abu-abu kecil yang tenggelam. */}
+            <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-1 border-b-2 pb-2" style={{ borderColor: 'var(--primary)' }}>
+              <h3 id={`capaian-unit-${u}`} className="font-heading text-2xl leading-tight">{UNIT_LABELS[u]}</h3>
+              <p className="text-sm text-muted-foreground">
+                <span className="font-semibold text-foreground tabular-nums">{siswaUnit.toLocaleString('id-ID')}</span> siswa
+                {diUnit.length > 1 && <> · {diUnit.length} jalur program</>}
+              </p>
+            </div>
             {diUnit.map(k => (
               <div key={k.kode} className="space-y-3">
-                <GroupLabel note={`${k.keterangan} · ${k.siswa.toLocaleString('id-ID')} siswa${k.metode.length ? ` · ${k.metode.join(', ')}` : ''}`}>
-                  {k.judul}
-                </GroupLabel>
+                <LabelKelompok k={k} unit={u} />
                 <CapaianKelompokPanel k={k} tampil={fokus} />
               </div>
             ))}
-          </div>
+          </section>
         )
       })}
 
@@ -118,6 +113,33 @@ export async function SeksiCapaian({ info, jenjang, program = null, fokus, bulan
         </Panel>
       )}
     </Seksi>
+  )
+}
+
+/**
+ * Penanda satu kelompok (jalur program) di bawah kepala unitnya: lencana jalur
+ * + keterangan. Nama unit tidak diulang — sudah ada di kepala unit.
+ */
+function LabelKelompok({ k, unit }: { k: { judul: string; keterangan: string; siswa: number; metode: string[] }; unit: Jenjang }) {
+  const awalan = `${UNIT_LABELS[unit]} — `
+  const jalur = k.judul.startsWith(awalan) ? k.judul.slice(awalan.length) : null
+  // Unit yang tidak dipisah per jalur (satu kelompok): nama & jumlah siswanya
+  // sudah di kepala unit — cukup metode, tanpa lencana "Seluruh program".
+  const rincian = [
+    jalur ? k.keterangan : null,
+    jalur ? `${k.siswa.toLocaleString('id-ID')} siswa` : null,
+    k.metode.length ? `metode ${k.metode.join(', ')}` : null,
+  ].filter(Boolean).join(' · ')
+  if (!jalur && !rincian) return null
+  return (
+    <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
+      {jalur && (
+        <span className="rounded-md px-2.5 py-1 text-sm font-semibold" style={{ background: 'var(--primary-wash)', color: 'var(--primary)' }}>
+          {jalur}
+        </span>
+      )}
+      {rincian && <span className="text-xs text-muted-foreground">{rincian}</span>}
+    </div>
   )
 }
 

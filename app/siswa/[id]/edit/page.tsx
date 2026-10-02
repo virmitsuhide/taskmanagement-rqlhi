@@ -19,7 +19,7 @@ export default async function EditStudentPage({ params }: PageProps) {
   const supabase = createServerClient()
   const { data: student } = await supabase
     .from('students')
-    .select('id, nis, full_name, gender, birth_date, jenjang, kelas, program, halaqoh_id, wali_name, wali_phone, wali_email, current_method_id, current_jilid_id, current_jilid_page, is_active')
+    .select('id, nis, full_name, gender, birth_date, jenjang, kelas, program, halaqoh_id, wali_name, wali_phone, wali_email, current_method_id, current_jilid_id, current_jilid_page, is_active, tahsin_drill_sejak, jilid:jilid_levels!students_current_jilid_id_fkey(label)')
     .eq('id', id)
     .maybeSingle()
 
@@ -60,6 +60,20 @@ export default async function EditStudentPage({ params }: PageProps) {
             </p>
           </div>
         </div>
+        {/* Anak drill: menaikkan jilid di formulir ini dicatat sebagai lulus
+            ujian di luar sistem (updateStudentAction → catatLulusDiLuarSistem). */}
+        {student.tahsin_drill_sejak && (
+          <div className="mb-5 rounded-xl border px-4 py-3 text-sm" style={{ borderColor: 'var(--warning)', background: 'var(--warning-wash)' }}>
+            <p className="font-semibold" style={{ color: 'var(--warning)' }}>
+              Sedang DRILL {(student.jilid as unknown as { label: string } | null)?.label ?? ''} sejak {student.tahsin_drill_sejak}
+            </p>
+            <p className="mt-1 text-muted-foreground">
+              Bila ujiannya sudah dilakukan di luar sistem, cukup naikkan <b>Jilid</b> di bawah ke tahap berikutnya.
+              Halaman otomatis kembali ke 1 bila tidak diubah. Saat disimpan: tanda drill hilang, dan tercatat <b>lulus ujian {(student.jilid as unknown as { label: string } | null)?.label ?? 'jilid ini'}</b> hari ini
+              (riwayat ujian &amp; kenaikan jilid). Menurunkan jilid hanya menghapus tanda drill, tanpa catatan lulus.
+            </p>
+          </div>
+        )}
         <StudentForm
           mode="edit"
           allowedJenjang={getManageableJenjang(session.role)}

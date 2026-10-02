@@ -1,7 +1,7 @@
 import { Check } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
-  angka1, labelTotalHafalan, tambahHafalan, teksMurojaah,
+  angka1, labelTotalHafalan, tambahHafalan, teksMurojaah, teksTahsinPeriode,
   type AnakLaporan, type LaporanOrtu,
 } from '@/lib/rq/laporan-ortu'
 
@@ -144,7 +144,7 @@ function KartuAnak({ a, pertemuan, tahsin, tahfidz }: {
               <p className="font-bold">{a.tahsin.posisi ?? '—'}</p>
               {a.tahsin.setoran > 0 && (
                 <p className="text-xs text-muted-foreground">
-                  +{a.tahsin.lulus} hal. lulus{a.tahsin.setoran > a.tahsin.lulus ? ` · ${a.tahsin.setoran} setoran` : ''}
+                  {teksTahsinPeriode(a.tahsin) ?? 'belum ada halaman lulus'} · {a.tahsin.setoran}× setor
                 </p>
               )}
             </dd>

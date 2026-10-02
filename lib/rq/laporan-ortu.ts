@@ -29,6 +29,12 @@ export interface AnakLaporan {
     setoran: number
     /** Setoran lulus di luar drill — tiap satu memajukan satu halaman. */
     lulus: number
+    /**
+     * Setoran terakhir periode ini berstatus Lanjut (halaman belum tuntas):
+     * "hal. 7 baris 1–8". Tanpa ini setoran beberapa baris tidak terbaca
+     * sama sekali — "+0 hal." seolah anak tidak membaca apa pun.
+     */
+    baris: string | null
     /** Sudah Lulus Tahsin — tahsinnya bukan kabar baru bagi wali. */
     selesai: boolean
   }
@@ -173,6 +179,15 @@ export function tambahHafalan(halaman: number, ayat: number): string {
   return halaman >= 1 ? `+${angka1(halaman)} hal.` : `+${ayat} ayat`
 }
 
+/** Keterangan tahsin satu anak untuk wali: "+2 hal. · lanjut hal. 7 baris 1–8". */
+export function teksTahsinPeriode(t: { lulus: number; setoran: number; baris: string | null }): string | null {
+  const bagian = [
+    t.lulus > 0 ? `+${t.lulus} hal.` : null,
+    t.baris ? `lanjut ${t.baris}` : null,
+  ].filter(Boolean)
+  return bagian.length > 0 ? bagian.join(' · ') : null
+}
+
 /** "6 juz (124 hal.)" — juz tuntas + halaman mushaf; hanya halaman bila belum ada juz tuntas. */
 export function labelTotalHafalan(t: Pick<AnakLaporan['tahfidz'], 'juzTuntas' | 'totalHalaman'>): string {
   const hal = `${angka1(t.totalHalaman)} hal.`
@@ -227,7 +242,8 @@ export function teksWaLaporanOrtu(l: LaporanOrtu, opsi: OpsiPesan): string {
       baris.push(`${i + 1}. *${a.nama}* — ${hadir}`)
       // Anak yang sudah Lulus Tahsin: baris tahsin hanya bila periode ini ada setorannya.
       if (a.tahsin.posisi && (!a.tahsin.selesai || a.tahsin.setoran > 0)) {
-        baris.push(`   Tahsin: ${a.tahsin.posisi}${a.tahsin.lulus > 0 ? ` (+${a.tahsin.lulus} hal.)` : ''}`)
+        const ket = teksTahsinPeriode(a.tahsin)
+        baris.push(`   Tahsin: ${a.tahsin.posisi}${ket ? ` (${ket})` : ''}`)
       }
       const t = a.tahfidz
       if (t.terakhir) baris.push(`   Tahfidz: ${t.terakhir}`)

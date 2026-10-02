@@ -36,8 +36,20 @@ interface Props {
   bacaSaja?: boolean
 }
 
-/** Kolom tabel di layar lebar; di ponsel tiap anak menjadi kartu. */
-const KOLOM = 'lg:grid lg:grid-cols-[1.25fr_0.45fr_1.3fr_1.3fr_0.4fr_1.15fr_1fr_0.75fr_2.75rem] lg:items-center lg:gap-3'
+/**
+ * Kolom tabel di layar lebar; di ponsel tiap anak menjadi kartu.
+ *
+ * Setiap baris adalah grid tersendiri, jadi lebar kolomnya WAJIB tetap:
+ * minmax(0, …fr), bukan …fr polos. Dengan fr polos lebar minimum kolom ikut
+ * isinya, sehingga nama yang panjang menggeser seluruh kolom baris itu dan
+ * tabel tampak berantakan — tiap baris berbeda dari judul kolomnya.
+ */
+const KOLOM = 'lg:grid lg:grid-cols-[minmax(0,1.9fr)_minmax(0,0.8fr)_minmax(0,1.3fr)_minmax(0,1.4fr)_2.5rem_minmax(0,1.2fr)_minmax(0,0.9fr)_minmax(0,0.9fr)_2.25rem] lg:items-center lg:gap-4'
+
+/** Sel kosong — satu bentuk untuk semua kolom. */
+function Kosong() {
+  return <span className="text-muted-foreground/70">—</span>
+}
 
 /**
  * Papan capaian awal & akhir bulan satu halaqoh — pengganti lembar DB Y1–Y6.
@@ -90,7 +102,9 @@ export function PapanCapaian({ period, previousPeriod, activeHalaqohId, students
     })
   }
 
-  const terisi = students.filter(s => monthly[s.id]?.halaman_akhir_tahsin).length
+  // Terisi = punya capaian akhir tahsin ATAU tahfidz. Anak tanpa posisi
+  // tahsin (mis. hanya tahfidz) tidak boleh terhitung "belum" selamanya.
+  const terisi = students.filter(s => monthly[s.id]?.halaman_akhir_tahsin || monthly[s.id]?.tahfidz_akhir).length
   const persen = students.length ? Math.round((terisi / students.length) * 100) : 0
 
   return (
@@ -130,9 +144,9 @@ export function PapanCapaian({ period, previousPeriod, activeHalaqohId, students
         <div className={cn('hidden border-b px-5 py-3 text-[11px] font-bold uppercase tracking-[0.1em] text-muted-foreground', KOLOM)}>
           <span>Nama</span>
           <span>Level</span>
-          <span>Tahsin awal → akhir</span>
-          <span>Tahfidz awal → akhir</span>
-          <span className="text-right">Hal.</span>
+          <span title="Tahsin awal → akhir bulan">Tahsin</span>
+          <span title="Tahfidz awal → akhir bulan">Tahfidz</span>
+          <span className="text-right" title="Jumlah halaman tahsin bulan ini">Hal.</span>
           <span>Total hafalan</span>
           <span title="Halaman yang dibaca ulang bulan ini — tiap setoran dijumlah">Muroja&apos;ah</span>
           <span>Ujian</span>
@@ -149,7 +163,7 @@ export function PapanCapaian({ period, previousPeriod, activeHalaqohId, students
                   {/* Nama + tombol isi (di ponsel sebaris) */}
                   <div className="flex items-start justify-between gap-2 lg:block">
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-bold">{student.full_name}</p>
+                      <p className="truncate text-sm font-bold" title={student.full_name}>{student.full_name}</p>
                       <p className="text-xs text-muted-foreground">
                         {student.kelas ?? '—'}
                         <span className="lg:hidden"> · Level {row?.level || student.level_awal || '—'}</span>
@@ -159,16 +173,18 @@ export function PapanCapaian({ period, previousPeriod, activeHalaqohId, students
                       onClick={() => setEditing(buka ? null : student.id)} />}
                   </div>
 
-                  <p className="hidden text-sm font-bold lg:block">{row?.level || student.level_awal || '—'}</p>
+                  <p className="hidden truncate text-[13px] font-semibold lg:block" title={row?.level || student.level_awal || undefined}>{row?.level || student.level_awal || <Kosong />}</p>
 
                   <dl className="mt-2.5 grid grid-cols-2 gap-x-4 gap-y-2 text-sm lg:contents">
                     <Sel label="Tahsin"><Arrow from={row?.halaman_awal_tahsin} to={row?.halaman_akhir_tahsin} /></Sel>
                     <Sel label="Tahfidz"><Arrow from={row?.tahfidz_awal} to={row?.tahfidz_akhir} /></Sel>
                     <Sel label="Halaman" className="lg:text-right">
-                      <span className="font-heading text-base font-semibold tabular-nums lg:text-lg">{row?.capaian_halaman || '—'}</span>
+                      {row?.capaian_halaman
+                        ? <span className="font-heading text-base font-semibold tabular-nums">{row.capaian_halaman}</span>
+                        : <Kosong />}
                     </Sel>
                     <Sel label="Total hafalan">
-                      <span className="text-[13px] leading-snug">{row?.total_hafalan || '—'}</span>
+                      {row?.total_hafalan ? <span className="text-[13px] leading-snug">{row.total_hafalan}</span> : <Kosong />}
                       {/* Penanda sumber. Angka hasil hitungan bisa ditelusuri ke
                           baris setoran hari itu; angka ketikan hanya bisa
                           ditanyakan kepada yang mengetiknya. */}
@@ -179,7 +195,7 @@ export function PapanCapaian({ period, previousPeriod, activeHalaqohId, students
                       )}
                     </Sel>
                     <Sel label="Muroja'ah"><SelMurojaah r={murojaah[student.id]} /></Sel>
-                    <Sel label="Ujian"><span className="text-[13px]">{row?.ujian_tercatat || '—'}</span></Sel>
+                    <Sel label="Ujian">{row?.ujian_tercatat ? <span className="text-[13px] leading-snug">{row.ujian_tercatat}</span> : <Kosong />}</Sel>
                   </dl>
 
                   {!bacaSaja && <TombolIsi nama={student.full_name} buka={buka} className="hidden lg:flex"
@@ -243,7 +259,7 @@ function Sel({ label, className, children }: { label: string; className?: string
  * anak yang belum punya juz teruji memang tidak punya muroja'ah lama.
  */
 function SelMurojaah({ r }: { r?: RekapMurojaah }) {
-  if (!r || (r.kaliBaru === 0 && r.kaliLama === 0)) return <span className="text-muted-foreground">—</span>
+  if (!r || (r.kaliBaru === 0 && r.kaliLama === 0)) return <Kosong />
   const bagian = [
     r.kaliBaru > 0 ? { l: 'baru', n: angkaHalaman(r.baru), kali: r.kaliBaru } : null,
     r.kaliLama > 0 ? { l: 'lama', n: angkaHalaman(r.lama), kali: r.kaliLama } : null,
@@ -261,7 +277,7 @@ function SelMurojaah({ r }: { r?: RekapMurojaah }) {
 
 /** Titik awal → titik akhir. Akhir yang belum terisi ditandai "belum". */
 function Arrow({ from, to }: { from?: string; to?: string }) {
-  if (!from && !to) return <span className="text-muted-foreground">—</span>
+  if (!from && !to) return <Kosong />
   return (
     <span className="text-[13px] leading-snug">
       {from || <span className="text-muted-foreground">?</span>}
