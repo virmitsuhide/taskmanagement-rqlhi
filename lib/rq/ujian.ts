@@ -65,7 +65,7 @@ const JILID = (n: number, awalan = 'Jilid') => Array.from({ length: n }, (_, i) 
  * Level tahsin yang bisa dipilih saat mengajukan, per unit — mengikuti metode
  * tiap unit:
  *
- * - TPAIT    : UMMI, Jilid 1-6 lalu Al-Qur'an.
+ * - TPAIT    : UMMI, Pra-UMMI lalu Jilid 1-6 lalu Al-Qur'an.
  * - SD       : UMMI/KIBAR, sampai Gharib & Tajwid.
  * - SD Juara : kelas 1 KIBAR (3 jilid), kelas 2-6 Iqro' (6 jilid), lalu
  *              Al-Qur'an. Jilid kedua metode itu diberi nama metodenya, sebab
@@ -74,7 +74,8 @@ const JILID = (n: number, awalan = 'Jilid') => Array.from({ length: n }, (_, i) 
  *              melanjutkan ke program tahfidz.
  */
 export const TAHSIN_LEVELS: Record<UjianUnit, string[]> = {
-  TPAIT: [...JILID(6), "Al-Qur'an"],
+  // UMMI TPAIT diawali buku Pra-UMMI (lib/tahsin.ts → tahapBerlaku).
+  TPAIT: ['Pra-UMMI', ...JILID(6), "Al-Qur'an"],
   SD: [...JILID(6), "Al-Qur'an", 'Gharib', 'Tajwid'],
   // KIBAR SD Juara diawali buku Pra (lib/tahsin.ts → tahapBerlaku).
   'SD Juara': ['KIBAR Pra', ...JILID(3, 'KIBAR Jilid'), ...JILID(6, "Iqro' Jilid"), "Al-Qur'an"],

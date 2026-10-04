@@ -33,9 +33,11 @@ type LevelSeed = { label: string; order_num: number; total_pages: number | null;
 type MethodSeed = { name: string; description: string; levels: LevelSeed[] }
 
 const METHODS: MethodSeed[] = [
-  // UMMI — 6 jilid (40 hal) → Al-Qur'an T1/T2/T3 → Talaqqi Mandiri → Gharib → Tajwid → Lulus
-  { name: 'UMMI', description: '6 jilid (40 hal) → Al-Qur’an T1–T3 → Talaqqi Mandiri → Gharib → Tajwid',
+  // UMMI — [Pra-UMMI (40 hal), khusus PAUD/TPAIT] → 6 jilid (40 hal) → Al-Qur'an T1/T2/T3 → Talaqqi Mandiri → Gharib → Tajwid → Lulus
+  // Pra-UMMI hanya berlaku di PAUD/TPAIT; SD menyembunyikannya (tahapBerlaku, lib/tahsin.ts).
+  { name: 'UMMI', description: '[Pra-UMMI — TPAIT] → 6 jilid (40 hal) → Al-Qur’an T1–T3 → Talaqqi Mandiri → Gharib → Tajwid',
     levels: [
+      { label: 'Pra-UMMI', order_num: 0, total_pages: 40, is_quran: false },
       { label: 'Jilid 1', order_num: 1, total_pages: 40, is_quran: false },
       { label: 'Jilid 2', order_num: 2, total_pages: 40, is_quran: false },
       { label: 'Jilid 3', order_num: 3, total_pages: 40, is_quran: false },

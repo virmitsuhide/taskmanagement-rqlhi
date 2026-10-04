@@ -31,7 +31,7 @@ export const BELUM_TERCATAT = 'Belum tercatat'
 
 /** Urutan kolom tahsin — ordinal, tidak pernah diurut menurut jumlah. */
 const URUTAN_TAHSIN = [
-  // Pra = buku sebelum Jilid 1 (KIBAR SD LHI Juara saja — tahapBerlaku).
+  // Pra = buku sebelum Jilid 1 (KIBAR SD LHI Juara, Pra-UMMI TPAIT — tahapBerlaku).
   'Pra', 'Jilid 1', 'Jilid 2', 'Jilid 3', 'Jilid 4', 'Jilid 5', 'Jilid 6',
   "Al-Qur'an", 'Gharib', 'Tajwid', 'Lulus',
 ] as const

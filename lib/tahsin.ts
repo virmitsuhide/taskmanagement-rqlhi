@@ -74,9 +74,13 @@ export function methodsForJenjang<T extends { name: string }>(
  * Al-Qur'an, Lulus Tahsin); KIBAR SD LHI langsung mulai Jilid 1. Keduanya
  * satu metode di jilid_levels, jadi Pra disembunyikan dari unit lain di sini:
  * formulir siswa, pilihan jilid awal, dan kolom tabel capaian.
+ *
+ * Begitu pula UMMI: PAUD/TPAIT memulai dari buku "Pra-UMMI" (40 halaman)
+ * sebelum Jilid 1, sedangkan siswa SD bermetode UMMI langsung Jilid 1.
  */
 const TAHAP_KHUSUS_UNIT: Partial<Record<string, Record<string, Jenjang[]>>> = {
   [METHOD.KIBAR]: { pra: ['sd_juara'] },
+  [METHOD.UMMI]: { 'pra-ummi': ['paud'] },
 }
 
 /** Apakah tahap `label` metode `metode` berlaku bagi siswa unit `jenjang`. Tanpa jenjang/metode: berlaku. */
