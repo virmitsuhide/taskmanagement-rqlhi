@@ -2,7 +2,7 @@ import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, Printer } from 'lucide-react'
 import { getTeacherSession } from '@/lib/auth/teacher-session'
-import { getTeacherHalaqohIds } from '@/lib/data/teacher'
+import { getTeacherHalaqohPelaporIds } from '@/lib/data/teacher'
 import { createServerClient } from '@/lib/supabase/server'
 import { getBahanRaporSesi, type Semester } from '@/lib/data/rapor-quran'
 import { getRaporTemplates, bacaJenisRapor, LABEL_JENIS_RAPOR } from '@/lib/data/rapor-template'
@@ -44,7 +44,7 @@ export default async function IsiRaporPage({ params, searchParams }: PageProps) 
   const { data: siswa } = await supabase
     .from('students').select('id, halaqoh_id').eq('id', studentId).maybeSingle()
   if (!siswa?.halaqoh_id) notFound()
-  if (!(await getTeacherHalaqohIds(session.teacherId)).includes(siswa.halaqoh_id as string)) {
+  if (!(await getTeacherHalaqohPelaporIds(session.teacherId)).includes(siswa.halaqoh_id as string)) {
     redirect('/guru/rapor-quran')
   }
 

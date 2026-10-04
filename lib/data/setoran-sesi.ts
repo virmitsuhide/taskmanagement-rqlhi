@@ -1,6 +1,6 @@
 import { createServerClient } from '@/lib/supabase/server'
 import type { Jenjang } from '@/types'
-import { getTeacherHalaqohIds, getTeacherHalaqohPeran, type JenisSetoran } from '@/lib/data/teacher'
+import { getTeacherHalaqohIds, getTeacherHalaqohPelaporIds, getTeacherHalaqohPeran, type JenisSetoran } from '@/lib/data/teacher'
 import { JENJANG_LABELS } from '@/lib/auth/permissions'
 import { getLevelPerSiswa } from '@/lib/data/asrama'
 import type { LevelAsrama } from '@/lib/rq/asrama'
@@ -89,6 +89,15 @@ export async function getHalaqohSesiGuru(teacherId: string, jenis?: JenisSetoran
     })
   }
   return hasil
+}
+
+/**
+ * Sesi tempat guru menyusun rapor Qur'an & laporan orang tua — tanpa sesi
+ * yang ia pegang khusus tahsin (lihat getTeacherHalaqohPelaporIds).
+ */
+export async function getSesiPelaporGuru(teacherId: string): Promise<HalaqohSesi[]> {
+  const [daftar, pelapor] = await Promise.all([getHalaqohSesiGuru(teacherId), getTeacherHalaqohPelaporIds(teacherId)])
+  return daftar.filter(h => !h.anggota && pelapor.includes(h.id))
 }
 
 /**

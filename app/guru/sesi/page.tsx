@@ -200,7 +200,8 @@ export default async function MulaiSesiPage({ searchParams }: PageProps) {
                 <Langkah nomor={3} judul="Setelah sesi" ket="Opsional — catatan untuk hari ini." />
                 <div className="mt-4 grid gap-2 sm:grid-cols-3">
                   <Pintas href="/guru/adab" icon={<HeartHandshake className="h-4 w-4" />} label="Catatan adab" />
-                  <Pintas href="/guru/laporan-ortu" icon={<FileText className="h-4 w-4" />} label="Laporan ortu" />
+                  {/* Laporan ortu dikirim guru tahfidz — guru khusus tahsin tidak (SMA). */}
+                  {jenisGuru !== 'tahsin' && <Pintas href="/guru/laporan-ortu" icon={<FileText className="h-4 w-4" />} label="Laporan ortu" />}
                   <Pintas href={`/guru/progres`} icon={<BookOpen className="h-4 w-4" />} label="Progres sesi" />
                 </div>
               </section>

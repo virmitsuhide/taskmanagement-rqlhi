@@ -2,7 +2,7 @@ import { labelJuzRentang } from '@/lib/rq/batas-juz'
 import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
 import { getTeacherSession } from '@/lib/auth/teacher-session'
-import { canTeacherAccessStudent } from '@/lib/data/teacher'
+import { bolehLaporSiswa, canTeacherAccessStudent } from '@/lib/data/teacher'
 import { bolehAsrama, getLevelPerSiswa } from '@/lib/data/asrama'
 import { hariIniWIB } from '@/lib/data/riyadhoh'
 import { LencanaLevel } from '@/components/asrama/LencanaLevel'
@@ -54,12 +54,14 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
     tanpa tombol setor & rapor: setoran asrama dicatat dari menu Asrama,
     dan rapor tetap urusan pengampu sekolah.
   */
-  const [pengampuSekolah, bolehTahsin, bolehTahfidz, levelMap] = await Promise.all([
+  const [pengampuSekolah, bolehTahsin, bolehTahfidz, levelMap, bolehRapor] = await Promise.all([
     canTeacherAccessStudent(session.teacherId, id),
     // Guru SMA berperan khusus: tombol setor hanya untuk jenis yang boleh ia catat.
     canTeacherAccessStudent(session.teacherId, id, 'tahsin'),
     canTeacherAccessStudent(session.teacherId, id, 'tahfidz'),
     getLevelPerSiswa([id]),
+    // Rapor & Share: guru tahfidz saja, bukan guru khusus tahsin (SMA).
+    bolehLaporSiswa(session.teacherId, id),
   ])
   if (!pengampuSekolah && !(await bolehAsrama(session.teacherId, id, hariIniWIB()))) redirect('/guru/siswa')
   const level = levelMap.get(id) ?? null
@@ -433,9 +435,11 @@ export default async function GuruStudentDetailPage({ params, searchParams }: Pa
                   )}
                 </>
               )}
-              <Button asChild variant="outline">
-                <Link href={`/guru/siswa/${id}/rapor`}>Rapor &amp; Share</Link>
-              </Button>
+              {bolehRapor && (
+                <Button asChild variant="outline">
+                  <Link href={`/guru/siswa/${id}/rapor`}>Rapor &amp; Share</Link>
+                </Button>
+              )}
               {unitUjian && (
                 <Button asChild variant="outline">
                   <Link href="/guru/ujian/baru">Ajukan ujian</Link>

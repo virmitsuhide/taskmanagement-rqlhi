@@ -1,6 +1,6 @@
 import { idSetoranEkstra } from '@/lib/data/ekstra'
 import { createServerClient } from '@/lib/supabase/server'
-import { getHalaqohSesiGuru, idHalaqohSesi, type HalaqohSesi } from '@/lib/data/setoran-sesi'
+import { getSesiPelaporGuru, idHalaqohSesi, type HalaqohSesi } from '@/lib/data/setoran-sesi'
 import { getPetaHalaman } from '@/lib/data/target-tahfidz'
 import { halamanHafalan } from '@/lib/rq/target-tahfidz'
 import { rekapMurojaah, suratMurojaah } from '@/lib/rq/murojaah'
@@ -55,7 +55,8 @@ function barisLanjut(ts: { setoran_date: string; created_at: string; status: str
 }
 
 export async function getSesiGuruLaporan(teacherId: string): Promise<HalaqohSesi[]> {
-  return getHalaqohSesiGuru(teacherId)
+  // Tanpa sesi yang dipegang khusus tahsin — laporan dikirim guru tahfidz (SMA).
+  return getSesiPelaporGuru(teacherId)
 }
 
 export async function getLaporanOrtu(

@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
 import { getTeacherSession } from '@/lib/auth/teacher-session'
+import { hanyaGuruTahsin } from '@/lib/data/teacher'
 import { getLaporanOrtu, getSesiGuruLaporan } from '@/lib/data/laporan-ortu'
 import { pilihHalaqoh } from '@/lib/data/setoran-sesi'
 import { rentangLaporan, type PresetPeriode } from '@/lib/rq/laporan-ortu'
@@ -29,6 +30,8 @@ const PRESET: { kode: PresetPeriode; label: string }[] = [
 export default async function LaporanOrtuPage({ searchParams }: PageProps) {
   const session = await getTeacherSession()
   if (!session) redirect('/guru/login')
+  // Rapor & laporan ortu dikirim guru tahfidz; guru khusus tahsin (SMA) tidak.
+  if (await hanyaGuruTahsin(session.teacherId)) redirect('/guru')
 
   const sp = await searchParams
   const semuaSesi = await getSesiGuruLaporan(session.teacherId)

@@ -2,7 +2,8 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { Check, Printer } from 'lucide-react'
 import { getTeacherSession } from '@/lib/auth/teacher-session'
-import { getHalaqohSesiGuru, pilihHalaqoh } from '@/lib/data/setoran-sesi'
+import { hanyaGuruTahsin } from '@/lib/data/teacher'
+import { getSesiPelaporGuru, pilihHalaqoh } from '@/lib/data/setoran-sesi'
 import { getBahanRaporSesi, type Semester } from '@/lib/data/rapor-quran'
 import { getRaporTemplates, bacaJenisRapor, LABEL_JENIS_RAPOR, type JenisRapor } from '@/lib/data/rapor-template'
 import { getTerms } from '@/lib/data/terms'
@@ -29,9 +30,11 @@ const LABEL_SEMESTER = (t: AcademicTerm) => `${t.semester === 'ganjil' ? 'Ganjil
 export default async function RaporQuranPage({ searchParams }: PageProps) {
   const session = await getTeacherSession()
   if (!session) redirect('/guru/login')
+  // Rapor & laporan ortu dikirim guru tahfidz; guru khusus tahsin (SMA) tidak.
+  if (await hanyaGuruTahsin(session.teacherId)) redirect('/guru')
 
   const sp = await searchParams
-  const [semuaSesi, terms] = await Promise.all([getHalaqohSesiGuru(session.teacherId), getTerms()])
+  const [semuaSesi, terms] = await Promise.all([getSesiPelaporGuru(session.teacherId), getTerms()])
   const sesi = pilihHalaqoh(semuaSesi, sp.sesi)
   const term = (terms.find(t => t.id === sp.term) ?? terms.find(t => t.is_current) ?? terms[0]) as AcademicTerm | undefined
 

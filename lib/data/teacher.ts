@@ -50,6 +50,33 @@ export async function getTeacherHalaqohIds(teacherId: string, jenis?: JenisSetor
 }
 
 /**
+ * Halaqoh tempat guru boleh menyusun & mengirim rapor Qur'an dan laporan
+ * orang tua: semua halaqohnya KECUALI yang ia pegang khusus tahsin.
+ *
+ * SMA LHI: rapor & laporan dikirim guru tahfidz (wali halaqoh). Capaian
+ * tahsin yang dicatat guru tahsin tetap tampil di laporan mereka — keduanya
+ * membaca setoran per anak, bukan per pencatat.
+ */
+export async function getTeacherHalaqohPelaporIds(teacherId: string): Promise<string[]> {
+  const peran = await getTeacherHalaqohPeran(teacherId)
+  return [...peran].filter(([, j]) => j !== 'tahsin').map(([id]) => id)
+}
+
+/** Bolehkah guru menyusun/membagikan rapor seorang anak (lihat getTeacherHalaqohPelaporIds). */
+export async function bolehLaporSiswa(teacherId: string, studentId: string): Promise<boolean> {
+  const supabase = createServerClient()
+  const { data: student } = await supabase.from('students').select('halaqoh_id').eq('id', studentId).maybeSingle()
+  if (!student?.halaqoh_id) return false
+  return (await getTeacherHalaqohPelaporIds(teacherId)).includes(student.halaqoh_id)
+}
+
+/** Guru yang SELURUH halaqohnya khusus tahsin — tidak memegang rapor/laporan ortu. */
+export async function hanyaGuruTahsin(teacherId: string): Promise<boolean> {
+  const peran = [...(await getTeacherHalaqohPeran(teacherId)).values()]
+  return peran.length > 0 && peran.every(j => j === 'tahsin')
+}
+
+/**
  * Apakah guru boleh mengakses (lihat/setor) data seorang siswa?
  * True jika siswa berada di salah satu halaqoh yang diampu guru — dan, bila
  * `jenis` diisi, guru boleh mencatat setoran jenis itu di halaqoh tersebut.

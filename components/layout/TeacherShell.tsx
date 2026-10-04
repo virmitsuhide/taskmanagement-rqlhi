@@ -75,6 +75,10 @@ export async function TeacherShell({ children }: { children: React.ReactNode }) 
   // Musyrif/ah murni (hanya kelompok asrama): laporan orang tua, rapor Qur'an,
   // dan rapor KPI adalah urusan pengampu sekolah — menunya tidak ditampilkan.
   const musyrifSaja = !tampilSesiSekolah
+  // Guru yang seluruh halaqohnya khusus tahsin (SMA): rapor & laporan ortu
+  // dikirim guru tahfidz, dan capaian tahsinnya ikut tampil di sana.
+  const hanyaTahsin = halaqohSekolah.length > 0 && peran.every(j => j === 'tahsin')
+  const bolehLapor = !musyrifSaja && !hanyaTahsin
 
   // Diambil di kerangka, bukan di tiap halaman: loncengnya ada di bilah atas
   // yang melekat di semua halaman portal, jadi datanya harus ikut ke mana pun.
@@ -129,9 +133,9 @@ export async function TeacherShell({ children }: { children: React.ReactNode }) 
         // Sebaran capaian seluruh halaqoh di unit guru — jumlah saja, tanpa nama siswa.
         { label: 'Capaian Unit', href: '/guru/capaian-unit', icon: <PieChart /> },
         // Laporan per SESI untuk grup wali; rapor per anak ada di halaman siswa.
-        ...(musyrifSaja ? [] : [{ label: 'Laporan Orang Tua', href: '/guru/laporan-ortu', icon: <FileText /> }]),
+        ...(bolehLapor ? [{ label: 'Laporan Orang Tua', href: '/guru/laporan-ortu', icon: <FileText /> }] : []),
         // Rapor semester memakai format yang ditetapkan koordinator (0082).
-        ...(musyrifSaja ? [] : [{ label: 'Rapor Qur’an', href: '/guru/rapor-quran', icon: <ScrollText /> }]),
+        ...(bolehLapor ? [{ label: 'Rapor Qur’an', href: '/guru/rapor-quran', icon: <ScrollText /> }] : []),
         ...(riyadhoh.length > 0 ? [{ label: 'Riyadhoh Sabtu', href: '/guru/riyadhoh', icon: <CalendarHeart /> }] : []),
         { label: 'Statistik', href: '/guru/statistik', icon: <BarChart3 /> },
       ],

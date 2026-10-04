@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { createServerClient } from '@/lib/supabase/server'
 import { getTeacherSession } from '@/lib/auth/teacher-session'
-import { getTeacherHalaqohIds } from '@/lib/data/teacher'
+import { getTeacherHalaqohPelaporIds } from '@/lib/data/teacher'
 import { getRaporTemplate, bacaJenisRapor } from '@/lib/data/rapor-template'
 import { KODE_MEDAN, slotIsianGuru } from '@/lib/rapor/medan'
 
@@ -34,7 +34,7 @@ export async function simpanRaporIsianAction(
   const { data: siswa } = await supabase
     .from('students').select('halaqoh_id').eq('id', studentId).maybeSingle()
   if (!siswa) return { error: 'Siswa tidak ditemukan.' }
-  if (!siswa.halaqoh_id || !(await getTeacherHalaqohIds(session.teacherId)).includes(siswa.halaqoh_id as string)) {
+  if (!siswa.halaqoh_id || !(await getTeacherHalaqohPelaporIds(session.teacherId)).includes(siswa.halaqoh_id as string)) {
     return { error: 'Anak ini bukan anggota sesi Anda.' }
   }
 

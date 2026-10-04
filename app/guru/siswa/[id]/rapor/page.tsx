@@ -1,7 +1,7 @@
 import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
 import { getTeacherSession } from '@/lib/auth/teacher-session'
-import { canTeacherAccessStudent } from '@/lib/data/teacher'
+import { bolehLaporSiswa } from '@/lib/data/teacher'
 import { getStudentRaporData } from '@/lib/data/rapor'
 import { createRaporToken } from '@/lib/rapor-token'
 import { RaporDocument } from '@/components/rapor/RaporDocument'
@@ -38,7 +38,8 @@ export default async function GuruRaporPage({ params, searchParams }: PageProps)
   const { id } = await params
   const sp = await searchParams
 
-  const allowed = await canTeacherAccessStudent(session.teacherId, id)
+  // Rapor dibagikan guru tahfidz; guru khusus tahsin (SMA) tidak.
+  const allowed = await bolehLaporSiswa(session.teacherId, id)
   if (!allowed) redirect('/guru/siswa')
 
   const now = new Date()
