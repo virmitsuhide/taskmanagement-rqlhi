@@ -39,11 +39,42 @@ export default async function TeacherDetailPage({ params, searchParams }: PagePr
   // lain guru itu memang sudah tidak ada — termasuk lewat tautan langsung.
   if (teacher.deleted_at && !canManageTeachers(session.role)) notFound()
 
-  const { data: halaqohRows } = await supabase
-    .from('halaqoh')
-    .select('id, name, jenjang, sesi, is_active')
-    .eq('wali_teacher_id', id)
-    .order('name')
+  /*
+    Halaqoh yang diampu guru ini: sebagai wali (halaqoh.wali_teacher_id) DAN
+    sebagai pengampu (halaqoh_teachers) — sumber yang sama dengan
+    getTeacherHalaqohPeran di aplikasi guru. Sebelumnya hanya wali yang
+    dibaca, sehingga guru tahsin SMA (pengampu di dua halaqoh, wali di nol)
+    tampak tidak mengajar siapa pun.
+  */
+  const [waliRes, pengampuRes] = await Promise.all([
+    supabase.from('halaqoh').select('id, name, jenjang, sesi, is_active').eq('wali_teacher_id', id),
+    supabase
+      .from('halaqoh_teachers')
+      .select('role, halaqoh:halaqoh!inner(id, name, jenjang, sesi, is_active)')
+      .eq('teacher_id', id),
+  ])
+  type BarisHalaqoh = { id: string; name: string; jenjang: string; sesi: number | null; is_active: boolean }
+  const halaqohMap = new Map<string, BarisHalaqoh & { peran: string[] }>()
+  for (const h of (waliRes.data ?? []) as BarisHalaqoh[]) halaqohMap.set(h.id, { ...h, peran: ['Wali'] })
+  for (const r of (pengampuRes.data ?? []) as unknown as { role: string | null; halaqoh: BarisHalaqoh }[]) {
+    const label = r.role === 'tahsin' ? 'Tahsin' : r.role === 'tahfidz' ? 'Tahfidz' : 'Pengampu'
+    const ada = halaqohMap.get(r.halaqoh.id)
+    if (ada) { if (!ada.peran.includes(label)) ada.peran.push(label) }
+    else halaqohMap.set(r.halaqoh.id, { ...r.halaqoh, peran: [label] })
+  }
+  const halaqohRows = [...halaqohMap.values()].sort((a, b) => a.name.localeCompare(b.name, 'id'))
+
+  const jumlahSiswa = new Map<string, number>()
+  if (halaqohRows.length > 0) {
+    const { data: siswaRows } = await supabase
+      .from('students')
+      .select('halaqoh_id')
+      .in('halaqoh_id', halaqohRows.map(h => h.id))
+      .eq('is_active', true)
+    for (const s of (siswaRows ?? []) as { halaqoh_id: string }[]) {
+      jumlahSiswa.set(s.halaqoh_id, (jumlahSiswa.get(s.halaqoh_id) ?? 0) + 1)
+    }
+  }
 
   // Koor hanya boleh membuka guru di unitnya — cegah akses lintas unit via URL.
   if (isKoorUnit(session.role)) {
@@ -81,7 +112,7 @@ export default async function TeacherDetailPage({ params, searchParams }: PagePr
     : { data: [] as TeacherUnitMove[] }
 
   /*
-    Slot sesi guru ini, dibaca dari kolom halaqoh.sesi halaqoh yang diwalinya.
+    Slot sesi guru ini, dibaca dari kolom halaqoh.sesi halaqoh yang diampunya.
 
     Sebelumnya dijumlahkan dari tabel halaqoh_sessions, yang tidak pernah
     terisi — sehingga tiap guru selalu tertulis "0 sesi / pekan" tanpa ada yang
@@ -90,7 +121,7 @@ export default async function TeacherDetailPage({ params, searchParams }: PagePr
     mengajar, bukan berapa jam ia mengajar.
   */
   const sesiSlots = [...new Set(
-    ((halaqohRows ?? []) as { sesi: number | null; is_active: boolean }[])
+    halaqohRows
       .filter(h => h.is_active && h.sesi != null)
       .map(h => h.sesi as number),
   )].sort((a, b) => a - b)
@@ -229,11 +260,11 @@ export default async function TeacherDetailPage({ params, searchParams }: PagePr
         <section>
           <h2 className="font-heading text-lg font-medium mb-3 flex items-center gap-2">
             <BookOpen className="h-4 w-4" />
-            Halaqoh sebagai Wali
+            Halaqoh yang Diampu
           </h2>
-          {!halaqohRows || halaqohRows.length === 0 ? (
+          {halaqohRows.length === 0 ? (
             <div className="rounded-lg border border-dashed py-6 text-center text-sm text-muted-foreground">
-              Belum menjadi wali halaqoh manapun.
+              Belum mengampu halaqoh manapun.
             </div>
           ) : (
             <div className="grid sm:grid-cols-2 gap-3">
@@ -249,6 +280,9 @@ export default async function TeacherDetailPage({ params, searchParams }: PagePr
                       {JENJANG_LABELS[h.jenjang as Jenjang]}
                     </span>
                   </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {h.peran.join(' · ')} · {jumlahSiswa.get(h.id) ?? 0} siswa
+                  </p>
                   {!h.is_active && (
                     <p className="text-xs text-warning mt-1">⚠ Halaqoh nonaktif</p>
                   )}

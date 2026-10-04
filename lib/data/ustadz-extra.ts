@@ -51,15 +51,23 @@ export async function getBarisHitungGuru(l: LingkupGuru): Promise<BarisHitungGur
   return (data ?? []) as unknown as BarisHitungGuru[]
 }
 
-/** Id guru yang menjadi wali minimal satu halaqoh aktif (satu query, seluruh halaqoh aktif). */
-export async function getWaliHalaqohAktif(): Promise<Set<string>> {
+/**
+ * Id guru yang mengampu minimal satu halaqoh aktif — sebagai wali
+ * (halaqoh.wali_teacher_id) atau pengampu (halaqoh_teachers). Guru tahsin SMA
+ * bukan wali halaqoh mana pun, tapi jelas sudah mengampu.
+ */
+export async function getPengampuHalaqohAktif(): Promise<Set<string>> {
   const supabase = createServerClient()
   const { data } = await supabase
     .from('halaqoh')
-    .select('wali_teacher_id')
+    .select('wali_teacher_id, halaqoh_teachers(teacher_id)')
     .eq('is_active', true)
-    .not('wali_teacher_id', 'is', null)
-  return new Set((data ?? []).map(r => r.wali_teacher_id as string))
+  const ids = new Set<string>()
+  for (const h of (data ?? []) as { wali_teacher_id: string | null; halaqoh_teachers: { teacher_id: string }[] | null }[]) {
+    if (h.wali_teacher_id) ids.add(h.wali_teacher_id)
+    for (const t of h.halaqoh_teachers ?? []) ids.add(t.teacher_id)
+  }
+  return ids
 }
 
 export interface RingkasanGuru {

@@ -14,7 +14,7 @@ import { Plus, CircleAlert, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { RestoreTeacherButton, KategoriPicker, PembinaGukarToggle } from './TeacherActions'
 import { contractDaysLeft } from '@/lib/auth/contract'
-import { getBarisHitungGuru, getWaliHalaqohAktif, ringkas, statusBaris, type BarisHitungGuru } from '@/lib/data/ustadz-extra'
+import { getBarisHitungGuru, getPengampuHalaqohAktif, ringkas, statusBaris, type BarisHitungGuru } from '@/lib/data/ustadz-extra'
 import type { KategoriGuru, Teacher, TeacherEmployment } from '@/types'
 
 interface PageProps {
@@ -178,12 +178,13 @@ export default async function UstadzListPage({ searchParams }: PageProps) {
     hari & jam belum pernah dimasukkan siapa pun — sehingga angka "beban sesi"
     di sini SELALU 0 untuk setiap guru, tanpa ada yang menandainya salah.
 
-    Lagi pula keduanya menjawab pertanyaan yang berbeda. Jumlah beban dihitung
-    lewat halaqoh_teachers (siapa pengampunya), sementara "3 halaqoh" di
-    sebelahnya dihitung lewat wali_teacher_id (siapa walinya) — dua relasi
-    berbeda yang dipajang seolah sebanding. Yang benar-benar ditanyakan koor
-    saat membuka daftar ini adalah KAPAN seorang guru mengajar, dan itulah slot
-    1/2/3 yang memang sudah terisi untuk seluruh halaqoh.
+    Yang benar-benar ditanyakan koor saat membuka daftar ini adalah KAPAN
+    seorang guru mengajar, dan itulah slot 1/2/3 yang memang sudah terisi untuk
+    seluruh halaqoh.
+
+    Halaqoh dihitung dari wali (wali_teacher_id) DAN pengampu (halaqoh_teachers),
+    tiap halaqoh sekali per guru. Hanya wali saja membuat guru tahsin SMA —
+    pengampu di dua halaqoh, wali di nol — tertulis "0 halaqoh".
   */
   const ids = teachers.map(t => t.id)
 
@@ -205,21 +206,37 @@ export default async function UstadzListPage({ searchParams }: PageProps) {
   const halaqohCountMap = new Map<string, number>()
   const sesiSlotMap = new Map<string, number[]>()
   if (ids.length > 0) {
-    const { data: halaqohRows } = await supabase
-      .from('halaqoh')
-      .select('wali_teacher_id, sesi')
-      .in('wali_teacher_id', ids)
-      .eq('is_active', true)
+    const [waliRes, pengampuRes] = await Promise.all([
+      supabase
+        .from('halaqoh')
+        .select('id, wali_teacher_id, sesi')
+        .in('wali_teacher_id', ids)
+        .eq('is_active', true),
+      supabase
+        .from('halaqoh_teachers')
+        .select('teacher_id, halaqoh:halaqoh!inner(id, sesi)')
+        .in('teacher_id', ids)
+        .eq('halaqoh.is_active', true),
+    ])
 
-    for (const row of (halaqohRows ?? []) as { wali_teacher_id: string | null; sesi: number | null }[]) {
-      if (!row.wali_teacher_id) continue
-      halaqohCountMap.set(row.wali_teacher_id, (halaqohCountMap.get(row.wali_teacher_id) ?? 0) + 1)
+    const pasangan: { teacherId: string; halaqohId: string; sesi: number | null }[] = [
+      ...((waliRes.data ?? []) as { id: string; wali_teacher_id: string; sesi: number | null }[])
+        .map(h => ({ teacherId: h.wali_teacher_id, halaqohId: h.id, sesi: h.sesi })),
+      ...((pengampuRes.data ?? []) as unknown as { teacher_id: string; halaqoh: { id: string; sesi: number | null } }[])
+        .map(r => ({ teacherId: r.teacher_id, halaqohId: r.halaqoh.id, sesi: r.halaqoh.sesi })),
+    ]
+    const sudah = new Set<string>()
+    for (const p of pasangan) {
+      const kunci = `${p.teacherId}|${p.halaqohId}`
+      if (sudah.has(kunci)) continue
+      sudah.add(kunci)
+      halaqohCountMap.set(p.teacherId, (halaqohCountMap.get(p.teacherId) ?? 0) + 1)
       // Slot yang sama boleh dipegang dua halaqoh sekaligus; yang ditampilkan
       // adalah slot mana saja yang terisi, bukan berapa kali.
-      if (row.sesi == null) continue
-      const slot = sesiSlotMap.get(row.wali_teacher_id) ?? []
-      if (!slot.includes(row.sesi)) slot.push(row.sesi)
-      sesiSlotMap.set(row.wali_teacher_id, slot)
+      if (p.sesi == null) continue
+      const slot = sesiSlotMap.get(p.teacherId) ?? []
+      if (!slot.includes(p.sesi)) slot.push(p.sesi)
+      sesiSlotMap.set(p.teacherId, slot)
     }
     for (const slot of sesiSlotMap.values()) slot.sort((a, b) => a - b)
   }
@@ -229,10 +246,10 @@ export default async function UstadzListPage({ searchParams }: PageProps) {
   // kolom ringan; bila ada pencarian, chip mengikuti pencarian sedangkan kartu
   // ringkasan tetap atas seluruh guru berstatus yang sama.
   const lingkup = { unitTeacherIds, unitScope: unitScope as string[], denganKategori: !perluMigrasi }
-  const [barisCari, barisSemua, waliAktif] = await Promise.all([
+  const [barisCari, barisSemua, pengampuAktif] = await Promise.all([
     getBarisHitungGuru({ ...lingkup, query }),
     query ? getBarisHitungGuru({ ...lingkup, query: '' }) : Promise.resolve(null),
-    getWaliHalaqohAktif(),
+    getPengampuHalaqohAktif(),
   ])
   const cocokKategori = (b: BarisHitungGuru, k: KategoriFilter) =>
     k === 'semua' || (k === 'belum' ? !b.kategori_guru : b.kategori_guru === k)
@@ -240,7 +257,7 @@ export default async function UstadzListPage({ searchParams }: PageProps) {
     barisCari.filter(b => statusBaris(b) === st && cocokKategori(b, kategoriAktif)).length
   const hitungKategori = (k: KategoriFilter) =>
     barisCari.filter(b => statusBaris(b) === status && cocokKategori(b, k)).length
-  const ring = ringkas((barisSemua ?? barisCari).filter(b => statusBaris(b) === status), waliAktif)
+  const ring = ringkas((barisSemua ?? barisCari).filter(b => statusBaris(b) === status), pengampuAktif)
   const jumlahTetap = ring.tetap
   const kontrakYys = ring.kontrakYys
   const kontrakRq = ring.kontrakRq
