@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import { TabDaftarHadir } from '@/components/guru/TabDaftarHadir'
 import { getTeacherSession } from '@/lib/auth/teacher-session'
-import { getHalaqohSesiGuru, pilihHalaqoh } from '@/lib/data/setoran-sesi'
+import { getHalaqohSesiGuru, idHalaqohSesi, pilihHalaqoh } from '@/lib/data/setoran-sesi'
 import { getAbsensiBulan } from '@/lib/data/absensi'
 import { currentPeriod, isValidPeriod } from '@/lib/finance/period'
 import { FilterSesiBulan } from '@/components/setoran/FilterSesiBulan'
@@ -31,7 +31,7 @@ export default async function RekapAbsensiPage({ searchParams }: PageProps) {
 
   const daftar = await getHalaqohSesiGuru(session.teacherId)
   const halaqoh = pilihHalaqoh(daftar, params.halaqoh)
-  const data = halaqoh ? await getAbsensiBulan(halaqoh.id, periode) : null
+  const data = halaqoh ? await getAbsensiBulan(idHalaqohSesi(halaqoh), periode) : null
   const hariIni = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' })
 
   return (

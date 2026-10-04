@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation'
 import { getTeacherSession } from '@/lib/auth/teacher-session'
 import { JENJANG_LABELS } from '@/lib/auth/permissions'
 import { createServerClient } from '@/lib/supabase/server'
-import { getHalaqohSesiGuru } from '@/lib/data/setoran-sesi'
+import { getHalaqohSesiGuru, idHalaqohSesi } from '@/lib/data/setoran-sesi'
 import { getKelompokAsrama } from '@/lib/data/asrama'
 import { LABEL_GENDER_ASRAMA } from '@/lib/rq/asrama'
 import { BELUM_TERCATAT, getPosisiUnit, type PosisiSiswaUnit } from '@/lib/data/capaian-kelas'
@@ -108,7 +108,7 @@ export default async function CapaianUnitPage({ searchParams }: PageProps) {
   /** Halaqoh (sekolah) atau kelompok asrama tempat siswa ini dihitung. */
   const grupOf = (s: PosisiSiswaUnit): string | null => asrama ? kelompokSiswa.get(s.id) ?? null : s.halaqoh_id
   const metodeAda = data.metode
-  const idSaya = new Set(asrama ? asramaSaya.map(k => k.id) : halaqohSaya.map(h => h.id))
+  const idSaya = new Set(asrama ? asramaSaya.map(k => k.id) : halaqohSaya.flatMap(idHalaqohSesi))
   /*
     Tahsin SELALU dibaca per metode: Jilid 4 KIBAR bukan Jilid 4 Ummi, jadi
     menggabungkannya menyesatkan. Bawaannya metode yang paling banyak dipakai

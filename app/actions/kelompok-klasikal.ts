@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { createServerClient } from '@/lib/supabase/server'
 import { getTeacherSession } from '@/lib/auth/teacher-session'
-import { getTeacherHalaqohIds } from '@/lib/data/teacher'
+import { halaqohSesiGuru } from '@/lib/data/setoran-sesi'
 
 type Hasil = { error?: string; success?: true }
 
@@ -20,12 +20,14 @@ export interface IsianKelompokKlasikal {
  * di mana layar dan basis data berbeda pendapat soal siapa ada di mana.
  * Setoran yang sudah tersimpan tidak tersentuh — tersimpan per anak.
  */
-export async function simpanKelompokKlasikalAction(halaqohId: string, daftar: IsianKelompokKlasikal[]): Promise<Hasil> {
+export async function simpanKelompokKlasikalAction(sesiId: string, daftar: IsianKelompokKlasikal[]): Promise<Hasil> {
   const session = await getTeacherSession()
   if (!session) return { error: 'Sesi tidak valid.' }
-  if (!(await getTeacherHalaqohIds(session.teacherId)).includes(halaqohId)) {
-    return { error: 'Anda bukan pengampu halaqoh ini.' }
-  }
+  // Id sesi bisa sesi gabungan guru tahsin: kelompoknya boleh mencampur anak
+  // beberapa halaqoh, dan disimpan atas halaqoh pertama sesi itu.
+  const halaqohIds = await halaqohSesiGuru(session.teacherId, sesiId)
+  if (!halaqohIds) return { error: 'Anda bukan pengampu halaqoh ini.' }
+  const halaqohId = halaqohIds[0]
 
   const bersih = daftar
     .map((k, i) => ({ nama: k.nama.trim() || `Kelompok ${i + 1}`, anggota: [...new Set(k.anggota)] }))
@@ -39,13 +41,13 @@ export async function simpanKelompokKlasikalAction(halaqohId: string, daftar: Is
   const supabase = createServerClient()
   if (semua.length > 0) {
     const { data: siswa } = await supabase.from('students').select('id')
-      .in('id', semua).eq('halaqoh_id', halaqohId).eq('is_active', true)
+      .in('id', semua).in('halaqoh_id', halaqohIds).eq('is_active', true)
     if ((siswa ?? []).length !== semua.length) return { error: 'Ada anggota yang bukan siswa aktif di sesi ini.' }
   }
 
   // Keanggotaan lama di halaqoh ini, dan keanggotaan anak-anak ini di mana pun
   // (mis. sisa dari halaqoh lama) — satu anak satu kelompok.
-  const { data: lama, error: galatBaca } = await supabase.from('kelompok_klasikal').select('id').eq('halaqoh_id', halaqohId)
+  const { data: lama, error: galatBaca } = await supabase.from('kelompok_klasikal').select('id').in('halaqoh_id', halaqohIds)
   if (galatBaca) return { error: 'Tabel kelompok belum ada. Jalankan migrasi 0080 lebih dulu.' }
   if ((lama ?? []).length > 0) {
     await supabase.from('kelompok_klasikal').delete().in('id', (lama ?? []).map(k => k.id))

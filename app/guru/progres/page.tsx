@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 import { getTeacherSession } from '@/lib/auth/teacher-session'
-import { getHalaqohSesiGuru, pilihHalaqoh, type HalaqohSesi } from '@/lib/data/setoran-sesi'
+import { getHalaqohSesiGuru, pilihHalaqoh, sasaranSesi, type HalaqohSesi } from '@/lib/data/setoran-sesi'
 import { getKelompokAsrama } from '@/lib/data/asrama'
 import { getProgresSesi, type JenisRekap } from '@/lib/data/rekap-sesi'
 import { currentPeriod, isValidPeriod } from '@/lib/finance/period'
@@ -46,7 +46,7 @@ export default async function ProgresSesiPage({ searchParams }: PageProps) {
     ? null
     : kelompokAsrama
       ? await getProgresSesi({ siswa: kelompokAsrama.anggota.map(a => a.student_id) }, periode, jenis)
-      : await getProgresSesi(halaqoh.id, periode, jenis)
+      : await getProgresSesi(sasaranSesi(halaqoh), periode, jenis)
   // Tanggal WIB hari ini — penanda kolom dan pemisah hari yang belum tiba.
   const hariIni = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' })
 

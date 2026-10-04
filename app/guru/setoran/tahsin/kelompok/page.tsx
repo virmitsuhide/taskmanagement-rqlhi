@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { getTeacherSession } from '@/lib/auth/teacher-session'
-import { getHalaqohSesiGuru, getSiswaSesiTahsin, pilihHalaqoh } from '@/lib/data/setoran-sesi'
+import { getHalaqohSesiGuru, getSiswaSesiTahsin, idHalaqohSesi, pilihHalaqoh, sasaranSesi } from '@/lib/data/setoran-sesi'
 import { getKelompokKlasikal } from '@/lib/data/kelompok-klasikal'
 import { PilihSesi } from '@/components/setoran/PilihSesi'
 import { AturKelompokKlasikal } from '@/components/setoran/AturKelompokKlasikal'
@@ -19,8 +19,8 @@ export default async function AturKelompokPage({ searchParams }: PageProps) {
   const daftar = await getHalaqohSesiGuru(session.teacherId)
   const halaqoh = pilihHalaqoh(daftar, diminta)
   const [siswa, kelompok] = await Promise.all([
-    halaqoh ? getSiswaSesiTahsin(halaqoh.id) : Promise.resolve([]),
-    halaqoh ? getKelompokKlasikal(halaqoh.id) : Promise.resolve({ tabelAda: true, kelompok: [] }),
+    halaqoh ? getSiswaSesiTahsin(sasaranSesi(halaqoh)) : Promise.resolve([]),
+    halaqoh ? getKelompokKlasikal(idHalaqohSesi(halaqoh)) : Promise.resolve({ tabelAda: true, kelompok: [] }),
   ])
   const kunci = kelompok.kelompok.map(k => `${k.id}:${k.anggota.join(',')}`).join('|')
 

@@ -1,6 +1,7 @@
 import { createServerClient } from '@/lib/supabase/server'
 import type { Jenjang } from '@/types'
-import { getTeacherHalaqohIds, type JenisSetoran } from '@/lib/data/teacher'
+import { getTeacherHalaqohIds, getTeacherHalaqohPeran, type JenisSetoran } from '@/lib/data/teacher'
+import { JENJANG_LABELS } from '@/lib/auth/permissions'
 import { getLevelPerSiswa } from '@/lib/data/asrama'
 import type { LevelAsrama } from '@/lib/rq/asrama'
 import { getJuzDrillPerSiswa, type JuzDrillSiswa } from '@/lib/data/drill-tahfidz'
@@ -25,11 +26,36 @@ export interface HalaqohSesi {
   sesi: number | null
   /** Unit pemilik halaqoh — menentukan template rapor mana yang berlaku (0082). */
   jenjang: Jenjang
+  /**
+   * Sesi gabungan: halaqoh asli yang dirangkum sesi ini (lihat
+   * getHalaqohSesiGuru). Tidak diisi = sesi biasa, satu halaqoh = `id`.
+   */
+  anggota?: string[]
+  /** Jenis setoran sesi gabungan — selalu satu jenis (guru khusus tahsin). */
+  peran?: JenisSetoran
 }
 
+/** Awalan id sesi gabungan — bukan uuid, jadi tidak pernah bentrok dengan id halaqoh. */
+const AWALAN_GABUNG = 'gabung-'
+
+/** Halaqoh asli di balik sebuah sesi: anggotanya bila gabungan, selain itu dirinya. */
+export function idHalaqohSesi(h: HalaqohSesi): string[] {
+  return h.anggota ?? [h.id]
+}
+
+/**
+ * Sesi-sesi seorang guru.
+ *
+ * Guru KHUSUS TAHSIN di beberapa halaqoh satu unit (SMA LHI: satu guru tahsin
+ * untuk semua anak, dua guru tahfidz yang masing-masing punya halaqoh) mengajar
+ * semua anak itu dalam SATU sesi. Halaqohnya dibentuk menurut guru tahfidz,
+ * jadi di layar guru tahsin halaqoh-halaqoh itu dirangkum menjadi satu sesi
+ * gabungan — nama halaqoh guru lain tidak muncul. Datanya tidak berubah: tiap
+ * anak tetap di halaqohnya, dan setoran/absensi tetap tercatat per anak.
+ */
 export async function getHalaqohSesiGuru(teacherId: string, jenis?: JenisSetoran): Promise<HalaqohSesi[]> {
   // jenis: hanya sesi tempat guru boleh mencatat setoran jenis itu (guru SMA).
-  const ids = await getTeacherHalaqohIds(teacherId, jenis)
+  const [ids, peran] = await Promise.all([getTeacherHalaqohIds(teacherId, jenis), getTeacherHalaqohPeran(teacherId)])
   if (ids.length === 0) return []
   const supabase = createServerClient()
   const { data } = await supabase
@@ -38,7 +64,48 @@ export async function getHalaqohSesiGuru(teacherId: string, jenis?: JenisSetoran
     .in('id', ids)
     .eq('is_active', true)
     .order('sesi')
-  return (data ?? []) as HalaqohSesi[]
+  const daftar = (data ?? []) as HalaqohSesi[]
+
+  const tahsinPerUnit = new Map<Jenjang, HalaqohSesi[]>()
+  for (const h of daftar) {
+    if (peran.get(h.id) !== 'tahsin') continue
+    tahsinPerUnit.set(h.jenjang, [...(tahsinPerUnit.get(h.jenjang) ?? []), h])
+  }
+  const hasil: HalaqohSesi[] = []
+  const sudah = new Set<Jenjang>()
+  for (const h of daftar) {
+    const kelompok = peran.get(h.id) === 'tahsin' ? tahsinPerUnit.get(h.jenjang) ?? [] : []
+    if (kelompok.length < 2) { hasil.push(h); continue }
+    if (sudah.has(h.jenjang)) continue
+    sudah.add(h.jenjang)
+    const sesiSama = new Set(kelompok.map(k => k.sesi)).size === 1 ? kelompok[0].sesi : null
+    hasil.push({
+      id: `${AWALAN_GABUNG}tahsin-${h.jenjang}`,
+      name: `${JENJANG_LABELS[h.jenjang]} — Tahsin`,
+      sesi: sesiSama,
+      jenjang: h.jenjang,
+      anggota: kelompok.map(k => k.id),
+      peran: 'tahsin',
+    })
+  }
+  return hasil
+}
+
+/**
+ * Nama yang dilihat guru untuk tiap halaqoh aslinya: nama sesi gabungan bila
+ * halaqoh itu dirangkum, selain itu nama halaqohnya sendiri.
+ */
+export function namaSesiPerHalaqoh(daftar: HalaqohSesi[]): Map<string, string> {
+  return new Map(daftar.flatMap(h => idHalaqohSesi(h).map(id => [id, h.name] as const)))
+}
+
+/**
+ * Halaqoh asli di balik id sesi yang dikirim layar guru — null bila sesi itu
+ * bukan miliknya. Dipakai aksi server yang menerima id sesi (bisa gabungan).
+ */
+export async function halaqohSesiGuru(teacherId: string, sesiId: string): Promise<string[] | null> {
+  const sesi = (await getHalaqohSesiGuru(teacherId)).find(h => h.id === sesiId)
+  return sesi ? idHalaqohSesi(sesi) : null
 }
 
 /** Pilih halaqoh dari query string bila milik guru, selain itu yang pertama. */
@@ -47,15 +114,27 @@ export function pilihHalaqoh(daftar: HalaqohSesi[], diminta: string | undefined)
 }
 
 /**
- * Siapa yang disetor dalam satu sesi: anggota sebuah halaqoh (id-nya), atau
- * daftar siswa tertentu — peserta Riyadhoh Sabtu, yang bukan satu halaqoh.
+ * Siapa yang disetor dalam satu sesi: anggota sebuah halaqoh (id-nya), anggota
+ * beberapa halaqoh (sesi gabungan), atau daftar siswa tertentu — peserta
+ * Riyadhoh Sabtu, yang bukan satu halaqoh.
  */
-export type SasaranSesi = string | { siswa: string[] }
+export type SasaranSesi = string | { halaqoh: string[] } | { siswa: string[] }
+
+/** Sasaran setoran untuk sebuah sesi guru — gabungan memuat semua halaqohnya. */
+export function sasaranSesi(h: HalaqohSesi): SasaranSesi {
+  return h.anggota ? { halaqoh: h.anggota } : h.id
+}
+
+const UUID = /^[0-9a-f-]{36}$/i
 
 /** Saringan PostgREST untuk .or(); daftar kosong tidak mencocokkan siapa pun. */
 function saringSasaran(sasaran: SasaranSesi): string {
   if (typeof sasaran === 'string') return `halaqoh_id.eq.${sasaran}`
-  const ids = sasaran.siswa.filter(id => /^[0-9a-f-]{36}$/i.test(id))
+  if ('halaqoh' in sasaran) {
+    const ids = sasaran.halaqoh.filter(id => UUID.test(id))
+    return ids.length > 0 ? `halaqoh_id.in.(${ids.join(',')})` : 'id.is.null'
+  }
+  const ids = sasaran.siswa.filter(id => UUID.test(id))
   return ids.length > 0 ? `id.in.(${ids.join(',')})` : 'id.is.null'
 }
 

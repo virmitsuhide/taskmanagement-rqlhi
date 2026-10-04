@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { ChevronLeft } from 'lucide-react'
 import { getTeacherSession } from '@/lib/auth/teacher-session'
-import { getHalaqohSesiGuru, pilihHalaqoh } from '@/lib/data/setoran-sesi'
+import { getHalaqohSesiGuru, idHalaqohSesi, pilihHalaqoh } from '@/lib/data/setoran-sesi'
 import { getAbsensiTanggal, getSiswaSesi, getTanggalTerabsen } from '@/lib/data/absensi'
 import { tanggalWIB } from '@/lib/rq/ujian'
 import { TabDaftarHadir } from '@/components/guru/TabDaftarHadir'
@@ -57,7 +57,7 @@ export default async function AbsensiPage({ searchParams }: PageProps) {
   const href = (g: Record<string, string | undefined>) => hrefDengan(PATH, params, g)
 
   const [siswa, absensi, riwayat] = sesi
-    ? await Promise.all([getSiswaSesi(sesi.id), getAbsensiTanggal(sesi.id, tanggal), getTanggalTerabsen(sesi.id, 8)])
+    ? await Promise.all([getSiswaSesi(idHalaqohSesi(sesi)), getAbsensiTanggal(idHalaqohSesi(sesi), tanggal), getTanggalTerabsen(idHalaqohSesi(sesi), 8)])
     : [[], { tabelAda: true, baris: [] }, []]
 
   const awal = Object.fromEntries(

@@ -1,6 +1,6 @@
 import { idSetoranEkstra } from '@/lib/data/ekstra'
 import { createServerClient } from '@/lib/supabase/server'
-import { getHalaqohSesiGuru, type HalaqohSesi } from '@/lib/data/setoran-sesi'
+import { getHalaqohSesiGuru, idHalaqohSesi, type HalaqohSesi } from '@/lib/data/setoran-sesi'
 import { getPetaHalaman } from '@/lib/data/target-tahfidz'
 import { halamanHafalan } from '@/lib/rq/target-tahfidz'
 import { rekapMurojaah, suratMurojaah } from '@/lib/rq/murojaah'
@@ -68,7 +68,7 @@ export async function getLaporanOrtu(
     .from('students')
     .select('id, full_name, kelas, jenjang, current_jilid_page, current_quran_halaman,' +
       ' jilid:jilid_levels!students_current_jilid_id_fkey(label, total_pages, is_terminal)')
-    .eq('halaqoh_id', halaqoh.id)
+    .in('halaqoh_id', idHalaqohSesi(halaqoh))
     .eq('is_active', true)
     .order('full_name')
   const siswa = (siswaRows ?? []) as unknown as {

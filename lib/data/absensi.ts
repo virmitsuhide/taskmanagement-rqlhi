@@ -14,6 +14,9 @@ import type { Jenjang } from '@/types'
  * dan rapor memakai rekap kosong — bukan galat 500.
  */
 
+/** Satu halaqoh atau beberapa (sesi gabungan guru tahsin — lib/data/setoran-sesi). */
+const daftarId = (id: string | string[]) => (Array.isArray(id) ? id : [id])
+
 export interface BarisAbsensi {
   student_id: string
   status: StatusAbsensi
@@ -27,24 +30,24 @@ export interface AbsensiSatuHari {
   baris: BarisAbsensi[]
 }
 
-export async function getAbsensiTanggal(halaqohId: string, tanggal: string): Promise<AbsensiSatuHari> {
+export async function getAbsensiTanggal(halaqohId: string | string[], tanggal: string): Promise<AbsensiSatuHari> {
   const supabase = createServerClient()
   const { data, error } = await supabase
     .from('absensi_harian')
     .select('student_id, status, catatan')
-    .eq('halaqoh_id', halaqohId)
+    .in('halaqoh_id', daftarId(halaqohId))
     .eq('tanggal', tanggal)
   if (error) return { tabelAda: false, baris: [] }
   return { tabelAda: true, baris: (data ?? []) as BarisAbsensi[] }
 }
 
 /** Tanggal yang sudah pernah diabsen di sesi ini, terbaru dulu. */
-export async function getTanggalTerabsen(halaqohId: string, batas = 30): Promise<string[]> {
+export async function getTanggalTerabsen(halaqohId: string | string[], batas = 30): Promise<string[]> {
   const supabase = createServerClient()
   const { data, error } = await supabase
     .from('absensi_harian')
     .select('tanggal')
-    .eq('halaqoh_id', halaqohId)
+    .in('halaqoh_id', daftarId(halaqohId))
     .order('tanggal', { ascending: false })
     .limit(batas * 40) // satu tanggal punya sebanyak anggota halaqoh barisnya
   if (error) return []
@@ -91,12 +94,12 @@ export async function getRekapAbsensi(
  * Anggota aktif sebuah sesi — daftar nama saja, tanpa posisi tahsin/tahfidz.
  * Layar absensi tidak butuh capaian; memuatnya hanya memperlambat.
  */
-export async function getSiswaSesi(halaqohId: string): Promise<{ id: string; full_name: string; kelas: string | null }[]> {
+export async function getSiswaSesi(halaqohId: string | string[]): Promise<{ id: string; full_name: string; kelas: string | null }[]> {
   const supabase = createServerClient()
   const { data } = await supabase
     .from('students')
     .select('id, full_name, kelas')
-    .eq('halaqoh_id', halaqohId)
+    .in('halaqoh_id', daftarId(halaqohId))
     .eq('is_active', true)
     .order('full_name')
   return (data ?? []) as { id: string; full_name: string; kelas: string | null }[]
@@ -151,7 +154,7 @@ export interface AbsensiBulan {
  * dua tabel yang dibaca berdampingan tiap bulan lebih baik dibaca dengan satu
  * kebiasaan mata.
  */
-export async function getAbsensiBulan(halaqohId: string, periode: string): Promise<AbsensiBulan> {
+export async function getAbsensiBulan(halaqohId: string | string[], periode: string): Promise<AbsensiBulan> {
   const [tahun, bulan] = periode.split('-').map(Number)
   const akhirBulan = new Date(Date.UTC(tahun, bulan, 0)).getUTCDate()
   const dari = `${periode}-01`
@@ -160,9 +163,9 @@ export async function getAbsensiBulan(halaqohId: string, periode: string): Promi
   const supabase = createServerClient()
   const [siswaRes, absensiRes, term] = await Promise.all([
     supabase.from('students').select('id, full_name, kelas, jenjang, program')
-      .eq('halaqoh_id', halaqohId).eq('is_active', true).order('full_name'),
+      .in('halaqoh_id', daftarId(halaqohId)).eq('is_active', true).order('full_name'),
     supabase.from('absensi_harian').select('student_id, tanggal, status, catatan')
-      .eq('halaqoh_id', halaqohId).gte('tanggal', dari).lte('tanggal', sampai),
+      .in('halaqoh_id', daftarId(halaqohId)).gte('tanggal', dari).lte('tanggal', sampai),
     getCurrentTerm(),
   ])
 

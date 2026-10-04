@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { BookOpen, CheckCircle2, FileText, HeartHandshake, ListChecks, Sparkles } from 'lucide-react'
 import { getTeacherSession } from '@/lib/auth/teacher-session'
-import { getHalaqohSesiGuru, pilihHalaqoh } from '@/lib/data/setoran-sesi'
+import { getHalaqohSesiGuru, idHalaqohSesi, pilihHalaqoh } from '@/lib/data/setoran-sesi'
 import { getAbsensiTanggal, getSiswaSesi } from '@/lib/data/absensi'
 import { getTeacherHalaqohPeran, getTeacherStudents } from '@/lib/data/teacher'
 import { labelTanggalPanjang, type StatusAbsensi } from '@/lib/rq/absensi'
@@ -40,8 +40,8 @@ export default async function MulaiSesiPage({ searchParams }: PageProps) {
 
   const [siswaAbsen, absensi, semuaSiswa] = halaqoh
     ? await Promise.all([
-        getSiswaSesi(halaqoh.id),
-        getAbsensiTanggal(halaqoh.id, hariIni),
+        getSiswaSesi(idHalaqohSesi(halaqoh)),
+        getAbsensiTanggal(idHalaqohSesi(halaqoh), hariIni),
         getTeacherStudents(session.teacherId),
       ])
     : [[], { tabelAda: true, baris: [] }, []]
@@ -54,7 +54,7 @@ export default async function MulaiSesiPage({ searchParams }: PageProps) {
 
   // Guru SMA berperan khusus di halaqohnya (halaqoh_teachers.role): hanya
   // tahsin atau hanya tahfidz. null = keduanya, seperti guru unit lain.
-  const jenisGuru = halaqoh ? peranHalaqoh.get(halaqoh.id) ?? null : null
+  const jenisGuru = halaqoh ? halaqoh.peran ?? peranHalaqoh.get(halaqoh.id) ?? null : null
   const bolehTahsin = jenisGuru !== 'tahfidz'
   const bolehTahfidz = jenisGuru !== 'tahsin'
 
@@ -63,7 +63,8 @@ export default async function MulaiSesiPage({ searchParams }: PageProps) {
   // mengantre anak yang sudah Lulus Tahsin — tidak ada yang bisa ia catat.
   const tglSetor = (s: (typeof semuaSiswa)[number]) =>
     jenisGuru === 'tahfidz' ? s.last_tahfidz_date : jenisGuru === 'tahsin' ? s.last_tahsin_date : s.last_setoran_date
-  const anak = semuaSiswa.filter(s => s.halaqoh_id === halaqoh?.id && !(jenisGuru === 'tahsin' && s.lulus_tahsin))
+  const idSesi = halaqoh ? idHalaqohSesi(halaqoh) : []
+  const anak = semuaSiswa.filter(s => s.halaqoh_id !== null && idSesi.includes(s.halaqoh_id) && !(jenisGuru === 'tahsin' && s.lulus_tahsin))
   const sudahSetor = anak.filter(s => tglSetor(s) === hariIni)
   const tidakHadirBelumSetor = anak.filter(s => tidakHadir.has(s.id) && tglSetor(s) !== hariIni).length
   const antrian = anak

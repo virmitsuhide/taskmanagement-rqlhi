@@ -13,7 +13,7 @@ import { persenTM } from '@/lib/rq/kalender-quran'
 import { JENJANG_LABELS } from '@/lib/auth/permissions'
 import { formatTanggal, tanggalWIB } from '@/lib/rq/ujian'
 import { ttdSrc } from '@/lib/kpi/ttd-berkas'
-import type { HalaqohSesi } from '@/lib/data/setoran-sesi'
+import { idHalaqohSesi, type HalaqohSesi } from '@/lib/data/setoran-sesi'
 import { isiAwalIsian, slotIsianGuru, type KodeMedan } from '@/lib/rapor/medan'
 import { templateUntuk, urlLatar, type JenisRapor, type RaporTemplate } from '@/lib/data/rapor-template'
 import type { Jenjang } from '@/types'
@@ -169,19 +169,21 @@ export async function getBahanRaporSesi(
 
   const { data: siswaRows } = await supabase
     .from('students')
-    .select('id, full_name, nis, kelas, jenjang, program, gender, current_jilid_page, current_quran_halaman,' +
+    .select('id, full_name, nis, kelas, jenjang, program, gender, halaqoh_id, current_jilid_page, current_quran_halaman,' +
       ' jilid:jilid_levels!students_current_jilid_id_fkey(label, total_pages, is_terminal),' +
-      ' metode:tahsin_methods!students_current_method_id_fkey(name)')
-    .eq('halaqoh_id', halaqoh.id)
+      ' metode:tahsin_methods!students_current_method_id_fkey(name),' +
+      ' halaqoh_asli:halaqoh!students_halaqoh_id_fkey(name)')
+    .in('halaqoh_id', idHalaqohSesi(halaqoh))
     .eq('is_active', true)
     .order('full_name')
 
   const siswa = (siswaRows ?? []) as unknown as {
     id: string; full_name: string; nis: string | null; kelas: string | null; jenjang: Jenjang; program: string | null
-    gender: 'L' | 'P' | null
+    gender: 'L' | 'P' | null; halaqoh_id: string
     current_jilid_page: number | null; current_quran_halaman: number | null
     jilid: { label: string; total_pages: number | null; is_terminal: boolean } | null
     metode: { name: string } | null
+    halaqoh_asli: { name: string } | null
   }[]
   const ids = siswa.map(s => s.id)
   if (ids.length === 0) return []
@@ -214,7 +216,7 @@ export async function getBahanRaporSesi(
       getPetaHalaman(),
       getInfoSurat(),
       ambilIsian(ids, term.id, jenis),
-      ambilPengampu(halaqoh.id),
+      Promise.all(idHalaqohSesi(halaqoh).map(async id => [id, await ambilPengampu(id)] as const)),
       // Nilai dari setoran pertemuan ekstra (0091) tidak ikut rata-rata rapor
       // semester — dilaporkan di laporan ekstra. Posisi hafalan tetap ikut.
       idSetoranEkstra(ids, term.start_date, term.end_date),
@@ -222,12 +224,15 @@ export async function getBahanRaporSesi(
   const tahsin = tahsinSemua.filter(l => !logEkstra.tahsin.has(l.id))
   const tahfidz = tahfidzSemua.filter(l => !logEkstra.tahfidz.has(l.id))
 
-  const pengampu = pengampuRes
+  // Pengampu = wali halaqoh ANAK ITU. Sesi biasa hanya satu halaqoh; sesi
+  // gabungan guru tahsin (SMA) merangkum beberapa, masing-masing walinya.
+  const pengampuPer = new Map(pengampuRes)
 
-  // Url ttd dibuat sekali untuk seluruh sesi: pengampunya satu orang, dan
-  // koordinatornya satu per template. Membuatnya per anak berarti puluhan
-  // url bertanda tangan untuk gambar yang sama persis.
-  const ttdPengampu = await ttdSrc(pengampu?.signature_path)
+  // Url ttd dibuat sekali per halaqoh, bukan per anak: puluhan url bertanda
+  // tangan untuk gambar yang sama persis tidak ada gunanya. Koordinatornya
+  // satu per template.
+  const ttdPengampuPer = new Map<string, string | null>()
+  for (const [id, p] of pengampuPer) ttdPengampuPer.set(id, await ttdSrc(p?.signature_path))
   const ttdKoordinator = new Map<string, string | null>()
   const latarPer = new Map<string, Record<string, string | null>>()
   for (const tpl of templates) {
@@ -249,6 +254,7 @@ export async function getBahanRaporSesi(
   const hariIni = formatTanggal(new Date().toISOString())
 
   return siswa.map(s => {
+    const pengampu = pengampuPer.get(s.halaqoh_id) ?? null
     const ts = tahsin.filter(l => l.student_id === s.id)
     const tf = tahfidz.filter(l => l.student_id === s.id)
     const rekap = absensi.per[s.id] ?? { ...REKAP_KOSONG }
@@ -270,7 +276,8 @@ export async function getBahanRaporSesi(
       nis: s.nis ?? '',
       kelas: s.kelas ?? '',
       unit: JENJANG_LABELS[s.jenjang] ?? '',
-      halaqoh: halaqoh.name,
+      // Nama halaqoh anak itu sendiri — sesi gabungan guru tahsin bukan halaqoh.
+      halaqoh: s.halaqoh_asli?.name ?? halaqoh.name,
 
       level_tahsin: s.jilid ? `${s.jilid.label}${halBuku ? ` Halaman ${halBuku}` : ''}` : '',
       jilid: s.jilid?.label ?? '',
@@ -360,7 +367,7 @@ export async function getBahanRaporSesi(
       sepi: ts.length === 0 && tf.length === 0,
       template,
       ttd: {
-        pengampu: ttdPengampu,
+        pengampu: ttdPengampuPer.get(s.halaqoh_id) ?? null,
         koordinator: template ? (ttdKoordinator.get(template.id) ?? null) : null,
       },
       latar: template ? (latarPer.get(template.id) ?? {}) : {},

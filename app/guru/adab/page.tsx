@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { getTeacherSession } from '@/lib/auth/teacher-session'
-import { getHalaqohSesiGuru } from '@/lib/data/setoran-sesi'
+import { getHalaqohSesiGuru, idHalaqohSesi } from '@/lib/data/setoran-sesi'
 import { getCatatanAdab } from '@/lib/data/rekap-sesi'
 import { currentPeriod, formatPeriod, isValidPeriod } from '@/lib/finance/period'
 import { BINTANG_ADAB_RENDAH } from '@/lib/rq/bintang'
@@ -35,10 +35,10 @@ export default async function CatatanAdabPage({ searchParams }: PageProps) {
   // bukan "anak mana di sesi 2".
   const terpilih = daftar.find(h => h.id === params.halaqoh)
   const halaqoh = terpilih?.id ?? 'semua'
-  const namaSesi = new Map(daftar.map(h => [h.id, h.sesi ? `Sesi ${h.sesi}` : h.name]))
+  const namaSesi = new Map(daftar.flatMap(h => idHalaqohSesi(h).map(id => [id, h.sesi ? `Sesi ${h.sesi}` : h.name])))
 
   const data = daftar.length
-    ? await getCatatanAdab(terpilih ? [terpilih.id] : daftar.map(h => h.id), periode)
+    ? await getCatatanAdab(terpilih ? idHalaqohSesi(terpilih) : daftar.flatMap(idHalaqohSesi), periode)
     : null
 
   return (

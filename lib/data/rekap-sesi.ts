@@ -58,10 +58,11 @@ interface SiswaRingkas { id: string; full_name: string; kelas: string | null; ha
  * Siapa yang direkap: anggota halaqoh (id-nya), atau daftar siswa tertentu —
  * kelompok asrama (0110), yang bukan satu halaqoh.
  */
-export type SasaranRekap = string | { siswa: string[] }
+export type SasaranRekap = string | { halaqoh: string[] } | { siswa: string[] }
 
 async function siswaSasaran(supabase: Supabase, sasaran: SasaranRekap): Promise<SiswaRingkas[]> {
   if (typeof sasaran === 'string') return siswaHalaqoh(supabase, [sasaran])
+  if ('halaqoh' in sasaran) return siswaHalaqoh(supabase, sasaran.halaqoh)
   if (sasaran.siswa.length === 0) return []
   const { data } = await supabase
     .from('students')

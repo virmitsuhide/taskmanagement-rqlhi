@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { getTeacherSession } from '@/lib/auth/teacher-session'
 import { createServerClient } from '@/lib/supabase/server'
-import { getHalaqohSesiGuru, getPilihanJilidAwal, getSiswaSesiTahsin, pilihHalaqoh } from '@/lib/data/setoran-sesi'
+import { getHalaqohSesiGuru, getPilihanJilidAwal, getSiswaSesiTahsin, idHalaqohSesi, pilihHalaqoh, sasaranSesi } from '@/lib/data/setoran-sesi'
 import { PilihSesi } from '@/components/setoran/PilihSesi'
 import { SetoranSesiTahsin } from '@/components/setoran/SetoranSesiTahsin'
 import { getKelompokKlasikal } from '@/lib/data/kelompok-klasikal'
@@ -24,10 +24,10 @@ export default async function SetoranSesiTahsinPage({ searchParams }: PageProps)
   // baris itu sama untuk semua anak — satu kali ambil untuk seluruh sesi.
   const supabase = createServerClient()
   const [siswa, suratRes, kelompok] = await Promise.all([
-    halaqoh ? getSiswaSesiTahsin(halaqoh.id) : Promise.resolve([]),
+    halaqoh ? getSiswaSesiTahsin(sasaranSesi(halaqoh)) : Promise.resolve([]),
     supabase.from('surat_master').select('id, name_latin, total_ayat, juz_start').order('id'),
     // Kelompok klasikal yang diatur pengampu (0080).
-    halaqoh ? getKelompokKlasikal(halaqoh.id) : Promise.resolve({ tabelAda: false, kelompok: [] }),
+    halaqoh ? getKelompokKlasikal(idHalaqohSesi(halaqoh)) : Promise.resolve({ tabelAda: false, kelompok: [] }),
   ])
   // Kunci ikut pengaturan: setelah kelompok diubah, layar setoran dibangun ulang dari pengaturan baru.
   const kunciPengaturan = kelompok.kelompok.map(k => `${k.id}:${k.anggota.join(',')}`).join('|')
@@ -37,7 +37,7 @@ export default async function SetoranSesiTahsinPage({ searchParams }: PageProps)
     // Tahsin disaring keluar (setorannya tinggal tahfidz).
     halaqoh && siswa.length === 0
       ? supabase.from('students').select('id', { count: 'exact', head: true })
-          .eq('halaqoh_id', halaqoh.id).eq('is_active', true).then(r => r.count ?? 0)
+          .in('halaqoh_id', idHalaqohSesi(halaqoh)).eq('is_active', true).then(r => r.count ?? 0)
       : Promise.resolve(0),
   ])
 

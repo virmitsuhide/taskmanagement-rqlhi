@@ -17,12 +17,12 @@ export interface DataKelompokKlasikal {
   kelompok: KelompokKlasikal[]
 }
 
-export async function getKelompokKlasikal(halaqohId: string): Promise<DataKelompokKlasikal> {
+export async function getKelompokKlasikal(halaqohId: string | string[]): Promise<DataKelompokKlasikal> {
   const supabase = createServerClient()
   const { data, error } = await supabase
     .from('kelompok_klasikal')
     .select('id, nama, urutan, anggota:kelompok_klasikal_anggota(student_id)')
-    .eq('halaqoh_id', halaqohId)
+    .in('halaqoh_id', Array.isArray(halaqohId) ? halaqohId : [halaqohId])
     .order('urutan')
   if (error) return { tabelAda: false, kelompok: [] }
   return {

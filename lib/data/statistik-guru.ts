@@ -1,6 +1,6 @@
 import { createServerClient } from '@/lib/supabase/server'
 import { getKelompokAsrama } from '@/lib/data/asrama'
-import { getHalaqohSesiGuru, type HalaqohSesi } from '@/lib/data/setoran-sesi'
+import { getHalaqohSesiGuru, idHalaqohSesi, type HalaqohSesi } from '@/lib/data/setoran-sesi'
 import { getPetaHalaman, getTargetTahfidz } from '@/lib/data/target-tahfidz'
 import { levelDariTahap, levelOrder } from '@/lib/rq/level'
 import { halamanHafalan, tahunAjaranDari } from '@/lib/rq/target-tahfidz'
@@ -336,7 +336,7 @@ export async function getStatistikGuru(
   // Halaqoh yang diminta hanya dipakai bila memang milik guru ini.
   const halaqohTerpilih = semuaHalaqoh.find(h => h.id === saring.halaqohId) ?? null
   const halaqoh = halaqohTerpilih ? [halaqohTerpilih] : semuaHalaqoh
-  const idSekolah = halaqoh.filter(h => !h.id.startsWith('asrama-')).map(h => h.id)
+  const idSekolah = halaqoh.filter(h => !h.id.startsWith('asrama-')).flatMap(idHalaqohSesi)
   const siswaAsrama = new Set(kelompokAsrama
     .filter(k => halaqoh.some(h => h.id === `asrama-${k.id}`))
     .flatMap(k => k.anggota.map(a => a.student_id)))

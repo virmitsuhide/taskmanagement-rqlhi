@@ -13,7 +13,7 @@ import { ProgresUjianGuru } from '@/components/guru/ProgresUjianGuru'
 import { TandaiUjianGuruDilihat } from '@/components/guru/TandaiUjianGuruDilihat'
 import { PengumumanBeranda } from '@/components/guru/PengumumanBeranda'
 import { getKartuTersembunyi } from '@/lib/data/kartu-tersembunyi'
-import { getHalaqohSesiGuru } from '@/lib/data/setoran-sesi'
+import { getHalaqohSesiGuru, idHalaqohSesi } from '@/lib/data/setoran-sesi'
 import { sesiBerikutnya } from '@/lib/rq/sesi-berikutnya'
 
 const MONTH_ID = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember']
@@ -34,7 +34,7 @@ export default async function TeacherHomePage() {
   const now = new Date()
   const dateLabel = `${DAY_ID[now.getDay()]}, ${now.getDate()} ${MONTH_ID[now.getMonth()]} ${now.getFullYear()}`
 
-  const [students, weekly, halaqohSummary, konteks, unitUjian, pengajuan, notifUjian, tersembunyi, daftarSesi, peranHalaqoh] = await Promise.all([
+  const [students, weekly, ringkasHalaqoh, konteks, unitUjian, pengajuan, notifUjian, tersembunyi, daftarSesi, peranHalaqoh] = await Promise.all([
     // Ikut anak kelompok asrama (0110) — musyrif boarding tidak memegang
     // halaqoh sekolah, dan tanpa ini dashboard-nya bilang "belum mengampu".
     getTeacherStudents(session.teacherId, { denganAsrama: true }),
@@ -48,6 +48,17 @@ export default async function TeacherHomePage() {
     getHalaqohSesiGuru(session.teacherId),
     getTeacherHalaqohPeran(session.teacherId),
   ])
+  // Ringkasan per SESI: halaqoh yang dirangkum sesi gabungan guru tahsin (SMA)
+  // dijumlahkan menjadi satu baris bernama sesinya.
+  const halaqohSummary = daftarSesi.flatMap(sesi => {
+    const bagian = ringkasHalaqoh.filter(h => idHalaqohSesi(sesi).includes(h.id))
+    if (bagian.length === 0) return []
+    const jumlah = (k: 'studentCount' | 'setorTodayCount' | 'tidakHadirTodayCount') => bagian.reduce((n, h) => n + h[k], 0)
+    return [{
+      id: sesi.id, name: sesi.name, jenjang: sesi.jenjang,
+      studentCount: jumlah('studentCount'), setorTodayCount: jumlah('setorTodayCount'), tidakHadirTodayCount: jumlah('tidakHadirTodayCount'),
+    }]
+  })
   const berikut = sesiBerikutnya(daftarSesi)
   const jumlahSiswaBerikut = berikut
     ? halaqohSummary.find(h => h.id === berikut.halaqoh.id)?.studentCount ?? 0

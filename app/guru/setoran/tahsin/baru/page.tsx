@@ -6,7 +6,7 @@ import { createServerClient } from '@/lib/supabase/server'
 import { TahsinSetoranForm } from './TahsinSetoranForm'
 import type { SuratPilihan } from '@/components/setoran/SetoranSesiTahfidz'
 import { getMateriPerJilid, getHasilMateriPerSiswa } from '@/lib/data/materi-tahsin'
-import { lanjutTerbuka } from '@/lib/data/setoran-sesi'
+import { getHalaqohSesiGuru, lanjutTerbuka, namaSesiPerHalaqoh } from '@/lib/data/setoran-sesi'
 import { getHadirRiyadhoh, getPesertaKelompok, getSabtuPengampu } from '@/lib/data/riyadhoh'
 
 interface PageProps {
@@ -24,7 +24,13 @@ export default async function NewTahsinSetoranPage({ searchParams }: PageProps) 
 
   const supabase = createServerClient()
   // Hanya halaqoh tempat guru boleh mencatat tahsin (guru tahfidz SMA tidak).
-  const halaqohIds = await getTeacherHalaqohIds(session.teacherId, 'tahsin')
+  const [halaqohIds, daftarSesi] = await Promise.all([
+    getTeacherHalaqohIds(session.teacherId, 'tahsin'),
+    getHalaqohSesiGuru(session.teacherId),
+  ])
+  // Sesi gabungan guru tahsin (SMA) tampil dengan namanya sendiri, bukan nama
+  // halaqoh guru tahfidz tempat anak itu tercatat.
+  const namaSesi = namaSesiPerHalaqoh(daftarSesi)
 
   // Mode Riyadhoh: anak kelompok pengampu ini yang hadir/belum dicatat pada
   // Sabtu itu — bukan anak halaqohnya. Tanggal dikunci ke Sabtu tersebut;
@@ -45,7 +51,7 @@ export default async function NewTahsinSetoranPage({ searchParams }: PageProps) 
     (riyadhoh ? riyadhoh.ids.length > 0 : halaqohIds.length > 0)
       ? supabase
           .from('students')
-          .select('id, full_name, jenjang, current_method_id, current_jilid_id, current_jilid_page, tahsin_drill_sejak,'
+          .select('id, full_name, jenjang, halaqoh_id, current_method_id, current_jilid_id, current_jilid_page, tahsin_drill_sejak,'
             + ' current_quran_halaman, current_quran_surat_id, current_quran_ayat,'
             + ' halaqoh:halaqoh!students_halaqoh_id_fkey(name),'
             + ' jilid:jilid_levels!students_current_jilid_id_fkey(is_terminal)')
@@ -59,7 +65,7 @@ export default async function NewTahsinSetoranPage({ searchParams }: PageProps) 
   ])
 
   const students = ((studentsRes.data ?? []) as unknown as Array<{
-    id: string; full_name: string; jenjang: string; current_method_id: string | null
+    id: string; full_name: string; jenjang: string; halaqoh_id: string | null; current_method_id: string | null
     current_jilid_id: string | null; current_jilid_page: number | null
     tahsin_drill_sejak: string | null
     current_quran_halaman: number | null; current_quran_surat_id: number | null; current_quran_ayat: number | null
@@ -72,7 +78,7 @@ export default async function NewTahsinSetoranPage({ searchParams }: PageProps) 
     id: s.id,
     full_name: s.full_name,
     jenjang: s.jenjang,
-    halaqoh_name: s.halaqoh?.name ?? null,
+    halaqoh_name: (s.halaqoh_id ? namaSesi.get(s.halaqoh_id) : null) ?? s.halaqoh?.name ?? null,
     current_method_id: s.current_method_id,
     current_jilid_id: s.current_jilid_id,
     current_jilid_page: s.current_jilid_page,
