@@ -109,7 +109,7 @@ export const KOLOM_IMPOR: Kolom[] = [
   {
     key: 'kelas', header: 'Kelas', lebar: 10,
     contoh: '4A',
-    petunjuk: 'SD/SMP: tingkat + rombel, mis. 4A. TPAIT: KB, TKA, TKB. SD Juara: 1–6. SMA: 10, 11, 12. Tulis sebagai teks agar tidak berubah jadi 4.0.',
+    petunjuk: 'SD/SMP: tingkat + rombel, mis. 4A. TPAIT: TKA, TKB. SD Juara: 1–6. SMA: 10, 11, 12. Tulis sebagai teks agar tidak berubah jadi 4.0.',
   },
   {
     key: 'program', header: 'Program', lebar: 20,

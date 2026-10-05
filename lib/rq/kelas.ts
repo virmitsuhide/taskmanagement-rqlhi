@@ -13,13 +13,13 @@ export const POLA_KELAS = /^(\d+)([A-Za-z].*)$/
 
 /**
  * Unit yang kelasnya TIDAK berombel — daftar kelas sahnya tetap dan urut
- * (ditetapkan RQ 2026-09-28):
- *   TPAIT    : KB, TKA, TKB
+ * (ditetapkan RQ 2026-09-28; KB dihapus 2026-10-05 — RQ hanya membina TK):
+ *   TPAIT    : TKA, TKB
  *   SD Juara : 1–6 (satu rombel per tingkat, tanpa huruf)
  *   SMA      : 10, 11, 12
  */
 export const KELAS_TETAP: Partial<Record<Jenjang, string[]>> = {
-  paud: ['KB', 'TKA', 'TKB'],
+  paud: ['TKA', 'TKB'],
   sd_juara: ['1', '2', '3', '4', '5', '6'],
   sma: ['10', '11', '12'],
 }
@@ -71,7 +71,7 @@ export function contohKelas(jenjang: Jenjang | null | undefined): string {
  * jelas (dilewati, tidak ditebak).
  *
  *   SD / SMP : 1A → 2A … 6A (SD) / 9A (SMP) lulus — rombel dipertahankan
- *   TPAIT    : KB → TKA → TKB → lulus
+ *   TPAIT    : TKA → TKB → lulus
  *   SD Juara : 1 → 2 … 6 lulus
  *   SMA      : 10 → 11 → 12 lulus
  */
