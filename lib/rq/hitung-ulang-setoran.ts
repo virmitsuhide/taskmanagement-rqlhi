@@ -49,7 +49,12 @@ async function posisiQuranBerikutnya(supabase: Supabase, bacaan: BacaanQuran): P
  * karena posisi sekarang bisa saja sudah menyimpang — dan pemutaran ulang
  * memperbaikinya sekalian.
  */
-export async function recalcPosisi(supabase: Supabase, studentId: string): Promise<void> {
+export async function recalcPosisi(
+  supabase: Supabase,
+  studentId: string,
+  /** Posisi tempat setoran yang baru dihapus dilakukan — titik balik bila riwayatnya habis. */
+  awal?: { method_id: string | null; jilid_id: string | null; halaman: number | null },
+): Promise<void> {
   const { data: logRows } = await supabase
     .from('tahsin_logs')
     .select('id, method_id, jilid_id, halaman, status, drill, setoran_date, created_at, quran_halaman, quran_surat_id, quran_ayat_dari, quran_ayat_ke')
@@ -64,16 +69,20 @@ export async function recalcPosisi(supabase: Supabase, studentId: string): Promi
     quran_ayat_dari: number | null; quran_ayat_ke: number | null
   }[]
 
-  // Setoran habis seluruhnya: kosongkan posisi supaya tidak ada sisa angka
-  // yang tak punya riwayat pendukung.
+  // Setoran habis seluruhnya: anak kembali ke keadaan "belum pernah setor".
+  //
+  // Metode TIDAK ikut dikosongkan — itu penempatan anak, bukan hasil setoran.
+  // Tanpa metode, layar sesi tidak bisa menawarkan jilid awal dan anaknya
+  // tersisih ke catatan kaki, seolah hilang dari halaqohnya. Jilid & halaman
+  // kembali ke tempat setoran yang dihapus itu dilakukan (bila diketahui).
   if (logs.length === 0) {
-    await supabase
-      .from('students')
-      .update({
-        current_method_id: null, current_jilid_id: null, current_jilid_page: null,
-        current_quran_halaman: null, current_quran_surat_id: null, current_quran_ayat: null,
-      })
-      .eq('id', studentId)
+    const update: Record<string, string | number | null> = {
+      current_jilid_id: awal?.jilid_id ?? null,
+      current_jilid_page: awal?.jilid_id ? awal.halaman : null,
+      current_quran_halaman: null, current_quran_surat_id: null, current_quran_ayat: null,
+    }
+    if (awal?.method_id) update.current_method_id = awal.method_id
+    await supabase.from('students').update(update).eq('id', studentId)
     return
   }
 

@@ -85,10 +85,15 @@ export async function deleteSetoranAction(table: LogTable, logId: string): Promi
   if ('error' in auth) return auth
 
   const supabase = createServerClient()
+  // Posisi saat setoran ini dilakukan — titik balik bila ini setoran terakhirnya.
+  const awal = table === 'tahsin_logs'
+    ? (await supabase.from('tahsin_logs').select('method_id, jilid_id, halaman').eq('id', logId).maybeSingle()).data as
+        { method_id: string | null; jilid_id: string | null; halaman: number | null } | null
+    : null
   const { error } = await supabase.from(table).delete().eq('id', logId)
   if (error) return { error: error.message || 'Gagal menghapus setoran.' }
 
-  if (table === 'tahsin_logs') await recalcPosisi(supabase, auth.studentId)
+  if (table === 'tahsin_logs') await recalcPosisi(supabase, auth.studentId, awal ?? undefined)
   if (table === 'tahfidz_logs') await recalcMutqin(supabase, auth.studentId)
 
   refresh(auth.studentId)
