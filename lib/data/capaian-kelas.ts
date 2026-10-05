@@ -4,6 +4,8 @@ import { getTargetTahfidz, getTargetTahfidzSemua } from '@/lib/data/target-tahfi
 import { ayatPerJuz } from '@/lib/rq/batas-juz'
 import { getInfoSurat } from '@/lib/data/nama-surat'
 import { hitungJuzHafalan, posisiJuz, URUTAN_JUZ } from '@/lib/rq/hafalan'
+import { posisiJuz30, UNIT_PER_SURAT, URUTAN_SURAT_JUZ30 } from '@/lib/rq/hafalan-juz30'
+import { KELAS_TETAP } from '@/lib/rq/kelas'
 import { mencapaiTarget } from '@/lib/rq/level'
 import { UNIT_LABELS, UNIT_ORDER } from '@/lib/rq/programs'
 import { JENJANG_METHODS, methodsForProgram, tahapBerlaku } from '@/lib/tahsin'
@@ -143,8 +145,13 @@ function jalurOf(program: string | null): JalurCapaian {
   return /quls/i.test(program ?? '') ? 'quls' : 'reguler'
 }
 
-/** Tingkat kelas dari teks bebas ('1A', '9C', '4.0') — hanya angkanya. */
-function tingkatOf(kelas: string | null): number | null {
+/**
+ * Tingkat kelas dari teks bebas ('1A', '9C', '4.0') — hanya angkanya.
+ * Unit berkelas huruf (TPAIT: TKA, TKB) memakai urutan KELAS_TETAP: TKA = 1.
+ */
+function tingkatOf(kelas: string | null, jenjang?: Jenjang): number | null {
+  const huruf = jenjang ? KELAS_TETAP[jenjang]?.indexOf((kelas ?? '').trim()) ?? -1 : -1
+  if (huruf >= 0 && !/^\d/.test(KELAS_TETAP[jenjang!]![huruf])) return huruf + 1
   const n = Number(String(kelas ?? '').match(/\d+/)?.[0])
   return Number.isInteger(n) && n >= 1 && n <= 12 ? n : null
 }
@@ -152,7 +159,7 @@ function tingkatOf(kelas: string | null): number | null {
 /** Satukan label jilid_levels lintas metode menjadi kolom laporan. */
 function kolomTahsin(level: BarisLevel): string {
   if (level.is_terminal) return 'Lulus'
-  if (/^pra/i.test(level.label.trim())) return 'Pra'
+  if (/^pra\b/i.test(level.label.trim())) return 'Pra'
   const jilid = /^jilid\s*([1-6])/i.exec(level.label)
   if (jilid) return `Jilid ${jilid[1]}`
   const l = level.label.toLowerCase()
@@ -332,6 +339,19 @@ function labelTahfidzLepas(letak: { blok: number; kolom: string }): string {
 const URUTAN_TAHFIDZ_LEPAS = Array.from({ length: URUTAN_JUZ.length / PER_BLOK }, (_, blok) =>
   kolomBlok(blok).map(kolom => labelTahfidzLepas({ blok, kolom }))).flat()
 
+// ─── Tabel per surat Juz 30 (PAUD) ──────────────────────────────────────────
+//
+// Unit yang menghafal Juz 30 mundur per surat (lib/rq/hafalan-juz30.ts) tidak
+// memakai blok juz: kolomnya surat, mulai An-Nas. 37 surat terlalu lebar untuk
+// satu tabel, jadi dipotong per delapan surat — An-Nas–Al-Ma'un, Quraisy–
+// Al-Bayyinah, dan seterusnya.
+
+const SURAT_PER_TABEL = 8
+
+function suratBlok(blok: number): number[] {
+  return URUTAN_SURAT_JUZ30.slice(blok * SURAT_PER_TABEL, (blok + 1) * SURAT_PER_TABEL)
+}
+
 // ─── Data ────────────────────────────────────────────────────────────────────
 
 interface LogTahsin {
@@ -457,6 +477,14 @@ export async function getCapaianKelas(jenjangBoleh: Jenjang[], opsi: { sampai?: 
     return log?.jilid_id ?? null
   }
 
+  // Setoran ziyadah per siswa — posisi Juz 30 unit per surat.
+  const ziyadahPerSiswa = new Map<string, LogZiyadah[]>()
+  for (const l of logZiyadah) {
+    const d = ziyadahPerSiswa.get(l.student_id) ?? []
+    d.push(l)
+    ziyadahPerSiswa.set(l.student_id, d)
+  }
+
   const statusTahfidz = new Map((targetTahfidz?.siswa ?? []).map(s => [s.id, s.status]))
 
   // Juz tuntas: yang terjauh dari kenaikan juz (mutqin), ujian, dan juz
@@ -476,7 +504,7 @@ export async function getCapaianKelas(jenjangBoleh: Jenjang[], opsi: { sampai?: 
 
   const entriTahsin = (s: Siswa): Entri => {
     const log = tahsinTerakhir.get(s.id)
-    const tingkat = tingkatOf(s.kelas)
+    const tingkat = tingkatOf(s.kelas, s.jenjang)
     const target = tingkat ? targetTahsin.get(`${s.jenjang}|${tingkat}`) : undefined
     // Jilid diambil dari posisi siswa yang digerakkan setoran (termasuk
     // kenaikan jilid), tapi hanya bila memang ada setorannya.
@@ -520,7 +548,7 @@ export async function getCapaianKelas(jenjangBoleh: Jenjang[], opsi: { sampai?: 
     const status = statusTahfidz.get(s.id)
 
     return {
-      tingkat: tingkatOf(s.kelas),
+      tingkat: tingkatOf(s.kelas, s.jenjang),
       blok: letak?.blok ?? 0,
       kolom: letak?.kolom ?? BELUM_TERCATAT,
       siswa: {
@@ -534,6 +562,41 @@ export async function getCapaianKelas(jenjangBoleh: Jenjang[], opsi: { sampai?: 
         capai: !status || status === 'tanpa_target' ? null : status === 'sesuai' || status === 'di_atas',
       },
     }
+  }
+
+  /** Kolom = surat terjauh (urutan An-Nas → An-Naba'); blok = potongan delapan surat. */
+  const entriTahfidzSurat = (s: Siswa): Entri & { blok: number } => {
+    const pos = posisiJuz30(ziyadahPerSiswa.get(s.id) ?? [])
+    const log = ziyadahTerakhir.get(s.id)
+    const urutan = pos ? URUTAN_SURAT_JUZ30.indexOf(pos.surat) : -1
+    return {
+      tingkat: tingkatOf(s.kelas, s.jenjang),
+      blok: urutan >= 0 ? Math.floor(urutan / SURAT_PER_TABEL) : 0,
+      kolom: pos ? namaSurat(pos.surat) : BELUM_TERCATAT,
+      siswa: {
+        nama: s.full_name,
+        kelas: s.kelas,
+        pengampu: pengampu(s, log?.teacher_id),
+        posisi: log ? `${namaSurat(log.surat_id)}${ayat(log.ayat_dari, log.ayat_ke)}` : null,
+        tanggal: formatTanggal(log?.setoran_date ?? null),
+        capai: null,
+      },
+    }
+  }
+
+  const tabelPerSurat = (siswa: Siswa[]): MatriksCapaian[] => {
+    const entri = siswa.map(entriTahfidzSurat)
+    // Semua potongan sampai yang terjauh terisi — tangganya utuh dari An-Nas.
+    const terjauh = Math.max(0, ...entri.filter(e => e.kolom !== BELUM_TERCATAT).map(e => e.blok))
+    return Array.from({ length: terjauh + 1 }, (_, blok) => {
+      const kolom = suratBlok(blok).map(namaSurat)
+      return susunMatriks(
+        entri.filter(e => e.blok === blok),
+        [...kolom, BELUM_TERCATAT],
+        new Set(blok === 0 ? [...kolom, BELUM_TERCATAT] : kolom),
+        { judul: `Juz 30 · ${kolom[0]} – ${kolom[kolom.length - 1]}` },
+      )
+    })
   }
 
   const kelompok: CapaianKelompok[] = []
@@ -572,10 +635,10 @@ export async function getCapaianKelas(jenjangBoleh: Jenjang[], opsi: { sampai?: 
         BELUM_TERCATAT,
       ])
 
-      const tahfidzEntri = siswa.map(entriTahfidz)
+      const tahfidzEntri = UNIT_PER_SURAT.has(jenjang) ? [] : siswa.map(entriTahfidz)
       const blokTerisi = new Set(tahfidzEntri.map(e => e.blok))
       blokTerisi.add(0)
-      const tahfidz = [...blokTerisi].sort((a, b) => a - b).map(blok => {
+      const tahfidz = UNIT_PER_SURAT.has(jenjang) ? tabelPerSurat(siswa) : [...blokTerisi].sort((a, b) => a - b).map(blok => {
         const kolom = kolomBlok(blok)
         const juz = juzBlok(blok)
         return susunMatriks(
@@ -600,8 +663,8 @@ export async function getCapaianKelas(jenjangBoleh: Jenjang[], opsi: { sampai?: 
         keterangan: pisah ? nama?.keterangan ?? '' : 'Seluruh program',
         siswa: siswa.length,
         metode: [...metodeIds].map(id => namaMetode.get(id) ?? '—').sort(),
-        tahsin: susunMatriks(siswa.map(entriTahsin), [...URUTAN_TAHSIN, BELUM_TERCATAT], tetapTahsin, { targetPerTingkat }),
-        tahfidz,
+        tahsin: namaiBarisKelas(susunMatriks(siswa.map(entriTahsin), [...URUTAN_TAHSIN, BELUM_TERCATAT], tetapTahsin, { targetPerTingkat }), jenjang),
+        tahfidz: tahfidz.map(m => namaiBarisKelas(m, jenjang)),
       })
     }
   }
@@ -675,6 +738,13 @@ function progresDariZiyadah(log: LogZiyadah[], juzNaik: Map<string, Set<number>>
     if (!baris.has(k)) baris.set(k, { student_id, juz_number: juz, ayat_hafal: 0, mutqin: true })
   }
   return [...baris.values()]
+}
+
+/** Baris unit berkelas huruf diberi nama kelasnya ('TKA'), bukan 'Kelas 1'. */
+function namaiBarisKelas(m: MatriksCapaian, jenjang: Jenjang): MatriksCapaian {
+  const tetap = KELAS_TETAP[jenjang]
+  if (!tetap || /^\d/.test(tetap[0])) return m
+  return { ...m, baris: m.baris.map(b => (b.tingkat ? { ...b, label: tetap[b.tingkat - 1] ?? b.label } : b)) }
 }
 
 /** Ringkasan target per tingkat dari satu atau beberapa matriks — bahan perbandingan jalur. */
@@ -766,7 +836,7 @@ export async function getPosisiUnit(jenjang: Jenjang): Promise<PosisiUnit> {
     return {
       id: s.id,
       halaqoh_id: s.halaqoh_id,
-      tingkat: tingkatOf(s.kelas),
+      tingkat: tingkatOf(s.kelas, s.jenjang),
       metode_id: (lv ?? lvSiswa)?.method_id ?? null,
       level: lv?.label ?? null,
       tahsin: lv ? kolomTahsin(lv) : BELUM_TERCATAT,

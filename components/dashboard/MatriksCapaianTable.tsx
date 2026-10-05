@@ -163,7 +163,11 @@ function singkat(k: string): string {
     'Belum mengaji': 'BM', Syajaroh: 'Syj', Lainnya: 'Lain', 'Khatam 30 juz': 'Kht',
     '3 juz': '3J', '5 juz': '5J',
   }
-  return peta[k] ?? k
+  if (peta[k]) return peta[k]
+  // Nama surat Juz 30 (tabel PAUD): buang kata sandang, ambil empat huruf.
+  const surat = /^A[a-z]{1,2}-(.+)$/.exec(k)
+  if (surat) return surat[1].replace(/[‘’']/g, '').slice(0, 4)
+  return k
 }
 
 function Sel({ n, total, redup, rincian, judul }: {

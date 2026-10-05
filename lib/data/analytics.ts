@@ -5,6 +5,8 @@ import { getJuzUjianPerSiswa, getSiswaUrutanBebas, juzGabunganPerSiswa } from '@
 import { getPetaHalaman, getTargetTahfidzSemua, ringkasSiswaTarget } from '@/lib/data/target-tahfidz'
 import { halamanRentang, jenisMurojaah } from '@/lib/rq/murojaah'
 import { getPredikatLabel, tanggalWIB } from '@/lib/rq/ujian'
+import { UNIT_PER_SURAT, ayatJuz30, halamanJuz30, posisiJuz30, type SetoranZiyadah } from '@/lib/rq/hafalan-juz30'
+import { getInfoSurat } from '@/lib/data/nama-surat'
 import type { Jenjang, UjianPredikat } from '@/types'
 
 function isoDate(d: Date): string {
@@ -708,7 +710,13 @@ export interface HafalanBoard {
   jenjang: Jenjang
   label: string
   studentCount: number
-  top10: { id: string; name: string; kelas: string | null; juzCount: number; totalAyat: number }[]
+  /** 'halaman' = unit yang menghafal Juz 30 per surat (PAUD) — diurut menurut halaman Juz 30 utuh. */
+  ukuran: 'juz' | 'halaman'
+  top10: {
+    id: string; name: string; kelas: string | null; juzCount: number; totalAyat: number
+    /** Halaman Juz 30 utuh & posisi terjauhnya — hanya untuk ukuran 'halaman'. */
+    halaman?: number; posisi?: string
+  }[]
   target: {
     /** false = unit ini tidak punya rencana target (PAUD, SMA) atau tanpa siswa bertarget. */
     berlaku: boolean
@@ -722,14 +730,29 @@ export interface HafalanBoard {
 /** @param program penyempitan program (koor QULS SD); kosong = seluruh program. */
 export async function getUnitHafalanBoards(program: readonly string[] | null = null): Promise<HafalanBoard[]> {
   const supabase = createServerClient()
-  const [studentsRes, juzProgressRes, juzUjian, target] = await Promise.all([
+  const [studentsRes, juzProgressRes, juzUjian, target, infoSurat] = await Promise.all([
     supabase.from('students').select('id, full_name, jenjang, kelas, program').eq('is_active', true),
     supabase.from('juz_progress').select('student_id, juz_number, ayat_hafal, mutqin'),
     getJuzUjianPerSiswa(),
     getTargetTahfidzSemua(),
+    getInfoSurat(),
   ])
   const students = ((studentsRes.data ?? []) as { id: string; full_name: string; jenjang: Jenjang; kelas: string | null; program: string | null }[])
     .filter(s => cocokProgram(program, s.program))
+
+  // Unit per surat (PAUD): posisi Juz 30 dari setoran ziyadahnya.
+  const idPerSurat = students.filter(s => UNIT_PER_SURAT.has(s.jenjang)).map(s => s.id)
+  const setoranPerSurat = new Map<string, SetoranZiyadah[]>()
+  if (idPerSurat.length > 0) {
+    const { data } = await supabase.from('tahfidz_logs')
+      .select('student_id, surat_id, ayat_dari, ayat_ke')
+      .in('kind', ['ziyadah', 'hafalan_baru']).in('student_id', idPerSurat)
+    for (const r of (data ?? []) as (SetoranZiyadah & { student_id: string })[]) {
+      const d = setoranPerSurat.get(r.student_id) ?? []
+      d.push(r)
+      setoranPerSurat.set(r.student_id, d)
+    }
+  }
   const jpRows = (juzProgressRes.data ?? []) as { student_id: string; juz_number: number; ayat_hafal: number; mutqin: boolean }[]
 
   const totalAyat = new Map<string, number>()
@@ -759,10 +782,24 @@ export async function getUnitHafalanBoards(program: readonly string[] | null = n
       bernama papan hafalan, dan juz memang ukuran utamanya; ayat tetap
       dipakai sebagai pemisah saat juz-nya sama.
     */
-    const top10 = [...enriched]
-      .sort((a, b) => b.juzCount - a.juzCount || b.totalAyat - a.totalAyat)
-      .slice(0, 10)
-      .map(e => ({ id: e.id, name: e.name, kelas: e.kelas, juzCount: e.juzCount, totalAyat: e.totalAyat }))
+    const perSurat = UNIT_PER_SURAT.has(jenjang)
+    const top10 = perSurat
+      // PAUD: halaman Juz 30 utuh (urut An-Nas → An-Naba'), ayat sebagai pemisah.
+      ? enriched.map(e => {
+          const pos = posisiJuz30(setoranPerSurat.get(e.id) ?? [])
+          return {
+            id: e.id, name: e.name, kelas: e.kelas, juzCount: e.juzCount, totalAyat: ayatJuz30(pos),
+            halaman: halamanJuz30(pos),
+            posisi: pos ? `${infoSurat.get(pos.surat)?.name_latin ?? `Surah ${pos.surat}`} ${pos.ayat}` : undefined,
+          }
+        })
+          .filter(e => e.totalAyat > 0)
+          .sort((a, b) => b.halaman - a.halaman || b.totalAyat - a.totalAyat)
+          .slice(0, 10)
+      : [...enriched]
+          .sort((a, b) => b.juzCount - a.juzCount || b.totalAyat - a.totalAyat)
+          .slice(0, 10)
+          .map(e => ({ id: e.id, name: e.name, kelas: e.kelas, juzCount: e.juzCount, totalAyat: e.totalAyat }))
 
     // Posisi vs target bulanan — dihitung di lib/data/target-tahfidz.ts,
     // di sini hanya diringkas per unit. Unit tanpa satu pun siswa bertarget
@@ -774,6 +811,7 @@ export async function getUnitHafalanBoards(program: readonly string[] | null = n
 
     return {
       jenjang, label: UNIT_LABELS[jenjang], studentCount: us.length,
+      ukuran: perSurat ? 'halaman' : 'juz',
       top10,
       target: {
         berlaku: bertarget > 0,
