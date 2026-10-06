@@ -143,8 +143,11 @@ export function capaian(
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   _baris = 0,
 ): CapaianHafalan {
-  const juz = Math.max(0, Math.floor(juzUtuh))
-  const halaman = Math.max(0, Math.floor(halamanDiJuzBerjalan))
+  // Toleransi kecil sebelum dibulatkan ke bawah: halaman dari rincianHafalan
+  // adalah jumlah pecahan per ayat (1/ayat-per-halaman), dan dua puluh
+  // halaman utuh bisa tiba sebagai 19,9999… — lalu terbaca "19 halaman".
+  const juz = Math.max(0, Math.floor(juzUtuh + 1e-6))
+  const halaman = Math.max(0, Math.floor(halamanDiJuzBerjalan + 1e-6))
 
   // Juz berikutnya dalam urutan hafalan RQ menentukan berapa halaman yang
   // dibutuhkan untuk naik — dan panjangnya belum tentu 20 (lihat juz 30).

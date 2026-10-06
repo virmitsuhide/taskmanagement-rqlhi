@@ -22,6 +22,7 @@ import { SeksiCapaian } from '@/components/analitik/SeksiCapaian'
 import { SeksiTarget } from '@/components/analitik/SeksiTarget'
 import { SeksiUjianDrill } from '@/components/analitik/SeksiUjianDrill'
 import { SeksiKelengkapan } from '@/components/analitik/SeksiKelengkapan'
+import { DaftarPeringkat, nilaiTeratas, susunPeringkat } from '@/components/analitik/PeringkatHafalan'
 import { cn } from '@/lib/utils'
 import type { Jenjang } from '@/types'
 import {
@@ -141,7 +142,7 @@ export default async function AnalitikPage({ searchParams }: PageProps) {
   // panelnya sendiri (?tunit=), tanpa mengubah cakupan halaman lainnya.
   const tabTeratas = penuh && !jenjang ? semuaBoards.filter(b => b.studentCount > 0) : []
   const unitTeratas = tabTeratas.find(b => b.jenjang === sp.tunit)?.jenjang ?? null
-  const top = papanTeratas(unitTeratas ? boards.filter(b => b.jenjang === unitTeratas) : boards)
+  const top = susunPeringkat(unitTeratas ? boards.filter(b => b.jenjang === unitTeratas) : boards)
   const cakupanTeratas = unitTeratas ? UNIT_LABELS[unitTeratas] : cakupan
   const seksi = Object.values(S).filter(s =>
     s.id !== 'target' || tampilTahfidz)
@@ -279,7 +280,7 @@ export default async function AnalitikPage({ searchParams }: PageProps) {
               icon={<Trophy className="h-4 w-4" />}
               sub={top.perHalaman
                 ? `${cakupanTeratas} · halaman Juz 30 utuh, urut An-Nas → An-Naba'`
-                : `${cakupanTeratas} · juz dari setoran atau ujian, yang terjauh`}
+                : `${cakupanTeratas} · total hafalan (juz utuh + halaman), dari setoran & ujian`}
             >
               {tabTeratas.length > 1 && (
                 <div className="mb-3 flex flex-wrap gap-1.5" role="tablist" aria-label="Unit 10 besar hafalan">
@@ -303,32 +304,22 @@ export default async function AnalitikPage({ searchParams }: PageProps) {
               {top.siswa.length === 0 ? (
                 <p className="text-sm text-muted-foreground">Belum ada data hafalan di {cakupanTeratas}.</p>
               ) : (
-                <ol className="divide-y lg:columns-2 lg:gap-x-8 [&>li]:break-inside-avoid">
-                  {top.siswa.map((s, i) => (
-                    <li key={s.id}>
-                      <Link href={`/siswa/${s.id}`} className="flex items-center gap-3 py-1.5 hover:bg-muted/40"
-                        title={s.totalAyat > 0 ? `${s.totalAyat.toLocaleString('id-ID')} ayat ${top.perHalaman ? 'Juz 30 terhafal' : 'disetor'}` : undefined}>
-                        <span className={cn('w-5 shrink-0 text-xs font-bold tabular-nums', i < 3 ? 'text-primary' : 'text-muted-foreground')}>{i + 1}</span>
-                        <span className="min-w-0 flex-1">
-                          <span className="block truncate text-sm font-medium">{s.name}</span>
-                          <span className="block truncate text-[11px] text-muted-foreground">
-                            {[
-                              !jenjang && !unitTeratas ? s.unit : null,
-                              s.kelas ? `Kelas ${s.kelas}` : null,
-                              top.perHalaman && s.posisi ? `sampai ${s.posisi}` : null,
-                            ].filter(Boolean).join(' · ') || '—'}
-                          </span>
-                        </span>
-                        <span className="hidden h-1.5 w-16 shrink-0 overflow-hidden rounded-full bg-muted sm:block">
-                          <span className="block h-full rounded-full" style={{ width: `${(nilaiTeratas(s, top.perHalaman) / Math.max(1, nilaiTeratas(top.siswa[0], top.perHalaman))) * 100}%`, background: 'var(--primary)' }} />
-                        </span>
-                        <span className="w-12 shrink-0 text-right text-sm font-semibold tabular-nums">
-                          {top.perHalaman ? `${s.halaman ?? 0} hal` : `${s.juzCount} juz`}
-                        </span>
-                      </Link>
-                    </li>
-                  ))}
-                </ol>
+                <>
+                  <DaftarPeringkat
+                    siswa={top.siswa.slice(0, 10)}
+                    perHalaman={top.perHalaman}
+                    maks={nilaiTeratas(top.siswa, top.perHalaman)}
+                    tampilUnit={!jenjang && !unitTeratas}
+                  />
+                  {top.siswa.length > 10 && (
+                    <Link
+                      href={hrefDengan('/dashboard/analitik/hafalan', {}, { unit: unitTeratas ?? jenjang ?? undefined })}
+                      className="mt-3 inline-flex text-[13px] font-semibold text-primary hover:underline"
+                    >
+                      Lihat selengkapnya ({top.siswa.length.toLocaleString('id-ID')} siswa) →
+                    </Link>
+                  )}
+                </>
               )}
             </Panel>
           </div>
@@ -408,28 +399,6 @@ function ringkasTarget(boards: HafalanBoard[]) {
     belumTerukur: jumlah(b => b.target.belumTerukur),
     terukur: below + on + above,
   }
-}
-
-/**
- * Satu unit yang menghafal per surat (PAUD) memakai urutan halamannya
- * sendiri. Gabungan beberapa unit tetap menurut juz — halaman Juz 30 anak
- * PAUD tidak setara dengan juz anak SMP, jadi mereka tidak dicampur.
- */
-function papanTeratas(boards: HafalanBoard[]) {
-  if (boards.length === 1 && boards[0].ukuran === 'halaman') {
-    return { perHalaman: true, siswa: boards[0].top10.map(s => ({ ...s, unit: boards[0].label })) }
-  }
-  const siswa = boards
-    .filter(b => b.ukuran === 'juz')
-    .flatMap(b => b.top10.map(s => ({ ...s, unit: b.label })))
-    .filter(s => s.juzCount > 0)
-    .sort((x, y) => y.juzCount - x.juzCount || y.totalAyat - x.totalAyat)
-    .slice(0, 10)
-  return { perHalaman: false, siswa }
-}
-
-function nilaiTeratas(s: HafalanBoard['top10'][number], perHalaman: boolean): number {
-  return perHalaman ? s.halaman ?? 0 : s.juzCount
 }
 
 /**

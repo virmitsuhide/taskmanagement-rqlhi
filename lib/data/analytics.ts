@@ -1,13 +1,26 @@
 import { createServerClient } from '@/lib/supabase/server'
 import { UNIT_ORDER, UNIT_LABELS, PROGRAMS_BY_JENJANG, programLabel, cocokProgram } from '@/lib/rq/programs'
 import { daftarJuzLulus, juzTerjauh, ringkasHafalan, ringkasJuzBebas, urutanBebas } from '@/lib/rq/hafalan'
-import { getJuzUjianPerSiswa, getSiswaUrutanBebas, juzGabunganPerSiswa } from '@/lib/data/hafalan'
+import { getJuzTerujiPerSiswa, getJuzUjianPerSiswa, getSiswaUrutanBebas, juzGabunganPerSiswa } from '@/lib/data/hafalan'
 import { getPetaHalaman, getTargetTahfidzSemua, ringkasSiswaTarget } from '@/lib/data/target-tahfidz'
+import { rincianHafalan } from '@/lib/rq/target-tahfidz'
+import type { CapaianHafalan } from '@/lib/rq/halaman'
 import { halamanRentang, jenisMurojaah } from '@/lib/rq/murojaah'
 import { getPredikatLabel, tanggalWIB } from '@/lib/rq/ujian'
 import { UNIT_PER_SURAT, ayatJuz30, halamanJuz30, posisiJuz30, type SetoranZiyadah } from '@/lib/rq/hafalan-juz30'
 import { getInfoSurat } from '@/lib/data/nama-surat'
 import type { Jenjang, UjianPredikat } from '@/types'
+
+/** Ambil seluruh baris melewati batas 1000 baris PostgREST. Galat = berhenti di baris yang sudah terbaca. */
+async function ambilSemuaBaris<T>(buat: (dari: number, ke: number) => PromiseLike<{ data: unknown; error: unknown }>): Promise<T[]> {
+  const hasil: T[] = []
+  for (let dari = 0; ; dari += 1000) {
+    const { data, error } = await buat(dari, dari + 999)
+    const potong = (error ? [] : data ?? []) as T[]
+    hasil.push(...potong)
+    if (potong.length < 1000) return hasil
+  }
+}
 
 function isoDate(d: Date): string {
   return d.toISOString().slice(0, 10)
@@ -706,17 +719,27 @@ export async function getUnitLearning(program: readonly string[] | null = null):
 }
 
 // ─── Papan hafalan per unit: 10 besar + posisi vs target (Analitik RQ) ─
+export interface PeringkatHafalan {
+  id: string; name: string; kelas: string | null; juzCount: number; totalAyat: number
+  /** Halaman Juz 30 utuh & posisi terjauhnya — hanya untuk ukuran 'halaman'. */
+  halaman?: number; posisi?: string
+  /**
+   * Ukuran 'juz': total hafalan dalam halaman mushaf (rincianHafalan — sama
+   * dengan "total hafalan" di rapor), dan pecahannya: juz utuh + halaman di
+   * juz yang sedang berjalan ("1 juz 3 halaman").
+   */
+  totalHalaman?: number; capaian?: CapaianHafalan
+}
+
 export interface HafalanBoard {
   jenjang: Jenjang
   label: string
   studentCount: number
   /** 'halaman' = unit yang menghafal Juz 30 per surat (PAUD) — diurut menurut halaman Juz 30 utuh. */
   ukuran: 'juz' | 'halaman'
-  top10: {
-    id: string; name: string; kelas: string | null; juzCount: number; totalAyat: number
-    /** Halaman Juz 30 utuh & posisi terjauhnya — hanya untuk ukuran 'halaman'. */
-    halaman?: number; posisi?: string
-  }[]
+  top10: PeringkatHafalan[]
+  /** Seluruh siswa yang punya hafalan, urut peringkat — top10 adalah 10 teratasnya. */
+  peringkat: PeringkatHafalan[]
   target: {
     /** false = unit ini tidak punya rencana target (PAUD, SMA) atau tanpa siswa bertarget. */
     berlaku: boolean
@@ -730,30 +753,32 @@ export interface HafalanBoard {
 /** @param program penyempitan program (koor QULS SD); kosong = seluruh program. */
 export async function getUnitHafalanBoards(program: readonly string[] | null = null): Promise<HafalanBoard[]> {
   const supabase = createServerClient()
-  const [studentsRes, juzProgressRes, juzUjian, target, infoSurat] = await Promise.all([
-    supabase.from('students').select('id, full_name, jenjang, kelas, program').eq('is_active', true),
-    supabase.from('juz_progress').select('student_id, juz_number, ayat_hafal, mutqin'),
+  // Seluruh baris, melewati batas 1000 baris PostgREST: setoran ziyadah dan
+  // juz_progress seluruh RQ sudah jauh di atas itu.
+  const [studentRows, jpRows, ziyadahRows, juzUjian, target, infoSurat, peta, bebas] = await Promise.all([
+    ambilSemuaBaris<{ id: string; full_name: string; jenjang: Jenjang; kelas: string | null; program: string | null }>((a, b) =>
+      supabase.from('students').select('id, full_name, jenjang, kelas, program').eq('is_active', true).order('id').range(a, b)),
+    ambilSemuaBaris<{ student_id: string; juz_number: number; ayat_hafal: number; mutqin: boolean }>((a, b) =>
+      supabase.from('juz_progress').select('student_id, juz_number, ayat_hafal, mutqin').order('student_id').order('juz_number').range(a, b)),
+    ambilSemuaBaris<SetoranZiyadah & { student_id: string }>((a, b) =>
+      supabase.from('tahfidz_logs').select('student_id, surat_id, ayat_dari, ayat_ke')
+        .in('kind', ['ziyadah', 'hafalan_baru']).order('id').range(a, b)),
     getJuzUjianPerSiswa(),
     getTargetTahfidzSemua(),
     getInfoSurat(),
+    getPetaHalaman(),
+    getSiswaUrutanBebas(),
   ])
-  const students = ((studentsRes.data ?? []) as { id: string; full_name: string; jenjang: Jenjang; kelas: string | null; program: string | null }[])
-    .filter(s => cocokProgram(program, s.program))
+  const students = studentRows.filter(s => cocokProgram(program, s.program))
+  // SMA (urutan bebas): juz yang penuh adalah juz yang lulus ujian, satu per satu.
+  const juzTeruji = await getJuzTerujiPerSiswa(students.filter(s => bebas.has(s.id)).map(s => s.id))
 
-  // Unit per surat (PAUD): posisi Juz 30 dari setoran ziyadahnya.
-  const idPerSurat = students.filter(s => UNIT_PER_SURAT.has(s.jenjang)).map(s => s.id)
-  const setoranPerSurat = new Map<string, SetoranZiyadah[]>()
-  if (idPerSurat.length > 0) {
-    const { data } = await supabase.from('tahfidz_logs')
-      .select('student_id, surat_id, ayat_dari, ayat_ke')
-      .in('kind', ['ziyadah', 'hafalan_baru']).in('student_id', idPerSurat)
-    for (const r of (data ?? []) as (SetoranZiyadah & { student_id: string })[]) {
-      const d = setoranPerSurat.get(r.student_id) ?? []
-      d.push(r)
-      setoranPerSurat.set(r.student_id, d)
-    }
+  const ziyadahPerSiswa = new Map<string, (SetoranZiyadah & { student_id: string })[]>()
+  for (const r of ziyadahRows) {
+    const d = ziyadahPerSiswa.get(r.student_id) ?? []
+    d.push(r)
+    ziyadahPerSiswa.set(r.student_id, d)
   }
-  const jpRows = (juzProgressRes.data ?? []) as { student_id: string; juz_number: number; ayat_hafal: number; mutqin: boolean }[]
 
   const totalAyat = new Map<string, number>()
   for (const r of jpRows) {
@@ -763,7 +788,7 @@ export async function getUnitHafalanBoards(program: readonly string[] | null = n
   // Jumlah juz diambil dari sumber yang paling jauh — setoran atau ujian.
   // Lihat lib/data/hafalan.ts: anak yang masih di program tahsin tidak pernah
   // punya setoran ziyadah, jadi tanpa ini capaian ujiannya terbaca nol.
-  const juzGabungan = juzGabunganPerSiswa(jpRows, juzUjian, await getSiswaUrutanBebas())
+  const juzGabungan = juzGabunganPerSiswa(jpRows, juzUjian, bebas)
 
   return UNIT_ORDER.map(jenjang => {
     const us = students.filter(s => s.jenjang === jenjang)
@@ -783,10 +808,10 @@ export async function getUnitHafalanBoards(program: readonly string[] | null = n
       dipakai sebagai pemisah saat juz-nya sama.
     */
     const perSurat = UNIT_PER_SURAT.has(jenjang)
-    const top10 = perSurat
+    const peringkat: PeringkatHafalan[] = perSurat
       // PAUD: halaman Juz 30 utuh (urut An-Nas → An-Naba'), ayat sebagai pemisah.
       ? enriched.map(e => {
-          const pos = posisiJuz30(setoranPerSurat.get(e.id) ?? [])
+          const pos = posisiJuz30(ziyadahPerSiswa.get(e.id) ?? [])
           return {
             id: e.id, name: e.name, kelas: e.kelas, juzCount: e.juzCount, totalAyat: ayatJuz30(pos),
             halaman: halamanJuz30(pos),
@@ -795,11 +820,27 @@ export async function getUnitHafalanBoards(program: readonly string[] | null = n
         })
           .filter(e => e.totalAyat > 0)
           .sort((a, b) => b.halaman - a.halaman || b.totalAyat - a.totalAyat)
-          .slice(0, 10)
-      : [...enriched]
-          .sort((a, b) => b.juzCount - a.juzCount || b.totalAyat - a.totalAyat)
-          .slice(0, 10)
-          .map(e => ({ id: e.id, name: e.name, kelas: e.kelas, juzCount: e.juzCount, totalAyat: e.totalAyat }))
+      /*
+        Unit lain: total hafalan dalam halaman mushaf — hitungan yang sama
+        dengan "total hafalan" di rapor (rincianHafalan), supaya papan ini dan
+        rapor anak tidak menyebut angka berbeda. Juz tuntas tetap ikut sebagai
+        juz penuh, jadi capaian ujian tidak hilang (lihat catatan juzGabungan
+        di atas); halaman di juz yang sedang berjalan kini ikut terbaca dan ikut
+        menentukan urutan — dua anak "1 juz" tidak lagi seri bila yang satu
+        sudah 3 halaman lebih jauh.
+      */
+      : enriched.map(e => {
+          const r = rincianHafalan(
+            peta,
+            bebas.has(e.id) ? juzTeruji.get(e.id) ?? [] : e.juzCount,
+            ziyadahPerSiswa.get(e.id) ?? [],
+            jenjang,
+          )
+          return { ...e, totalHalaman: r.halaman, capaian: r.capaian }
+        })
+          .filter(e => e.totalHalaman > 0 || e.juzCount > 0)
+          .sort((a, b) => b.totalHalaman - a.totalHalaman || b.juzCount - a.juzCount || b.totalAyat - a.totalAyat)
+    const top10 = peringkat.slice(0, 10)
 
     // Posisi vs target bulanan — dihitung di lib/data/target-tahfidz.ts,
     // di sini hanya diringkas per unit. Unit tanpa satu pun siswa bertarget
@@ -812,7 +853,7 @@ export async function getUnitHafalanBoards(program: readonly string[] | null = n
     return {
       jenjang, label: UNIT_LABELS[jenjang], studentCount: us.length,
       ukuran: perSurat ? 'halaman' : 'juz',
-      top10,
+      top10, peringkat,
       target: {
         berlaku: bertarget > 0,
         below: r?.di_bawah ?? 0, on: r?.sesuai ?? 0, above: r?.di_atas ?? 0,
