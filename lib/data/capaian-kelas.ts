@@ -828,10 +828,14 @@ export async function getPosisiUnit(jenjang: Jenjang): Promise<PosisiUnit> {
   const siswa: PosisiSiswaUnit[] = siswaRows.map(s => {
     const lvSiswa = s.current_jilid_id ? levelById.get(s.current_jilid_id) : undefined
     // Metode tetap dari posisi siswa (untuk pengelompokan), tapi levelnya
-    // hanya dihitung bila memang ada setoran tahsin.
+    // hanya dihitung bila memang ada setoran tahsin — kecuali Lulus Tahsin,
+    // sama seperti entriTahsin di atas: anak yang sudah lulus tidak lagi setor
+    // tahsin, dan tanpa pengecualian ini halaqoh yang seluruhnya sudah lulus
+    // (mis. QULS Takhassus) terbaca "Belum tercatat" dengan median kosong.
     const adaSetoran = jilidLog.has(s.id)
     const logJilid = jilidLog.get(s.id)
-    const lv = adaSetoran ? lvSiswa ?? (logJilid ? levelById.get(logJilid) : undefined) : undefined
+    const lv = adaSetoran ? lvSiswa ?? (logJilid ? levelById.get(logJilid) : undefined)
+      : lvSiswa?.is_terminal ? lvSiswa : undefined
     const { letak } = bacaTahfidz(s.id)
     return {
       id: s.id,
