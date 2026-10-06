@@ -90,10 +90,19 @@ export function StudentForm({
 
   // Halaqoh disaring ikut programnya juga: kelompok QULS dan kelompok reguler
   // duduk di unit dan sesi yang sama, jadi jenjang saja tidak memisahkannya.
+  //
+  // Halaqoh anak SAAT INI selalu ikut ditawarkan, walau di luar saringan itu.
+  // Tanpanya, nilai awal pilihan tidak punya opsi, peramban mengirim kosong,
+  // dan menyimpan perubahan apa pun (nama, metode) diam-diam melepas anak dari
+  // halaqohnya — terjadi 2 Okt 2026: koor QULS menyunting tiga anak QULS
+  // Takhassus di halaqoh yang programnya belum ditandai, dan ketiganya hilang
+  // dari halaqoh beserta capaiannya di layar guru.
+  const halaqohAwal = initial?.halaqoh_id ?? defaultHalaqohId ?? null
   const halaqohOptions = useMemo(
-    () => halaqohList.filter(h => h.jenjang === jenjang && bolehProgram.includes(h.program ?? null)),
+    () => halaqohList.filter(h =>
+      h.id === halaqohAwal || (h.jenjang === jenjang && bolehProgram.includes(h.program ?? null))),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [halaqohList, jenjang, allowedPrograms],
+    [halaqohList, jenjang, allowedPrograms, halaqohAwal],
   )
 
   // Metode tahsin yang berlaku untuk unit DAN program terpilih (kebijakan RQ
