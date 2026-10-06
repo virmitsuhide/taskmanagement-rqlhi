@@ -289,6 +289,12 @@ function FormTahsin({ unit, redirectTo }: { unit: UjianUnit; redirectTo: string 
 
   const ustadz = daftar?.find(u => u.teacherId === teacherId) ?? null
   const halaqoh = ustadz?.halaqoh.find(h => h.id === halaqohId) ?? null
+  // Level yang ditawarkan mengikuti metode & tahap anak di sesi ini — anak
+  // KIBAR/Syajaroh hanya "Al-Qur'an", anak UMMI T1–T. Mandiri. Urutannya
+  // tetap urutan TAHSIN_LEVELS.
+  const levelHalaqoh = halaqoh
+    ? TAHSIN_LEVELS[unit].filter(l => halaqoh.siswa.some(x => x.levelUjian.includes(l)))
+    : []
 
   // Berganti ustadz atau sesi berarti berganti kumpulan anak; nama yang sudah
   // dipilih dari halaqoh sebelumnya tidak lagi sah, jadi daftarnya dikosongkan.
@@ -304,8 +310,12 @@ function FormTahsin({ unit, redirectTo }: { unit: UjianUnit; redirectTo: string 
     setKelompok([kelompokKosong()])
   }
 
+  // Ganti level = anak yang sudah dipilih tapi tahapnya bukan level baru itu
+  // dilepas; barisnya tetap ada supaya bisa dipilih ulang.
   function ubahLevel(gi: number, level: string) {
-    setKelompok(prev => prev.map((g, i) => (i === gi ? { ...g, level } : g)))
+    setKelompok(prev => prev.map((g, i) => (i === gi
+      ? { level, siswa: g.siswa.map(s => (s.pilihan && !s.pilihan.levelUjian.includes(level) ? { pilihan: null } : s)) }
+      : g)))
   }
 
   function ubahSiswa(gi: number, si: number, pilihan: SiswaHalaqoh | null) {
@@ -440,8 +450,8 @@ function FormTahsin({ unit, redirectTo }: { unit: UjianUnit; redirectTo: string 
                 required
                 className={`${SELECT_CLASS} flex-1`}
               >
-                <option value="" disabled>Pilih level…</option>
-                {TAHSIN_LEVELS[unit].map(l => <option key={l} value={l}>{l}</option>)}
+                <option value="" disabled>{levelHalaqoh.length > 0 ? 'Pilih level…' : 'Tidak ada siswa yang bisa diajukan'}</option>
+                {levelHalaqoh.map(l => <option key={l} value={l}>{l}</option>)}
               </select>
               {kelompok.length > 1 && (
                 <Button
@@ -461,14 +471,18 @@ function FormTahsin({ unit, redirectTo }: { unit: UjianUnit; redirectTo: string 
                   {/* Cukup memilih, tidak mengetik: ustadz & sesi di atas sudah
                       menyempitkan daftarnya ke satu halaqoh (±10 anak). Anak
                       yang sudah dipakai di baris lain disembunyikan. */}
+                  {/* Hanya anak yang tahapnya sekarang memang level ini —
+                      anak Lulus Tahsin atau di jilid lain tidak ditawarkan. */}
                   <select
                     aria-label={`Siswa ${si + 1} capaian ${gi + 1}`}
                     value={s.pilihan?.id ?? ''}
                     onChange={e => ubahSiswa(gi, si, halaqoh.siswa.find(x => x.id === e.target.value) ?? null)}
+                    disabled={!group.level}
                     className={`${SELECT_CLASS} min-w-0 flex-1`}
                   >
-                    <option value="" disabled>Pilih siswa…</option>
+                    <option value="" disabled>{group.level ? 'Pilih siswa…' : 'Pilih level dulu'}</option>
                     {halaqoh.siswa
+                      .filter(x => x.levelUjian.includes(group.level))
                       .filter(x => !sudahDipakai.has(x.id) || x.id === s.pilihan?.id)
                       .map(x => (
                         <option key={x.id} value={x.id}>
@@ -489,6 +503,21 @@ function FormTahsin({ unit, redirectTo }: { unit: UjianUnit; redirectTo: string 
                 </div>
               ))}
             </div>
+
+            {group.level && (() => {
+              const cocok = halaqoh.siswa.filter(x => x.levelUjian.includes(group.level))
+              const lain = halaqoh.siswa.filter(x => !x.levelUjian.includes(group.level))
+              return (
+                <p className="text-[11px] leading-snug text-muted-foreground">
+                  {cocok.length === 0
+                    ? `Belum ada siswa di halaqoh ini yang sedang di level ${group.level}.`
+                    : `${cocok.length} siswa sedang di level ${group.level}.`}
+                  {lain.length > 0 && (
+                    <> Tidak tampil karena tahapnya lain: {lain.map(x => `${x.full_name} (${x.jilid ?? 'tahap belum tercatat'})`).join(', ')}.</>
+                  )}
+                </p>
+              )
+            })()}
 
             <Button
               type="button" variant="ghost" size="sm"

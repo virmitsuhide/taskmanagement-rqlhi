@@ -15,6 +15,7 @@ export const METHOD = {
   KIBAR: 'KIBAR',
   SYAJAROH: 'Syajaroh',
   IQRO: 'IQRO',
+  UMMI_DEWASA: 'UMMI Dewasa',
 } as const
 
 /**
@@ -22,13 +23,16 @@ export const METHOD = {
  *  - PAUD          : UMMI
  *  - SD LHI        : UMMI + KIBAR
  *  - SD LHI Juara  : KIBAR (kelas 1) + IQRO (kelas 2-6, sejak 0101)
- *  - SMP / SMA     : Syajaroh
+ *  - SMP           : Syajaroh; angkatan kelas 9 non-QULS (2026/2027) masih
+ *                    UMMI Dewasa — 3 jilid → Al-Qur'an T1–T3 → Talaqqi
+ *                    Mandiri → Gharib → Tajwid (0112)
+ *  - SMA           : Syajaroh
  */
 export const JENJANG_METHODS: Record<Jenjang, string[]> = {
   paud: [METHOD.UMMI],
   sd: [METHOD.UMMI, METHOD.KIBAR],
   sd_juara: [METHOD.KIBAR, METHOD.IQRO],
-  smp: [METHOD.SYAJAROH],
+  smp: [METHOD.SYAJAROH, METHOD.UMMI_DEWASA],
   sma: [METHOD.SYAJAROH],
 }
 

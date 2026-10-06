@@ -90,6 +90,22 @@ const METHODS: MethodSeed[] = [
       { label: 'Lulus Tahsin', order_num: 8, total_pages: null, is_quran: false, is_terminal: true },
     ],
   },
+  // UMMI Dewasa — 3 jilid (40 hal) → Al-Qur'an T1/T2/T3 → Talaqqi Mandiri → Gharib → Tajwid → Lulus.
+  // Angkatan kelas 9 SMP non-QULS (0112).
+  { name: 'UMMI Dewasa', description: '3 jilid (40 hal) → Al-Qur’an T1–T3 → Talaqqi Mandiri → Gharib → Tajwid',
+    levels: [
+      { label: 'Jilid 1', order_num: 1, total_pages: 40, is_quran: false },
+      { label: 'Jilid 2', order_num: 2, total_pages: 40, is_quran: false },
+      { label: 'Jilid 3', order_num: 3, total_pages: 40, is_quran: false },
+      { label: 'Al-Qur’an T1', order_num: 4, total_pages: null, is_quran: true, baca_quran: true },
+      { label: 'Al-Qur’an T2', order_num: 5, total_pages: null, is_quran: true, baca_quran: true },
+      { label: 'Al-Qur’an T3', order_num: 6, total_pages: null, is_quran: true, baca_quran: true },
+      { label: 'Talaqqi Mandiri', order_num: 7, total_pages: null, is_quran: true, baca_quran: true },
+      { label: 'Gharib', order_num: 8, total_pages: 28, is_quran: false, baca_quran: true },
+      { label: 'Tajwid', order_num: 9, total_pages: 20, is_quran: false, baca_quran: true },
+      { label: 'Lulus Tahsin', order_num: 10, total_pages: null, is_quran: false, is_terminal: true },
+    ],
+  },
 ]
 
 // ─── SURAT MASTER (114 surat) ────────────────────────────────────

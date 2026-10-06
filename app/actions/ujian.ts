@@ -9,7 +9,9 @@ import {
   getUjianBoardingScope, PROGRAM_SMP_BOARDING,
 } from '@/lib/auth/permissions'
 import { getUnitsUjianGuru } from '@/lib/data/ujian'
-import { cocokkanLevelUjian, getTahfidzLabel, UJIAN_UNIT_JENJANG, type TahapLevel, tanggalWIB } from '@/lib/rq/ujian'
+import {
+  cocokkanLevelUjian, getTahfidzLabel, levelUjianSiswa, TAHSIN_LEVELS, UJIAN_UNIT_JENJANG, type TahapLevel, tanggalWIB,
+} from '@/lib/rq/ujian'
 import { canTeacherAccessStudent, getTeacherHalaqohIds, getTeacherStudents } from '@/lib/data/teacher'
 import { tautkanUjianKeDrill } from '@/lib/data/drill-tahfidz'
 import { juzLulusBebas, ringkasHafalan, ringkasJuzBebas, totalJuzHafalan, urutanBebas } from '@/lib/rq/hafalan'
@@ -352,6 +354,19 @@ export async function createTahsinUjianAction(input: {
   }
 
   const idSiswa = siswa.map(s => s.student_id).filter((id): id is string => Boolean(id))
+
+  // Level harus sesuai tahap anak sekarang — formulir sudah menyaringnya,
+  // tapi kiriman bisa diubah. Tanpa ini anak yang sudah Lulus Tahsin bisa
+  // diajukan ujian Al-Qur'an T3.
+  const levelPer = await levelUjianPerSiswa(idSiswa, pengaju.unit)
+  const salahLevel = siswa.filter(s => s.student_id && s.level && !(levelPer.get(s.student_id) ?? []).includes(s.level))
+  if (salahLevel.length > 0) {
+    return {
+      error: `Level ujian tidak sesuai tahap tahsin siswa saat ini: ${salahLevel.map(s => `${s.nama} (${s.level})`).join(', ')}. `
+        + 'Periksa tahap siswa di halaman siswa bila datanya belum diperbarui.',
+    }
+  }
+
   const isQuls = await adaSiswaQuls(idSiswa)
   if (pengaju.program && !isQuls) return { error: HANYA_QULS }
 
@@ -515,7 +530,29 @@ async function terapkanKelulusanTahsin(ujianId: string): Promise<string[]> {
       lebih tinggi.
     */
     const levelUjian = (anak.level ?? ujianLevel ?? '').trim()
-    const diuji = cocokkanLevelUjian(tahapan, levelUjian, s.metode?.name)
+    const cocok = cocokkanLevelUjian(tahapan, levelUjian, s.metode?.name)
+    /*
+      Ujian "Al-Qur'an" mencakup SELURUH rangkaian baca mushaf — pada UMMI:
+      T1, T2, T3, lalu Talaqqi Mandiri. Pilihan level ujian hanya punya satu
+      "Al-Qur'an", dan cocokkanLevelUjian menunjuk tahap Qur'an PERTAMA (T1).
+      Akibatnya anak di Talaqqi Mandiri yang lulus tercatat "T1 → T2", dan
+      karena kenaikan tidak pernah memundurkan, posisinya tidak bergerak sama
+      sekali — ia tidak pernah sampai ke Gharib.
+
+      Bila anak sedang berada di tahap Qur'an yang lebih jauh, tahap itulah
+      yang diujikan: T2 naik ke T3, Talaqqi Mandiri naik ke Gharib.
+
+      Kini level UMMI bisa dipilih satu per satu (T1, T2, T3, T. Mandiri);
+      pilihan yang menyebut tahapnya dihormati apa adanya. Penyesuaian ini
+      hanya untuk level umum "Al-Qur'an" — pengajuan lama dan unit lain.
+    */
+    const levelUmum = !/\bt\s*\.?\s*[123]\b|mandiri/i.test(levelUjian)
+    const sekarangQuran = s.current_jilid_id
+      ? tahapan.find(t => t.id === s.current_jilid_id && t.is_quran)
+      : undefined
+    const diuji = levelUmum && cocok?.is_quran && sekarangQuran && sekarangQuran.order_num > cocok.order_num
+      ? sekarangQuran
+      : cocok
     if (!diuji) {
       // Level ujian tidak punya padanan di metode anak ini — misal ujian
       // "Jilid 6" untuk anak Syajaroh yang jilidnya hanya sampai 5. Ditinggal
@@ -1077,6 +1114,41 @@ export interface SiswaHalaqoh {
   kelas: string | null
   /** Label jilid berjalan, mis. "Jilid 3" — penanda saat memilih level. */
   jilid: string | null
+  /** Level ujian (TAHSIN_LEVELS unit) yang sesuai tahapnya sekarang — lihat levelUjianSiswa. */
+  levelUjian: string[]
+}
+
+/**
+ * Level ujian yang boleh diambil tiap anak, menurut tahapnya sekarang.
+ * Satu kueri tahap per metode, bukan per anak.
+ */
+async function levelUjianPerSiswa(studentIds: string[], unit: UjianUnit): Promise<Map<string, string[]>> {
+  const hasil = new Map<string, string[]>()
+  if (studentIds.length === 0) return hasil
+  const supabase = createServerClient()
+  const { data: siswa } = await supabase
+    .from('students')
+    .select('id, current_method_id, current_jilid_id, metode:tahsin_methods!students_current_method_id_fkey(name)')
+    .in('id', studentIds)
+  const rows = (siswa ?? []) as unknown as {
+    id: string; current_method_id: string | null; current_jilid_id: string | null; metode: { name: string } | null
+  }[]
+  const metodeIds = [...new Set(rows.map(r => r.current_method_id).filter((x): x is string => Boolean(x)))]
+  const { data: tahap } = metodeIds.length
+    ? await supabase.from('jilid_levels').select('id, label, order_num, is_quran, method_id').in('method_id', metodeIds).order('order_num')
+    : { data: [] }
+  const perMetode = new Map<string, TahapLevel[]>()
+  for (const t of (tahap ?? []) as (TahapLevel & { method_id: string })[]) {
+    const d = perMetode.get(t.method_id) ?? []
+    d.push(t)
+    perMetode.set(t.method_id, d)
+  }
+  for (const r of rows) {
+    hasil.set(r.id, r.current_method_id
+      ? levelUjianSiswa(perMetode.get(r.current_method_id) ?? [], r.current_jilid_id, r.metode?.name, TAHSIN_LEVELS[unit])
+      : [])
+  }
+  return hasil
 }
 
 export interface HalaqohSesi {
@@ -1155,13 +1227,18 @@ export async function daftarHalaqohUjianTahsinAction(unit: UjianUnit): Promise<U
     .eq('is_active', true)
     .order('full_name')
 
-  const siswaPerHalaqoh = new Map<string, SiswaHalaqoh[]>()
-  for (const s of (siswa ?? []) as unknown as Array<{
+  const siswaRows = (siswa ?? []) as unknown as Array<{
     id: string; full_name: string; kelas: string | null; halaqoh_id: string
     current_jilid: { label: string } | null
-  }>) {
+  }>
+  const levelPer = await levelUjianPerSiswa(siswaRows.map(s => s.id), pengaju.unit)
+  const siswaPerHalaqoh = new Map<string, SiswaHalaqoh[]>()
+  for (const s of siswaRows) {
     const daftar = siswaPerHalaqoh.get(s.halaqoh_id) ?? []
-    daftar.push({ id: s.id, full_name: s.full_name, kelas: s.kelas, jilid: s.current_jilid?.label ?? null })
+    daftar.push({
+      id: s.id, full_name: s.full_name, kelas: s.kelas, jilid: s.current_jilid?.label ?? null,
+      levelUjian: levelPer.get(s.id) ?? [],
+    })
     siswaPerHalaqoh.set(s.halaqoh_id, daftar)
   }
 

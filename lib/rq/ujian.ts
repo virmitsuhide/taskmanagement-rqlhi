@@ -62,25 +62,37 @@ export const BULAN_ID = [
 const JILID = (n: number, awalan = 'Jilid') => Array.from({ length: n }, (_, i) => `${awalan} ${i + 1}`)
 
 /**
- * Level tahsin yang bisa dipilih saat mengajukan, per unit — mengikuti metode
- * tiap unit:
+ * Tahap baca mushaf UMMI, satu per satu. Dulu hanya satu "Al-Qur'an", dan
+ * anak di Talaqqi Mandiri yang lulus tercatat naik "T1 → T2" sehingga tidak
+ * pernah sampai ke Gharib. Labelnya dicocokkan ke jilid_levels lewat
+ * cocokkanLevelUjian ("T. Mandiri" → "Talaqqi Mandiri").
+ */
+const QURAN_UMMI = ["Al-Qur'an T1", "Al-Qur'an T2", "Al-Qur'an T3", "Al-Qur'an T. Mandiri"]
+
+/**
+ * Level tahsin yang DIKENAL per unit — gabungan semua metode di unit itu.
+ * Yang benar-benar tampil di formulir disaring lagi per anak menurut
+ * metodenya (levelUjianSiswa): anak UMMI mendapat Al-Qur'an T1–T. Mandiri,
+ * anak KIBAR / Syajaroh / IQRO yang tahap Qur'an-nya hanya satu mendapat
+ * "Al-Qur'an" saja.
  *
- * - TPAIT    : UMMI, Pra-UMMI lalu Jilid 1-6 lalu Al-Qur'an.
- * - SD       : UMMI/KIBAR, sampai Gharib & Tajwid.
+ * - TPAIT    : UMMI, Pra-UMMI lalu Jilid 1-6 lalu Al-Qur'an T1–T. Mandiri.
+ * - SD       : UMMI (sampai Gharib & Tajwid) dan KIBAR (Jilid 1-3, Al-Qur'an).
  * - SD Juara : kelas 1 KIBAR (3 jilid), kelas 2-6 Iqro' (6 jilid), lalu
  *              Al-Qur'an. Jilid kedua metode itu diberi nama metodenya, sebab
  *              "Jilid 3" KIBAR dan "Jilid 3" Iqro' bukan tahap yang sama.
- * - SMP, SMA : Syajaroh, berhenti di Jilid 5 — anak yang tuntas jilid
- *              melanjutkan ke program tahfidz.
+ * - SMP      : Syajaroh (Jilid 1-5, Al-Qur'an) dan UMMI Dewasa kelas 9
+ *              (Jilid 1-3, Al-Qur'an T1–T. Mandiri, Gharib, Tajwid).
+ * - SMA      : Syajaroh, Jilid 1-5 lalu Talaqqi Al-Qur'an.
  */
 export const TAHSIN_LEVELS: Record<UjianUnit, string[]> = {
   // UMMI TPAIT diawali buku Pra-UMMI (lib/tahsin.ts → tahapBerlaku).
-  TPAIT: ['Pra-UMMI', ...JILID(6), "Al-Qur'an"],
-  SD: [...JILID(6), "Al-Qur'an", 'Gharib', 'Tajwid'],
+  TPAIT: ['Pra-UMMI', ...JILID(6), ...QURAN_UMMI],
+  SD: [...JILID(6), "Al-Qur'an", ...QURAN_UMMI, 'Gharib', 'Tajwid'],
   // KIBAR SD Juara diawali buku Pra (lib/tahsin.ts → tahapBerlaku).
   'SD Juara': ['KIBAR Pra', ...JILID(3, 'KIBAR Jilid'), ...JILID(6, "Iqro' Jilid"), "Al-Qur'an"],
-  SMP: JILID(5),
-  SMA: JILID(5),
+  SMP: [...JILID(5), "Al-Qur'an", ...QURAN_UMMI, 'Gharib', 'Tajwid'],
+  SMA: [...JILID(5), "Al-Qur'an"],
 }
 
 export const PREDIKAT_OPTIONS: { value: UjianPredikat; label: string }[] = [
@@ -446,7 +458,7 @@ export function cocokkanLevelUjian(tahapan: TahapLevel[], level: string, metode?
   // Level yang menyebut metodenya — "KIBAR Jilid 2", "Iqro' Jilid 3" di SD
   // Juara — hanya berlaku bagi anak bermetode itu. Jilid 3 KIBAR dan jilid 3
   // IQRO bukan tahap yang sama; anak yang metodenya tercatat lain ditinggal.
-  const awalan = /^(ummi|kibar|iqro|syajaroh)\s+/.exec(l)
+  const awalan = /^(ummi dewasa|ummi|kibar|iqro|syajaroh)\s+/.exec(l)
   if (awalan) {
     if (metode && rapikan(metode) !== awalan[1]) return null
     l = l.slice(awalan[0].length)
@@ -465,6 +477,17 @@ export function cocokkanLevelUjian(tahapan: TahapLevel[], level: string, metode?
   if (l.includes('tajwid')) {
     return tahapan.find(t => rapikan(t.label).includes('tajwid')) ?? null
   }
+  // Tahap Qur'an UMMI yang disebut satu per satu. T1 yang tidak ketemu
+  // persis jatuh ke aturan umum di bawah (tahap Qur'an pertama) — anak KIBAR
+  // SD hanya punya satu "Talaqqi Al-Qur'an". T2, T3, dan T. Mandiri tidak
+  // ditebak: metode tanpa tahap itu tidak punya padanannya.
+  if (l.includes('mandiri')) {
+    return tahapan.find(t => rapikan(t.label).includes('mandiri')) ?? null
+  }
+  const tahapQuran = /\bt\s*([23])$/.exec(l)
+  if (tahapQuran && (l.includes('quran') || l.includes('qur an'))) {
+    return tahapan.find(t => t.is_quran && new RegExp(`\\bt\\s*${tahapQuran[1]}$`).test(rapikan(t.label))) ?? null
+  }
   // "Al-Qur'an" menunjuk tahap Qur'an PERTAMA metode itu — T1 pada UMMI,
   // "Talaqqi Al-Qur'an" pada Syajaroh & KIBAR.
   if (l.includes('quran') || l.includes('qur an') || l.includes('talaqqi')) {
@@ -472,4 +495,40 @@ export function cocokkanLevelUjian(tahapan: TahapLevel[], level: string, metode?
   }
   return null
 }
+
+/**
+ * Level ujian (dari `pilihan`, mis. TAHSIN_LEVELS[unit]) yang sesuai dengan
+ * tahap anak SEKARANG — yaitu level yang, bila lulus, menaikkannya dari tahap
+ * yang sedang ia jalani.
+ *
+ * Dipakai formulir pengajuan supaya guru hanya bisa mengajukan anak pada
+ * levelnya sendiri: anak yang sudah Lulus Tahsin tidak bisa ikut ujian
+ * Al-Qur'an T3, anak Jilid 2 tidak bisa diajukan ujian Jilid 5. Memakai
+ * cocokkanLevelUjian yang sama dengan proses kenaikan, jadi "boleh diajukan"
+ * dan "naik bila lulus" tidak pernah berselisih.
+ *
+ * Tahap Qur'an mengikuti metodenya: metode yang merinci tahap Qur'an (UMMI:
+ * T1, T2, T3, Talaqqi Mandiri) hanya menerima level rinci; metode dengan satu
+ * tahap Qur'an (KIBAR, Syajaroh, IQRO) hanya menerima "Al-Qur'an".
+ *
+ * Anak tanpa tahap tercatat (mis. seluruh SMA saat ini) boleh diajukan di
+ * level mana pun dalam metodenya — ujian pertamanya yang menetapkan posisi.
+ */
+export function levelUjianSiswa(
+  tahapan: TahapLevel[],
+  tahapSekarangId: string | null,
+  metode: string | null | undefined,
+  pilihan: readonly string[],
+): string[] {
+  const quranRinci = tahapan.some(t => t.is_quran && LEVEL_QURAN_RINCI.test(t.label))
+  return pilihan.filter(l => {
+    const t = cocokkanLevelUjian(tahapan, l, metode)
+    if (!t) return false
+    if (t.is_quran && LEVEL_QURAN_RINCI.test(l) !== quranRinci) return false
+    return tahapSekarangId ? t.id === tahapSekarangId : true
+  })
+}
+
+/** "Al-Qur'an T2", "Talaqqi Mandiri", "Al-Qur'an T. Mandiri" — tahap Qur'an yang dirinci. */
+const LEVEL_QURAN_RINCI = /\bt\s*\.?\s*[123]\s*$|mandiri/i
 
