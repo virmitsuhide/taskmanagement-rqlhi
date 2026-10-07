@@ -31,7 +31,12 @@ interface Props {
   onLihatSemua: (status: UjianStatus) => void
 }
 
-const BATAS_KOLOM = 6
+/**
+ * Hanya kolom Selesai yang dipangkas — riwayat bisa panjang dan sudah tidak
+ * perlu ditindak. Diajukan & Terjadwal selalu tampil utuh: setiap kartu di
+ * sana adalah pekerjaan koordinator, jadi tidak boleh tersembunyi.
+ */
+const BATAS_SELESAI = 6
 
 function kunciPengaju(item: { created_by_teacher: string | null; created_by_user: string | null }) {
   if (item.created_by_teacher) return `teacher:${item.created_by_teacher}`
@@ -95,7 +100,7 @@ export function PapanUjian({ kartu, namaPengaju, onKelola, onLihatSemua }: Props
   // Kelompokkan yang terjadwal per tanggal WIB; yang belum punya jadwal
   // (data lama) dikumpulkan di akhir.
   const perTanggal = new Map<string, KartuUjian[]>()
-  for (const k of terjadwal.slice(0, BATAS_KOLOM + 2)) {
+  for (const k of terjadwal) {
     const t = k.item.jadwal ? tanggalWIB(k.item.jadwal) : 'tanpa-jadwal'
     perTanggal.set(t, [...(perTanggal.get(t) ?? []), k])
   }
@@ -105,20 +110,20 @@ export function PapanUjian({ kartu, namaPengaju, onKelola, onLihatSemua }: Props
       {/* ── Diajukan ── */}
       <Kolom judul="Diajukan" jumlah={diajukan.length} nada="warning" icon={<Inbox className="h-4 w-4" />}>
         {diajukan.length === 0 && <KolomKosong teks="Tidak ada pengajuan yang menunggu." />}
-        {diajukan.slice(0, BATAS_KOLOM).map(k => {
+        {diajukan.map(k => {
           const kunci = kunciPengaju(k.item)
           return (
             <li key={k.item.id} className="rounded-xl border bg-card p-3.5">
               <div className="flex items-start gap-3">
                 <Avatar nama={judul(k)} />
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold">{judul(k)}</p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">{keterangan(k)}</p>
+                  <p className="break-words text-sm font-semibold">{judul(k)}</p>
+                  <p className="mt-0.5 break-words text-xs text-muted-foreground">{keterangan(k)}</p>
                 </div>
                 <JenisBadge k={k} />
               </div>
-              <div className="mt-3 flex items-center justify-between gap-2 border-t pt-2.5">
-                <span className="min-w-0 truncate text-xs text-muted-foreground">
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t pt-2.5">
+                <span className="min-w-0 break-words text-xs text-muted-foreground">
                   {kunci && namaPengaju[kunci] ? `${namaPengaju[kunci]} · ` : ''}{berapaLama(k.item.created_at)}
                 </span>
                 <Button size="sm" className="h-8 shrink-0" onClick={() => onKelola(k)}>
@@ -128,9 +133,6 @@ export function PapanUjian({ kartu, namaPengaju, onKelola, onLihatSemua }: Props
             </li>
           )
         })}
-        {diajukan.length > BATAS_KOLOM && (
-          <LihatSemua jumlah={diajukan.length - BATAS_KOLOM} onClick={() => onLihatSemua('diajukan')} />
-        )}
       </Kolom>
 
       {/* ── Terjadwal ── */}
@@ -154,9 +156,9 @@ export function PapanUjian({ kartu, namaPengaju, onKelola, onLihatSemua }: Props
                     {k.item.jadwal ? jam(k.item.jadwal) : '—'}
                   </span>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold">{judul(k)}</p>
-                    <p className="mt-0.5 truncate text-xs text-muted-foreground">{keterangan(k)}</p>
-                    <p className="mt-1 text-xs">
+                    <p className="break-words text-sm font-semibold">{judul(k)}</p>
+                    <p className="mt-0.5 break-words text-xs text-muted-foreground">{keterangan(k)}</p>
+                    <p className="mt-1 break-words text-xs">
                       <span className="text-muted-foreground">Penguji </span>
                       <span className={k.item.penguji ? 'font-medium' : 'text-warning'}>
                         {k.item.penguji || 'belum ditentukan'}
@@ -171,30 +173,27 @@ export function PapanUjian({ kartu, namaPengaju, onKelola, onLihatSemua }: Props
             </li>
           )
         })}
-        {terjadwal.length > BATAS_KOLOM + 2 && (
-          <LihatSemua jumlah={terjadwal.length - (BATAS_KOLOM + 2)} onClick={() => onLihatSemua('dijadwalkan')} />
-        )}
       </Kolom>
 
       {/* ── Selesai ── */}
       <Kolom judul="Selesai" jumlah={selesai.length} nada="success" icon={<CheckCircle2 className="h-4 w-4" />}>
         {selesai.length === 0 && <KolomKosong teks="Belum ada ujian yang selesai." />}
-        {selesai.slice(0, BATAS_KOLOM).map(k => (
+        {selesai.slice(0, BATAS_SELESAI).map(k => (
           <li key={k.item.id}>
             <button
               onClick={() => onKelola(k)}
               className="flex w-full items-center justify-between gap-3 rounded-xl border bg-card px-3.5 py-3 text-left transition-colors hover:border-primary/40"
             >
               <div className="min-w-0">
-                <p className="truncate text-sm font-semibold">{judul(k)}</p>
-                <p className="mt-0.5 truncate text-xs text-muted-foreground">{keterangan(k)}</p>
+                <p className="break-words text-sm font-semibold">{judul(k)}</p>
+                <p className="mt-0.5 break-words text-xs text-muted-foreground">{keterangan(k)}</p>
               </div>
               <Hasil k={k} />
             </button>
           </li>
         ))}
-        {selesai.length > BATAS_KOLOM && (
-          <LihatSemua jumlah={selesai.length - BATAS_KOLOM} onClick={() => onLihatSemua('selesai')} />
+        {selesai.length > BATAS_SELESAI && (
+          <LihatSemua jumlah={selesai.length - BATAS_SELESAI} onClick={() => onLihatSemua('selesai')} />
         )}
       </Kolom>
     </div>
