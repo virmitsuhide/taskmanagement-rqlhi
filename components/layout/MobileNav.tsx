@@ -8,8 +8,9 @@ import {
   ImageIcon, Megaphone, FileText, User, LogOut, GraduationCap, Newspaper, LayoutGrid,
   Users, UserCog, BookMarked, BarChart3, LayoutTemplate, Info, Wallet, CalendarRange, CalendarDays,
   ClipboardCheck, KeyRound, ScrollText, Repeat, IdCard, UsersRound, Briefcase, Stamp, Scale, ListChecks, Kanban, CalendarHeart, Lock, UserRound,
-  Crosshair, LibraryBig, Table2, BedDouble,
+  Crosshair, LibraryBig, Table2, BedDouble, DatabaseBackup,
 } from 'lucide-react'
+import { domainBackupUntuk } from '@/lib/backup/domain'
 import { cn } from '@/lib/utils'
 import {
   DASHBOARD_LABELS, getAccessibleDashboards, DEFAULT_DASHBOARD,
@@ -185,6 +186,7 @@ export function MobileNav({ role, displayName, username, lencanaKpi }: Props) {
                 <DrawerLink href="/pengurus" icon={<UsersRound className="h-4 w-4" />} label="Pengurus" active={isActive('/pengurus')} onNavigate={close} />
                 <DrawerLink href="/akun" icon={<KeyRound className="h-4 w-4" />} label="Akun & Password" active={isActive('/akun')} onNavigate={close} />
                 <DrawerLink href="/karyawan" icon={<Briefcase className="h-4 w-4" />} label="Karyawan" active={isActive('/karyawan')} onNavigate={close} />
+                <DrawerLink href="/backup" icon={<DatabaseBackup className="h-4 w-4" />} label="Backup Data" active={isActive('/backup')} onNavigate={close} />
                 <DrawerLink href="/profil#ganti-password" icon={<Lock className="h-4 w-4" />} label="Ganti Password" active={isActive('/profil')} onNavigate={close} />
               </ul>
             </div>
@@ -397,6 +399,9 @@ export function MobileNav({ role, displayName, username, lencanaKpi }: Props) {
         </nav>
 
         <div className="border-t border-sidebar-border px-3 py-3 space-y-1">
+          {!isAdmin(role) && domainBackupUntuk(role).length > 0 && (
+            <DrawerLink href="/backup" icon={<DatabaseBackup className="h-4 w-4" />} label="Backup Data" active={isActive('/backup')} onNavigate={close} />
+          )}
           {!isAdmin(role) && canManagePengurus(role) && (
             <DrawerLink href="/pengurus" icon={<UsersRound className="h-4 w-4" />} label="Pengurus" active={isActive('/pengurus')} onNavigate={close} />
           )}

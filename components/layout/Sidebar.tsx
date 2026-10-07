@@ -9,8 +9,9 @@ import {
   Users, UserCog, BookMarked, BarChart3, LayoutTemplate, Info, Wallet, CalendarRange, CalendarDays,
   ClipboardCheck, KeyRound, ScrollText, Repeat, IdCard, UsersRound, Briefcase, Stamp, Scale, ListChecks, Kanban,
   PanelLeftClose, PanelLeftOpen, CalendarHeart, Lock, UserRound,
-  Crosshair, LibraryBig, Table2, BedDouble,
+  Crosshair, LibraryBig, Table2, BedDouble, DatabaseBackup,
 } from 'lucide-react'
+import { domainBackupUntuk } from '@/lib/backup/domain'
 import { DASHBOARD_LABELS, getAccessibleDashboards, ROLE_LABELS , canManageTeacherProfiles } from '@/lib/auth/permissions'
 import {
   canViewTerms, canViewGukarRecap, canViewFinance, canViewFinanceNotes, canPostToHome, canViewHumasRequests, canCreateNews,
@@ -105,6 +106,7 @@ export function Sidebar({ role, displayName, username, lencanaKpi, ciutAwal = fa
               <NavItem href="/pengurus" icon={<UsersRound className="h-4 w-4" />} label="Pengurus" active={isActive('/pengurus')} />
               <NavItem href="/akun" icon={<KeyRound className="h-4 w-4" />} label="Akun & Password" active={isActive('/akun')} />
               <NavItem href="/karyawan" icon={<Briefcase className="h-4 w-4" />} label="Karyawan" active={isActive('/karyawan')} />
+              <NavItem href="/backup" icon={<DatabaseBackup className="h-4 w-4" />} label="Backup Data" active={isActive('/backup')} />
               <NavItem href="/profil#ganti-password" icon={<Lock className="h-4 w-4" />} label="Ganti Password" active={isActive('/profil')} />
             </ul>
           </div>
@@ -362,6 +364,9 @@ export function Sidebar({ role, displayName, username, lencanaKpi, ciutAwal = fa
       {/* User section */}
       <div className="border-t border-sidebar-border px-3 py-3 space-y-1">
         {/* Admin sudah melihat keduanya di menu utama. */}
+        {!isAdmin(role) && domainBackupUntuk(role).length > 0 && (
+          <NavItem href="/backup" icon={<DatabaseBackup className="h-4 w-4" />} label="Backup Data" active={isActive('/backup')} />
+        )}
         {!isAdmin(role) && canManagePengurus(role) && (
           <NavItem href="/pengurus" icon={<UsersRound className="h-4 w-4" />} label="Pengurus" active={isActive('/pengurus')} />
         )}
