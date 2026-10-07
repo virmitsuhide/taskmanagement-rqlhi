@@ -6,6 +6,7 @@ import { getLevelPerSiswa } from '@/lib/data/asrama'
 import type { LevelAsrama } from '@/lib/rq/asrama'
 import { getJuzDrillPerSiswa, type JuzDrillSiswa } from '@/lib/data/drill-tahfidz'
 import { getHafalanSaran } from '@/lib/data/hafalan'
+import { jalanDrill, type JalanDrill } from '@/lib/rq/drill-tahsin'
 import type { HafalanSaran } from '@/lib/rq/saran-surat'
 import {
   getMateriPerJilid, getHasilMateriPerSiswa, type MateriTahsin, type HasilMateri,
@@ -161,6 +162,8 @@ export interface SiswaSesiTahsin {
   total_halaman: number | null
   halaman: number | null
   drill_sejak: string | null
+  /** Putaran drill yang sedang berjalan (mulai 1); null = tidak sedang drill. */
+  drill_putaran: number | null
   /** Tahap ini juga mencatat bacaan mushaf (semua tahap Al-Qur'an + Gharib/Tajwid). */
   baca_quran: boolean
   /** Posisi mushaf terakhir — titik berangkat isian berikutnya. */
@@ -217,6 +220,57 @@ export async function lanjutTerbuka(
   return hasil
 }
 
+/** Hasil jalan drill per anak, plus setoran drillnya (urut lama → baru) dengan putaran masing-masing. */
+export type DrillAnak = Omit<JalanDrill, 'putaranLog'> & {
+  logs: { setoran_date: string; halaman: number | null; status: string; putaran: number }[]
+}
+
+/**
+ * Jalan DRILL per anak drill — halaman bawaan setoran berikutnya dan putaran
+ * yang sedang berjalan (lihat lib/rq/drill-tahsin.ts). Dibaca dari setoran
+ * drill sejak tanggal masuk drill; posisi resmi anak (current_jilid_page)
+ * tetap di halaman terakhir jilid sampai lulus ujian.
+ */
+export async function halamanDrill(
+  supabase: ReturnType<typeof createServerClient>,
+  anak: { id: string; current_jilid_id: string | null; tahsin_drill_sejak: string | null; total_pages: number | null }[],
+): Promise<Map<string, DrillAnak>> {
+  const hasil = new Map<string, DrillAnak>()
+  const drill = anak.filter(a => a.tahsin_drill_sejak && a.current_jilid_id && a.total_pages)
+  if (drill.length === 0) return hasil
+  const sejak = drill.map(a => a.tahsin_drill_sejak!).sort()[0]
+  type Log = {
+    student_id: string; jilid_id: string | null; halaman: number | null
+    status: string; baris_ke: number | null; setoran_date: string
+  }
+  // Drill bisa berbulan-bulan (40 setoran per putaran) — dibaca per 1000 baris.
+  const logs: Log[] = []
+  for (let dari = 0; ; dari += 1000) {
+    const { data } = await supabase
+      .from('tahsin_logs')
+      .select('student_id, jilid_id, halaman, status, baris_ke, setoran_date')
+      .in('student_id', drill.map(a => a.id))
+      .eq('drill', true)
+      .gte('setoran_date', sejak)
+      .order('setoran_date')
+      .order('created_at')
+      .range(dari, dari + 999)
+    const potong = (data ?? []) as Log[]
+    logs.push(...potong)
+    if (potong.length < 1000) break
+  }
+  for (const a of drill) {
+    const milik = logs.filter(l => l.student_id === a.id && l.jilid_id === a.current_jilid_id
+      && l.setoran_date >= a.tahsin_drill_sejak!)
+    const { putaranLog, ...jalan } = jalanDrill(milik, a.total_pages!)
+    hasil.set(a.id, {
+      ...jalan,
+      logs: milik.map((l, i) => ({ setoran_date: l.setoran_date, halaman: l.halaman, status: l.status, putaran: putaranLog[i] })),
+    })
+  }
+  return hasil
+}
+
 export async function getSiswaSesiTahsin(sasaran: SasaranSesi): Promise<SiswaSesiTahsin[]> {
   const supabase = createServerClient()
   const { data } = await supabase
@@ -243,11 +297,12 @@ export async function getSiswaSesiTahsin(sasaran: SasaranSesi): Promise<SiswaSes
   // Materi dan capaiannya diambil sekali untuk seluruh sesi, bukan per anak:
   // satu halaqoh umumnya berisi anak-anak pada tahap yang sama, sehingga
   // pengambilan per anak berarti mengulang jawaban yang identik belasan kali.
-  const [perJilid, hasilMateri, lanjut, level] = await Promise.all([
+  const [perJilid, hasilMateri, lanjut, level, drill] = await Promise.all([
     getMateriPerJilid(rows.map(r => r.current_jilid_id ?? '')),
     getHasilMateriPerSiswa(rows.map(r => r.id)),
     lanjutTerbuka(supabase, rows),
     getLevelPerSiswa(rows.map(r => r.id)),
+    halamanDrill(supabase, rows.map(r => ({ ...r, total_pages: r.jilid?.total_pages ?? null }))),
   ])
 
   return rows.map(s => ({
@@ -259,8 +314,10 @@ export async function getSiswaSesiTahsin(sasaran: SasaranSesi): Promise<SiswaSes
     jilid_id: s.current_jilid_id,
     jilid_label: s.jilid?.label ?? null,
     total_halaman: s.jilid?.total_pages ?? null,
-    halaman: s.current_jilid_page,
+    // Anak drill: halaman bawaan = jalan drillnya, bukan halaman terakhir jilid.
+    halaman: drill.get(s.id)?.halaman ?? s.current_jilid_page,
     drill_sejak: s.tahsin_drill_sejak,
+    drill_putaran: drill.get(s.id)?.putaran ?? null,
     baca_quran: Boolean(s.jilid?.baca_quran),
     quran: {
       halaman: s.current_quran_halaman,
@@ -269,7 +326,7 @@ export async function getSiswaSesiTahsin(sasaran: SasaranSesi): Promise<SiswaSes
     },
     materi: perJilid.get(s.current_jilid_id ?? '') ?? [],
     materi_hasil: Object.fromEntries(hasilMateri.get(s.id) ?? []),
-    lanjut: lanjut.get(s.id) ?? null,
+    lanjut: drill.has(s.id) ? drill.get(s.id)!.lanjut : lanjut.get(s.id) ?? null,
     level: level.get(s.id) ?? null,
   }))
 }

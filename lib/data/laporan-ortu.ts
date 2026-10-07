@@ -1,6 +1,8 @@
 import { idSetoranEkstra } from '@/lib/data/ekstra'
+import { getHasilMateriPerSiswa, getMateriPerJilid } from '@/lib/data/materi-tahsin'
 import { createServerClient } from '@/lib/supabase/server'
-import { getSesiPelaporGuru, idHalaqohSesi, type HalaqohSesi } from '@/lib/data/setoran-sesi'
+import { getSesiPelaporGuru, halamanDrill, idHalaqohSesi, type HalaqohSesi } from '@/lib/data/setoran-sesi'
+import { teksDrill } from '@/lib/rq/drill-tahsin'
 import { getPetaHalaman } from '@/lib/data/target-tahfidz'
 import { halamanHafalan } from '@/lib/rq/target-tahfidz'
 import { rekapMurojaah, suratMurojaah } from '@/lib/rq/murojaah'
@@ -67,14 +69,15 @@ export async function getLaporanOrtu(
   const supabase = createServerClient()
   const { data: siswaRows } = await supabase
     .from('students')
-    .select('id, full_name, kelas, jenjang, current_jilid_page, current_quran_halaman,' +
+    .select('id, full_name, kelas, jenjang, current_jilid_id, current_jilid_page, current_quran_halaman, tahsin_drill_sejak,' +
       ' jilid:jilid_levels!students_current_jilid_id_fkey(label, total_pages, is_terminal)')
     .in('halaqoh_id', idHalaqohSesi(halaqoh))
     .eq('is_active', true)
     .order('full_name')
   const siswa = (siswaRows ?? []) as unknown as {
     id: string; full_name: string; kelas: string | null; jenjang: Jenjang
-    current_jilid_page: number | null; current_quran_halaman: number | null
+    current_jilid_id: string | null; current_jilid_page: number | null; current_quran_halaman: number | null
+    tahsin_drill_sejak: string | null
     jilid: { label: string; total_pages: number | null; is_terminal: boolean } | null
   }[]
   const ids = siswa.map(s => s.id)
@@ -89,7 +92,7 @@ export async function getLaporanOrtu(
   type LogTahfidz = { id: string; student_id: string; setoran_date: string; kind: string; surat_id: number; ayat_dari: number | null; surat_ke_id: number | null; ayat_ke: number | null }
   type Ziyadah = { student_id: string; surat_id: number; ayat_dari: number | null; ayat_ke: number | null; setoran_date: string; created_at: string }
 
-  const [guruRes, tahsinSemua, tahfidzSemua, ziyadahSemua, progres, juzTeruji, ujianTf, ujianTs, peta, surat, logEkstra] = await Promise.all([
+  const [guruRes, tahsinSemua, tahfidzSemua, ziyadahSemua, progres, juzTeruji, ujianTf, ujianTs, peta, surat, logEkstra, materiPerJilid, hasilMateri, drill] = await Promise.all([
     supabase.from('teachers').select('full_name, sapaan, nickname, signature_path').eq('id', teacherId).maybeSingle(),
     ids.length ? ambilSemua<LogTahsin>((a, b) =>
       supabase.from('tahsin_logs').select('id, student_id, setoran_date, created_at, status, drill, halaman, baris_dari, baris_ke')
@@ -116,6 +119,11 @@ export async function getLaporanOrtu(
     getInfoSurat(),
     // Setoran pertemuan ekstra (0091) masuk laporan ekstra, bukan laporan halaqoh.
     idSetoranEkstra(ids, periode.dari, periode.sampai),
+    // Gharib/Tajwid disetor per materi — halaman lulusnya dibaca dari materi.
+    getMateriPerJilid(siswa.map(s => s.current_jilid_id ?? '')),
+    getHasilMateriPerSiswa(ids),
+    // Putaran drill dihitung dari SELURUH setoran drill sejak masuk drill, bukan periode saja.
+    halamanDrill(supabase, siswa.map(s => ({ ...s, total_pages: s.jilid?.total_pages ?? null }))),
   ])
   const tahsin = tahsinSemua.filter(l => !logEkstra.tahsin.has(l.id))
   const tahfidz = tahfidzSemua.filter(l => !logEkstra.tahfidz.has(l.id))
@@ -149,11 +157,36 @@ export async function getLaporanOrtu(
     const tf = tahfidz.filter(l => l.student_id === s.id)
     const hari = new Set([...ts.map(l => l.setoran_date), ...tf.map(l => l.setoran_date)])
 
-    // Tahsin: posisi terakhir. Halaman hanya untuk tahap berbuku — tahap tanpa
+    // Tahsin: HALAMAN TERAKHIR YANG LULUS, bukan halaman yang sedang dikerjakan
+    // — wali membaca "Jilid 3 hal. 14" sebagai capaian, jadi yang ditulis harus
+    // yang sudah tuntas. Halaman hanya untuk tahap berbuku — tahap tanpa
     // halaman (Al-Qur'an, Talaqqi, Lulus Tahsin) kerap menyimpan sisa tahap lama.
-    const halBuku = s.jilid?.total_pages && s.current_jilid_page ? s.current_jilid_page : null
+    const berbuku = Boolean(s.jilid?.total_pages && s.current_jilid_page)
+    const materi = materiPerJilid.get(s.current_jilid_id ?? '') ?? []
+    let teksBuku = ''
+    if (berbuku && s.tahsin_drill_sejak) {
+      // Drill: membaca ulang jilidnya dari hal. 1, berputar sampai lulus ujian.
+      // Yang ditulis putaran & rentang halaman drill periode ini, supaya wali
+      // tahu anak tidak diam di tempat: "Drill putaran 2 hal. 1–5".
+      const d = drill.get(s.id)
+      const diPeriode = (d?.logs ?? [])
+        .filter(l => l.halaman !== null && l.setoran_date >= periode.dari && l.setoran_date <= periode.sampai)
+        .map(l => ({ putaran: l.putaran, halaman: l.halaman! }))
+      teksBuku = ` · ${teksDrill(diPeriode, d?.putaran ?? 1)}`
+    } else if (berbuku && materi.length > 0) {
+      // Gharib/Tajwid: satu halaman memuat beberapa materi — halaman lulus =
+      // halaman materi terjauh yang sudah lulus.
+      const hasil = hasilMateri.get(s.id)
+      const lulus = materi.filter(m => hasil?.get(m.id) === 'lulus').map(m => m.halaman)
+      teksBuku = lulus.length > 0 ? ` hal. ${Math.max(...lulus)}` : ''
+    } else if (berbuku) {
+      // Lulus memajukan posisi ke halaman + 1; Ulang & Lanjut menahannya.
+      // Jadi halaman lulus terakhir selalu satu di belakang posisi.
+      const halLulus = s.current_jilid_page! - 1
+      teksBuku = halLulus >= 1 ? ` hal. ${halLulus}` : ''
+    }
     const posisiTahsin = s.jilid
-      ? `${s.jilid.label}${halBuku ? ` hal. ${halBuku}` : ''}${!s.jilid.is_terminal && s.current_quran_halaman ? ` · mushaf hal. ${s.current_quran_halaman}` : ''}`
+      ? `${s.jilid.label}${teksBuku}${!s.jilid.is_terminal && s.current_quran_halaman ? ` · mushaf hal. ${s.current_quran_halaman}` : ''}`
       : null
 
     // Tahfidz: hafalan baru dalam periode, tiap ayat dihitung sekali.
@@ -181,6 +214,7 @@ export async function getLaporanOrtu(
         posisi: posisiTahsin,
         setoran: ts.length,
         lulus: ts.filter(l => l.status === 'lulus' && !l.drill).length,
+        drillLulus: ts.filter(l => l.status === 'lulus' && l.drill).length,
         baris: barisLanjut(ts),
         selesai: Boolean(s.jilid?.is_terminal),
       },

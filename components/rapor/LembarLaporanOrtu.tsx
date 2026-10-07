@@ -77,7 +77,7 @@ export function LembarLaporanOrtu({ l }: { l: LaporanOrtu }) {
             </tbody>
           </table>
           <p className="mt-2 text-[10px] leading-snug text-muted-foreground">
-            <b>Posisi</b> = capaian terakhir per tanggal cetak. <b>(+…)</b> = tambahan selama periode ini.
+            <b>Posisi</b> = capaian terakhir per tanggal cetak (tahsin: halaman terakhir yang lulus). <b>(+…)</b> = tambahan selama periode ini.
             Setor = hari Ananda setor dari seluruh hari pertemuan sesi. Halaman tahfidz dalam halaman mushaf Madinah.
           </p>
 

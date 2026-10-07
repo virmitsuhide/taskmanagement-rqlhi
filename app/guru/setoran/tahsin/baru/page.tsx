@@ -6,7 +6,7 @@ import { createServerClient } from '@/lib/supabase/server'
 import { TahsinSetoranForm } from './TahsinSetoranForm'
 import type { SuratPilihan } from '@/components/setoran/SetoranSesiTahfidz'
 import { getMateriPerJilid, getHasilMateriPerSiswa } from '@/lib/data/materi-tahsin'
-import { getHalaqohSesiGuru, lanjutTerbuka, namaSesiPerHalaqoh } from '@/lib/data/setoran-sesi'
+import { getHalaqohSesiGuru, halamanDrill, lanjutTerbuka, namaSesiPerHalaqoh } from '@/lib/data/setoran-sesi'
 import { getHadirRiyadhoh, getPesertaKelompok, getSabtuPengampu } from '@/lib/data/riyadhoh'
 
 interface PageProps {
@@ -97,10 +97,12 @@ export default async function NewTahsinSetoranPage({ searchParams }: PageProps) 
     muncul beberapa saat setelah namanya dipilih — tepat ketika guru sudah
     mulai mengetik.
   */
-  const [materiPerJilid, hasilPerSiswa, lanjut] = await Promise.all([
+  const halamanJilid = new Map(((jilidRes.data ?? []) as { id: string; total_pages: number | null }[]).map(j => [j.id, j.total_pages]))
+  const [materiPerJilid, hasilPerSiswa, lanjut, drill] = await Promise.all([
     getMateriPerJilid(students.map(s => s.current_jilid_id ?? '')),
     getHasilMateriPerSiswa(students.map(s => s.id)),
     lanjutTerbuka(supabase, students),
+    halamanDrill(supabase, students.map(s => ({ ...s, total_pages: halamanJilid.get(s.current_jilid_id ?? '') ?? null }))),
   ])
 
   return (
@@ -138,7 +140,14 @@ export default async function NewTahsinSetoranPage({ searchParams }: PageProps) 
           </div>
         ) : (
           <TahsinSetoranForm
-            students={students.map(s => ({ ...s, lanjut: lanjut.get(s.id) ?? null }))}
+            students={students.map(s => {
+              // Anak drill: halaman bawaan formulir = jalan drillnya (mulai hal. 1),
+              // bukan halaman terakhir jilid. Posisi resminya dibaca ulang di server.
+              const d = drill.get(s.id)
+              return d
+                ? { ...s, current_jilid_page: d.halaman, lanjut: d.lanjut, drill_putaran: d.putaran }
+                : { ...s, lanjut: lanjut.get(s.id) ?? null, drill_putaran: null }
+            })}
             methods={methodsRes.data ?? []}
             jilidLevels={jilidRes.data ?? []}
             surat={(suratRes.data ?? []) as SuratPilihan[]}

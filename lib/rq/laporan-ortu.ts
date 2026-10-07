@@ -24,11 +24,16 @@ export interface AnakLaporan {
   /** Hari berbeda anak ini setor (tahsin atau tahfidz) dalam periode. */
   hariSetor: number
   tahsin: {
-    /** "Jilid 3 hal. 14", "Al-Qur'an T2 · mushaf hal. 45", "Lulus Tahsin". */
+    /**
+     * Halaman TERAKHIR YANG LULUS: "Jilid 3 hal. 14", "Jilid 6 · Drill hal. 1–5",
+     * "Al-Qur'an T2 · mushaf hal. 45", "Lulus Tahsin".
+     */
     posisi: string | null
     setoran: number
     /** Setoran lulus di luar drill — tiap satu memajukan satu halaman. */
     lulus: number
+    /** Halaman drill yang lulus dalam periode — latihan ulang, posisi tidak maju. */
+    drillLulus: number
     /**
      * Setoran terakhir periode ini berstatus Lanjut (halaman belum tuntas):
      * "hal. 7 baris 1–8". Tanpa ini setoran beberapa baris tidak terbaca
@@ -180,9 +185,10 @@ export function tambahHafalan(halaman: number, ayat: number): string {
 }
 
 /** Keterangan tahsin satu anak untuk wali: "+2 hal. · lanjut hal. 7 baris 1–8". */
-export function teksTahsinPeriode(t: { lulus: number; setoran: number; baris: string | null }): string | null {
+export function teksTahsinPeriode(t: { lulus: number; drillLulus?: number; setoran: number; baris: string | null }): string | null {
   const bagian = [
     t.lulus > 0 ? `+${t.lulus} hal.` : null,
+    t.drillLulus ? `${t.drillLulus} hal. drill lulus` : null,
     t.baris ? `lanjut ${t.baris}` : null,
   ].filter(Boolean)
   return bagian.length > 0 ? bagian.join(' · ') : null

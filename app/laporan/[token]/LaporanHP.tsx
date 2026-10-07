@@ -69,7 +69,7 @@ export function LaporanHP({ l }: { l: LaporanOrtu }) {
           <details className="rounded-2xl bg-muted/60 px-4 py-3 text-sm">
             <summary className="cursor-pointer font-bold">Cara membaca laporan</summary>
             <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-              <b>Posisi</b> = capaian terakhir per tanggal cetak. <b>(+…)</b> = tambahan selama periode ini.
+              <b>Posisi</b> = capaian terakhir per tanggal cetak (tahsin: halaman terakhir yang lulus). <b>(+…)</b> = tambahan selama periode ini.
               Setor = hari Ananda setor dari seluruh hari pertemuan sesi. Halaman tahfidz dalam halaman mushaf Madinah.
             </p>
           </details>

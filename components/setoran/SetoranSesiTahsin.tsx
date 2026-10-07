@@ -291,7 +291,9 @@ export function SetoranSesiTahsin({ siswa: siswaAsli, surat, halaqohId, pengatur
     const posisi = pakaiMateri
       ? `${wakil.jilid_label}`
       : buku
-      ? `${wakil.jilid_label} hal. ${halaman ?? '—'}`
+      // Kelompok yang seluruhnya drill membaca ulang dari hal. 1 — tanpa
+      // penanda ini "hal. 1" terbaca seperti posisi yang mundur.
+      ? `${wakil.jilid_label} hal. ${halaman ?? '—'}${anak.every(s => s.drill_sejak) ? ` (drill putaran ${Math.min(...anak.map(s => s.drill_putaran ?? 1))})` : ''}`
       : `${wakil.jilid_label}${wakil.quran.surat_id ? ` · ${namaSurat(surat, wakil.quran.surat_id)}:${wakil.quran.ayat ?? ''}` : ''}`
     const nama = kunci ? namaKelompok.get(kunci) : undefined
     return nama ? `${nama} · ${posisi}` : posisi
@@ -705,7 +707,7 @@ export function SetoranSesiTahsin({ siswa: siswaAsli, surat, halaqohId, pengatur
                     {s.full_name}
                     <LencanaLevel level={s.level} />
                     {s.drill_sejak && (
-                      <span className="rounded-full bg-warning-wash px-1.5 py-px text-[10px] font-semibold text-warning">DRILL</span>
+                      <span className="rounded-full bg-warning-wash px-1.5 py-px text-[10px] font-semibold text-warning">DRILL{s.drill_putaran ? ` · PUTARAN ${s.drill_putaran}` : ''}</span>
                     )}
                   </span>
                   <span className="block text-xs text-muted-foreground">
@@ -741,7 +743,7 @@ export function SetoranSesiTahsin({ siswa: siswaAsli, surat, halaqohId, pengatur
                     */}
                     {s.total_halaman !== null && s.materi.length === 0 && (
                       <Stepper
-                        label={`Hal. ${s.jilid_label}${s.drill_sejak ? ' (drill)' : ''}`}
+                        label={`Hal. ${s.jilid_label}${s.drill_sejak ? ` (drill putaran ${s.drill_putaran ?? 1})` : ''}`}
                         value={v.halaman}
                         onChange={h => ubah(s.id, { halaman: h })}
                         bawaan={s.halaman}

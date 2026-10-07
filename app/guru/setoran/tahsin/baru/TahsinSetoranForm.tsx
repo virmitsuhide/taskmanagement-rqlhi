@@ -33,6 +33,8 @@ interface StudentOption {
   current_jilid_page: number | null
   /** Tanggal masuk drill; null = tidak sedang drill. */
   tahsin_drill_sejak: string | null
+  /** Putaran drill yang sedang berjalan (mulai 1); null = tidak sedang drill. */
+  drill_putaran: number | null
   /** Posisi bacaan mushaf — progres kedua, berjalan di samping posisi buku. */
   quran: { halaman: number | null; surat_id: number | null; ayat: number | null }
   /** Halaman sekarang belum tuntas — setoran terakhir berstatus Lanjut (0109). */
@@ -334,11 +336,12 @@ export function TahsinSetoranForm({
 
         {sedangDrill && (
           <div className="rounded-lg border px-3 py-2 text-xs" style={{ background: 'var(--warning-wash)', borderColor: 'var(--warning)', color: 'var(--warning)' }}>
-            <p className="font-semibold">Sedang DRILL {jilidAktif?.label ?? ''}</p>
+            <p className="font-semibold">Sedang DRILL {jilidAktif?.label ?? ''} · putaran {selectedStudent?.drill_putaran ?? 1}</p>
             <p className="mt-0.5">
               Sudah lulus halaman terakhir{selectedStudent?.tahsin_drill_sejak ? ` sejak ${selectedStudent.tahsin_drill_sejak}` : ''}.
-              Setoran ini dicatat sebagai latihan drill — halaman boleh mana saja di jilid ini, dan posisi
-              tidak bergerak. Jilid berikutnya terbuka setelah anak lulus ujian tahsin.
+              Drill membaca ulang jilid ini dari hal. 1 — halaman terisi otomatis mengikuti setoran drill
+              terakhir. Lulus halaman terakhir menutup satu putaran, lalu mulai lagi dari hal. 1.
+              Jilid berikutnya terbuka setelah anak lulus ujian tahsin.
             </p>
           </div>
         )}
