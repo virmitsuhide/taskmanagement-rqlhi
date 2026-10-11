@@ -89,8 +89,9 @@ export const SKRIP_SUASANA = `(function(){try{var m=document.cookie.match(/(?:^|
 /**
  * Terapkan seketika di peramban (dipakai halaman Tampilan): pasang atribut di
  * <html> dan tulis cookie, supaya halaman berikutnya sudah benar sejak awal.
+ * `cookie: false` = pratinjau saja: halaman berikutnya kembali ke yang tersimpan.
  */
-export function terapkanPrefDiPeramban(p: PrefTampilan) {
+export function terapkanPrefDiPeramban(p: PrefTampilan, { cookie = true }: { cookie?: boolean } = {}) {
   if (typeof document === 'undefined') return
   const d = document.documentElement
   if (p.terang === 'teduh') d.removeAttribute('data-suasana-terang')
@@ -99,6 +100,7 @@ export function terapkanPrefDiPeramban(p: PrefTampilan) {
   else d.removeAttribute('data-suasana-gelap')
   if (p.ukuran === 'biasa') d.removeAttribute('data-ukuran')
   else d.setAttribute('data-ukuran', p.ukuran)
+  if (!cookie) return
   const aman = typeof location !== 'undefined' && location.protocol === 'https:' ? '; secure' : ''
   document.cookie = `${COOKIE_SUASANA}=${encodeURIComponent(tulisCookieSuasana(p))}; path=/; max-age=${UMUR_COOKIE_SUASANA}; samesite=lax${aman}`
 }

@@ -6,6 +6,7 @@ import { useTheme } from 'next-themes'
 import { toast } from 'sonner'
 import { Check, ChevronLeft } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { Button } from '@/components/ui/button'
 import { simpanSuasanaAction, type PortalTampilan } from '@/app/actions/tampilan'
 import {
   KUNCI_PAKSA_TERANG, LABEL_UKURAN, SUASANA, SUASANA_GELAP, SUASANA_TERANG, UKURAN_TEKS,
@@ -18,9 +19,9 @@ import {
  *
  * Dipakai bersama oleh tiga portal (pengurus, guru, karyawan); halaman rute
  * masing-masing hanya menjaga sesi dan membaca pilihan tersimpan. Memilih
- * langsung berlaku (atribut <html> + cookie), lalu disimpan ke akun di
- * belakang layar — gagal menyimpan cukup diberi tahu, tampilannya tidak
- * dikembalikan.
+ * hanya mempratinjau (atribut <html>, tanpa cookie); baru tombol Simpan yang
+ * memasang cookie & menyimpan ke akun. Batalkan — atau meninggalkan halaman
+ * tanpa menyimpan — mengembalikan pilihan tersimpan.
  */
 export function PilihSuasana({
   portal,
@@ -33,9 +34,11 @@ export function PilihSuasana({
   kembaliHref: string
   kembaliLabel?: string
 }) {
+  const [tersimpan, setTersimpan] = React.useState<PrefTampilan>(awal)
   const [pref, setPref] = React.useState<PrefTampilan>(awal)
+  const [menyimpan, startSimpan] = React.useTransition()
   const { theme, resolvedTheme, setTheme } = useTheme()
-  const sudahDiberitahu = React.useRef(false)
+  const berubah = !samaPref(pref, tersimpan)
 
   // Pilihan yang tersimpan di akun (mungkin diubah dari perangkat lain) ikut
   // dipasang di perangkat ini begitu halaman dibuka.
@@ -43,23 +46,40 @@ export function PilihSuasana({
     terapkanPrefDiPeramban(awal)
   }, [awal])
 
+  // Keluar halaman tanpa menyimpan: pratinjau dikembalikan ke yang tersimpan.
+  const tersimpanRef = React.useRef(tersimpan)
+  React.useEffect(() => {
+    tersimpanRef.current = tersimpan
+  }, [tersimpan])
+  React.useEffect(() => () => terapkanPrefDiPeramban(tersimpanRef.current, { cookie: false }), [])
+
   function ubah(perubahan: Partial<PrefTampilan>) {
     const baru: PrefTampilan = { ...pref, ...perubahan }
-    if (baru.terang === pref.terang && baru.gelap === pref.gelap && baru.ukuran === pref.ukuran) return
+    if (samaPref(baru, pref)) return
     setPref(baru)
-    terapkanPrefDiPeramban(baru)
+    terapkanPrefDiPeramban(baru, { cookie: false })
+  }
 
-    if (perubahan.gelap && perubahan.gelap !== pref.gelap) aturMode(perubahan.gelap)
+  function batalkan() {
+    setPref(tersimpan)
+    terapkanPrefDiPeramban(tersimpan, { cookie: false })
+  }
 
-    void simpanSuasanaAction({ ...baru, portal })
-      .then(hasil => {
+  function simpan() {
+    const baru = pref
+    startSimpan(async () => {
+      terapkanPrefDiPeramban(baru)
+      if (baru.gelap !== tersimpan.gelap) aturMode(baru.gelap)
+      setTersimpan(baru)
+      try {
+        const hasil = await simpanSuasanaAction({ ...baru, portal })
         if (!hasil.ok) toast.error(hasil.error)
-        else if (!hasil.akun && !sudahDiberitahu.current) {
-          sudahDiberitahu.current = true
-          toast.info('Tersimpan di perangkat ini. Agar ikut ke perangkat lain, minta admin menjalankan pembaruan basis data (0116).')
-        }
-      })
-      .catch(() => toast.error('Tampilan sudah dipakai di perangkat ini, tapi gagal disimpan ke akun.'))
+        else if (!hasil.akun) toast.info('Tersimpan di perangkat ini saja — pembaruan basis data (0116) belum dijalankan.')
+        else toast.success('Tampilan disimpan untuk akun Anda.')
+      } catch {
+        toast.error('Tampilan sudah dipakai di perangkat ini, tapi gagal disimpan ke akun.')
+      }
+    })
   }
 
   /** "Tetap terang" memaku mode ke terang; kembali ke suasana gelap melepasnya. */
@@ -204,8 +224,30 @@ export function PilihSuasana({
           <p className="mt-4 text-sm text-muted-foreground">Disimpan untuk akun Anda — ikut ke ponsel dan laptop.</p>
         </fieldset>
       </div>
+
+      <div className="sticky bottom-4 z-10 mt-8 flex flex-wrap items-center justify-between gap-3 rounded-2xl border bg-card/95 p-3 shadow-lg backdrop-blur md:p-4">
+        <p className="min-w-0 text-sm" aria-live="polite">
+          {berubah ? (
+            <span className="font-semibold">Pratinjau — belum disimpan</span>
+          ) : (
+            <span className="text-muted-foreground">Tampilan ini sudah tersimpan di akun Anda.</span>
+          )}
+        </p>
+        <div className="flex gap-2">
+          <Button type="button" variant="outline" onClick={batalkan} disabled={!berubah || menyimpan} className="min-h-11 md:min-h-9">
+            Batalkan
+          </Button>
+          <Button type="button" onClick={simpan} disabled={!berubah || menyimpan} className="min-h-11 md:min-h-9">
+            {menyimpan ? 'Menyimpan…' : 'Simpan tampilan'}
+          </Button>
+        </div>
+      </div>
     </div>
   )
+}
+
+function samaPref(a: PrefTampilan, b: PrefTampilan) {
+  return a.terang === b.terang && a.gelap === b.gelap && a.ukuran === b.ukuran
 }
 
 function TitikRadio({ aktif }: { aktif: boolean }) {
