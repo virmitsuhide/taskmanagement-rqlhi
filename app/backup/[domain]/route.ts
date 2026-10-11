@@ -1,5 +1,5 @@
 import { getSession } from '@/lib/auth/session'
-import { bolehBackup, DOMAIN_BACKUP, KOLOM_RAHASIA } from '@/lib/backup/domain'
+import { bolehBackup, DOMAIN_BACKUP, KOLOM_RAHASIA, TABEL_PULIH } from '@/lib/backup/domain'
 import { tanggalWIB } from '@/lib/rq/ujian'
 
 /**
@@ -49,7 +49,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ domain:
   }
 
   const info = DOMAIN_BACKUP[domain]
-  const daftar = (info.tabel ?? Object.keys(definisi).sort()).filter(t => definisi[t])
+  const daftar = (info.tabel ?? Object.keys(definisi).sort()).filter(t => definisi[t] && !TABEL_PULIH.includes(t))
   const headers = { apikey: kunci, Authorization: `Bearer ${kunci}`, Accept: 'application/json' }
   const enc = new TextEncoder()
   const dibuat = new Date().toISOString()

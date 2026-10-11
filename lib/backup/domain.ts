@@ -93,6 +93,18 @@ export function bolehBackup(role: UserRole, domain: string): domain is DomainBac
 }
 
 /**
+ * Memulihkan menimpa data semua bidang sekaligus, jadi wewenangnya satu
+ * orang saja — bukan Admin (pengelola akun, bukan pengurus) dan bukan
+ * pemilik satu bidang.
+ */
+export function bolehPulihkan(role: UserRole): boolean {
+  return role === 'kepala_rq'
+}
+
+/** Tabel kerja fitur pemulihan sendiri — tidak ikut backup (lihat drizzle/0114). */
+export const TABEL_PULIH = ['pulih_staging']
+
+/**
  * Kolom yang TIDAK pernah ikut ke berkas backup. Berkasnya diunduh ke laptop
  * dan bisa berpindah tangan; hash kata sandi di dalamnya membuka jalan
  * menebak sandi tanpa batas percobaan.

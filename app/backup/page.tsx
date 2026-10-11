@@ -1,8 +1,9 @@
 import { redirect } from 'next/navigation'
-import { DatabaseBackup, Download, ShieldCheck } from 'lucide-react'
+import Link from 'next/link'
+import { DatabaseBackup, Download, RotateCcw, ShieldCheck } from 'lucide-react'
 import { getSession } from '@/lib/auth/session'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
-import { DOMAIN_BACKUP, domainBackupUntuk } from '@/lib/backup/domain'
+import { bolehPulihkan, DOMAIN_BACKUP, domainBackupUntuk } from '@/lib/backup/domain'
 
 /**
  * Backup basis data per bidang. Tiap bidang satu berkas .json.gz yang
@@ -65,6 +66,23 @@ export default async function BackupPage() {
             )
           })}
         </ul>
+
+        {bolehPulihkan(session.role) && (
+          <Link
+            href="/backup/pulihkan"
+            className="flex items-center gap-3 rounded-2xl border border-destructive/30 bg-card p-4 transition-colors hover:bg-destructive/5"
+          >
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-destructive/10 text-destructive">
+              <RotateCcw className="h-4 w-4" />
+            </span>
+            <span className="min-w-0">
+              <span className="block font-heading text-lg font-medium leading-tight">Pulihkan dari backup</span>
+              <span className="block text-xs text-muted-foreground">
+                Kembalikan data ke isi berkas backup. Khusus Kepala RQ, selalu disimulasikan dulu.
+              </span>
+            </span>
+          </Link>
+        )}
 
         <div className="flex items-start gap-2 rounded-xl border bg-muted/40 px-4 py-3 text-xs text-muted-foreground">
           <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-success" />
