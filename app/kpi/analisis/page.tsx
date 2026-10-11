@@ -14,7 +14,7 @@ import { cn } from '@/lib/utils'
 import type { Jenjang } from '@/types'
 
 /**
- * Analisis KPI Guru — bacaan, bukan isian.
+ * Analitik KPI Guru — bacaan, bukan isian.
  *
  * Halaman "Buat KPI" (/kpi) adalah tempat SDM mengisi dan mengelola rapor.
  * Halaman ini membaca data yang sama (getKpiRows + nilaiDari, tanpa kueri
@@ -115,11 +115,11 @@ export default async function AnalisisKpiPage({ searchParams }: PageProps) {
 
   return (
     <div>
-      <DashboardHeader displayName={session.displayName} role={session.role} title="Analisis KPI Guru" showBack ownH1 />
+      <DashboardHeader displayName={session.displayName} role={session.role} title="Analitik KPI Guru" showBack ownH1 />
       <div className="mx-auto max-w-7xl space-y-7 p-4 md:p-8">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div className="max-w-3xl">
-            <p className="text-xs font-bold uppercase tracking-[0.1em] text-warning">Analisis KPI guru · {periode}</p>
+            <p className="text-xs font-bold uppercase tracking-[0.1em] text-warning">Analitik KPI guru · {periode}</p>
             <h1 className="mt-2 text-3xl leading-tight md:text-4xl">
               Siapa yang perlu didampingi, dan rapor mana yang siap diterbitkan?
             </h1>

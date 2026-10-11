@@ -138,16 +138,7 @@ export function Sidebar({ role, displayName, username, lencanaKpi, ciutAwal = fa
                 </Link>
               </li>
             ))}
-            {/* Tepat di bawah dashboard jabatannya: analitik milik Koor Ekstra. */}
-            {canViewRiyadhohAnalitik(role) && (
-              <NavItem href="/riyadhoh/analitik" icon={<BarChart3 className="h-4 w-4" />} label="Analitik Riyadhoh" active={isActive('/riyadhoh/analitik')} />
-            )}
-            {canViewTahsinRekomendasiAnalitik(role) && (
-              <NavItem href="/tahsin-rekomendasi/analitik" icon={<BarChart3 className="h-4 w-4" />} label="Analitik Tahsin Rekomendasi" active={isActive('/tahsin-rekomendasi/analitik')} />
-            )}
-            {canManageEkstra(role) && (
-              <NavItem href="/ekstra/analitik" icon={<BarChart3 className="h-4 w-4" />} label="Analitik Ekstra" active={isActive('/ekstra/analitik')} />
-            )}
+            {/* Menu analitik diurutkan menurut abjad. */}
             {canViewUnitAnalytics(role) && (
               <NavItem
                 href="/dashboard/analitik"
@@ -156,7 +147,9 @@ export function Sidebar({ role, displayName, username, lencanaKpi, ciutAwal = fa
                 active={isActive('/dashboard/analitik') && !pathname.startsWith('/dashboard/analitik/gukar')}
               />
             )}
-            {/* Menempel di bawah Analitik RQ: sama-sama angka pemantauan. */}
+            {canManageEkstra(role) && (
+              <NavItem href="/ekstra/analitik" icon={<BarChart3 className="h-4 w-4" />} label="Analitik Ekstra" active={isActive('/ekstra/analitik')} />
+            )}
             {canViewGukarRecap(role) && (
               <NavItem
                 href="/dashboard/analitik/gukar"
@@ -164,6 +157,20 @@ export function Sidebar({ role, displayName, username, lencanaKpi, ciutAwal = fa
                 label="Analitik Gukar"
                 active={isActive('/dashboard/analitik/gukar')}
               />
+            )}
+            {canViewKpi(role) && (
+              <NavItem
+                href="/kpi/analisis"
+                icon={<BarChart3 className="h-4 w-4" />}
+                label="Analitik KPI Guru"
+                active={pathname.startsWith('/kpi/analisis')}
+              />
+            )}
+            {canViewRiyadhohAnalitik(role) && (
+              <NavItem href="/riyadhoh/analitik" icon={<BarChart3 className="h-4 w-4" />} label="Analitik Riyadhoh" active={isActive('/riyadhoh/analitik')} />
+            )}
+            {canViewTahsinRekomendasiAnalitik(role) && (
+              <NavItem href="/tahsin-rekomendasi/analitik" icon={<BarChart3 className="h-4 w-4" />} label="Analitik TR" active={isActive('/tahsin-rekomendasi/analitik')} />
             )}
             {/* Ringkasan resmi dari angka yang sama, untuk BPH tiap bulan. */}
             {canViewLaporanKurikulum(role) && (
@@ -181,17 +188,6 @@ export function Sidebar({ role, displayName, username, lencanaKpi, ciutAwal = fa
                 icon={<Crosshair className="h-4 w-4" />}
                 label="Target Bulanan"
                 active={isActive('/target-bulanan')}
-              />
-            )}
-            {/* Ditaruh menempel di bawah Analitik RQ: KPI adalah penilaian
-                kinerja, sekelompok dengan angka-angka pemantauan — bukan dengan
-                menu Tahsin & Tahfidz yang isinya pekerjaan harian. */}
-            {canViewKpi(role) && (
-              <NavItem
-                href="/kpi/analisis"
-                icon={<BarChart3 className="h-4 w-4" />}
-                label="Analisis KPI Guru"
-                active={pathname.startsWith('/kpi/analisis')}
               />
             )}
             {canViewKpi(role) && (

@@ -58,7 +58,7 @@ export default async function AnalitikTRPage({ searchParams }: { searchParams: P
 
   return (
     <div>
-      <DashboardHeader role={session.role} displayName={session.displayName} title="Analitik Tahsin Rekomendasi" showBack ownH1 />
+      <DashboardHeader role={session.role} displayName={session.displayName} title="Analitik TR" showBack ownH1 />
       <div className="mx-auto max-w-7xl space-y-6 p-4 md:p-8">
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-accent-warm">Tahsin Rekomendasi SDIT · analitik</p>

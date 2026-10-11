@@ -197,15 +197,9 @@ export function MobileNav({ role, displayName, username, lencanaKpi }: Props) {
               {dashboards.map(slug => (
                 <DrawerLink key={slug} href={`/dashboard/${slug}`} icon={DASHBOARD_ICONS[slug]} label={DASHBOARD_LABELS[slug]} active={isActive(`/dashboard/${slug}`)} onNavigate={close} />
               ))}
-              {canViewRiyadhohAnalitik(role) && (
-                <DrawerLink href="/riyadhoh/analitik" icon={<BarChart3 className="h-4 w-4" />} label="Analitik Riyadhoh" active={isActive('/riyadhoh/analitik')} onNavigate={close} />
-              )}
-              {canViewTahsinRekomendasiAnalitik(role) && (
-                <DrawerLink href="/tahsin-rekomendasi/analitik" icon={<BarChart3 className="h-4 w-4" />} label="Analitik Tahsin Rekomendasi" active={isActive('/tahsin-rekomendasi/analitik')} onNavigate={close} />
-              )}
-              {canManageEkstra(role) && (
-                <DrawerLink href="/ekstra/analitik" icon={<BarChart3 className="h-4 w-4" />} label="Analitik Ekstra" active={isActive('/ekstra/analitik')} onNavigate={close} />
-              )}
+              {/* Urutannya disamakan dengan sidebar (analitik menurut abjad) — menu
+                  yang sama berpindah tempat antara layar lebar dan HP membuat orang
+                  harus mencari ulang tiap ganti perangkat. */}
               {canViewUnitAnalytics(role) && (
                 <DrawerLink
                   href="/dashboard/analitik"
@@ -214,11 +208,23 @@ export function MobileNav({ role, displayName, username, lencanaKpi }: Props) {
                   active={isActive('/dashboard/analitik') && !pathname.startsWith('/dashboard/analitik/gukar')}
                   onNavigate={close}
                 />
-              )}
-              {canViewGukarRecap(role) && (
+              )}              {canManageEkstra(role) && (
+                <DrawerLink href="/ekstra/analitik" icon={<BarChart3 className="h-4 w-4" />} label="Analitik Ekstra" active={isActive('/ekstra/analitik')} onNavigate={close} />
+              )}              {canViewGukarRecap(role) && (
                 <DrawerLink href="/dashboard/analitik/gukar" icon={<BarChart3 className="h-4 w-4" />} label="Analitik Gukar" active={isActive('/dashboard/analitik/gukar')} onNavigate={close} />
-              )}
-              {canViewLaporanKurikulum(role) && (
+              )}              {canViewKpi(role) && (
+                <DrawerLink
+                  href="/kpi/analisis"
+                  icon={<BarChart3 className="h-4 w-4" />}
+                  label="Analitik KPI Guru"
+                  active={pathname.startsWith('/kpi/analisis')}
+                  onNavigate={close}
+                />
+              )}              {canViewRiyadhohAnalitik(role) && (
+                <DrawerLink href="/riyadhoh/analitik" icon={<BarChart3 className="h-4 w-4" />} label="Analitik Riyadhoh" active={isActive('/riyadhoh/analitik')} onNavigate={close} />
+              )}              {canViewTahsinRekomendasiAnalitik(role) && (
+                <DrawerLink href="/tahsin-rekomendasi/analitik" icon={<BarChart3 className="h-4 w-4" />} label="Analitik TR" active={isActive('/tahsin-rekomendasi/analitik')} onNavigate={close} />
+              )}              {canViewLaporanKurikulum(role) && (
                 <DrawerLink
                   href="/laporan-kurikulum"
                   icon={<FileText className="h-4 w-4" />}
@@ -226,8 +232,7 @@ export function MobileNav({ role, displayName, username, lencanaKpi }: Props) {
                   active={isActive('/laporan-kurikulum')}
                   onNavigate={close}
                 />
-              )}
-              {canViewTargetBulanan(role) && (
+              )}              {canViewTargetBulanan(role) && (
                 <DrawerLink
                   href="/target-bulanan"
                   icon={<Crosshair className="h-4 w-4" />}
@@ -235,20 +240,7 @@ export function MobileNav({ role, displayName, username, lencanaKpi }: Props) {
                   active={isActive('/target-bulanan')}
                   onNavigate={close}
                 />
-              )}
-              {/* Urutannya disamakan dengan sidebar — menu yang sama berpindah
-                  tempat antara layar lebar dan HP membuat orang harus mencari
-                  ulang tiap ganti perangkat. */}
-              {canViewKpi(role) && (
-                <DrawerLink
-                  href="/kpi/analisis"
-                  icon={<BarChart3 className="h-4 w-4" />}
-                  label="Analisis KPI Guru"
-                  active={pathname.startsWith('/kpi/analisis')}
-                  onNavigate={close}
-                />
-              )}
-              {canViewKpi(role) && (
+              )}              {canViewKpi(role) && (
                 <DrawerLink
                   href="/kpi"
                   icon={<ClipboardCheck className="h-4 w-4" />}
