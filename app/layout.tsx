@@ -5,6 +5,7 @@ import './globals.css'
 import { ThemeProvider } from '@/components/theme-provider'
 import { ConfirmProvider } from '@/components/ui/confirm-dialog'
 import { cn } from '@/lib/utils'
+import { SKRIP_SUASANA } from '@/lib/tampilan/suasana'
 
 // Huruf "Teduh": Plus Jakarta Sans untuk teks & data, Newsreader untuk judul
 // (dipakai lewat token --font-heading / kelas font-heading).
@@ -32,6 +33,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       suppressHydrationWarning
       className={cn('antialiased', fontMono.variable, 'font-sans', fontSans.variable, fontDisplay.variable)}
     >
+      <head>
+        {/* Suasana pilihan akun (halaman Tampilan) dipasang dari cookie
+            sebelum lukisan pertama — tanpa kedip warna Teduh lebih dulu. */}
+        <script dangerouslySetInnerHTML={{ __html: SKRIP_SUASANA }} />
+      </head>
       <body>
         <ThemeProvider>
           <ConfirmProvider>{children}</ConfirmProvider>

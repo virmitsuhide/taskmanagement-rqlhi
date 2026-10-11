@@ -51,6 +51,11 @@ export function TombolUnduhPng({ namaBerkas }: { namaBerkas: string }) {
     const warnaAsli = lembar.style.color
     lembar.classList.add('theme-light')
     lembar.style.color = 'var(--foreground)'
+    // Ukuran teks pilihan akun (halaman Tampilan) mengubah ukuran huruf akar;
+    // gambar untuk wali selalu memakai ukuran biasa.
+    const html = document.documentElement
+    const ukuranAsli = html.getAttribute('data-ukuran')
+    html.removeAttribute('data-ukuran')
     try {
       const { toPng } = await import('html-to-image')
       const dataUrl = await toPng(lembar, { pixelRatio: 2, backgroundColor: '#ffffff', cacheBust: true })
@@ -63,6 +68,7 @@ export function TombolUnduhPng({ namaBerkas }: { namaBerkas: string }) {
     } finally {
       lembar.classList.remove('theme-light')
       lembar.style.color = warnaAsli
+      if (ukuranAsli) html.setAttribute('data-ukuran', ukuranAsli)
       setProses(false)
     }
   }

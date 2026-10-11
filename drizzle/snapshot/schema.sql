@@ -164,6 +164,240 @@ AS $function$
   LEFT JOIN news_article_views_daily v ON v.day > t.d - 60;
 $function$;
 
+CREATE OR REPLACE FUNCTION public.pulihkan_backup(p_sesi uuid, p_terapkan boolean)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
+ SET statement_timeout TO '280s'
+AS $function$
+declare
+  v_berkas   text[];
+  v_tabel    text[];
+  v_lewati   text[];
+  v_urut     text[] := '{}';
+  v_sisa     text[];
+  v_siap     text[];
+  v_luar     text[];
+  v_luar_awal jsonb := '{}';
+  v_hasil    jsonb := '{}';
+  v_luar_hasil jsonb := '{}';
+  v_sedang   text;
+  t          text;
+  v_tmp      text;
+  v_reg      regclass;
+  v_pk       text[];
+  v_kolom    text[];
+  v_isi      text[];
+  v_isi_nilai text[];
+  v_ubah     text[];
+  v_cocok    text;
+  v_sql      text;
+  v_baru     bigint;
+  v_berubah  bigint;
+  v_hapus    bigint;
+  v_jumlah   bigint;
+  v_n        bigint;
+  r          record;
+  i          integer;
+begin
+  select array_agg(distinct tabel order by tabel) into v_berkas
+  from pulih_staging where sesi = p_sesi;
+  if v_berkas is null then
+    return jsonb_build_object('ok', false, 'galat', 'Berkas belum terunggah atau sesi sudah kedaluwarsa.');
+  end if;
+
+  -- Hanya tabel biasa yang memang ada di skema public. Tabel milik fitur
+  -- ini sendiri tidak pernah dipulihkan (riwayat pemulihan tidak boleh
+  -- ikut mundur).
+  select array_agg(c.relname::text order by c.relname) into v_tabel
+  from pg_class c
+  where c.relnamespace = 'public'::regnamespace and c.relkind in ('r', 'p')
+    and c.relname = any (v_berkas)
+    and c.relname not in ('pulih_staging', 'pulih_riwayat');
+  v_tabel := coalesce(v_tabel, '{}');
+  select coalesce(array_agg(x order by x), '{}') into v_lewati
+  from unnest(v_berkas) x where x <> all (v_tabel);
+
+  -- Urutan induk → anak dari kunci asing antar-tabel di berkas.
+  v_sisa := v_tabel;
+  while cardinality(v_sisa) > 0 loop
+    select coalesce(array_agg(s order by s), '{}') into v_siap
+    from unnest(v_sisa) s
+    where not exists (
+      select 1 from pg_constraint k
+      join pg_class anak  on anak.oid  = k.conrelid
+      join pg_class induk on induk.oid = k.confrelid
+      where k.contype = 'f' and anak.relname = s
+        and anak.relnamespace = 'public'::regnamespace
+        and induk.relnamespace = 'public'::regnamespace
+        and induk.relname <> s
+        and induk.relname = any (v_sisa)
+    );
+    -- Siklus kunci asing: sisanya diurut abjad. Bila urutannya keliru,
+    -- galatnya muncul di simulasi dan tidak ada yang berubah.
+    if cardinality(v_siap) = 0 then v_siap := v_sisa; end if;
+    v_urut := v_urut || v_siap;
+    select coalesce(array_agg(s), '{}') into v_sisa from unnest(v_sisa) s where s <> all (v_siap);
+  end loop;
+
+  -- Tabel di luar berkas yang menunjuk tabel di berkas — bisa ikut berubah.
+  select coalesce(array_agg(distinct anak.relname::text order by anak.relname::text), '{}') into v_luar
+  from pg_constraint k
+  join pg_class anak  on anak.oid  = k.conrelid
+  join pg_class induk on induk.oid = k.confrelid
+  where k.contype = 'f'
+    and anak.relnamespace = 'public'::regnamespace
+    and induk.relnamespace = 'public'::regnamespace
+    and induk.relname = any (v_tabel)
+    and anak.relname <> all (v_tabel)
+    and anak.relname not in ('pulih_staging', 'pulih_riwayat');
+  foreach t in array v_luar loop
+    execute format('select count(*) from public.%I', t) into v_n;
+    v_luar_awal := v_luar_awal || jsonb_build_object(t, v_n);
+  end loop;
+
+  begin
+    -- 1. Isi berkas → tabel sementara bertipe sama dengan tabel aslinya.
+    for i in 1 .. cardinality(v_urut) loop
+      t := v_urut[i];
+      v_sedang := t;
+      execute format(
+        'create temp table %I on commit drop as
+           select * from jsonb_populate_recordset(null::public.%I,
+             (select coalesce(jsonb_agg(e), ''[]''::jsonb)
+                from pulih_staging s, jsonb_array_elements(s.baris) e
+               where s.sesi = $1 and s.tabel = $2))',
+        '_pulih_' || i, t) using p_sesi, t;
+    end loop;
+
+    -- 2. Hapus baris yang tidak ada di berkas — anak dulu.
+    for i in reverse cardinality(v_urut) .. 1 loop
+      t := v_urut[i];
+      v_sedang := t;
+      v_tmp := '_pulih_' || i;
+      v_reg := format('public.%I', t)::regclass;
+      select array_agg(a.attname::text order by array_position(x.indkey::int2[], a.attnum)) into v_pk
+      from pg_index x join pg_attribute a on a.attrelid = x.indrelid and a.attnum = any (x.indkey::int2[])
+      where x.indrelid = v_reg and x.indisprimary;
+
+      if v_pk is null then
+        execute format('delete from public.%I', t);
+      else
+        select string_agg(format('b.%1$I = x.%1$I', c), ' and ') into v_cocok from unnest(v_pk) c;
+        execute format('delete from public.%I x where not exists (select 1 from %I b where %s)', t, v_tmp, v_cocok);
+      end if;
+      get diagnostics v_hapus = row_count;
+      v_hasil := v_hasil || jsonb_build_object(t, jsonb_build_object('dihapus', v_hapus));
+    end loop;
+
+    -- 3. Upsert isi berkas — induk dulu.
+    for i in 1 .. cardinality(v_urut) loop
+      t := v_urut[i];
+      v_sedang := t;
+      v_tmp := '_pulih_' || i;
+      v_reg := format('public.%I', t)::regclass;
+      select array_agg(a.attname::text order by array_position(x.indkey::int2[], a.attnum)) into v_pk
+      from pg_index x join pg_attribute a on a.attrelid = x.indrelid and a.attnum = any (x.indkey::int2[])
+      where x.indrelid = v_reg and x.indisprimary;
+
+      -- Kolom yang tertulis di berkas (semua baris satu tabel berkunci sama).
+      select array_agg(k) into v_kolom
+      from jsonb_object_keys((
+        select s.baris -> 0 from pulih_staging s
+        where s.sesi = p_sesi and s.tabel = t and jsonb_array_length(s.baris) > 0
+        order by s.bagian limit 1)) k;
+
+      execute format('select count(*) from %I', v_tmp) into v_jumlah;
+      v_baru := 0; v_berubah := 0;
+
+      if v_jumlah > 0 and v_kolom is not null then
+        v_isi := '{}'; v_isi_nilai := '{}'; v_ubah := '{}';
+        for r in
+          select a.attname::text as nama, a.attnotnull as wajib, a.atthasdef as ada_bawaan
+          from pg_attribute a
+          where a.attrelid = v_reg and a.attnum > 0 and not a.attisdropped and a.attgenerated = ''
+          order by a.attnum
+        loop
+          if r.nama = any (v_kolom) then
+            v_isi := v_isi || r.nama;
+            v_isi_nilai := v_isi_nilai || format('%I', r.nama);
+            if v_pk is null or r.nama <> all (v_pk) then v_ubah := v_ubah || r.nama; end if;
+          elsif r.nama ~* '^(password_hash|.*_secret|.*_token)$' and r.wajib and not r.ada_bawaan then
+            -- Kolom rahasia tidak ikut backup; baris yang kembali muncul
+            -- mendapat nilai tak terpakai. Tidak masuk SET, jadi baris yang
+            -- masih ada tetap memakai sandinya sekarang.
+            v_isi := v_isi || r.nama;
+            v_isi_nilai := v_isi_nilai || quote_literal('!dipulihkan');
+          end if;
+        end loop;
+
+        v_sql := format('insert into public.%I as x (%s) overriding system value select %s from %I',
+          t,
+          (select string_agg(format('%I', c), ', ') from unnest(v_isi) c),
+          array_to_string(v_isi_nilai, ', '),
+          v_tmp);
+        if v_pk is not null then
+          if cardinality(v_ubah) > 0 then
+            -- Baris yang isinya sama persis tidak ditulis ulang, supaya
+            -- angka "berubah" jujur. Dibandingkan sebagai teks karena tipe
+            -- json tidak punya operator kesamaan.
+            v_sql := v_sql || format(' on conflict (%s) do update set %s where (%s) is distinct from (%s)',
+              (select string_agg(format('%I', c), ', ') from unnest(v_pk) c),
+              (select string_agg(format('%1$I = excluded.%1$I', c), ', ') from unnest(v_ubah) c),
+              (select string_agg(format('x.%I::text', c), ', ') from unnest(v_ubah) c) || ', null::text',
+              (select string_agg(format('excluded.%I::text', c), ', ') from unnest(v_ubah) c) || ', null::text');
+          else
+            v_sql := v_sql || format(' on conflict (%s) do nothing',
+              (select string_agg(format('%I', c), ', ') from unnest(v_pk) c));
+          end if;
+        end if;
+        execute format('with r as (%s returning (xmax = 0) as baru) select count(*) filter (where baru), count(*) filter (where not baru) from r', v_sql)
+          into v_baru, v_berubah;
+      end if;
+
+      -- Urutan nomor (serial/identity) dinaikkan melewati nilai terbesar,
+      -- supaya baris baru berikutnya tidak bentrok dengan baris pulihan.
+      for r in
+        select a.attname::text as nama, pg_get_serial_sequence(format('public.%I', t), a.attname) as urutan
+        from pg_attribute a
+        where a.attrelid = v_reg and a.attnum > 0 and not a.attisdropped
+      loop
+        if r.urutan is not null then
+          execute format('select setval(%L, coalesce((select max(%I) from public.%I), 0) + 1, false)', r.urutan, r.nama, t);
+        end if;
+      end loop;
+
+      v_hasil := jsonb_set(v_hasil, array[t], (v_hasil -> t) || jsonb_build_object(
+        'berkas', v_jumlah, 'baru', v_baru, 'berubah', v_berubah));
+    end loop;
+
+    foreach t in array v_luar loop
+      execute format('select count(*) from public.%I', t) into v_n;
+      if v_n <> (v_luar_awal ->> t)::bigint then
+        v_luar_hasil := v_luar_hasil || jsonb_build_object(t, jsonb_build_object(
+          'sebelum', (v_luar_awal ->> t)::bigint, 'sesudah', v_n));
+      end if;
+    end loop;
+
+    if not p_terapkan then
+      raise exception using errcode = 'P0001', message = 'PULIH_SIMULASI_SELESAI';
+    end if;
+  exception when others then
+    if sqlerrm = 'PULIH_SIMULASI_SELESAI' then
+      return jsonb_build_object('ok', true, 'diterapkan', false,
+        'tabel', v_hasil, 'luar', v_luar_hasil, 'dilewati', v_lewati);
+    end if;
+    return jsonb_build_object('ok', false, 'diterapkan', false,
+      'galat', sqlerrm, 'tabel_galat', v_sedang, 'dilewati', v_lewati);
+  end;
+
+  delete from pulih_staging where sesi = p_sesi;
+  return jsonb_build_object('ok', true, 'diterapkan', true,
+    'tabel', v_hasil, 'luar', v_luar_hasil, 'dilewati', v_lewati);
+end;
+$function$;
+
 CREATE OR REPLACE FUNCTION public.ujian_catat_waktu_status()
  RETURNS trigger
  LANGUAGE plpgsql
@@ -447,7 +681,10 @@ CREATE TABLE public.employees (
   awards jsonb,
   linked_user_id uuid,
   created_at timestamp with time zone DEFAULT now(),
-  updated_at timestamp with time zone DEFAULT now()
+  updated_at timestamp with time zone DEFAULT now(),
+  suasana_terang text,
+  suasana_gelap text,
+  ukuran_teks text
 );
 
 CREATE TABLE public.finance_accounts (
@@ -1001,6 +1238,25 @@ CREATE TABLE public.public_posts (
   image_url text
 );
 
+CREATE TABLE public.pulih_riwayat (
+  id uuid DEFAULT gen_random_uuid() NOT NULL,
+  oleh_id uuid,
+  oleh text NOT NULL,
+  berkas text,
+  bidang text,
+  backup_dibuat timestamp with time zone,
+  hasil jsonb NOT NULL,
+  dibuat timestamp with time zone DEFAULT now() NOT NULL
+);
+
+CREATE TABLE public.pulih_staging (
+  sesi uuid NOT NULL,
+  tabel text NOT NULL,
+  bagian integer NOT NULL,
+  baris jsonb NOT NULL,
+  dibuat timestamp with time zone DEFAULT now() NOT NULL
+);
+
 CREATE TABLE public.rapor_isian (
   student_id uuid NOT NULL,
   term_id uuid NOT NULL,
@@ -1522,7 +1778,10 @@ CREATE TABLE public.teachers (
   kategori_guru kategori_guru,
   ujian_notif_seen_at timestamp with time zone,
   gender gender,
-  pembina_gukar boolean DEFAULT false NOT NULL
+  pembina_gukar boolean DEFAULT false NOT NULL,
+  suasana_terang text,
+  suasana_gelap text,
+  ukuran_teks text
 );
 
 CREATE TABLE public.tr_hadir (
@@ -1631,7 +1890,10 @@ CREATE TABLE public.users (
   other_competencies jsonb,
   ijazah_sanad text[],
   signature_path text,
-  signature_focus jsonb
+  signature_focus jsonb,
+  suasana_terang text,
+  suasana_gelap text,
+  ukuran_teks text
 );
 
 CREATE TABLE public.verifikasi_riwayat_tahfidz (
@@ -1706,6 +1968,8 @@ ALTER TABLE public.private_notes ADD CONSTRAINT private_notes_pkey PRIMARY KEY (
 ALTER TABLE public.program_details ADD CONSTRAINT program_details_pkey PRIMARY KEY (slug);
 ALTER TABLE public.programs ADD CONSTRAINT programs_pkey PRIMARY KEY (id);
 ALTER TABLE public.public_posts ADD CONSTRAINT public_posts_pkey PRIMARY KEY (id);
+ALTER TABLE public.pulih_riwayat ADD CONSTRAINT pulih_riwayat_pkey PRIMARY KEY (id);
+ALTER TABLE public.pulih_staging ADD CONSTRAINT pulih_staging_pkey PRIMARY KEY (sesi, tabel, bagian);
 ALTER TABLE public.rapor_isian ADD CONSTRAINT rapor_isian_pkey PRIMARY KEY (student_id, term_id, jenis);
 ALTER TABLE public.rapor_templates ADD CONSTRAINT rapor_templates_pkey PRIMARY KEY (id);
 ALTER TABLE public.riyadhoh_hadir ADD CONSTRAINT riyadhoh_hadir_pkey PRIMARY KEY (student_id, tanggal);
@@ -1799,6 +2063,9 @@ ALTER TABLE public.ekstra_jenis ADD CONSTRAINT ekstra_jenis_kuota_check CHECK ((
 ALTER TABLE public.ekstra_slot ADD CONSTRAINT ekstra_slot_hari_check CHECK (((hari >= 1) AND (hari <= 7)));
 ALTER TABLE public.ekstra_slot ADD CONSTRAINT ekstra_slot_jam CHECK ((jam_selesai > jam_mulai));
 ALTER TABLE public.ekstra_slot ADD CONSTRAINT ekstra_slot_kuota_check CHECK (((kuota IS NULL) OR (kuota > 0)));
+ALTER TABLE public.employees ADD CONSTRAINT employees_suasana_gelap_check CHECK (((suasana_gelap IS NULL) OR (suasana_gelap = ANY (ARRAY['malam'::text, 'senja'::text, 'terang'::text]))));
+ALTER TABLE public.employees ADD CONSTRAINT employees_suasana_terang_check CHECK (((suasana_terang IS NULL) OR (suasana_terang = ANY (ARRAY['teduh'::text, 'fajar'::text, 'samudra'::text, 'zaitun'::text, 'mushaf'::text, 'kontras'::text]))));
+ALTER TABLE public.employees ADD CONSTRAINT employees_ukuran_teks_check CHECK (((ukuran_teks IS NULL) OR (ukuran_teks = ANY (ARRAY['kecil'::text, 'biasa'::text, 'besar'::text]))));
 ALTER TABLE public.finance_budgets ADD CONSTRAINT finance_budgets_amount_wajar CHECK ((amount >= 0));
 ALTER TABLE public.finance_budgets ADD CONSTRAINT finance_budgets_period_awal_bulan CHECK ((EXTRACT(day FROM period) = (1)::numeric));
 ALTER TABLE public.finance_funding ADD CONSTRAINT finance_funding_amount_positif CHECK ((amount > 0));
@@ -1895,6 +2162,9 @@ ALTER TABLE public.tasmi_logs ADD CONSTRAINT tasmi_logs_nilai_kelancaran_check C
 ALTER TABLE public.tasmi_logs ADD CONSTRAINT tasmi_logs_nilai_tajwid_check CHECK (((nilai_tajwid >= 0.5) AND (nilai_tajwid <= (5)::numeric) AND ((nilai_tajwid * (2)::numeric) = floor((nilai_tajwid * (2)::numeric)))));
 ALTER TABLE public.tasmi_logs ADD CONSTRAINT tasmi_logs_nilai_wajar CHECK ((((nilai_tahfidz IS NULL) OR ((nilai_tahfidz >= (0)::numeric) AND (nilai_tahfidz <= (100)::numeric))) AND ((nilai_sikap IS NULL) OR ((nilai_sikap >= (0)::numeric) AND (nilai_sikap <= (100)::numeric)))));
 ALTER TABLE public.tasmi_logs ADD CONSTRAINT tasmi_logs_scope_juz_check CHECK ((scope_juz = ANY (ARRAY[3, 5])));
+ALTER TABLE public.teachers ADD CONSTRAINT teachers_suasana_gelap_check CHECK (((suasana_gelap IS NULL) OR (suasana_gelap = ANY (ARRAY['malam'::text, 'senja'::text, 'terang'::text]))));
+ALTER TABLE public.teachers ADD CONSTRAINT teachers_suasana_terang_check CHECK (((suasana_terang IS NULL) OR (suasana_terang = ANY (ARRAY['teduh'::text, 'fajar'::text, 'samudra'::text, 'zaitun'::text, 'mushaf'::text, 'kontras'::text]))));
+ALTER TABLE public.teachers ADD CONSTRAINT teachers_ukuran_teks_check CHECK (((ukuran_teks IS NULL) OR (ukuran_teks = ANY (ARRAY['kecil'::text, 'biasa'::text, 'besar'::text]))));
 ALTER TABLE public.tr_hadir ADD CONSTRAINT tr_hadir_jumat CHECK ((EXTRACT(isodow FROM tanggal) = (5)::numeric));
 ALTER TABLE public.ujian_tahfidz ADD CONSTRAINT ujian_tahfidz_predikat_check CHECK ((predikat = ANY (ARRAY['mumtaz'::text, 'jayyid_jiddan'::text, 'jayyid'::text, 'maqbul'::text, 'mengulang'::text])));
 ALTER TABLE public.ujian_tahfidz ADD CONSTRAINT ujian_tahfidz_status_check CHECK ((status = ANY (ARRAY['diajukan'::text, 'dijadwalkan'::text, 'selesai'::text])));
@@ -1902,6 +2172,9 @@ ALTER TABLE public.ujian_tahfidz ADD CONSTRAINT ujian_tahfidz_tipe_check CHECK (
 ALTER TABLE public.ujian_tahfidz ADD CONSTRAINT ujian_tahfidz_unit_check CHECK ((unit = ANY (ARRAY['TPAIT'::text, 'SD'::text, 'SD Juara'::text, 'SMP'::text, 'SMA'::text])));
 ALTER TABLE public.ujian_tahsin ADD CONSTRAINT ujian_tahsin_status_check CHECK ((status = ANY (ARRAY['diajukan'::text, 'dijadwalkan'::text, 'selesai'::text])));
 ALTER TABLE public.ujian_tahsin ADD CONSTRAINT ujian_tahsin_unit_check CHECK ((unit = ANY (ARRAY['TPAIT'::text, 'SD'::text, 'SD Juara'::text, 'SMP'::text, 'SMA'::text])));
+ALTER TABLE public.users ADD CONSTRAINT users_suasana_gelap_check CHECK (((suasana_gelap IS NULL) OR (suasana_gelap = ANY (ARRAY['malam'::text, 'senja'::text, 'terang'::text]))));
+ALTER TABLE public.users ADD CONSTRAINT users_suasana_terang_check CHECK (((suasana_terang IS NULL) OR (suasana_terang = ANY (ARRAY['teduh'::text, 'fajar'::text, 'samudra'::text, 'zaitun'::text, 'mushaf'::text, 'kontras'::text]))));
+ALTER TABLE public.users ADD CONSTRAINT users_ukuran_teks_check CHECK (((ukuran_teks IS NULL) OR (ukuran_teks = ANY (ARRAY['kecil'::text, 'biasa'::text, 'besar'::text]))));
 ALTER TABLE public.verifikasi_riwayat_tahfidz ADD CONSTRAINT verifikasi_riwayat_tahfidz_hasil_check CHECK ((hasil = ANY (ARRAY['sudah'::text, 'belum'::text])));
 ALTER TABLE public.verifikasi_riwayat_tahfidz ADD CONSTRAINT verifikasi_riwayat_tahfidz_tipe_check CHECK ((tipe = ANY (ARRAY['1_juz'::text, '3_juz'::text, '5_juz'::text])));
 ALTER TABLE public.about_rq ADD CONSTRAINT about_rq_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE SET NULL;
@@ -2318,6 +2591,8 @@ ALTER TABLE public.private_notes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.program_details ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.programs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.public_posts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.pulih_riwayat ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.pulih_staging ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.rapor_isian ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.rapor_templates ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.riyadhoh_hadir ENABLE ROW LEVEL SECURITY;

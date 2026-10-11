@@ -5,6 +5,7 @@ import bcrypt from 'bcryptjs'
 import { createServerClient } from '@/lib/supabase/server'
 import { isContractExpired } from '@/lib/auth/contract'
 import { createEmployeeSession, destroyEmployeeSession } from '@/lib/auth/employee-session'
+import { muatSuasanaSaatLogin } from '@/lib/tampilan/suasana-akun'
 
 export async function loginEmployeeAction(_: unknown, formData: FormData) {
   const username = (formData.get('username') as string)?.trim()
@@ -42,6 +43,9 @@ export async function loginEmployeeAction(_: unknown, formData: FormData) {
     username: employee.username,
     fullName: employee.full_name,
   })
+  // Suasana tampilan tersimpan di akun ikut ke perangkat ini. Tidak pernah
+  // melempar galat — login tidak boleh gagal karenanya.
+  await muatSuasanaSaatLogin('employees', employee.id).catch(() => {})
 
   redirect('/karyawan/profil')
 }

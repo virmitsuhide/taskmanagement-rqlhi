@@ -6,6 +6,7 @@ import { createServerClient } from '@/lib/supabase/server'
 import { isContractExpired } from '@/lib/auth/contract'
 import { createTeacherSession, destroyTeacherSession } from '@/lib/auth/teacher-session'
 import { POLA_USERNAME_TR } from '@/lib/rq/tahsin-rekomendasi'
+import { muatSuasanaSaatLogin } from '@/lib/tampilan/suasana-akun'
 
 export async function loginTeacherAction(_: unknown, formData: FormData) {
   const username = (formData.get('username') as string)?.trim()
@@ -53,6 +54,9 @@ export async function loginTeacherAction(_: unknown, formData: FormData) {
     username: teacher.username,
     fullName: teacher.full_name,
   })
+  // Suasana tampilan tersimpan di akun ikut ke perangkat ini. Tidak pernah
+  // melempar galat — login tidak boleh gagal karenanya.
+  await muatSuasanaSaatLogin('teachers', teacher.id).catch(() => {})
 
   redirect('/guru')
 }

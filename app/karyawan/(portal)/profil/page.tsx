@@ -8,6 +8,7 @@ import { KOLOM_PROFIL_KARYAWAN } from '@/lib/data/pengurus'
 import { Button } from '@/components/ui/button'
 import { Logo } from '@/components/brand/Logo'
 import { TEACHER_EMPLOYMENT_LABELS } from '@/types'
+import { TautanTampilan } from '@/components/tampilan/TautanTampilan'
 import type { EmployeeProfile } from '@/types'
 
 /**
@@ -62,6 +63,8 @@ export default async function ProfilKaryawanPage() {
         <p className="mb-5 mt-1 text-sm text-muted-foreground">
           Lengkapi data diri Anda. Isian ini dipakai untuk arsip kepegawaian RQ.
         </p>
+
+        <TautanTampilan href="/karyawan/profil/tampilan" className="mb-5" />
 
         {/* Terlihat tapi terkunci — kalau ada yang keliru, ia perlu melihatnya
             untuk bisa melaporkannya. */}

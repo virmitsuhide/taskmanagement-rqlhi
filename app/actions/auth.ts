@@ -8,6 +8,7 @@ import { createSession, destroySession } from '@/lib/auth/session'
 import { createTeacherSession } from '@/lib/auth/teacher-session'
 import { DEFAULT_DASHBOARD } from '@/lib/auth/permissions'
 import { POLA_USERNAME_TR } from '@/lib/rq/tahsin-rekomendasi'
+import { muatSuasanaSaatLogin } from '@/lib/tampilan/suasana-akun'
 import type { UserRole } from '@/types'
 
 /**
@@ -39,6 +40,9 @@ export async function loginAction(_: unknown, formData: FormData) {
       role: user.role as UserRole,
       displayName: user.display_name,
     })
+    // Suasana tampilan tersimpan di akun ikut ke perangkat ini. Tidak pernah
+    // melempar galat — login tidak boleh gagal karenanya.
+    await muatSuasanaSaatLogin('users', user.id).catch(() => {})
     redirect(`/dashboard/${DEFAULT_DASHBOARD[user.role as UserRole]}`)
   }
 
@@ -64,6 +68,9 @@ export async function loginAction(_: unknown, formData: FormData) {
       username: teacher.username,
       fullName: teacher.full_name,
     })
+    // Suasana tampilan tersimpan di akun ikut ke perangkat ini. Tidak pernah
+    // melempar galat — login tidak boleh gagal karenanya.
+    await muatSuasanaSaatLogin('teachers', teacher.id).catch(() => {})
     redirect('/guru')
   }
 
