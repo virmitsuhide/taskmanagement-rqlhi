@@ -5,6 +5,7 @@ import bcrypt from 'bcryptjs'
 import { createServerClient } from '@/lib/supabase/server'
 import { isContractExpired } from '@/lib/auth/contract'
 import { createTeacherSession, destroyTeacherSession } from '@/lib/auth/teacher-session'
+import { POLA_USERNAME_TR } from '@/lib/rq/tahsin-rekomendasi'
 
 export async function loginTeacherAction(_: unknown, formData: FormData) {
   const username = (formData.get('username') as string)?.trim()
@@ -14,11 +15,15 @@ export async function loginTeacherAction(_: unknown, formData: FormData) {
     return { error: 'Username dan password wajib diisi.' }
   }
 
+  // Akun bersama Tahsin Rekomendasi bernama TR1, TR2, … (huruf besar), dan
+  // papan ketik HP sering mengetiknya "tr1" atau "Tr1" — samakan dulu.
+  const dicari = POLA_USERNAME_TR.test(username.toUpperCase()) ? username.toUpperCase() : username
+
   const supabase = createServerClient()
   const { data: teacher, error } = await supabase
     .from('teachers')
     .select('id, username, password_hash, full_name, is_active, contract_end')
-    .eq('username', username)
+    .eq('username', dicari)
     // Akun terhapus kehilangan akses saat itu juga.
     .is('deleted_at', null)
     .maybeSingle()

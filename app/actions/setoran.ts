@@ -8,6 +8,7 @@ import { aksesSetoran } from '@/lib/data/riyadhoh'
 import { canTeacherAccessStudent } from '@/lib/data/teacher'
 import { bolehEkstra } from '@/lib/data/ekstra'
 import { bolehAsrama } from '@/lib/data/asrama'
+import { bolehTR } from '@/lib/data/tahsin-rekomendasi'
 import { TAHSIN_ASRAMA_DIBUKA } from '@/lib/rq/asrama'
 import { catatDrillSetelahZiyadah } from '@/lib/data/drill-tahfidz'
 import { bolehLintasSurat, periksaRentang } from '@/lib/rq/rentang-surat'
@@ -15,7 +16,7 @@ import { periksaBacaanQuran, posisiLanjut, type BacaanQuran } from '@/lib/rq/bac
 import { getMateriPerJilid, getHasilMateriPerSiswa, ringkasProgres, type HasilMateri } from '@/lib/data/materi-tahsin'
 import {
   periksaGandaTahsin, arsipkanTahsinSamaHari, periksaGandaTahfidz, arsipkanTahfidzSamaHari,
-  tautkanPengganti, JALUR_ASRAMA, type SetoranGanda,
+  tautkanPengganti, JALUR_ASRAMA, JALUR_TR, type SetoranGanda,
 } from '@/lib/data/setoran-ganda'
 import type { TahsinStatus, TahfidzKind } from '@/types'
 import { tanggalWIB } from '@/lib/rq/ujian'
@@ -129,9 +130,11 @@ export interface InputSetoranTahsin {
   ekstra_slot_id?: string | null
   /** Setoran halaqoh ASRAMA (0110), dicatat pengampu asrama anak. */
   asrama?: boolean
+  /** Setoran Tahsin Rekomendasi Jum'at sore (0115), dicatat akun TR kelompok anak. */
+  tahsin_rekomendasi?: boolean
 }
 
-type AksesSetoran = 'reguler' | 'riyadhoh' | 'ekstra' | 'asrama'
+type AksesSetoran = 'reguler' | 'riyadhoh' | 'ekstra' | 'asrama' | 'tr'
 
 /**
  * Siapa yang mencatat, lewat jalur mana. Jalur dipilih oleh FORMULIR
@@ -144,7 +147,7 @@ type AksesSetoran = 'reguler' | 'riyadhoh' | 'ekstra' | 'asrama'
 async function tentukanAkses(
   teacherId: string,
   jenis: 'tahsin' | 'tahfidz',
-  input: { student_id: string; setoran_date: string; ekstra_slot_id?: string | null; asrama?: boolean },
+  input: { student_id: string; setoran_date: string; ekstra_slot_id?: string | null; asrama?: boolean; tahsin_rekomendasi?: boolean },
 ): Promise<{ akses: AksesSetoran; jalur: string | null } | string> {
   const ekstraSlotId = input.ekstra_slot_id || null
   if (ekstraSlotId) {
@@ -159,6 +162,12 @@ async function tentukanAkses(
     return (await bolehAsrama(teacherId, input.student_id, input.setoran_date))
       ? { akses: 'asrama', jalur: JALUR_ASRAMA }
       : 'Anak ini bukan anggota kelompok asrama Anda.'
+  }
+  if (input.tahsin_rekomendasi) {
+    if (jenis !== 'tahsin') return 'Tahsin Rekomendasi hanya mencatat setoran tahsin.'
+    return (await bolehTR(teacherId, input.student_id, input.setoran_date))
+      ? { akses: 'tr', jalur: JALUR_TR }
+      : 'Anak ini bukan peserta kelompok Tahsin Rekomendasi Anda, atau tanggalnya bukan Jum’at yang bisa dicatat.'
   }
   const akses = await aksesSetoran(teacherId, input.student_id, input.setoran_date, jenis)
   if (akses) return { akses, jalur: null }
@@ -177,6 +186,7 @@ function kolomJalur(akses: AksesSetoran, jalur: string | null): Record<string, u
   if (akses === 'riyadhoh') return { riyadhoh: true }
   if (akses === 'ekstra') return { ekstra_slot_id: jalur }
   if (akses === 'asrama') return { asrama: true }
+  if (akses === 'tr') return { tahsin_rekomendasi: true }
   return {}
 }
 

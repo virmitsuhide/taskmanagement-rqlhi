@@ -15,6 +15,7 @@ import { PengumumanBeranda } from '@/components/guru/PengumumanBeranda'
 import { getKartuTersembunyi } from '@/lib/data/kartu-tersembunyi'
 import { getHalaqohSesiGuru, idHalaqohSesi } from '@/lib/data/setoran-sesi'
 import { sesiBerikutnya } from '@/lib/rq/sesi-berikutnya'
+import { punyaKelompokTR } from '@/lib/data/tahsin-rekomendasi'
 
 const MONTH_ID = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember']
 const DAY_ID = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu']
@@ -30,6 +31,12 @@ function daysAgo(dateStr: string | null): number | null {
 export default async function TeacherHomePage() {
   const session = await getTeacherSession()
   if (!session) redirect('/guru/login')
+
+  // Akun Tahsin Rekomendasi (TR1, TR2, …) tidak punya halaqoh sekolah —
+  // berandanya adalah kelompok Jum'atnya.
+  if (await punyaKelompokTR(session.teacherId) && (await getTeacherHalaqohPeran(session.teacherId)).size === 0) {
+    redirect('/guru/tahsin-rekomendasi')
+  }
 
   const now = new Date()
   const dateLabel = `${DAY_ID[now.getDay()]}, ${now.getDate()} ${MONTH_ID[now.getMonth()]} ${now.getFullYear()}`

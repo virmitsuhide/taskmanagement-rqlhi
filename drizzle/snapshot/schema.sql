@@ -750,6 +750,19 @@ CREATE TABLE public.kelompok_klasikal_anggota (
   student_id uuid NOT NULL
 );
 
+CREATE TABLE public.kenaikan_riwayat (
+  id uuid DEFAULT gen_random_uuid() NOT NULL,
+  term_id uuid NOT NULL,
+  student_id uuid NOT NULL,
+  dari_jenjang text NOT NULL,
+  dari_kelas text,
+  ke_jenjang text,
+  ke_kelas text,
+  hasil text NOT NULL,
+  oleh uuid,
+  created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
 CREATE TABLE public.kpi_banding (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
   kpi_monthly_id uuid,
@@ -1230,7 +1243,9 @@ CREATE TABLE public.students (
   current_quran_halaman integer,
   current_quran_surat_id integer,
   current_quran_ayat integer,
-  asal_sd_lhi boolean DEFAULT false NOT NULL
+  asal_sd_lhi boolean DEFAULT false NOT NULL,
+  keluar_status text,
+  keluar_at date
 );
 
 CREATE TABLE public.surat_master (
@@ -1312,7 +1327,8 @@ CREATE TABLE public.tahsin_logs (
   quran_ayat_ke integer,
   riyadhoh boolean DEFAULT false NOT NULL,
   ekstra_slot_id uuid,
-  asrama boolean DEFAULT false NOT NULL
+  asrama boolean DEFAULT false NOT NULL,
+  tahsin_rekomendasi boolean DEFAULT false NOT NULL
 );
 
 CREATE TABLE public.tahsin_materi (
@@ -1509,6 +1525,33 @@ CREATE TABLE public.teachers (
   pembina_gukar boolean DEFAULT false NOT NULL
 );
 
+CREATE TABLE public.tr_hadir (
+  student_id uuid NOT NULL,
+  tanggal date NOT NULL,
+  status absensi_status NOT NULL,
+  catatan text DEFAULT ''::text NOT NULL,
+  dicatat_oleh uuid,
+  created_at timestamp with time zone DEFAULT now() NOT NULL,
+  updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+CREATE TABLE public.tr_pengampu (
+  teacher_id uuid NOT NULL,
+  tempat text DEFAULT ''::text NOT NULL,
+  urutan smallint DEFAULT 0 NOT NULL,
+  created_at timestamp with time zone DEFAULT now() NOT NULL,
+  updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+CREATE TABLE public.tr_peserta (
+  student_id uuid NOT NULL,
+  teacher_id uuid NOT NULL,
+  capaian_awal text DEFAULT ''::text NOT NULL,
+  diubah_oleh uuid,
+  created_at timestamp with time zone DEFAULT now() NOT NULL,
+  updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
 CREATE TABLE public.ujian_pengujis (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
   nama text NOT NULL,
@@ -1648,6 +1691,7 @@ ALTER TABLE public.kalender_kosong ADD CONSTRAINT kalender_kosong_pkey PRIMARY K
 ALTER TABLE public.kalender_pekan_efektif ADD CONSTRAINT kalender_pekan_efektif_pkey PRIMARY KEY (tahun_ajaran, bulan);
 ALTER TABLE public.kelompok_klasikal ADD CONSTRAINT kelompok_klasikal_pkey PRIMARY KEY (id);
 ALTER TABLE public.kelompok_klasikal_anggota ADD CONSTRAINT kelompok_klasikal_anggota_pkey PRIMARY KEY (kelompok_id, student_id);
+ALTER TABLE public.kenaikan_riwayat ADD CONSTRAINT kenaikan_riwayat_pkey PRIMARY KEY (id);
 ALTER TABLE public.kpi_banding ADD CONSTRAINT kpi_banding_pkey PRIMARY KEY (id);
 ALTER TABLE public.kpi_monthly ADD CONSTRAINT kpi_monthly_pkey PRIMARY KEY (id);
 ALTER TABLE public.kpi_rapor_riwayat ADD CONSTRAINT kpi_rapor_riwayat_pkey PRIMARY KEY (id);
@@ -1698,6 +1742,9 @@ ALTER TABLE public.tasks ADD CONSTRAINT tasks_pkey PRIMARY KEY (id);
 ALTER TABLE public.tasmi_logs ADD CONSTRAINT tasmi_logs_pkey PRIMARY KEY (id);
 ALTER TABLE public.teacher_unit_moves ADD CONSTRAINT teacher_unit_moves_pkey PRIMARY KEY (id);
 ALTER TABLE public.teachers ADD CONSTRAINT teachers_pkey PRIMARY KEY (id);
+ALTER TABLE public.tr_hadir ADD CONSTRAINT tr_hadir_pkey PRIMARY KEY (student_id, tanggal);
+ALTER TABLE public.tr_pengampu ADD CONSTRAINT tr_pengampu_pkey PRIMARY KEY (teacher_id);
+ALTER TABLE public.tr_peserta ADD CONSTRAINT tr_peserta_pkey PRIMARY KEY (student_id);
 ALTER TABLE public.ujian_pengujis ADD CONSTRAINT ujian_pengujis_pkey PRIMARY KEY (id);
 ALTER TABLE public.ujian_tahfidz ADD CONSTRAINT ujian_tahfidz_pkey PRIMARY KEY (id);
 ALTER TABLE public.ujian_tahsin ADD CONSTRAINT ujian_tahsin_pkey PRIMARY KEY (id);
@@ -1717,6 +1764,7 @@ ALTER TABLE public.halaqoh_sessions ADD CONSTRAINT halaqoh_sessions_halaqoh_id_d
 ALTER TABLE public.jilid_levels ADD CONSTRAINT jilid_levels_method_id_order_num_key UNIQUE (method_id, order_num);
 ALTER TABLE public.juz_promotions ADD CONSTRAINT juz_promotions_student_id_juz_number_key UNIQUE (student_id, juz_number);
 ALTER TABLE public.kelompok_klasikal_anggota ADD CONSTRAINT kelompok_klasikal_anggota_satu_kelompok UNIQUE (student_id);
+ALTER TABLE public.kenaikan_riwayat ADD CONSTRAINT kenaikan_riwayat_term_id_student_id_key UNIQUE (term_id, student_id);
 ALTER TABLE public.kpi_monthly ADD CONSTRAINT kpi_monthly_guru_periode_unik UNIQUE (teacher_id, year, month);
 ALTER TABLE public.kurikulum_targets ADD CONSTRAINT kurikulum_targets_term_id_jenjang_tingkat_key UNIQUE (term_id, jenjang, tingkat);
 ALTER TABLE public.laporan_kurikulum ADD CONSTRAINT laporan_kurikulum_periode_key UNIQUE (periode);
@@ -1778,6 +1826,7 @@ ALTER TABLE public.kalender_pekan_efektif ADD CONSTRAINT kalender_pekan_efektif_
 ALTER TABLE public.kalender_pekan_efektif ADD CONSTRAINT kalender_pekan_efektif_pekan_efektif_check CHECK (((pekan_efektif >= (0)::numeric) AND (pekan_efektif <= (6)::numeric)));
 ALTER TABLE public.kalender_pekan_efektif ADD CONSTRAINT kalender_pekan_efektif_semester_check CHECK ((semester = ANY (ARRAY[1, 2])));
 ALTER TABLE public.kalender_pekan_efektif ADD CONSTRAINT kalender_pekan_efektif_tahun_ajaran_check CHECK ((tahun_ajaran ~ '^\d{4}/\d{4}$'::text));
+ALTER TABLE public.kenaikan_riwayat ADD CONSTRAINT kenaikan_riwayat_hasil_check CHECK ((hasil = ANY (ARRAY['naik'::text, 'lanjut'::text, 'lulus'::text, 'alumni'::text, 'tetap'::text])));
 ALTER TABLE public.kpi_monthly ADD CONSTRAINT kpi_monthly_month_check CHECK (((month >= 1) AND (month <= 12)));
 ALTER TABLE public.kpi_monthly ADD CONSTRAINT kpi_monthly_nilai_buku_pegangan_check CHECK (((nilai_buku_pegangan >= (0)::numeric) AND (nilai_buku_pegangan <= (100)::numeric)));
 ALTER TABLE public.kpi_monthly ADD CONSTRAINT kpi_monthly_nilai_database_check CHECK (((nilai_database >= (0)::numeric) AND (nilai_database <= (100)::numeric)));
@@ -1815,6 +1864,7 @@ ALTER TABLE public.student_monthly ADD CONSTRAINT student_monthly_halaman_wajar 
 ALTER TABLE public.student_monthly ADD CONSTRAINT student_monthly_period_awal_bulan CHECK ((EXTRACT(day FROM period) = (1)::numeric));
 ALTER TABLE public.students ADD CONSTRAINT students_current_quran_ayat_check CHECK (((current_quran_ayat IS NULL) OR (current_quran_ayat >= 1)));
 ALTER TABLE public.students ADD CONSTRAINT students_current_quran_halaman_check CHECK (((current_quran_halaman IS NULL) OR ((current_quran_halaman >= 1) AND (current_quran_halaman <= 604))));
+ALTER TABLE public.students ADD CONSTRAINT students_keluar_status_check CHECK (((keluar_status IS NULL) OR (keluar_status = ANY (ARRAY['lulus'::text, 'alumni'::text]))));
 ALTER TABLE public.tahfidz_juz_drill ADD CONSTRAINT tahfidz_juz_drill_juz_number_check CHECK (((juz_number >= 1) AND (juz_number <= 30)));
 ALTER TABLE public.tahfidz_logs ADD CONSTRAINT tahfidz_logs_nilai_fashohah_check CHECK (((nilai_fashohah >= 0.5) AND (nilai_fashohah <= (5)::numeric) AND ((nilai_fashohah * (2)::numeric) = floor((nilai_fashohah * (2)::numeric)))));
 ALTER TABLE public.tahfidz_logs ADD CONSTRAINT tahfidz_logs_nilai_kelancaran_check CHECK (((nilai_kelancaran >= 0.5) AND (nilai_kelancaran <= (5)::numeric) AND ((nilai_kelancaran * (2)::numeric) = floor((nilai_kelancaran * (2)::numeric)))));
@@ -1845,6 +1895,7 @@ ALTER TABLE public.tasmi_logs ADD CONSTRAINT tasmi_logs_nilai_kelancaran_check C
 ALTER TABLE public.tasmi_logs ADD CONSTRAINT tasmi_logs_nilai_tajwid_check CHECK (((nilai_tajwid >= 0.5) AND (nilai_tajwid <= (5)::numeric) AND ((nilai_tajwid * (2)::numeric) = floor((nilai_tajwid * (2)::numeric)))));
 ALTER TABLE public.tasmi_logs ADD CONSTRAINT tasmi_logs_nilai_wajar CHECK ((((nilai_tahfidz IS NULL) OR ((nilai_tahfidz >= (0)::numeric) AND (nilai_tahfidz <= (100)::numeric))) AND ((nilai_sikap IS NULL) OR ((nilai_sikap >= (0)::numeric) AND (nilai_sikap <= (100)::numeric)))));
 ALTER TABLE public.tasmi_logs ADD CONSTRAINT tasmi_logs_scope_juz_check CHECK ((scope_juz = ANY (ARRAY[3, 5])));
+ALTER TABLE public.tr_hadir ADD CONSTRAINT tr_hadir_jumat CHECK ((EXTRACT(isodow FROM tanggal) = (5)::numeric));
 ALTER TABLE public.ujian_tahfidz ADD CONSTRAINT ujian_tahfidz_predikat_check CHECK ((predikat = ANY (ARRAY['mumtaz'::text, 'jayyid_jiddan'::text, 'jayyid'::text, 'maqbul'::text, 'mengulang'::text])));
 ALTER TABLE public.ujian_tahfidz ADD CONSTRAINT ujian_tahfidz_status_check CHECK ((status = ANY (ARRAY['diajukan'::text, 'dijadwalkan'::text, 'selesai'::text])));
 ALTER TABLE public.ujian_tahfidz ADD CONSTRAINT ujian_tahfidz_tipe_check CHECK ((tipe = ANY (ARRAY['1_juz'::text, '3_juz'::text, '5_juz'::text])));
@@ -1926,6 +1977,8 @@ ALTER TABLE public.kelompok_klasikal ADD CONSTRAINT kelompok_klasikal_dibuat_ole
 ALTER TABLE public.kelompok_klasikal ADD CONSTRAINT kelompok_klasikal_halaqoh_id_fkey FOREIGN KEY (halaqoh_id) REFERENCES halaqoh(id) ON DELETE CASCADE;
 ALTER TABLE public.kelompok_klasikal_anggota ADD CONSTRAINT kelompok_klasikal_anggota_kelompok_id_fkey FOREIGN KEY (kelompok_id) REFERENCES kelompok_klasikal(id) ON DELETE CASCADE;
 ALTER TABLE public.kelompok_klasikal_anggota ADD CONSTRAINT kelompok_klasikal_anggota_student_id_fkey FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE;
+ALTER TABLE public.kenaikan_riwayat ADD CONSTRAINT kenaikan_riwayat_student_id_fkey FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE;
+ALTER TABLE public.kenaikan_riwayat ADD CONSTRAINT kenaikan_riwayat_term_id_fkey FOREIGN KEY (term_id) REFERENCES academic_terms(id) ON DELETE CASCADE;
 ALTER TABLE public.kpi_banding ADD CONSTRAINT kpi_banding_induk_id_fkey FOREIGN KEY (induk_id) REFERENCES kpi_banding(id) ON DELETE CASCADE;
 ALTER TABLE public.kpi_banding ADD CONSTRAINT kpi_banding_kpi_monthly_id_fkey FOREIGN KEY (kpi_monthly_id) REFERENCES kpi_monthly(id) ON DELETE SET NULL;
 ALTER TABLE public.kpi_banding ADD CONSTRAINT kpi_banding_putusan_oleh_fkey FOREIGN KEY (putusan_oleh) REFERENCES users(id) ON DELETE SET NULL;
@@ -2039,6 +2092,12 @@ ALTER TABLE public.tasmi_logs ADD CONSTRAINT tasmi_logs_teacher_id_fkey FOREIGN 
 ALTER TABLE public.teacher_unit_moves ADD CONSTRAINT teacher_unit_moves_moved_by_fkey FOREIGN KEY (moved_by) REFERENCES users(id) ON DELETE SET NULL;
 ALTER TABLE public.teacher_unit_moves ADD CONSTRAINT teacher_unit_moves_teacher_id_fkey FOREIGN KEY (teacher_id) REFERENCES teachers(id) ON DELETE CASCADE;
 ALTER TABLE public.teachers ADD CONSTRAINT teachers_linked_user_id_fkey FOREIGN KEY (linked_user_id) REFERENCES users(id) ON DELETE SET NULL;
+ALTER TABLE public.tr_hadir ADD CONSTRAINT tr_hadir_dicatat_oleh_fkey FOREIGN KEY (dicatat_oleh) REFERENCES teachers(id) ON DELETE SET NULL;
+ALTER TABLE public.tr_hadir ADD CONSTRAINT tr_hadir_student_id_fkey FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE;
+ALTER TABLE public.tr_pengampu ADD CONSTRAINT tr_pengampu_teacher_id_fkey FOREIGN KEY (teacher_id) REFERENCES teachers(id) ON DELETE CASCADE;
+ALTER TABLE public.tr_peserta ADD CONSTRAINT tr_peserta_diubah_oleh_fkey FOREIGN KEY (diubah_oleh) REFERENCES users(id) ON DELETE SET NULL;
+ALTER TABLE public.tr_peserta ADD CONSTRAINT tr_peserta_student_id_fkey FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE;
+ALTER TABLE public.tr_peserta ADD CONSTRAINT tr_peserta_teacher_id_fkey FOREIGN KEY (teacher_id) REFERENCES tr_pengampu(teacher_id) ON DELETE CASCADE;
 ALTER TABLE public.ujian_pengujis ADD CONSTRAINT ujian_pengujis_teacher_id_fkey FOREIGN KEY (teacher_id) REFERENCES teachers(id) ON DELETE SET NULL;
 ALTER TABLE public.ujian_tahfidz ADD CONSTRAINT ujian_tahfidz_created_by_teacher_fkey FOREIGN KEY (created_by_teacher) REFERENCES teachers(id) ON DELETE SET NULL;
 ALTER TABLE public.ujian_tahfidz ADD CONSTRAINT ujian_tahfidz_created_by_user_fkey FOREIGN KEY (created_by_user) REFERENCES users(id) ON DELETE SET NULL;
@@ -2095,6 +2154,7 @@ CREATE UNIQUE INDEX kalender_kosong_angkatan_uniq ON public.kalender_kosong USIN
 CREATE INDEX kalender_kosong_jenjang_tanggal_idx ON public.kalender_kosong USING btree (jenjang, tanggal);
 CREATE UNIQUE INDEX kalender_kosong_kelas_uniq ON public.kalender_kosong USING btree (tanggal, jenjang, tingkat, kelas) WHERE (kelas IS NOT NULL);
 CREATE INDEX kelompok_klasikal_halaqoh_idx ON public.kelompok_klasikal USING btree (halaqoh_id);
+CREATE INDEX kenaikan_riwayat_student_idx ON public.kenaikan_riwayat USING btree (student_id);
 CREATE INDEX kpi_banding_guru_idx ON public.kpi_banding USING btree (teacher_id, diajukan_at DESC);
 CREATE UNIQUE INDEX kpi_banding_sekali_per_versi ON public.kpi_banding USING btree (kpi_monthly_id, versi_rapor, tingkat);
 CREATE INDEX kpi_banding_status_idx ON public.kpi_banding USING btree (status, putusan_batas);
@@ -2147,6 +2207,7 @@ CREATE INDEX tahsin_logs_ekstra_idx ON public.tahsin_logs USING btree (ekstra_sl
 CREATE INDEX tahsin_logs_quran_idx ON public.tahsin_logs USING btree (student_id, setoran_date DESC) WHERE (quran_halaman IS NOT NULL);
 CREATE INDEX tahsin_logs_riyadhoh_idx ON public.tahsin_logs USING btree (student_id, setoran_date) WHERE riyadhoh;
 CREATE INDEX tahsin_logs_siswa_tanggal_idx ON public.tahsin_logs USING btree (student_id, setoran_date);
+CREATE INDEX tahsin_logs_tr_idx ON public.tahsin_logs USING btree (student_id, setoran_date) WHERE tahsin_rekomendasi;
 CREATE INDEX tahsin_materi_urut_idx ON public.tahsin_materi USING btree (jilid_id, nomor);
 CREATE INDEX target_bulanan_cari_idx ON public.target_bulanan USING btree (tahun_ajaran, jenjang, jenis, kelompok);
 CREATE INDEX idx_task_comments_task ON public.task_comments USING btree (task_id, created_at);
@@ -2169,6 +2230,8 @@ CREATE INDEX teachers_lingkup_idx ON public.teachers USING btree (lingkup_penuga
 CREATE UNIQUE INDEX teachers_linked_user_id_unik ON public.teachers USING btree (linked_user_id) WHERE ((linked_user_id IS NOT NULL) AND (deleted_at IS NULL));
 CREATE INDEX teachers_public_idx ON public.teachers USING btree (is_public, is_active, display_order);
 CREATE INDEX teachers_unit_idx ON public.teachers USING btree (unit) WHERE (deleted_at IS NULL);
+CREATE INDEX tr_hadir_tanggal_idx ON public.tr_hadir USING btree (tanggal);
+CREATE INDEX tr_peserta_teacher_idx ON public.tr_peserta USING btree (teacher_id);
 CREATE UNIQUE INDEX ujian_pengujis_teacher_unik ON public.ujian_pengujis USING btree (teacher_id) WHERE (teacher_id IS NOT NULL);
 CREATE INDEX ujian_tahfidz_belum_terpetakan_idx ON public.ujian_tahfidz USING btree (created_at DESC) WHERE (student_id IS NULL);
 CREATE INDEX ujian_tahfidz_jadwal_idx ON public.ujian_tahfidz USING btree (jadwal);
@@ -2240,6 +2303,7 @@ ALTER TABLE public.kalender_kosong ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.kalender_pekan_efektif ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.kelompok_klasikal ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.kelompok_klasikal_anggota ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.kenaikan_riwayat ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.kpi_banding ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.kpi_monthly ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.kpi_rapor_riwayat ENABLE ROW LEVEL SECURITY;
@@ -2290,6 +2354,9 @@ ALTER TABLE public.tasks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.tasmi_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.teacher_unit_moves ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.teachers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.tr_hadir ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.tr_pengampu ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.tr_peserta ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.ujian_pengujis ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.ujian_tahfidz ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.ujian_tahsin ENABLE ROW LEVEL SECURITY;
@@ -2327,6 +2394,7 @@ COMMENT ON TABLE public.tahsin_materi IS 'Daftar materi hafalan sebuah buku tahs
    halaman tempat materi itu berada (beberapa materi bisa sehalaman).';
 COMMENT ON COLUMN public.teachers.contract_end IS 'Hari terakhir kontrak berlaku (inklusif). Lewat tanggal ini akses login dicabut otomatis oleh getTeacherSession() — guru tetap yayasan dibiarkan NULL agar tidak pernah kedaluwarsa.';
 COMMENT ON COLUMN public.teachers.unit IS 'Unit penempatan: sd = SDIT LHI, smp = SMPIT LHI, sd_juara = SD LHI Juara. Kosong untuk pengurus yang tidak terikat satu unit.';
+COMMENT ON TABLE public.tr_pengampu IS 'Kelompok Tahsin Rekomendasi: satu akun pengampu (TR1, TR2, …) satu kelompok. Nama pengampunya = teachers.full_name akun itu.';
 COMMENT ON COLUMN public.ujian_tahfidz.student_id IS 'Siswa yang diuji. NULL = catatan lama yang belum dipetakan (lihat /ujian/pemetaan).';
 COMMENT ON COLUMN public.ujian_tahfidz.nama_flyer IS 'Nama singkat untuk flyer & broadcast. NULL = pakai nama_siswa.';
 

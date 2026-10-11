@@ -1771,6 +1771,20 @@ export function canViewRiyadhohAnalitik(role: UserRole): boolean {
 }
 
 /**
+ * Tahsin Rekomendasi SDIT LHI (0115) — kelompok Jum'at sore, akun TR,
+ * peserta. Milik Koordinator SD (seperti rapat Tahsin Rekomendasi).
+ * Pengampu mencatat dari portal guru (/guru/tahsin-rekomendasi).
+ */
+export function canManageTahsinRekomendasi(role: UserRole): boolean {
+  return role === 'koor_sd'
+}
+
+/** Analitik Tahsin Rekomendasi — Koordinator SD, Kurikulum, dan Kepala RQ. */
+export function canViewTahsinRekomendasiAnalitik(role: UserRole): boolean {
+  return role === 'koor_sd' || role === 'kumik' || role === 'kepala_rq'
+}
+
+/**
  * Kalender pendidikan (kaldik, 0085) — agenda sekolah yang tampil di beranda
  * dan menjadi usulan hari kosong di Kalender Qur'an.
  *

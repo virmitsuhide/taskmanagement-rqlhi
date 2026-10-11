@@ -5,7 +5,7 @@ import {
   LayoutDashboard, Users, CalendarCheck,
   BarChart3, ScrollText, GraduationCap, IdCard, ClipboardCheck, ListChecks,
   Table2, UserCheck,
-  FileText, CalendarHeart, Play, PieChart,
+  FileText, CalendarHeart, Play, PieChart, BookHeart,
   LibraryBig,
 } from 'lucide-react'
 import { cookies } from 'next/headers'
@@ -19,6 +19,7 @@ import { getKonteksPengumuman, getPengumumanGuru } from '@/lib/data/pengumuman-g
 import { hitungRaporBaruGuru } from '@/lib/data/kpi-pengesahan'
 import { getNotifUjianGuru } from '@/lib/data/ujian-notifikasi'
 import { kelompokPengampu } from '@/lib/data/riyadhoh'
+import { punyaKelompokTR } from '@/lib/data/tahsin-rekomendasi'
 
 /**
  * Kerangka Portal Guru: navigasi tetap + wadah isi yang bisa digulung.
@@ -40,7 +41,7 @@ export async function TeacherShell({ children }: { children: React.ReactNode }) 
   // halaman masuk tidak perlu menu yang belum boleh ia pakai.
   if (!session) return <>{children}</>
 
-  const [bolehGukar, unitUjian, konteks, raporBaru, notifUjian, kue, riyadhoh, pengampuEkstra, pengampuAsrama, peranHalaqoh] = await Promise.all([
+  const [bolehGukar, unitUjian, konteks, raporBaru, notifUjian, kue, riyadhoh, pengampuEkstra, pengampuAsrama, peranHalaqoh, pengampuTR] = await Promise.all([
     bolehMengampuGukar(session.teacherId),
     getUnitUjianGuru(session.teacherId),
     getKonteksPengumuman(session.teacherId),
@@ -60,6 +61,8 @@ export async function TeacherShell({ children }: { children: React.ReactNode }) 
     // Pengampu kelompok asrama boarding (0110) — menu Tahsin/Tahfidz Asrama.
     punyaKelompokAsrama(session.teacherId).catch(() => false),
     getTeacherHalaqohPeran(session.teacherId),
+    // Akun Tahsin Rekomendasi Jum'at sore (0115) — TR1, TR2, … milik koordinator SD.
+    punyaKelompokTR(session.teacherId),
   ])
   const halaqohSekolah = [...peranHalaqoh.keys()]
   // Guru SMA berperan khusus (halaqoh_teachers.role): menu sesi jenis lain
@@ -84,7 +87,21 @@ export async function TeacherShell({ children }: { children: React.ReactNode }) 
   // yang melekat di semua halaman portal, jadi datanya harus ikut ke mana pun.
   const pengumuman = await getPengumumanGuru(konteks.unit, konteks.seenAt)
 
-  const groups: TeacherNavGroup[] = [
+  // Akun TR murni (TR1, TR2, …): dipegang wali kelas SD, bukan guru Qur'an —
+  // tidak punya halaqoh, rapor, maupun KPI. Menunya cukup kelompok Jum'atnya.
+  const trSaja = pengampuTR && halaqohSekolah.length === 0 && !pengampuAsrama && riyadhoh.length === 0 && !pengampuEkstra
+  const menuTR = { label: 'Tahsin Rekomendasi', href: '/guru/tahsin-rekomendasi', icon: <BookHeart /> }
+
+  const groups: TeacherNavGroup[] = trSaja ? [
+    { title: null, items: [menuTR] },
+    {
+      title: 'Lainnya',
+      items: [
+        { label: 'Panduan Guru', href: '/guru/panduan', icon: <LibraryBig /> },
+        { label: 'Profil Saya', href: '/guru/profil', icon: <IdCard /> },
+      ],
+    },
+  ] : [
     {
       title: null,
       items: [
@@ -137,6 +154,7 @@ export async function TeacherShell({ children }: { children: React.ReactNode }) 
         // Rapor semester memakai format yang ditetapkan koordinator (0082).
         ...(bolehLapor ? [{ label: 'Rapor Qur’an', href: '/guru/rapor-quran', icon: <ScrollText /> }] : []),
         ...(riyadhoh.length > 0 ? [{ label: 'Riyadhoh Sabtu', href: '/guru/riyadhoh', icon: <CalendarHeart /> }] : []),
+        ...(pengampuTR ? [menuTR] : []),
         { label: 'Statistik', href: '/guru/statistik', icon: <BarChart3 /> },
       ],
     },

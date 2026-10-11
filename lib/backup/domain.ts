@@ -27,7 +27,7 @@ export interface InfoDomain {
 export const DOMAIN_BACKUP: Record<DomainBackup, InfoDomain> = {
   unit: {
     judul: 'Data unit',
-    keterangan: 'Siswa, halaqoh, setoran tahsin & tahfidz, ujian, drill, asrama, riyadhoh, target, rapor, kalender, dan absensi siswa seluruh unit.',
+    keterangan: 'Siswa, halaqoh, setoran tahsin & tahfidz, ujian, drill, asrama, riyadhoh, tahsin rekomendasi, target, rapor, kalender, dan absensi siswa seluruh unit.',
     tabel: [
       'academic_terms', 'students', 'kenaikan_riwayat', 'teachers',
       'halaqoh', 'halaqoh_teachers', 'halaqoh_members', 'halaqoh_sessions',
@@ -41,6 +41,7 @@ export const DOMAIN_BACKUP: Record<DomainBackup, InfoDomain> = {
       'kalender_pekan_efektif', 'kalender_jadwal', 'kalender_kosong', 'kaldik_events',
       'asrama_kelompok', 'asrama_anggota',
       'riyadhoh_jadwal', 'riyadhoh_kelompok_siswa', 'riyadhoh_pengampu', 'riyadhoh_peserta', 'riyadhoh_hadir',
+      'tr_pengampu', 'tr_peserta', 'tr_hadir',
       'rapor_templates', 'rapor_isian',
     ],
   },

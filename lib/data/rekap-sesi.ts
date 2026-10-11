@@ -192,6 +192,8 @@ interface LogTahsinRekap {
   catatan: string | null
   /** Ada setelah 0110; tidak ada = setoran sekolah. */
   asrama?: boolean | null
+  /** Ada setelah 0115: setoran Tahsin Rekomendasi Jum'at sore. */
+  tahsin_rekomendasi?: boolean | null
   quran_halaman: number | null
   quran_surat_id: number | null
   quran_ayat_dari: number | null
@@ -237,6 +239,7 @@ function selTahsin(l: LogTahsinRekap, jilidMateri: Set<string>): SelProgres {
       `${LABEL_STATUS_TAHSIN[l.status] ?? l.status}${l.status === 'lanjut' ? ' — halaman belum tuntas' : ''}${l.drill ? ' (drill)' : ''}`,
       `Nilai ${bintangTeks(angka(l.nilai_tahsin))} · Adab ${bintangTeks(sikap)}`,
       l.asrama ? 'Setoran asrama' : '',
+      l.tahsin_rekomendasi ? 'Setoran Tahsin Rekomendasi (Jum’at sore)' : '',
       l.catatan ?? '',
     ].filter(Boolean).join('\n'),
     ulang: l.status === 'ulang',

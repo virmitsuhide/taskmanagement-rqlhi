@@ -7,7 +7,7 @@ import {
   Menu, X, LayoutDashboard, CheckSquare, BookOpen,
   ImageIcon, Megaphone, FileText, User, LogOut, GraduationCap, Newspaper, LayoutGrid,
   Users, UserCog, BookMarked, BarChart3, LayoutTemplate, Info, Wallet, CalendarRange, CalendarDays,
-  ClipboardCheck, KeyRound, ScrollText, Repeat, IdCard, UsersRound, Briefcase, Stamp, Scale, ListChecks, Kanban, CalendarHeart, Lock, UserRound,
+  ClipboardCheck, KeyRound, ScrollText, Repeat, IdCard, UsersRound, Briefcase, Stamp, Scale, ListChecks, Kanban, CalendarHeart, BookHeart, Lock, UserRound,
   Crosshair, LibraryBig, Table2, BedDouble, DatabaseBackup,
 } from 'lucide-react'
 import { domainBackupUntuk } from '@/lib/backup/domain'
@@ -19,7 +19,7 @@ import {
   canViewStudents, canViewHalaqoh, canViewAsrama, canViewTeachers, canViewUnitAnalytics,
   canManageHomepage,
   canViewKpi, canCatatSetoranGuru, canManageAllAccounts, canManagePengurus, canManageEmployees, canViewUjian, canManageTeacherProfiles,
-  canAccessKpiPublikasi, canManageRaporTemplate, canManageKalenderQuran, canManageRiyadhoh, canViewRiyadhohAnalitik, canManageEkstra, canManageKaldik, canViewKpiBanding, canViewTasks, canViewRoutineBoard, isAdmin, canViewLaporanKurikulum, canViewPapanRapat, canViewTargetBulanan, canKelolaPanduanGuru } from '@/lib/auth/permissions'
+  canAccessKpiPublikasi, canManageRaporTemplate, canManageKalenderQuran, canManageRiyadhoh, canViewRiyadhohAnalitik, canManageTahsinRekomendasi, canViewTahsinRekomendasiAnalitik, canManageEkstra, canManageKaldik, canViewKpiBanding, canViewTasks, canViewRoutineBoard, isAdmin, canViewLaporanKurikulum, canViewPapanRapat, canViewTargetBulanan, canKelolaPanduanGuru } from '@/lib/auth/permissions'
 import type { UserRole } from '@/types'
 import { logoutAction } from '@/app/actions/auth'
 import { Logo } from '@/components/brand/Logo'
@@ -200,6 +200,9 @@ export function MobileNav({ role, displayName, username, lencanaKpi }: Props) {
               {canViewRiyadhohAnalitik(role) && (
                 <DrawerLink href="/riyadhoh/analitik" icon={<BarChart3 className="h-4 w-4" />} label="Analitik Riyadhoh" active={isActive('/riyadhoh/analitik')} onNavigate={close} />
               )}
+              {canViewTahsinRekomendasiAnalitik(role) && (
+                <DrawerLink href="/tahsin-rekomendasi/analitik" icon={<BarChart3 className="h-4 w-4" />} label="Analitik Tahsin Rekomendasi" active={isActive('/tahsin-rekomendasi/analitik')} onNavigate={close} />
+              )}
               {canManageEkstra(role) && (
                 <DrawerLink href="/ekstra/analitik" icon={<BarChart3 className="h-4 w-4" />} label="Analitik Ekstra" active={isActive('/ekstra/analitik')} onNavigate={close} />
               )}
@@ -371,6 +374,9 @@ export function MobileNav({ role, displayName, username, lencanaKpi }: Props) {
                 )}
                 {canManageRiyadhoh(role) && (
                   <DrawerLink href="/riyadhoh" icon={<CalendarHeart className="h-4 w-4" />} label="Riyadhoh Sabtu" active={pathname === '/riyadhoh'} onNavigate={close} />
+                )}
+                {canManageTahsinRekomendasi(role) && (
+                  <DrawerLink href="/tahsin-rekomendasi" icon={<BookHeart className="h-4 w-4" />} label="Tahsin Rekomendasi" active={pathname === '/tahsin-rekomendasi'} onNavigate={close} />
                 )}
                 {canManageEkstra(role) && (
                   <>

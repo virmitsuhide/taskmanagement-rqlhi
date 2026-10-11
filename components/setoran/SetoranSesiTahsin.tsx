@@ -182,7 +182,7 @@ function modus(xs: number[]): number | null {
  * baris per anggota yang hadir sebelum dikirim, jadi aturan server (jilid,
  * halaman terakhir, drill, setoran ganda) tetap berlaku per anak.
  */
-export function SetoranSesiTahsin({ siswa: siswaAsli, surat, halaqohId, pengaturan, tanggalTetap, ekstraSlotId, asrama, hrefSatuSatu, jilidAwal = {} }: {
+export function SetoranSesiTahsin({ siswa: siswaAsli, surat, halaqohId, pengaturan, tanggalTetap, ekstraSlotId, asrama, tahsinRekomendasi, hrefSatuSatu, jilidAwal = {} }: {
   siswa: SiswaSesiTahsin[]
   surat: SuratPilihan[]
   halaqohId: string
@@ -194,6 +194,8 @@ export function SetoranSesiTahsin({ siswa: siswaAsli, surat, halaqohId, pengatur
   ekstraSlotId?: string
   /** Setoran halaqoh asrama (0110): tiap baris dicatat lewat jalur asrama. */
   asrama?: boolean
+  /** Setoran Tahsin Rekomendasi Jum'at sore (0115): tiap baris lewat jalur TR. */
+  tahsinRekomendasi?: boolean
   /**
    * Tautan setor satu-satu per anak (id ditempel di ujungnya) — Riyadhoh:
    * anak yang belum punya jilid awal ditetapkan lewat sana, pada Sabtunya.
@@ -387,6 +389,7 @@ export function SetoranSesiTahsin({ siswa: siswaAsli, surat, halaqohId, pengatur
         setoran_date: tanggal,
         ekstra_slot_id: ekstraSlotId ?? null,
         asrama: asrama ?? false,
+        tahsin_rekomendasi: tahsinRekomendasi ?? false,
       })
     }
     for (const g of daftarKelompok) {
@@ -421,6 +424,7 @@ export function SetoranSesiTahsin({ siswa: siswaAsli, surat, halaqohId, pengatur
           setoran_date: tanggal,
           ekstra_slot_id: ekstraSlotId ?? null,
           asrama: asrama ?? false,
+          tahsin_rekomendasi: tahsinRekomendasi ?? false,
         })
       }
     }

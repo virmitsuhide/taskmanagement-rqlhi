@@ -33,6 +33,8 @@ const ADMIN_PREFIXES = [
   '/panduan-guru',
   // Sisi koordinator Ekstra. Pendaftaran orang tua ada di /daftar-ekstra (publik).
   '/ekstra',
+  // Tahsin Rekomendasi SDIT (0115) — Koor SD; analitik juga Kumik & Kepala RQ.
+  '/tahsin-rekomendasi',
 ]
 
 /** Halaman publik yang kebetulan berawalan sama dengan route pengurus. */

@@ -141,7 +141,7 @@ interface LogTahsinLama {
  * null = jalur sekolah, berisi = satu slot ekstra itu saja.
  */
 function sejalur<T>(logs: T[], jalur: string | null): T[] {
-  return logs.filter(l => jalurLog(l as { ekstra_slot_id?: string | null; asrama?: boolean | null }) === jalur)
+  return logs.filter(l => jalurLog(l as Parameters<typeof jalurLog>[0]) === jalur)
 }
 
 /**
@@ -150,9 +150,15 @@ function sejalur<T>(logs: T[], jalur: string | null): T[] {
  */
 export const JALUR_ASRAMA = 'asrama'
 
-/** Jalur sebuah setoran: id slot ekstra, JALUR_ASRAMA, atau null (sekolah). */
-export function jalurLog(l: { ekstra_slot_id?: string | null; asrama?: boolean | null }): string | null {
-  return l.ekstra_slot_id ?? (l.asrama ? JALUR_ASRAMA : null)
+/**
+ * Jalur Tahsin Rekomendasi (0115): Jum'at adalah hari sekolah, jadi anak
+ * boleh setor pagi di halaqoh dan sore di kelompok TR-nya.
+ */
+export const JALUR_TR = 'tahsin_rekomendasi'
+
+/** Jalur sebuah setoran: id slot ekstra, JALUR_ASRAMA, JALUR_TR, atau null (sekolah). */
+export function jalurLog(l: { ekstra_slot_id?: string | null; asrama?: boolean | null; tahsin_rekomendasi?: boolean | null }): string | null {
+  return l.ekstra_slot_id ?? (l.asrama ? JALUR_ASRAMA : l.tahsin_rekomendasi ? JALUR_TR : null)
 }
 
 async function cariTahsinSamaHari(supabase: Supabase, studentId: string, tanggal: string, ekstraSlotId: string | null = null) {

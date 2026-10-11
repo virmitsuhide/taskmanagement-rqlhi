@@ -7,6 +7,7 @@ import { isContractExpired } from '@/lib/auth/contract'
 import { createSession, destroySession } from '@/lib/auth/session'
 import { createTeacherSession } from '@/lib/auth/teacher-session'
 import { DEFAULT_DASHBOARD } from '@/lib/auth/permissions'
+import { POLA_USERNAME_TR } from '@/lib/rq/tahsin-rekomendasi'
 import type { UserRole } from '@/types'
 
 /**
@@ -41,11 +42,12 @@ export async function loginAction(_: unknown, formData: FormData) {
     redirect(`/dashboard/${DEFAULT_DASHBOARD[user.role as UserRole]}`)
   }
 
-  // 2. Coba sebagai guru (teachers)
+  // 2. Coba sebagai guru (teachers). Akun bersama Tahsin Rekomendasi bernama
+  // TR1, TR2, … — papan ketik HP sering mengetiknya "tr1", jadi disamakan.
   const { data: teacher } = await supabase
     .from('teachers')
     .select('id, username, password_hash, full_name, is_active, contract_end')
-    .eq('username', username)
+    .eq('username', POLA_USERNAME_TR.test(username.toUpperCase()) ? username.toUpperCase() : username)
     // Akun terhapus kehilangan akses saat itu juga.
     .is('deleted_at', null)
     .maybeSingle()
