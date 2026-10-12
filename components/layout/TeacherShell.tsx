@@ -3,7 +3,7 @@ import { punyaKelompokAsrama } from '@/lib/data/asrama'
 import { getTeacherHalaqohPeran } from '@/lib/data/teacher'
 import {
   LayoutDashboard, Users, CalendarCheck,
-  BarChart3, ScrollText, GraduationCap, IdCard, ClipboardCheck, ListChecks,
+  BarChart3, ScrollText, GraduationCap, IdCard, Palette, ClipboardCheck, ListChecks,
   Table2, UserCheck,
   FileText, CalendarHeart, Play, PieChart, BookHeart,
   LibraryBig,
@@ -99,6 +99,7 @@ export async function TeacherShell({ children }: { children: React.ReactNode }) 
       items: [
         { label: 'Panduan Guru', href: '/guru/panduan', icon: <LibraryBig /> },
         { label: 'Profil Saya', href: '/guru/profil', icon: <IdCard /> },
+        { label: 'Tampilan', href: '/guru/profil/tampilan', icon: <Palette /> },
       ],
     },
   ] : [
@@ -178,6 +179,7 @@ export async function TeacherShell({ children }: { children: React.ReactNode }) 
         // SOP & dokumen PDF dari pengurus (0104).
         { label: 'Panduan Guru', href: '/guru/panduan', icon: <LibraryBig /> },
         { label: 'Profil Saya', href: '/guru/profil', icon: <IdCard /> },
+        { label: 'Tampilan', href: '/guru/profil/tampilan', icon: <Palette /> },
       ],
     },
   ]

@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { ChevronRight, Palette } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-/** Pintu ke halaman Tampilan dari halaman profil tiap portal. */
+/** Pintu ke halaman Tampilan dari profil karyawan — portal itu tidak punya sidebar. */
 export function TautanTampilan({ href, className }: { href: string; className?: string }) {
   return (
     <Link

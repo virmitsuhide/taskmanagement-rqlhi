@@ -9,7 +9,7 @@ import {
   Users, UserCog, BookMarked, BarChart3, LayoutTemplate, Info, Wallet, CalendarRange, CalendarDays,
   ClipboardCheck, KeyRound, ScrollText, Repeat, IdCard, UsersRound, Briefcase, Stamp, Scale, ListChecks, Kanban,
   PanelLeftClose, PanelLeftOpen, CalendarHeart, BookHeart, Lock, UserRound,
-  Crosshair, LibraryBig, Table2, BedDouble, DatabaseBackup,
+  Crosshair, LibraryBig, Table2, BedDouble, DatabaseBackup, Palette,
 } from 'lucide-react'
 import { domainBackupUntuk } from '@/lib/backup/domain'
 import { DASHBOARD_LABELS, getAccessibleDashboards, ROLE_LABELS , canManageTeacherProfiles } from '@/lib/auth/permissions'
@@ -375,13 +375,14 @@ export function Sidebar({ role, displayName, username, lencanaKpi, ciutAwal = fa
         {!isAdmin(role) && canManageAllAccounts(role) && (
           <NavItem href="/akun" icon={<KeyRound className="h-4 w-4" />} label="Akun & Password" active={isActive('/akun')} />
         )}
+        <NavItem href="/profil/tampilan" icon={<Palette className="h-4 w-4" />} label="Tampilan" active={isActive('/profil/tampilan')} />
         <Link
           href="/profil"
           title={`${displayName} — profil`}
-          aria-current={isActive('/profil') ? 'page' : undefined}
+          aria-current={pathname === '/profil' ? 'page' : undefined}
           className={cn(
             'flex items-center gap-2.5 rounded-md px-2 py-2 text-sm transition-colors', TAUTAN_CIUT,
-            isActive('/profil')
+            pathname === '/profil'
               ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium'
               : 'text-sidebar-foreground hover:bg-sidebar-accent/50'
           )}

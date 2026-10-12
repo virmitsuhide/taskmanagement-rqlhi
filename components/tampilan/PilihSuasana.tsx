@@ -18,7 +18,8 @@ import {
  * Halaman Tampilan — pilih suasana (palet) dan ukuran teks untuk akun ini.
  *
  * Dipakai bersama oleh tiga portal (pengurus, guru, karyawan); halaman rute
- * masing-masing hanya menjaga sesi dan membaca pilihan tersimpan. Memilih
+ * masing-masing hanya menjaga sesi dan membaca pilihan tersimpan. Pengurus &
+ * guru membukanya dari sidebar; karyawan (tanpa sidebar) dari halaman profil. Memilih
  * hanya mempratinjau (atribut <html>, tanpa cookie); baru tombol Simpan yang
  * memasang cookie & menyimpan ke akun. Batalkan — atau meninggalkan halaman
  * tanpa menyimpan — mengembalikan pilihan tersimpan.
@@ -31,7 +32,8 @@ export function PilihSuasana({
 }: {
   portal: PortalTampilan
   awal: PrefTampilan
-  kembaliHref: string
+  /** Tautan kembali di atas judul — hanya portal tanpa sidebar (karyawan) yang memerlukannya. */
+  kembaliHref?: string
   kembaliLabel?: string
 }) {
   const [tersimpan, setTersimpan] = React.useState<PrefTampilan>(awal)
@@ -101,13 +103,15 @@ export function PilihSuasana({
 
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-5 md:px-8 md:py-8">
-      <Link
-        href={kembaliHref}
-        className="inline-flex min-h-11 items-center gap-1 text-sm font-semibold text-primary hover:underline md:min-h-0"
-      >
-        <ChevronLeft className="h-4 w-4" aria-hidden />
-        {kembaliLabel}
-      </Link>
+      {kembaliHref && (
+        <Link
+          href={kembaliHref}
+          className="inline-flex min-h-11 items-center gap-1 text-sm font-semibold text-primary hover:underline md:min-h-0"
+        >
+          <ChevronLeft className="h-4 w-4" aria-hidden />
+          {kembaliLabel}
+        </Link>
+      )}
       <p className="mt-1 text-xs font-bold uppercase tracking-[0.14em] text-accent-warm">Tampilan</p>
       <h1 className="mt-1 font-heading text-3xl leading-tight md:text-4xl">
         Pilih <em>suasana</em> ruang kerja Anda

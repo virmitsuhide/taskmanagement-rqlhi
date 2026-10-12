@@ -12,7 +12,7 @@ export default async function TampilanGuruPage() {
 
   return (
     <div className="min-h-screen">
-      <PilihSuasana portal="guru" awal={awal} kembaliHref="/guru/profil" />
+      <PilihSuasana portal="guru" awal={awal} />
     </div>
   )
 }

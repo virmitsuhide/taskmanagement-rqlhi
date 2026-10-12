@@ -12,7 +12,6 @@ import { parseTtdFocus } from '@/lib/kpi/tanda-tangan'
 import { ttdSrc } from '@/lib/kpi/ttd-berkas'
 import { TandaTanganCard } from '@/components/kpi/TandaTanganCard'
 import { simpanTtdPengurusAction } from '@/app/actions/tanda-tangan'
-import { TautanTampilan } from '@/components/tampilan/TautanTampilan'
 import type { PengurusProfile } from '@/types'
 
 // Kolom profil dari migrasi 0014.
@@ -119,8 +118,6 @@ export default async function ProfilPage() {
             </span>
           </div>
         </div>
-
-        <TautanTampilan href="/profil/tampilan" className="mb-8 -mt-2" />
 
         {full && pemegang && (
           <div className="mb-8">

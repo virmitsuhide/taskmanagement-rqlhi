@@ -18,9 +18,9 @@ export default async function TampilanPengurusPage() {
         role={session.role}
         title="Tampilan"
         ownH1
-        breadcrumbs={[{ label: 'Profil', href: '/profil' }, { label: 'Tampilan' }]}
+        breadcrumbs={[{ label: 'Tampilan' }]}
       />
-      <PilihSuasana portal="pengurus" awal={awal} kembaliHref="/profil" />
+      <PilihSuasana portal="pengurus" awal={awal} />
     </div>
   )
 }

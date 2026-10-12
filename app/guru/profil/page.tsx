@@ -8,7 +8,6 @@ import { parseTtdFocus } from '@/lib/kpi/tanda-tangan'
 import { ttdSrc } from '@/lib/kpi/ttd-berkas'
 import { TandaTanganCard } from '@/components/kpi/TandaTanganCard'
 import { simpanTtdGuruAction } from '@/app/actions/tanda-tangan'
-import { TautanTampilan } from '@/components/tampilan/TautanTampilan'
 import type { GuruProfile, Jenjang } from '@/types'
 
 // photo_url & photo_focus wajib ikut: tanpa keduanya form menampilkan lingkaran
@@ -75,8 +74,6 @@ export default async function ProfilGuruSendiriPage() {
           Lengkapi data diri Anda. Isian ini dipakai SDM untuk arsip kepegawaian —
           semakin lengkap, semakin sedikit yang perlu ditanyakan ulang.
         </p>
-
-        <TautanTampilan href="/guru/profil/tampilan" className="mb-5" />
 
         {perluMigrasi && (
           <div className="mb-4 flex items-start gap-2 rounded-lg border px-4 py-2.5 text-sm"

@@ -8,7 +8,7 @@ import {
   ImageIcon, Megaphone, FileText, User, LogOut, GraduationCap, Newspaper, LayoutGrid,
   Users, UserCog, BookMarked, BarChart3, LayoutTemplate, Info, Wallet, CalendarRange, CalendarDays,
   ClipboardCheck, KeyRound, ScrollText, Repeat, IdCard, UsersRound, Briefcase, Stamp, Scale, ListChecks, Kanban, CalendarHeart, BookHeart, Lock, UserRound,
-  Crosshair, LibraryBig, Table2, BedDouble, DatabaseBackup,
+  Crosshair, LibraryBig, Table2, BedDouble, DatabaseBackup, Palette,
 } from 'lucide-react'
 import { domainBackupUntuk } from '@/lib/backup/domain'
 import { cn } from '@/lib/utils'
@@ -406,11 +406,12 @@ export function MobileNav({ role, displayName, username, lencanaKpi }: Props) {
           {!isAdmin(role) && canManageAllAccounts(role) && (
             <DrawerLink href="/akun" icon={<KeyRound className="h-4 w-4" />} label="Akun & Password" active={isActive('/akun')} onNavigate={close} />
           )}
+          <DrawerLink href="/profil/tampilan" icon={<Palette className="h-4 w-4" />} label="Tampilan" active={isActive('/profil/tampilan')} onNavigate={close} />
           <Link
             href="/profil"
             onClick={close}
-            aria-current={isActive('/profil') ? 'page' : undefined}
-            className={navLinkClass(isActive('/profil'))}
+            aria-current={pathname === '/profil' ? 'page' : undefined}
+            className={navLinkClass(pathname === '/profil')}
           >
             <User className="h-4 w-4" />
             <div className="flex-1 min-w-0">
