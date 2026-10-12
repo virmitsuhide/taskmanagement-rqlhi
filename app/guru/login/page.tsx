@@ -11,6 +11,7 @@ export default function TeacherLoginPage() {
 
   return (
     <LoginShell
+      gambar="halaqah"
       eyebrow="Masuk sebagai guru"
       title={<>Assalamu&rsquo;alaikum, <em>Ustadz/ah.</em></>}
       subtitle="Masukkan username & password yang diberikan admin."

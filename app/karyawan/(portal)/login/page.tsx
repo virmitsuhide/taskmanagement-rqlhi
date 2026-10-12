@@ -11,6 +11,7 @@ export default function EmployeeLoginPage() {
 
   return (
     <LoginShell
+      gambar="mushaf"
       eyebrow="Masuk sebagai karyawan"
       title={<>Assalamu&rsquo;alaikum.</>}
       subtitle="Masukkan username & password yang diberikan admin."

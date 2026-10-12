@@ -11,6 +11,7 @@ export default function LoginPage() {
 
   return (
     <LoginShell
+      gambar="fajar"
       eyebrow="Masuk · pengurus & guru"
       title={<>Assalamu&rsquo;alaikum, <em>Ustadz/ah.</em></>}
       subtitle="Masukkan username dan password Anda."
