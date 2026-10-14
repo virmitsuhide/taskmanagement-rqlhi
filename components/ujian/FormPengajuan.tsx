@@ -26,26 +26,38 @@ interface Props {
   units: UjianUnit[]
   /** Ke mana diarahkan setelah pengajuan tersimpan. */
   redirectTo: string
+  /**
+   * Musyrif/ah murni (hanya kelompok asrama): ujian tahsin tetap diajukan
+   * pengampu sekolah — posisi tahsin anak boarding mengikuti sekolah.
+   */
+  hanyaTahfidz?: boolean
 }
 
 const SELECT_CLASS =
   'h-9 w-full rounded-md border bg-transparent px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50'
 
-export function FormPengajuan({ units, redirectTo }: Props) {
+export function FormPengajuan({ units, redirectTo, hanyaTahfidz = false }: Props) {
   const [jenis, setJenis] = useState<'tahfidz' | 'tahsin'>('tahfidz')
   const [unit, setUnit] = useState<UjianUnit>(units[0] ?? 'SD')
 
   return (
     <div className="space-y-5">
-      <Segmen
-        label="Jenis ujian"
-        value={jenis}
-        onChange={setJenis}
-        options={[
-          { value: 'tahfidz', label: 'Tahfidz', icon: <BookOpen className="h-4 w-4" />      },
-          { value: 'tahsin',  label: 'Tahsin',  icon: <ClipboardList className="h-4 w-4" /> },
-        ]}
-      />
+      {hanyaTahfidz ? (
+        <p className="rounded-lg bg-muted px-3 py-2 text-sm text-muted-foreground">
+          Musyrif/ah mengajukan ujian <span className="font-medium text-foreground">tahfidz</span> untuk
+          anak kelompok asramanya. Ujian tahsin diajukan pengampu sekolah.
+        </p>
+      ) : (
+        <Segmen
+          label="Jenis ujian"
+          value={jenis}
+          onChange={setJenis}
+          options={[
+            { value: 'tahfidz', label: 'Tahfidz', icon: <BookOpen className="h-4 w-4" />      },
+            { value: 'tahsin',  label: 'Tahsin',  icon: <ClipboardList className="h-4 w-4" /> },
+          ]}
+        />
+      )}
 
       {units.length > 1 ? (
         <div className="space-y-1.5">

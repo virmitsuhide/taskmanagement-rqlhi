@@ -140,6 +140,14 @@ export async function punyaKelompokAsrama(teacherId: string): Promise<boolean> {
  */
 export async function bolehAsrama(teacherId: string, studentId: string, tanggal: string): Promise<boolean> {
   if (tanggal > hariIniWIB()) return false
+  return anakKelompokAsrama(teacherId, studentId)
+}
+
+/**
+ * Anak ini anggota kelompok asrama aktif yang diampu guru ini — dipakai juga
+ * pengajuan ujian tahfidz oleh musyrif/ah.
+ */
+export async function anakKelompokAsrama(teacherId: string, studentId: string): Promise<boolean> {
   const { data, error } = await createServerClient()
     .from('asrama_anggota')
     .select('kelompok:asrama_kelompok!asrama_anggota_kelompok_id_fkey(pengampu_id, is_active)')

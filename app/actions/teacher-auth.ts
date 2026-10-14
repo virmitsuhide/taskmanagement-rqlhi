@@ -16,9 +16,10 @@ export async function loginTeacherAction(_: unknown, formData: FormData) {
     return { error: 'Username dan password wajib diisi.' }
   }
 
-  // Akun bersama Tahsin Rekomendasi bernama TR1, TR2, … (huruf besar), dan
-  // papan ketik HP sering mengetiknya "tr1" atau "Tr1" — samakan dulu.
-  const dicari = POLA_USERNAME_TR.test(username.toUpperCase()) ? username.toUpperCase() : username
+  // Akun bersama Tahsin Rekomendasi bernama TR1, TR2, … (huruf besar); semua
+  // username lain huruf kecil. Papan ketik HP mengapitalkan huruf pertama
+  // ("Nihayatun_nasywa"), dan .eq() peka huruf besar — samakan dulu.
+  const dicari = POLA_USERNAME_TR.test(username.toUpperCase()) ? username.toUpperCase() : username.toLowerCase()
 
   const supabase = createServerClient()
   const { data: teacher, error } = await supabase

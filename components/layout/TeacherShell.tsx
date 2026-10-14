@@ -169,9 +169,10 @@ export async function TeacherShell({ children }: { children: React.ReactNode }) 
     {
       title: 'Lainnya',
       items: [
-        // Ujian anak asrama diajukan Div Qur'an BPA/BPI dari dashboard pengurus,
-        // bukan oleh musyrif/ah — menu ini hanya untuk pengampu sekolah.
-        ...(unitUjian && !musyrifSaja
+        // Musyrif/ah ikut mengajukan ujian tahfidz anak kelompok asramanya
+        // (unitnya SMP lewat getUnitsUjianGuru); Div Qur'an BPA/BPI tetap bisa
+        // mengajukan dari dashboard pengurus.
+        ...(unitUjian
           ? [{ label: 'Pengajuan Ujian', href: '/guru/ujian', icon: <ScrollText />, badge: notifUjian.baruCount }]
           : []),
         ...(pengampuEkstra ? [{ label: 'Ekstra', href: '/guru/ekstra', icon: <CalendarHeart /> }] : []),

@@ -38,7 +38,7 @@ const supabase = createClient(
 const MUSYRIF_BARU: { username: string; full_name: string }[] = [
   { username: 'ismatul_maula',    full_name: 'Ismatul Maula, S.Ag.' },
   { username: 'karima_hasni',     full_name: 'Karima Hasni' },
-  { username: 'rosyida_rhamnaia', full_name: 'Rosyida Rhamnaia' },
+  { username: 'rosyida_rhamnaia', full_name: 'Rosyida Rahmania' },
   { username: 'binti_karimah',    full_name: 'Binti Karimah, M. Pd.' },
   { username: 'nihayatun_nasywa', full_name: 'Nihayatun Nasywa' },
   { username: 'muhammad_itishom', full_name: "Muhammad Nur I'tishom Amirul Haq, S.Kom." },

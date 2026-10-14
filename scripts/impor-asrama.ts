@@ -51,7 +51,7 @@ const USTADZ: Record<Gender, Record<string, { nama: string; panggilan: string }>
   },
   P: {
     isma: { nama: 'Ismatul Maula', panggilan: 'Usth. Isma' },
-    rosyi: { nama: 'Rosyida Rhamnaia', panggilan: 'Usth. Rosyi' },
+    rosyi: { nama: 'Rosyida Rahmania', panggilan: 'Usth. Rosyi' },
     nasywa: { nama: 'Nihayatun Nasywa', panggilan: 'Usth. Nasywa' },
     // Dokumen menyebut "Karima" dan "Binti" terpisah: Karima = Karima Hasni.
     karima: { nama: 'Karima Hasni', panggilan: 'Usth. Karima' },

@@ -141,6 +141,10 @@ export function LoginFields({
             type="text"
             placeholder={usernamePlaceholder}
             autoComplete="username"
+            // Keyboard HP jangan mengapitalkan/mengoreksi username.
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
             required
             disabled={disabled}
             className="h-12 rounded-xl pl-10 text-base"

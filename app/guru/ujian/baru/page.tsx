@@ -1,6 +1,8 @@
 import { redirect } from 'next/navigation'
 import { getTeacherSession } from '@/lib/auth/teacher-session'
 import { getUnitsUjianGuru } from '@/lib/data/ujian'
+import { getTeacherHalaqohIds } from '@/lib/data/teacher'
+import { punyaKelompokAsrama } from '@/lib/data/asrama'
 import { UJIAN_UNIT_SEKOLAH } from '@/lib/rq/ujian'
 import { FormPengajuan } from '@/components/ujian/FormPengajuan'
 import { HalamanGuru } from '@/components/guru/HalamanGuru'
@@ -14,8 +16,15 @@ export default async function AjukanUjianGuruPage() {
   // Guru tanpa unit tidak punya koordinator yang akan menjadwalkan
   // ujiannya, jadi formnya tidak ditampilkan sama sekali — halaman daftar
   // yang menjelaskan duduk perkaranya.
-  const units = await getUnitsUjianGuru(session.teacherId)
+  const [units, halaqohIds, asrama] = await Promise.all([
+    getUnitsUjianGuru(session.teacherId),
+    getTeacherHalaqohIds(session.teacherId),
+    punyaKelompokAsrama(session.teacherId).catch(() => false),
+  ])
   if (units.length === 0) redirect('/guru/ujian')
+  // Musyrif/ah murni (kelompok asrama, tanpa halaqoh sekolah): ujian tahsin
+  // dikelompokkan per halaqoh sekolah, jadi yang bisa ia ajukan hanya tahfidz.
+  const hanyaTahfidz = asrama && halaqohIds.length === 0
 
   return (
     <HalamanGuru
@@ -28,7 +37,7 @@ export default async function AjukanUjianGuruPage() {
         </Link>
       }
     >
-      <FormPengajuan units={units} redirectTo="/guru/ujian" />
+      <FormPengajuan units={units} redirectTo="/guru/ujian" hanyaTahfidz={hanyaTahfidz} />
     </HalamanGuru>
   )
 }

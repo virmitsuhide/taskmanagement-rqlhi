@@ -14,6 +14,7 @@ import {
 } from '@/lib/rq/ujian'
 import { canTeacherAccessStudent, getTeacherHalaqohIds, getTeacherStudents } from '@/lib/data/teacher'
 import { tautkanUjianKeDrill } from '@/lib/data/drill-tahfidz'
+import { anakKelompokAsrama } from '@/lib/data/asrama'
 import { juzLulusBebas, ringkasHafalan, ringkasJuzBebas, totalJuzHafalan, urutanBebas } from '@/lib/rq/hafalan'
 
 /** SMA (urutan bebas) hanya mengenal ujian 1 juz — tidak ada tasmi' 3/5 juz. */
@@ -220,8 +221,15 @@ export async function createTahfidzUjianAction(input: {
   // Guru hanya mengajukan ujian tahfidz anak yang tahfidznya ia pegang — guru
   // tahsin SMA (halaqoh_teachers.role) tidak. Anak yang belum terdaftar
   // (student_id null) tidak bisa diperiksa dan dibiarkan seperti sebelumnya.
-  if (pengaju.teacherId && input.student_id && !(await canTeacherAccessStudent(pengaju.teacherId, input.student_id, 'tahfidz'))) {
-    return { error: 'Ujian tahfidz diajukan oleh guru tahfidz anak ini.' }
+  // Musyrif/ah boleh juga mengajukan anak kelompok asramanya (0110), selalu
+  // ke antrean SMP — anak boarding memang anak SMP.
+  if (pengaju.teacherId && input.student_id) {
+    const bolehSekolah = await canTeacherAccessStudent(pengaju.teacherId, input.student_id, 'tahfidz')
+    const bolehAsrama = !bolehSekolah && pengaju.unit === 'SMP'
+      && await anakKelompokAsrama(pengaju.teacherId, input.student_id)
+    if (!bolehSekolah && !bolehAsrama) {
+      return { error: 'Ujian tahfidz diajukan oleh guru tahfidz atau musyrif/ah anak ini.' }
+    }
   }
   if (pengaju.boarding) {
     const galat = await galatBoarding(pengaju.boarding, [input.student_id])
@@ -847,7 +855,9 @@ export async function cariSiswaUjianAction(
   if (pengaju.teacherId) {
     // Saran nama hanya untuk form ujian tahfidz: anak yang tahfidznya dipegang
     // guru ini (guru tahsin SMA tidak melihat siapa pun di sini).
-    const milik = await getTeacherStudents(pengaju.teacherId, { jenis: 'tahfidz' })
+    // Termasuk anak kelompok asrama yang diampu (musyrif/ah, 0110); saringan
+    // jenjang di bawah memastikan mereka hanya muncul di antrean SMP.
+    const milik = await getTeacherStudents(pengaju.teacherId, { jenis: 'tahfidz', denganAsrama: true })
     if (milik.length === 0) return []
     idHalaqoh = milik.map(s => s.id)
   }

@@ -3,6 +3,7 @@ import { createServerClient } from '@/lib/supabase/server'
 import { tanggalWIB, unitUjianDariJenjang } from '@/lib/rq/ujian'
 import { totalJuzHafalan } from '@/lib/rq/hafalan'
 import { getTeacherHalaqohIds } from '@/lib/data/teacher'
+import { punyaKelompokAsrama } from '@/lib/data/asrama'
 import type {
   CalonPenguji,
   Jenjang,
@@ -248,15 +249,19 @@ async function bacaUjianGuru(teacherId: string): Promise<UjianGuru> {
 export const getUnitsUjianGuru = cache(async (teacherId: string): Promise<UjianUnit[]> => {
   try {
     const supabase = createServerClient()
-    const [{ data: guru }, halaqohIds] = await Promise.all([
+    const [{ data: guru }, halaqohIds, asrama] = await Promise.all([
       supabase.from('teachers').select('unit').eq('id', teacherId).maybeSingle(),
       getTeacherHalaqohIds(teacherId),
+      punyaKelompokAsrama(teacherId).catch(() => false),
     ])
     const { data: halaqoh } = halaqohIds.length
       ? await supabase.from('halaqoh').select('jenjang').in('id', halaqohIds).eq('is_active', true)
       : { data: [] }
 
-    const units = [guru?.unit, ...(halaqoh ?? []).map(h => h.jenjang)]
+    // Pengampu kelompok asrama boarding (0110) mengajukan ujian tahfidz anak
+    // kelompoknya ke antrean SMP — musyrif/ah tidak ber-unit dan tidak
+    // memegang halaqoh sekolah, jadi tanpa ini daftarnya kosong.
+    const units = [guru?.unit, ...(halaqoh ?? []).map(h => h.jenjang), asrama ? 'smp' : null]
       .map(j => unitUjianDariJenjang(j as Jenjang | null))
       .filter((u): u is UjianUnit => u !== null)
     return [...new Set(units)]
