@@ -205,13 +205,16 @@ export function MobileNav({ role, displayName, username, lencanaKpi }: Props) {
                   href="/dashboard/analitik"
                   icon={<BarChart3 className="h-4 w-4" />}
                   label="Analitik BTHCQ"
-                  active={isActive('/dashboard/analitik') && !pathname.startsWith('/dashboard/analitik/gukar')}
+                  active={isActive('/dashboard/analitik') && !pathname.startsWith('/dashboard/analitik/gukar') && !pathname.startsWith('/dashboard/analitik/halaqoh')}
                   onNavigate={close}
                 />
               )}              {canManageEkstra(role) && (
                 <DrawerLink href="/ekstra/analitik" icon={<BarChart3 className="h-4 w-4" />} label="Analitik Ekstra" active={isActive('/ekstra/analitik')} onNavigate={close} />
               )}              {canViewGukarRecap(role) && (
                 <DrawerLink href="/dashboard/analitik/gukar" icon={<BarChart3 className="h-4 w-4" />} label="Analitik Gukar" active={isActive('/dashboard/analitik/gukar')} onNavigate={close} />
+              )}
+              {canViewUnitAnalytics(role) && (
+                <DrawerLink href="/dashboard/analitik/halaqoh" icon={<BarChart3 className="h-4 w-4" />} label="Analitik Halaqoh" active={isActive('/dashboard/analitik/halaqoh')} onNavigate={close} />
               )}              {canViewKpi(role) && (
                 <DrawerLink
                   href="/kpi/analisis"

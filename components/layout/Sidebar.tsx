@@ -144,7 +144,7 @@ export function Sidebar({ role, displayName, username, lencanaKpi, ciutAwal = fa
                 href="/dashboard/analitik"
                 icon={<BarChart3 className="h-4 w-4" />}
                 label="Analitik BTHCQ"
-                active={isActive('/dashboard/analitik') && !pathname.startsWith('/dashboard/analitik/gukar')}
+                active={isActive('/dashboard/analitik') && !pathname.startsWith('/dashboard/analitik/gukar') && !pathname.startsWith('/dashboard/analitik/halaqoh')}
               />
             )}
             {canManageEkstra(role) && (
@@ -157,6 +157,9 @@ export function Sidebar({ role, displayName, username, lencanaKpi, ciutAwal = fa
                 label="Analitik Gukar"
                 active={isActive('/dashboard/analitik/gukar')}
               />
+            )}
+            {canViewUnitAnalytics(role) && (
+              <NavItem href="/dashboard/analitik/halaqoh" icon={<BarChart3 className="h-4 w-4" />} label="Analitik Halaqoh" active={isActive('/dashboard/analitik/halaqoh')} />
             )}
             {canViewKpi(role) && (
               <NavItem

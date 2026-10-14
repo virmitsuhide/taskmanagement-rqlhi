@@ -104,6 +104,10 @@ export default async function GuruStatistikPage({ searchParams }: PageProps) {
           }
         />
 
+        <Link href="/guru/halaqoh-saya" className="-mt-2 inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline">
+          Ringkasan halaqoh saya — laju & siapa yang perlu dibantu →
+        </Link>
+
         {s.jumlahSiswa === 0 ? (
           <div className="rounded-2xl border border-dashed bg-muted/30 py-10 text-center text-sm text-muted-foreground">
             {s.halaqohTerpilih

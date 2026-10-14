@@ -156,6 +156,8 @@ export async function TeacherShell({ children }: { children: React.ReactNode }) 
         ...(bolehLapor ? [{ label: 'Rapor Qur’an', href: '/guru/rapor-quran', icon: <ScrollText /> }] : []),
         ...(riyadhoh.length > 0 ? [{ label: 'Riyadhoh Sabtu', href: '/guru/riyadhoh', icon: <CalendarHeart /> }] : []),
         ...(pengampuTR ? [menuTR] : []),
+        // Ringkasan satu halaqoh untuk ponsel (laju, perlu dibantu) — halaqoh sekolah saja.
+        ...(musyrifSaja ? [] : [{ label: 'Halaqoh Saya', href: '/guru/halaqoh-saya', icon: <Users /> }]),
         { label: 'Statistik', href: '/guru/statistik', icon: <BarChart3 /> },
       ],
     },

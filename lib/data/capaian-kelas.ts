@@ -32,7 +32,7 @@ import type { Jenjang } from '@/types'
 export const BELUM_TERCATAT = 'Belum tercatat'
 
 /** Urutan kolom tahsin — ordinal, tidak pernah diurut menurut jumlah. */
-const URUTAN_TAHSIN = [
+export const URUTAN_TAHSIN = [
   // Pra = buku sebelum Jilid 1 (KIBAR SD LHI Juara, Pra-UMMI TPAIT — tahapBerlaku).
   'Pra', 'Jilid 1', 'Jilid 2', 'Jilid 3', 'Jilid 4', 'Jilid 5', 'Jilid 6',
   "Al-Qur'an", 'Gharib', 'Tajwid', 'Lulus',
@@ -157,7 +157,7 @@ function tingkatOf(kelas: string | null, jenjang?: Jenjang): number | null {
 }
 
 /** Satukan label jilid_levels lintas metode menjadi kolom laporan. */
-function kolomTahsin(level: BarisLevel): string {
+export function kolomTahsin(level: Pick<BarisLevel, 'label' | 'is_quran' | 'is_terminal'>): string {
   if (level.is_terminal) return 'Lulus'
   if (/^pra\b/i.test(level.label.trim())) return 'Pra'
   const jilid = /^jilid\s*([1-6])/i.exec(level.label)
@@ -307,7 +307,7 @@ function posisiTahfidz(berjalan: number, tuntas: number): { blok: number; kolom:
  * Penentu blok & kolom tahfidz untuk sekumpulan siswa — satu-satunya aturan,
  * dipakai laporan pengurus dan portal guru supaya angkanya tidak pernah berbeda.
  */
-function pembacaTahfidz(juzProgress: BarisJuzProgress[], juzUjian: Map<string, number>, bebas: ReadonlySet<string>) {
+export function pembacaTahfidz(juzProgress: BarisJuzProgress[], juzUjian: Map<string, number>, bebas: ReadonlySet<string>) {
   const berjalan = juzBerjalanPerSiswa(juzProgress)
   const tuntasSetoran = juzGabunganPerSiswa(juzProgress, juzUjian, bebas)
   const tuntasMutqin = new Map<string, number>()
@@ -719,7 +719,7 @@ async function riwayatSampai(supabase: ReturnType<typeof createServerClient>, sa
  * upsert_juz_progress (ayat dibagi menurut batas juz mushaf) — ditambah tanda
  * mutqin dari kenaikan juz.
  */
-function progresDariZiyadah(log: LogZiyadah[], juzNaik: Map<string, Set<number>>): BarisJuzProgress[] {
+export function progresDariZiyadah(log: Pick<LogZiyadah, 'student_id' | 'surat_id' | 'ayat_dari' | 'ayat_ke'>[], juzNaik: Map<string, Set<number>>): BarisJuzProgress[] {
   const ayat = new Map<string, number>()
   for (const l of log) {
     if (l.ayat_dari === null || l.ayat_ke === null) continue
@@ -789,7 +789,7 @@ export interface PosisiUnit {
   urutanTahfidz: string[]
 }
 
-async function ambilPerPotong<T>(
+export async function ambilPerPotong<T>(
   ids: string[],
   buat: (potong: string[]) => { range: (dari: number, ke: number) => PromiseLike<{ data: unknown; error: unknown }> },
 ): Promise<T[]> {
@@ -799,6 +799,20 @@ async function ambilPerPotong<T>(
     hasil.push(...await ambilSemua<T>(() => buat(potong)))
   }
   return hasil
+}
+
+/**
+ * Seperti ambilPerPotong, tetapi potongan-potongannya diambil sejajar.
+ * Untuk pemanggil yang sudah tahu jumlah potongannya kecil (satu unit,
+ * ratusan siswa): empat potong berurutan = empat kali waktu tunggu.
+ */
+export async function ambilPerPotongSejajar<T>(
+  ids: string[],
+  buat: (potong: string[]) => { range: (dari: number, ke: number) => PromiseLike<{ data: unknown; error: unknown }> },
+): Promise<T[]> {
+  const potong: string[][] = []
+  for (let i = 0; i < ids.length; i += 150) potong.push(ids.slice(i, i + 150))
+  return (await Promise.all(potong.map(p => ambilSemua<T>(() => buat(p))))).flat()
 }
 
 export async function getPosisiUnit(jenjang: Jenjang): Promise<PosisiUnit> {
