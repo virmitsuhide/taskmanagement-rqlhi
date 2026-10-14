@@ -60,7 +60,7 @@ interface Props {
 }
 
 export const HARI = ['', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Ahad']
-export const MULAI: Record<string, string> = { pagi: '06:30', siang: '12:30', sore: '15:30', malam: '19:00' }
+export const MULAI: Record<string, string> = { pagi: '06:30', sore: '15:00', malam: '19:00' }
 
 export function tambahMenit(jam: string, menit: number): string {
   const [h, m] = jam.split(':').map(Number)
@@ -122,7 +122,7 @@ export function awalPilihan(b: BookingTampil, halaqohCocok: InfoHalaqoh[], guru:
   const adaKursi = urut.filter(h => h.sisa > 0 && !(tawar && idPilihan.includes(h.teacherId)))
   const cara: CaraPilih = adaKursi.length ? 'ada' : 'baru'
   const slotId = adaKursi[0]?.id ?? ''
-  const mulai = MULAI[b.waktuPilihan[0] ?? 'sore'] ?? '15:30'
+  const mulai = MULAI[b.waktuPilihan[0] ?? 'sore'] ?? '15:00'
   const baru: IsianBaru = {
     teacher_id: !tawar && idPilihan.length ? idPilihan[0] : '', hari: b.hariPilihan[0] ?? 1,
     jam_mulai: mulai, jam_selesai: tambahMenit(mulai, b.jenis.durasi || 60), tempat: '', kuota: '',

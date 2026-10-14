@@ -38,7 +38,7 @@ export function FormJenisEkstra({ jenis, onSelesai }: { jenis?: JenisEkstra; onS
       <Kolom label="Nama ekstra" lebar><Input name="nama" required defaultValue={jenis?.nama} placeholder="mis. Ekstra Tahsin Privat" /></Kolom>
       <Kolom label="Bidang">
         <select name="bidang" defaultValue={jenis?.bidang ?? 'tahsin'} className={pilih}>
-          <option value="tahsin">Tahsin</option><option value="tahfidz">Tahfidz</option><option value="campuran">Tahsin &amp; tahfidz</option>
+          <option value="tahsin">Tahsin</option><option value="tahfidz">Tahfidz</option><option value="campuran">Tahsin &amp; tahfidz</option><option value="materi">Lain-lain (materi: Bahasa Arab, pelatihan, dll.)</option>
         </select>
       </Kolom>
       <Kolom label="Jumlah peserta per halaqoh"><Input name="kuota" type="number" min={1} max={50} required defaultValue={jenis?.kuota ?? 1} /></Kolom>

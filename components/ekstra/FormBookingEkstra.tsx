@@ -24,10 +24,9 @@ export interface GuruPublik {
 // Sama dengan BAGIAN_HARI di lib/data/ekstra.ts — disalin karena berkas itu
 // milik server (membaca Supabase) dan tidak boleh ikut ke peramban.
 const BAGIAN = [
-  { kode: 'pagi', label: 'Pagi', jam: '06.00–08.00' },
-  { kode: 'siang', label: 'Siang', jam: '12.30–15.00' },
+  { kode: 'pagi', label: 'Pagi', jam: '06.30–07.30' },
   { kode: 'sore', label: 'Sore', jam: '15.00–18.00' },
-  { kode: 'malam', label: 'Malam', jam: '18.30–21.00' },
+  { kode: 'malam', label: 'Malam', jam: '19.00–21.00' },
 ] as const
 /** Sama dengan MAKS_GURU_PILIHAN di lib/data/ekstra.ts. */
 const MAKS_GURU = 3

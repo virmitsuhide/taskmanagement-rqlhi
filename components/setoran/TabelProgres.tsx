@@ -112,7 +112,8 @@ export function TabelProgres({
   /** 'YYYY-MM-DD' WIB, dihitung di server supaya tidak berbeda saat hidrasi. */
   hariIni: string
   /** Awalan tautan nama siswa, mis. '/guru/siswa/' atau '/siswa/'. */
-  tautanSiswa: string
+  /** Awalan tautan ke halaman siswa; tanpa ini nama tampil sebagai teks (tab Ekstra guru). */
+  tautanSiswa?: string
   bisaSunting?: boolean
 }) {
   const [sunting, setSunting] = useState<{ s: SuntingSetoran; nama: string } | null>(null)
@@ -157,9 +158,11 @@ export function TabelProgres({
               <tr key={b.id} className="border-b last:border-0">
                 <td className="sticky left-0 z-10 bg-card px-3 py-2 align-top">
                   <span className="flex flex-wrap items-center gap-1.5">
-                    <Link href={`${tautanSiswa}${b.id}`} className="font-medium text-foreground hover:underline">
-                      {b.nama}
-                    </Link>
+                    {tautanSiswa ? (
+                      <Link href={`${tautanSiswa}${b.id}`} className="font-medium text-foreground hover:underline">
+                        {b.nama}
+                      </Link>
+                    ) : <span className="font-medium text-foreground">{b.nama}</span>}
                     <LencanaLevel level={b.level} />
                     <LencanaJalur jalur={b.jalur} kecuali={b.level ? ['asrama'] : undefined} />
                   </span>

@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { BarChart3, FileText, GraduationCap, Inbox, Settings2, UserRound, UsersRound } from 'lucide-react'
+import { BarChart3, FileText, GraduationCap, Inbox, Settings2, Table2, UserRound, UsersRound } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const MENU = [
@@ -12,6 +12,7 @@ const MENU = [
   { href: '/ekstra/guru', label: 'Guru ekstra', icon: GraduationCap },
   { href: '/ekstra/atur', label: 'Jenis ekstra', icon: Settings2 },
   { href: '/ekstra/laporan', label: 'Laporan', icon: FileText },
+  { href: '/ekstra/progres', label: 'Progres', icon: Table2 },
   { href: '/ekstra/analitik', label: 'Analitik', icon: BarChart3 },
 ]
 

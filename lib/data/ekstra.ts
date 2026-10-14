@@ -13,7 +13,8 @@ import type { SetoranItem } from '@/components/siswa/SetoranKoreksi'
  * bukan galat 500.
  */
 
-export type BidangEkstra = 'tahsin' | 'tahfidz' | 'campuran'
+/** materi = Bahasa Arab, pelatihan guru, dll.: setorannya deskripsi materi per pertemuan (0117). */
+export type BidangEkstra = 'tahsin' | 'tahfidz' | 'campuran' | 'materi'
 export type StatusBooking = 'baru' | 'ditawarkan' | 'aktif' | 'ditolak' | 'berhenti'
 export type StatusHadirEkstra = 'hadir' | 'izin' | 'sakit' | 'alfa'
 
@@ -21,15 +22,15 @@ export const HARI_EKSTRA = ['', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sa
 export const HARI_PENDEK = ['', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Ahd'] as const
 
 /** Bagian hari yang bisa dipilih orang tua (0093). */
+// 'siang' tidak lagi ditawarkan (2026-10-14); dibiarkan di tipe untuk data lama.
 export type BagianHari = 'pagi' | 'siang' | 'sore' | 'malam'
 /** Batas guru pilihan per permintaan — lebih dari ini bukan lagi preferensi. */
 export const MAKS_GURU_PILIHAN = 3
 
 export const BAGIAN_HARI: { kode: BagianHari; label: string; jam: string; mulai: string }[] = [
-  { kode: 'pagi', label: 'Pagi', jam: '06.00–08.00', mulai: '06:30' },
-  { kode: 'siang', label: 'Siang', jam: '12.30–15.00', mulai: '12:30' },
-  { kode: 'sore', label: 'Sore', jam: '15.00–18.00', mulai: '15:30' },
-  { kode: 'malam', label: 'Malam', jam: '18.30–21.00', mulai: '19:00' },
+  { kode: 'pagi', label: 'Pagi', jam: '06.30–07.30', mulai: '06:30' },
+  { kode: 'sore', label: 'Sore', jam: '15.00–18.00', mulai: '15:00' },
+  { kode: 'malam', label: 'Malam', jam: '19.00–21.00', mulai: '19:00' },
 ]
 
 /** "Selasa, Kamis · Sore" + catatan jam — ringkasan preferensi waktu orang tua. */
@@ -512,15 +513,17 @@ export function kiniWIB(): Date {
  * pengampunya (lihat guardGuruEkstra di app/actions/setoran-koreksi.ts).
  * Nama anak didahulukan di judul — daftarnya memuat seluruh peserta.
  */
-export async function getSetoranEkstraSunting(slotId: string, dari: string, sampai: string): Promise<SetoranItem[]> {
+export async function getSetoranEkstraSunting(slotId: string | string[], dari: string, sampai: string): Promise<(SetoranItem & { slotId: string; studentId: string })[]> {
+  const slotIds = Array.isArray(slotId) ? slotId : [slotId]
+  if (slotIds.length === 0) return []
   const supabase = createServerClient()
   const [ts, tf, infoSurat] = await Promise.all([
     supabase.from('tahsin_logs')
-      .select('id, setoran_date, halaman, baris_dari, baris_ke, status, catatan, nilai_tahsin, nilai_sikap, student:students!tahsin_logs_student_id_fkey(full_name), jilid:jilid_levels!tahsin_logs_jilid_id_fkey(label)')
-      .eq('ekstra_slot_id', slotId).gte('setoran_date', dari).lte('setoran_date', sampai),
+      .select('id, student_id, ekstra_slot_id, setoran_date, halaman, baris_dari, baris_ke, status, catatan, nilai_tahsin, nilai_sikap, student:students!tahsin_logs_student_id_fkey(full_name), jilid:jilid_levels!tahsin_logs_jilid_id_fkey(label)')
+      .in('ekstra_slot_id', slotIds).gte('setoran_date', dari).lte('setoran_date', sampai),
     supabase.from('tahfidz_logs')
       .select('*, student:students!tahfidz_logs_student_id_fkey(full_name), surat:surat_master!tahfidz_logs_surat_id_fkey(name_latin)')
-      .eq('ekstra_slot_id', slotId).gte('setoran_date', dari).lte('setoran_date', sampai),
+      .in('ekstra_slot_id', slotIds).gte('setoran_date', dari).lte('setoran_date', sampai),
     getInfoSurat(),
   ])
   if (ts.error && tf.error) return []
@@ -536,9 +539,9 @@ export async function getSetoranEkstraSunting(slotId: string, dari: string, samp
     return teksRentang(surat, d, akhir, k)
   }
 
-  const items: SetoranItem[] = [
+  const items: (SetoranItem & { slotId: string; studentId: string })[] = [
     ...((ts.data ?? []) as unknown as Record<string, unknown>[]).map(r => ({
-      id: String(r.id), table: 'tahsin_logs' as const,
+      id: String(r.id), table: 'tahsin_logs' as const, slotId: String(r.ekstra_slot_id), studentId: String(r.student_id),
       tanggal: String(r.setoran_date),
       judul: `${nama(r)} — ` + ([
         (r.jilid as { label: string } | null)?.label,
@@ -550,7 +553,7 @@ export async function getSetoranEkstraSunting(slotId: string, dari: string, samp
       halaman: num(r.halaman), barisDari: num(r.baris_dari), barisKe: num(r.baris_ke),
     })),
     ...((tf.data ?? []) as unknown as Record<string, unknown>[]).map(r => ({
-      id: String(r.id), table: 'tahfidz_logs' as const,
+      id: String(r.id), table: 'tahfidz_logs' as const, slotId: String(r.ekstra_slot_id), studentId: String(r.student_id),
       tanggal: String(r.setoran_date),
       judul: `${nama(r)} — ${judulTahfidz(r)}`,
       nilai: num(r.nilai_tahfidz), sikap: num(r.nilai_sikap),
@@ -559,4 +562,23 @@ export async function getSetoranEkstraSunting(slotId: string, dari: string, samp
     })),
   ]
   return items.sort((a, b) => b.tanggal.localeCompare(a.tanggal) || a.judul.localeCompare(b.judul, 'id'))
+}
+
+export interface MateriEkstra {
+  slot_id: string
+  tanggal: string
+  deskripsi: string
+}
+
+/**
+ * Materi pertemuan ekstra bidang 'materi' (0117) dalam rentang tanggal.
+ * `tabelAda` false = migrasi 0117 belum dijalankan.
+ */
+export async function getMateriEkstra(slotIds: string[], dari: string, sampai: string): Promise<{ tabelAda: boolean; materi: MateriEkstra[] }> {
+  if (slotIds.length === 0) return { tabelAda: true, materi: [] }
+  const { data, error } = await createServerClient()
+    .from('ekstra_materi').select('slot_id, tanggal, deskripsi')
+    .in('slot_id', slotIds).gte('tanggal', dari).lte('tanggal', sampai).order('tanggal')
+  if (error) return { tabelAda: false, materi: [] }
+  return { tabelAda: true, materi: (data ?? []) as MateriEkstra[] }
 }

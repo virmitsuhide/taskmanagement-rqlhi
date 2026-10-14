@@ -64,17 +64,17 @@ export async function RingkasKoorEkstra() {
 
   return (
     <>
-      <section className="grid items-center gap-6 rounded-[20px] bg-[#0E3531] p-6 text-white md:p-8 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
+      <section className="grid items-center gap-6 rounded-[20px] bg-sidebar p-6 text-sidebar-foreground md:p-8 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
         <div className="space-y-3">
           <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#F2B27A]">Jawaban hari ini · ekstra</p>
           <h2 className="font-heading text-[28px] font-normal leading-tight md:text-[34px]">{judul}</h2>
-          <p className="text-sm leading-relaxed text-white/80">{kalimat}</p>
+          <p className="text-sm leading-relaxed opacity-80">{kalimat}</p>
         </div>
         <div className="grid grid-cols-2 gap-2.5">
           {angka.map(a => (
-            <Link key={a.l} href={a.href} className="rounded-2xl border border-white/10 bg-white/[0.07] px-4 py-3.5 transition-colors hover:bg-white/[0.12]">
+            <Link key={a.l} href={a.href} className="rounded-2xl border border-sidebar-border bg-sidebar-accent/60 px-4 py-3.5 transition-colors hover:bg-sidebar-accent">
               <p className={cn('font-heading text-[32px] leading-none tabular-nums', a.warm && a.n > 0 && 'text-[#F2B27A]')}>{a.n}</p>
-              <p className="mt-1 text-xs text-white/75">{a.l}</p>
+              <p className="mt-1 text-xs opacity-75">{a.l}</p>
             </Link>
           ))}
         </div>

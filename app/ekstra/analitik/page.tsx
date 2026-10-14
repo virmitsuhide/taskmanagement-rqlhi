@@ -44,7 +44,7 @@ export default async function AnalitikEkstraPage({ searchParams }: { searchParam
   const bulan = diminta && /^\d{4}-(0[1-9]|1[0-2])$/.test(diminta) && diminta <= kini ? diminta : kini
   const a = await getAnalitikEkstra(bulan)
   // Capaian dihitung dengan aturan yang sama dengan Analitik RQ, hanya untuk peserta ekstra.
-  const capEkstra = a.idSiswaLhi.length ? await getCapaianKelas(SEMUA_UNIT, { hanyaSiswa: a.idSiswaLhi }) : null
+  const capEkstra = a.idSiswaLhi.length ? await getCapaianKelas(SEMUA_UNIT, { hanyaSiswa: a.idSiswaLhi, pengampuTambahan: [{ label: 'ekstra', nama: a.pengampuEkstra }] }) : null
   const kelompokEkstra = (capEkstra?.kelompok ?? []).filter(x => x.siswa > 0)
   const k = a.kpi
   const [y, m] = bulan.split('-').map(Number)

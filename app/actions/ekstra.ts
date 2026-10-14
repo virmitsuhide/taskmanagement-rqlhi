@@ -55,7 +55,7 @@ export async function simpanJenisEkstraAction(_: unknown, fd: FormData): Promise
   const kuota = Number(teks(fd, 'kuota', 4) || 1)
   const durasi = Number(teks(fd, 'durasi_menit', 4) || 60)
   if (!nama) return { error: 'Nama ekstra wajib diisi.' }
-  if (!['tahsin', 'tahfidz', 'campuran'].includes(bidang)) return { error: 'Bidang tidak dikenal.' }
+  if (!['tahsin', 'tahfidz', 'campuran', 'materi'].includes(bidang)) return { error: 'Bidang tidak dikenal.' }
   if (!Number.isInteger(kuota) || kuota < 1 || kuota > 50) return { error: 'Jumlah peserta 1–50.' }
   if (!Number.isInteger(durasi) || durasi < 10 || durasi > 300) return { error: 'Durasi 10–300 menit.' }
 
@@ -122,7 +122,7 @@ export async function simpanSlotEkstraAction(_: unknown, fd: FormData): Promise<
 // pilihan (opsional). Orang tua tidak memilih jadwal; Koordinator Ekstra yang
 // menanyakan guru di luar sistem lalu menempatkan anak ke halaqoh ekstra.
 
-const BAGIAN = new Set(['pagi', 'siang', 'sore', 'malam'])
+const BAGIAN = new Set(['pagi', 'sore', 'malam'])
 
 export async function ajukanBookingEkstraAction(_: unknown, fd: FormData): Promise<Hasil> {
   // Penahan spam: kolom jebakan yang tak terlihat manusia, dan formulir yang
@@ -142,7 +142,7 @@ export async function ajukanBookingEkstraAction(_: unknown, fd: FormData): Promi
   const asal = teks(fd, 'asal', 5) === 'luar' ? 'luar' : 'lhi'
   if (!jenisId) return { error: 'Pilih jenis ekstra lebih dulu.' }
   if (hari.length === 0) return { error: 'Pilih setidaknya satu hari.' }
-  if (waktu.length === 0) return { error: 'Pilih waktu yang diinginkan (pagi, siang, sore, atau malam).' }
+  if (waktu.length === 0) return { error: 'Pilih waktu yang diinginkan (pagi, sore, atau malam).' }
   if (namaAnak.length < 3) return { error: 'Nama peserta wajib diisi.' }
   if (namaOrtu.length < 3) return { error: 'Nama yang bisa dihubungi wajib diisi.' }
   if (!/^(\+?62|0)8\d{7,12}$/.test(wa)) return { error: 'Nomor WhatsApp tidak valid (contoh 08123456789).' }
@@ -360,6 +360,39 @@ export async function simpanHadirEkstraAction(
   const { error } = await supabase.from('ekstra_hadir').upsert(isi, { onConflict: 'booking_id,tanggal' })
   if (error) return { error: tabelHilang(error) ? PESAN_MIGRASI : 'Gagal menyimpan kehadiran.' }
   revalidatePath('/guru/ekstra')
+  return { success: true }
+}
+
+/**
+ * Simpan materi satu pertemuan ekstra bidang 'materi' (0117) — Bahasa Arab,
+ * pelatihan guru, dll. Satu deskripsi per halaqoh per tanggal; menyimpan ulang
+ * menimpanya, dan deskripsi kosong menghapusnya. Pengampu slot itu, atau
+ * koordinator ekstra (untuk membetulkan).
+ */
+export async function simpanMateriEkstraAction(slotId: string, tanggal: string, deskripsi: string): Promise<Hasil> {
+  const [guru, pengurus] = await Promise.all([getTeacherSession(), getSession()])
+  const koor = !!pengurus && canManageEkstra(pengurus.role)
+  if (!guru && !koor) return { error: 'Sesi tidak valid.' }
+  if (!TANGGAL.test(tanggal) || tanggal > hariIniWIB()) return { error: 'Tanggal tidak valid.' }
+  const isi = deskripsi.trim().slice(0, 2000)
+
+  const supabase = createServerClient()
+  const { data: slot } = await supabase.from('ekstra_slot')
+    .select('teacher_id, jenis:ekstra_jenis(bidang)').eq('id', slotId).maybeSingle()
+  const s = slot as unknown as { teacher_id: string; jenis: { bidang: string } | null } | null
+  if (!s) return { error: 'Halaqoh ekstra tidak ditemukan.' }
+  if (!koor && s.teacher_id !== guru?.teacherId) return { error: 'Anda bukan pengampu halaqoh ini.' }
+  if (s.jenis?.bidang !== 'materi') return { error: 'Halaqoh ini menyetor tahsin/tahfidz, bukan materi.' }
+
+  const { error } = isi
+    ? await supabase.from('ekstra_materi').upsert({
+        slot_id: slotId, tanggal, deskripsi: isi, teacher_id: guru?.teacherId ?? s.teacher_id, updated_at: new Date().toISOString(),
+      }, { onConflict: 'slot_id,tanggal' })
+    : await supabase.from('ekstra_materi').delete().eq('slot_id', slotId).eq('tanggal', tanggal)
+  if (error) return { error: tabelHilang(error) ? 'Tabel materi ekstra belum ada — jalankan drizzle/0117_ekstra_materi_PASTE_TO_SUPABASE.sql di Supabase.' : 'Gagal menyimpan materi.' }
+  revalidatePath('/guru/ekstra')
+  revalidatePath('/guru/progres')
+  revalidatePath('/ekstra/progres')
   return { success: true }
 }
 

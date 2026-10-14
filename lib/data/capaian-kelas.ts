@@ -391,7 +391,16 @@ function formatTanggal(iso: string | null): string | null {
  * jilid/juz, dan ujian sesudah tanggal itu diabaikan; aturan penentuan kolom
  * tetap sama persis dengan dashboard.
  */
-export async function getCapaianKelas(jenjangBoleh: Jenjang[], opsi: { sampai?: string; hanyaSiswa?: string[] } = {}): Promise<CapaianKelasData> {
+export async function getCapaianKelas(jenjangBoleh: Jenjang[], opsi: {
+  sampai?: string
+  hanyaSiswa?: string[]
+  /**
+   * Pengampu di luar halaqoh sekolah — ekstra (Analitik Ekstra), asrama
+   * (Analitik BTHCQ). Anak yang punya pengampu tambahan disebut lengkap:
+   * 'Ani (sekolah), Budi (asrama)'; anak lain tetap nama pengampu sekolahnya.
+   */
+  pengampuTambahan?: { label: string; nama: Record<string, string[]> }[]
+} = {}): Promise<CapaianKelasData> {
   const { sampai } = opsi
   // Subset siswa (mis. peserta ekstra) — aturan penghitungan tetap sama persis.
   const hanya = opsi.hanyaSiswa ? new Set(opsi.hanyaSiswa) : null
@@ -495,9 +504,12 @@ export async function getCapaianKelas(jenjangBoleh: Jenjang[], opsi: { sampai?: 
   const ayat = (dari: number | null, ke: number | null) =>
     dari && ke ? (dari === ke ? ` ${dari}` : ` ${dari}–${ke}`) : ke ? ` ${ke}` : ''
 
-  const pengampu = (s: { halaqoh_id: string | null }, cadangan: string | null | undefined) => {
+  const pengampu = (s: { id: string; halaqoh_id: string | null }, cadangan: string | null | undefined) => {
     const wali = s.halaqoh_id ? waliHalaqoh.get(s.halaqoh_id) : null
-    return (wali && namaGuru.get(wali)) || (cadangan && namaGuru.get(cadangan)) || null
+    const sekolah = (wali && namaGuru.get(wali)) || (cadangan && namaGuru.get(cadangan)) || null
+    const tambahan = (opsi.pengampuTambahan ?? []).flatMap(t => [...new Set(t.nama[s.id] ?? [])].map(n => `${n} (${t.label})`))
+    if (tambahan.length === 0) return sekolah
+    return [...(sekolah ? [`${sekolah} (sekolah)`] : []), ...tambahan].join(', ')
   }
 
   type Siswa = (typeof siswaSemua)[number]

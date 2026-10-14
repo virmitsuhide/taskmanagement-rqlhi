@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { createServerClient } from '@/lib/supabase/server'
 import { getSession } from '@/lib/auth/session'
 import { getTeacherSession } from '@/lib/auth/teacher-session'
-import { canManageAsrama, canManageSetoran } from '@/lib/auth/permissions'
+import { canManageAsrama, canManageEkstra, canManageSetoran } from '@/lib/auth/permissions'
 import { genderAsramaSiswa } from '@/lib/data/asrama'
 import { recalcPosisi, recalcMutqin } from '@/lib/rq/hitung-ulang-setoran'
 import { BARIS_MAKS, statusTahsinSah } from '@/lib/rq/status-tahsin'
@@ -85,7 +85,10 @@ async function guard(
   // BPA asrama putra, BPI asrama putri.
   if (!canManageSetoran(session.role, student.jenjang as Jenjang, student.program as string | null)) {
     const gender = await genderAsramaSiswa(student.id)
-    if (!gender || !canManageAsrama(session.role, gender)) {
+    // Koordinator ekstra membetulkan setoran EKSTRA (bertanda slot), anak mana pun.
+    const ekstra = table !== 'tasmi_logs' && canManageEkstra(session.role)
+      && Boolean(((await supabase.from(table).select('ekstra_slot_id').eq('id', logId).maybeSingle()).data as { ekstra_slot_id: string | null } | null)?.ekstra_slot_id)
+    if (!ekstra && (!gender || !canManageAsrama(session.role, gender))) {
       return { error: 'Anda tidak memiliki izin untuk siswa ini.' }
     }
   }
@@ -100,6 +103,7 @@ function refresh(studentId: string) {
   revalidatePath('/setoran')
   revalidatePath('/asrama')
   revalidatePath('/guru/ekstra')
+  revalidatePath('/ekstra/progres')
 }
 
 // ── Hapus ────────────────────────────────────────────────────────────────────

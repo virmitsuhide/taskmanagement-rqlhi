@@ -2,9 +2,11 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { BookOpen, Sparkles } from 'lucide-react'
 import { getTeacherSession } from '@/lib/auth/teacher-session'
-import { getHadirEkstra, getSetoranEkstraSunting, getSlotGuru, labelSlot } from '@/lib/data/ekstra'
+import { getHadirEkstra, getMateriEkstra, getSetoranEkstraSunting, getSlotGuru, labelSlot } from '@/lib/data/ekstra'
+import { FormMateriEkstra } from '@/components/ekstra/FormMateriEkstra'
 import { SetoranKoreksi } from '@/components/siswa/SetoranKoreksi'
 import { HadirEkstra } from '@/components/ekstra/HadirEkstra'
+import { TanggalPertemuan } from '@/components/ekstra/TanggalPertemuan'
 import { LaporanEkstra, rentangBulan } from '@/components/ekstra/LaporanEkstra'
 import { cn } from '@/lib/utils'
 
@@ -30,7 +32,12 @@ export default async function GuruEkstraPage({ searchParams }: { searchParams: P
   // dengan memilih tanggal di bulan itu.
   const bulan = tanggal.slice(0, 7)
   const { dari, sampai, label: namaBulan } = rentangBulan(bulan)
-  const setoranSunting = aktif ? await getSetoranEkstraSunting(aktif.id, dari, sampai) : []
+  const materiBidang = bidang === 'materi'
+  const [setoranSunting, materi] = await Promise.all([
+    aktif && !materiBidang ? getSetoranEkstraSunting(aktif.id, dari, sampai) : Promise.resolve([]),
+    aktif && materiBidang ? getMateriEkstra([aktif.id], dari, sampai) : Promise.resolve(null),
+  ])
+  const materiHariIni = materi?.materi.find(m => m.tanggal === tanggal)?.deskripsi ?? ''
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--secondary)' }}>
@@ -66,14 +73,7 @@ export default async function GuruEkstraPage({ searchParams }: { searchParams: P
                 <section className="rounded-2xl border bg-card p-4 md:p-5">
                   <h2 className="font-heading text-xl">{aktif.jenis?.nama}</h2>
                   <p className="text-xs text-muted-foreground">{labelSlot(aktif)}{aktif.tempat ? ` · ${aktif.tempat}` : ''} · {anggota.length} peserta</p>
-                  <form className="mt-4 flex items-end gap-2" action="/guru/ekstra">
-                    <input type="hidden" name="slot" value={aktif.id} />
-                    <label className="flex flex-col gap-1 text-xs font-semibold">
-                      Tanggal pertemuan
-                      <input type="date" name="tanggal" defaultValue={tanggal} max={hariIni} className="h-9 rounded-md border bg-background px-2 text-sm font-normal" />
-                    </label>
-                    <button type="submit" className="h-9 rounded-md border bg-card px-3 text-sm hover:bg-muted">Buka</button>
-                  </form>
+                  <TanggalPertemuan key={`${aktif.id}|${tanggal}`} slotId={aktif.id} tanggal={tanggal} maks={hariIni} />
                   <div className="mt-4">
                     {anggota.length === 0 ? (
                       <p className="text-sm text-muted-foreground">Belum ada peserta aktif.</p>
@@ -85,6 +85,31 @@ export default async function GuruEkstraPage({ searchParams }: { searchParams: P
                   </div>
                 </section>
 
+                {materiBidang ? (
+                  <section className="rounded-2xl border bg-card p-4 md:p-5">
+                    <h2 className="font-heading text-xl">Materi pertemuan ini</h2>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Tuliskan materi yang diberikan. Semua peserta yang hadir tercatat menerima materi ini — di Progres tampil sebagai kode M.
+                    </p>
+                    <div className="mt-4">
+                      {materi && !materi.tabelAda ? (
+                        <p className="text-sm text-muted-foreground">Fitur materi belum aktif — minta admin menjalankan migrasi 0117.</p>
+                      ) : (
+                        <FormMateriEkstra key={`${aktif.id}|${tanggal}`} slotId={aktif.id} tanggal={tanggal} awal={materiHariIni} />
+                      )}
+                    </div>
+                    {(materi?.materi.length ?? 0) > 0 && (
+                      <div className="mt-4 border-t pt-3">
+                        <p className="text-xs font-semibold">Materi {namaBulan}</p>
+                        <ul className="mt-1 space-y-1 text-xs text-muted-foreground">
+                          {materi!.materi.map(m => (
+                            <li key={m.tanggal}><b className="text-foreground">{m.tanggal.slice(8)}/{m.tanggal.slice(5, 7)}</b> — {m.deskripsi}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </section>
+                ) : (
                 <section className="rounded-2xl border bg-card p-4 md:p-5">
                   <h2 className="font-heading text-xl">Setoran pertemuan ini</h2>
                   <p className="mt-1 text-xs text-muted-foreground">
@@ -105,10 +130,11 @@ export default async function GuruEkstraPage({ searchParams }: { searchParams: P
                     )}
                   </div>
                 </section>
+                )}
               </div>
             )}
 
-            {aktif && (
+            {aktif && !materiBidang && (
               <section>
                 <h2 className="font-heading text-2xl">Ubah setoran ekstra · {namaBulan}</h2>
                 <p className="mb-3 mt-1 max-w-2xl text-sm text-muted-foreground">

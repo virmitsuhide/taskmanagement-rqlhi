@@ -50,6 +50,8 @@ export interface AnalitikEkstra {
   menungguLama: { id: string; nama: string; jenis: string; hari: number; status: string }[]
   /** Siswa LHI peserta aktif yang sudah tertaut — bahan tabel capaian. */
   idSiswaLhi: string[]
+  /** Nama guru ekstra per siswa LHI aktif — disebut di samping pengampu sekolahnya. */
+  pengampuEkstra: Record<string, string[]>
   /** Peserta aktif non siswa LHI (atau siswa LHI yang belum tertaut): tanpa target. */
   nonLhi: { id: string; nama: string; keterangan: string; asal: string; jenis: string; halaqoh: string; posisi: string; hadir: number; pertemuan: number }[]
 }
@@ -86,7 +88,7 @@ export async function getAnalitikEkstra(bulan: string): Promise<AnalitikEkstra> 
     bulan, tabelAda: false,
     kpi: { pesertaAktif: 0, pesertaLhi: 0, pesertaNon: 0, halaqoh: 0, guru: 0, permintaanBulanIni: 0, menunggu: 0, diterima: 0, diputus: 0, tanggapHari: null, hadir: 0, catatanHadir: 0, setoran: 0, pemasukanBulanan: 0, pesertaTanpaBiayaBulanan: 0, setoranTahsin: 0, setoranTahfidz: 0, berhentiBulanIni: 0, tanpaPresensi: 0 },
     pemasukanPerJenis: [],
-    tren: [], perJenis: [], perGuru: [], permintaanHari: [], permintaanBagian: [], keterisian: [], menungguLama: [], idSiswaLhi: [], nonLhi: [],
+    tren: [], perJenis: [], perGuru: [], permintaanHari: [], permintaanBagian: [], keterisian: [], menungguLama: [], idSiswaLhi: [], pengampuEkstra: {}, nonLhi: [],
   }
   if (!data.tabelAda) return kosong
 
@@ -216,6 +218,11 @@ export async function getAnalitikEkstra(bulan: string): Promise<AnalitikEkstra> 
       .sort((a, b) => b.peserta / b.kuota - a.peserta / a.kuota),
     menungguLama,
     idSiswaLhi: [...new Set(aktif.filter(b => b.asal === 'lhi' && b.student_id).map(b => b.student_id!))],
+    pengampuEkstra: aktif.reduce<Record<string, string[]>>((peta, b) => {
+      const guru = b.student_id && b.slot_id ? slotById.get(b.slot_id)?.guru : null
+      if (guru) (peta[b.student_id!] ??= []).push(guru)
+      return peta
+    }, {}),
     nonLhi: aktif.filter(b => b.asal !== 'lhi' || !b.student_id).map(b => {
       const sl = b.slot_id ? slotById.get(b.slot_id) : undefined
       const h = hadir.filter(r => r.booking_id === b.id)

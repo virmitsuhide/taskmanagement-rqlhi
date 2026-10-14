@@ -7,17 +7,21 @@ import { cn } from '@/lib/utils'
  * setoran yang sama, per sesi per bulan — sesi & bulan yang terpilih ikut
  * terbawa saat berpindah tab.
  */
-export function TabProgresSesi({ aktif, halaqoh, periode }: {
-  aktif: 'tahsin' | 'tahfidz' | 'adab'
+export function TabProgresSesi({ aktif, halaqoh, periode, ekstra = false }: {
+  aktif: 'tahsin' | 'tahfidz' | 'adab' | 'ekstra'
+  /** Guru mengampu halaqoh ekstra — tab Ekstra ditampilkan. */
+  ekstra?: boolean
   /** undefined / 'semua' = semua sesi (hanya bermakna di tab Adab). */
   halaqoh?: string
   periode: string
 }) {
-  const sesi = halaqoh && halaqoh !== 'semua' ? halaqoh : undefined
+  // Kunci sesi sekolah tidak berlaku di tab Ekstra (dan sebaliknya).
+  const sesi = halaqoh && halaqoh !== 'semua' && !halaqoh.startsWith('ekstra-') ? halaqoh : undefined
   const tab = [
     { kunci: 'tahsin', label: 'Tahsin', href: hrefRekap('/guru/progres', { halaqoh: sesi, periode, jenis: 'tahsin' }) },
     { kunci: 'tahfidz', label: 'Tahfidz', href: hrefRekap('/guru/progres', { halaqoh: sesi, periode, jenis: 'tahfidz' }) },
     { kunci: 'adab', label: 'Catatan Adab', href: hrefRekap('/guru/adab', { halaqoh: sesi, periode }) },
+    ...(ekstra ? [{ kunci: 'ekstra', label: 'Ekstra', href: hrefRekap('/guru/progres', { periode, tab: 'ekstra' }) }] : []),
   ] as const
   return (
     <div className="flex flex-wrap gap-2" role="tablist" aria-label="Tampilan progres sesi">

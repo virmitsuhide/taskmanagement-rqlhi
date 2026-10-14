@@ -19,6 +19,7 @@ const LABEL_BIDANG: Record<string, string> = {
   tahsin: 'Tahsin',
   tahfidz: 'Tahfidz',
   campuran: 'Tahsin & tahfidz',
+  materi: 'Materi',
 }
 
 /**
