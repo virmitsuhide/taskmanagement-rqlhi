@@ -42,11 +42,14 @@ export const TOTAL_HALAMAN_MUSHAF = TOTAL_HALAMAN
  *
  * Tabel di bawah ini menyimpan batas yang TERCETAK di mushaf yang dipakai
  * RQ LHI, dan hanya dipakai untuk menghitung halaman. Keduanya berbeda di
- * tiga tempat saja:
+ * dua tempat saja:
  *
  *   juz  7 : mushaf RQ Al-Maidah 83   · klasik Al-Maidah 82
  *   juz 11 : mushaf RQ At-Taubah 94   · klasik At-Taubah 93
- *   juz 27 : mushaf RQ Az-Zariyat 1   · klasik Az-Zariyat 31
+ *
+ * Dulu juga juz 27 (mushaf RQ Az-Zariyat 1 · klasik Az-Zariyat 31). Sejak
+ * 2026-10-14 batas-juz.ts ikut mushaf RQ untuk juz 27, karena batas klasik
+ * menempatkan anak yang baru mulai juz 27 di juz 26 (lihat batas-juz.ts, 0118).
  *
  * Dua yang pertama bergeser tepat satu ayat, dan pergeseran itu ada
  * gunanya: batas klasik jatuh pada ayat TERAKHIR sebuah halaman, sehingga

@@ -304,8 +304,10 @@ async function main() {
     }
   }
   periksa(
-    bedaTabel.length === 3,
-    `tepat 3 juz berbeda: ${bedaTabel.join('; ')}`,
+    // Sejak 0118 juz 27 ikut mushaf RQ (Az-Zariyat 1) di kedua tabel; yang
+    // tersisa berbeda hanya juz 7 & 11.
+    bedaTabel.length === 2,
+    `tepat 2 juz berbeda: ${bedaTabel.join('; ')}`,
   )
 
   // Juz 7 & 11 versi mushaf harus jatuh persis di ayat TERATAS halaman —
@@ -324,15 +326,17 @@ async function main() {
     )
   }
 
-  // Batas klasik TIDAK boleh ikut berubah — AYAT_PER_JUZ & catatan ujian
-  // bersandar padanya, dan itu sudah diuji di bagian atas berkas ini.
+  // Batas klasik juz 7 TIDAK boleh ikut berubah — AYAT_PER_JUZ & catatan ujian
+  // bersandar padanya, dan itu sudah diuji di bagian atas berkas ini. Juz 27
+  // sengaja dipindah ke Az-Zariyat 1 (keputusan RQ 2026-10-14, migrasi 0118).
   periksa(
     BATAS_JUZ[6].mulai.surat === 5 && BATAS_JUZ[6].mulai.ayat === 82,
     'batas klasik juz 7 tetap Al-Maidah 82',
   )
   periksa(
-    BATAS_JUZ[26].mulai.surat === 51 && BATAS_JUZ[26].mulai.ayat === 31,
-    'batas klasik juz 27 tetap Az-Zariyat 31',
+    BATAS_JUZ[26].mulai.surat === 51 && BATAS_JUZ[26].mulai.ayat === 1
+      && BATAS_JUZ[25].selesai.surat === 50 && BATAS_JUZ[25].selesai.ayat === 45,
+    'juz 27 mulai Az-Zariyat 1, juz 26 berakhir Qaf 45 (mushaf RQ)',
   )
 
   // Ali Imran 92 adalah titik yang dulu keliru, dan indeks halaman menjadi

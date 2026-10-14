@@ -3,7 +3,12 @@
  * berapa.
  *
  * Pembagian yang dipakai adalah mushaf standar Madani/Kufi — yang dicetak
- * Kemenag dan dipakai seluruh unit RQ LHI.
+ * Kemenag dan dipakai seluruh unit RQ LHI — DENGAN SATU PENGECUALIAN:
+ * juz 27 dimulai Az-Zariyat ayat 1 (standar: ayat 31), mengikuti mushaf RQ
+ * (lib/rq/halaman.ts). Anak menghafal Az-Zariyat utuh sebagai pembuka juz 27;
+ * dengan batas standar, 30 ayat pertamanya tercatat juz 26 — dan karena urutan
+ * hafalan RQ 30 → 29 → 28 → 27 → 26, anak yang baru mulai juz 27 terbaca
+ * sudah di juz 26. Diputuskan RQ 2026-10-14; database: batas_juz (0118).
  *
  * KENAPA INI PERLU, PADAHAL SUDAH ADA lib/rq/quran.ts
  *
@@ -78,8 +83,8 @@ export const BATAS_JUZ: BatasJuz[] = [
   { juz: 23, mulai: p( 36,  28), selesai: p( 39,  31) }, // Yasin         → Az-Zumar
   { juz: 24, mulai: p( 39,  32), selesai: p( 41,  46) }, // Az-Zumar      → Fussilat
   { juz: 25, mulai: p( 41,  47), selesai: p( 45,  37) }, // Fussilat      → Al-Jasiyah
-  { juz: 26, mulai: p( 46,   1), selesai: p( 51,  30) }, // Al-Ahqaf      → Az-Zariyat
-  { juz: 27, mulai: p( 51,  31), selesai: p( 57,  29) }, // Az-Zariyat    → Al-Hadid
+  { juz: 26, mulai: p( 46,   1), selesai: p( 50,  45) }, // Al-Ahqaf      → Qaf          (mushaf RQ, lihat atas)
+  { juz: 27, mulai: p( 51,   1), selesai: p( 57,  29) }, // Az-Zariyat    → Al-Hadid     (mushaf RQ: Az-Zariyat utuh)
   { juz: 28, mulai: p( 58,   1), selesai: p( 66,  12) }, // Al-Mujadalah  → At-Tahrim
   { juz: 29, mulai: p( 67,   1), selesai: p( 77,  50) }, // Al-Mulk       → Al-Mursalat
   { juz: 30, mulai: p( 78,   1), selesai: p(114,   6) }, // An-Naba       → An-Nas
