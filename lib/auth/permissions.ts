@@ -1328,6 +1328,15 @@ export function canManageAsrama(role: UserRole, gender?: 'L' | 'P' | null): bool
 }
 
 /**
+ * Boleh memverifikasi pengajuan nonaktif anak asrama (0119): Koor SMP —
+ * yang mengonfirmasi ke kesiswaan SMP — serta Kepala RQ dan Kumik.
+ * Persetujuan bisa mengganti program siswa atau menonaktifkannya.
+ */
+export function canVerifikasiAsrama(role: UserRole): boolean {
+  return role === 'koor_smp' || role === 'kepala_rq' || role === 'kumik'
+}
+
+/**
  * Boleh menyunting & menghapus catatan pembinaan guru/karyawan.
  *
  * Pembinaan gukar programnya SDM, jadi SDM dan Kepala RQ yang membetulkan.
