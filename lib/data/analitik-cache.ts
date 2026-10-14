@@ -4,6 +4,9 @@ import type { Jenjang } from '@/types'
 import { getTargetTahfidzSemua } from '@/lib/data/target-tahfidz'
 import { getKelengkapan } from '@/lib/data/kelengkapan'
 import { getCapaianKelas } from '@/lib/data/capaian-kelas'
+import { getPengampuAsramaPerSiswa } from '@/lib/data/asrama'
+import { createServerClient } from '@/lib/supabase/server'
+import { PROGRAM_SMP_BOARDING } from '@/lib/auth/permissions'
 import { getKurikulum } from '@/lib/data/kurikulum'
 import { getCurrentTerm } from '@/lib/data/terms'
 import { getSiswaDrill, getDrillTahfidz, getHafalanUjianPerUnit } from '@/lib/data/analytics'
@@ -24,7 +27,24 @@ import { getSiswaDrill, getDrillTahfidz, getHafalanUjianPerUnit } from '@/lib/da
 
 export const targetSemua = getTargetTahfidzSemua
 export const kelengkapanBulan = cache((bulan: string) => getKelengkapan(bulan, UNIT_ORDER))
-export const capaianSemua = cache(() => getCapaianKelas(UNIT_ORDER))
+// Anak boarding: pengampu asramanya ikut disebut di daftar anak tiap sel.
+export const capaianSemua = cache(async () => getCapaianKelas(UNIT_ORDER, {
+  pengampuTambahan: [{ label: 'asrama', nama: await getPengampuAsramaPerSiswa().catch(() => ({})) }],
+}))
+/**
+ * Capaian per Kelas khusus anak boarding SMP (tampilan Div Qur'an BPA/BPI).
+ * Dihitung ulang dari anak-anak itu saja — penyempitan lewat jalur QULS/reguler
+ * tidak bisa dipakai, karena boarding mencakup keduanya.
+ */
+export const capaianBoarding = cache(async () => {
+  const { data } = await createServerClient().from('students').select('id')
+    .eq('jenjang', 'smp').eq('is_active', true).in('program', [...PROGRAM_SMP_BOARDING])
+  const ids = ((data ?? []) as { id: string }[]).map(x => x.id)
+  return getCapaianKelas(['smp'], {
+    hanyaSiswa: ids,
+    pengampuTambahan: [{ label: 'asrama', nama: await getPengampuAsramaPerSiswa().catch(() => ({})) }],
+  })
+})
 export const kurikulumBulan = cache((bulan: string) => getKurikulum(bulan, UNIT_ORDER))
 export const semesterBerjalan = cache(() => getCurrentTerm())
 /*

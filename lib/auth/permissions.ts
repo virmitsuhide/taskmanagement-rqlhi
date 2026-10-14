@@ -408,11 +408,27 @@ export function isKoorAnalitik(role: UserRole): boolean {
 }
 
 /**
+ * Div Qur'an BPA/BPI: Analitik BTHCQ khusus anak boarding SMP (kedua asrama,
+ * seperti halaman Halaqoh Asrama). SENGAJA bukan bagian canViewUnitAnalytics:
+ * halaman analitik lain belum tentu menyaring per program anak, jadi hanya
+ * halaman BTHCQ yang dibuka — lewat canViewAnalitikBthcq.
+ */
+export function isAnalitikBoarding(role: UserRole): boolean {
+  return role === 'div_quran_bpa' || role === 'div_quran_bpi'
+}
+
+/** Boleh membuka halaman Analitik BTHCQ (/dashboard/analitik). */
+export function canViewAnalitikBthcq(role: UserRole): boolean {
+  return canViewUnitAnalytics(role) || isAnalitikBoarding(role)
+}
+
+/**
  * Penyempitan program di atas getAnalyticsJenjang — null berarti tanpa
  * penyempitan. Aturannya sama dengan daftar siswa (getViewableProgramScope):
  * koor SD melihat seluruh SD termasuk QULS, koor QULS SD hanya QULS.
  */
 export function getAnalyticsProgramScope(role: UserRole): readonly string[] | null {
+  if (isAnalitikBoarding(role)) return PROGRAM_SMP_BOARDING
   return getListProgramScope(role, getAnalyticsJenjang(role))
 }
 
@@ -425,6 +441,7 @@ export function getAnalyticsProgramScope(role: UserRole): readonly string[] | nu
  */
 export function getAnalyticsJenjang(role: UserRole): Jenjang[] {
   if (canViewAnalytics(role)) return ['paud', 'sd', 'sd_juara', 'smp', 'sma']
+  if (isAnalitikBoarding(role)) return ['smp']
   return getManageableJenjang(role)
 }
 

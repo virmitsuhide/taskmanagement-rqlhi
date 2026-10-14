@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation'
 import { Trophy } from 'lucide-react'
 import { getSession } from '@/lib/auth/session'
 import {
-  canViewAnalytics, canViewUnitAnalytics, getAnalyticsJenjang, getAnalyticsProgramScope,
+  canViewAnalytics, canViewAnalitikBthcq, getAnalyticsJenjang, getAnalyticsProgramScope, isAnalitikBoarding,
 } from '@/lib/auth/permissions'
 import { UNIT_LABELS, UNIT_ORDER } from '@/lib/rq/programs'
 import { getUnitHafalanBoards } from '@/lib/data/analytics'
@@ -30,7 +30,7 @@ const PER_HALAMAN = 30
 export default async function PeringkatHafalanPage({ searchParams }: PageProps) {
   const session = await getSession()
   if (!session) redirect('/login')
-  if (!canViewUnitAnalytics(session.role)) redirect('/dashboard')
+  if (!canViewAnalitikBthcq(session.role)) redirect('/dashboard')
 
   const sp = await searchParams
   const penuh = canViewAnalytics(session.role)
@@ -50,7 +50,7 @@ export default async function PeringkatHafalanPage({ searchParams }: PageProps) 
   const awal = (halaman - 1) * PER_HALAMAN
   const potong = siswa.slice(awal, awal + PER_HALAMAN)
 
-  const cakupan = program && jenjang === 'sd' ? 'QULS SD' : jenjang ? UNIT_LABELS[jenjang] : 'Seluruh RQ'
+  const cakupan = isAnalitikBoarding(session.role) ? 'Boarding SMPIT' : program && jenjang === 'sd' ? 'QULS SD' : jenjang ? UNIT_LABELS[jenjang] : 'Seluruh RQ'
   const opsiUnit = [
     ...(penuh ? [{ label: 'Semua', href: PATH, active: !jenjang }] : []),
     ...semua.filter(b => b.studentCount > 0 || b.jenjang === jenjang).map(b => ({

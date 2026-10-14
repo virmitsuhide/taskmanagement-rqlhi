@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { getSession } from '@/lib/auth/session'
 import {
-  canViewAnalytics, canViewGukarRecap, canViewUnitAnalytics, getAnalyticsJenjang, getAnalyticsProgramScope, isKoorAnalitik,
+  canViewAnalitikBthcq, canViewAnalytics, canViewGukarRecap, getAnalyticsJenjang, getAnalyticsProgramScope, isAnalitikBoarding, isKoorAnalitik,
 } from '@/lib/auth/permissions'
 import { UNIT_LABELS, UNIT_ORDER, kunciProgram } from '@/lib/rq/programs'
 import {
@@ -74,7 +74,9 @@ const S = {
 export default async function AnalitikPage({ searchParams }: PageProps) {
   const session = await getSession()
   if (!session) redirect('/login')
-  if (!canViewUnitAnalytics(session.role)) redirect('/dashboard')
+  if (!canViewAnalitikBthcq(session.role)) redirect('/dashboard')
+  // Div Qur'an BPA/BPI: halaman yang sama, hanya anak boarding SMP (program reguler_bd & boarding_quls).
+  const boarding = isAnalitikBoarding(session.role)
 
   const sp = await searchParams
 
@@ -131,7 +133,7 @@ export default async function AnalitikPage({ searchParams }: PageProps) {
   const boards = jenjang ? semuaBoards.filter(b => b.jenjang === jenjang) : semuaBoards
   const target = ringkasTarget(boards)
   const aktif = a.overview.activeStudents
-  const cakupan = program && jenjang === 'sd' ? 'QULS SD' : jenjang ? UNIT_LABELS[jenjang] : 'Seluruh RQ'
+  const cakupan = boarding ? 'Boarding SMPIT' : program && jenjang === 'sd' ? 'QULS SD' : jenjang ? UNIT_LABELS[jenjang] : 'Seluruh RQ'
   const tampilTahsin = fokus !== 'tahfidz'
   const tampilTahfidz = fokus !== 'tahsin'
 
@@ -155,8 +157,9 @@ export default async function AnalitikPage({ searchParams }: PageProps) {
   const unitTeratas = tabTeratas.find(b => b.jenjang === sp.tunit)?.jenjang ?? null
   const top = susunPeringkat(unitTeratas ? boards.filter(b => b.jenjang === unitTeratas) : boards)
   const cakupanTeratas = unitTeratas ? UNIT_LABELS[unitTeratas] : cakupan
+  // Kelengkapan dihitung per halaqoh sekolah, yang mencampur fullday & boarding — tidak berlaku untuk tampilan boarding.
   const seksi = Object.values(S).filter(s =>
-    s.id !== 'target' || tampilTahfidz)
+    (s.id !== 'target' || tampilTahfidz) && (s.id !== 'kelengkapan' || !boarding))
 
   return (
     <div>
@@ -165,7 +168,7 @@ export default async function AnalitikPage({ searchParams }: PageProps) {
 
         {/* ── Z · garis atas halaman: judul ► filter ── */}
         <DashTop
-          eyebrow={`Analitik Rumah Qur'an · ${penuh ? 'Manajemen' : 'Koordinator'}`}
+          eyebrow={`Analitik Rumah Qur'an · ${penuh ? 'Manajemen' : boarding ? "Div Qur'an Asrama" : 'Koordinator'}`}
           title="Bagaimana pembinaan Qur'an berjalan bulan ini?"
           context={<>{cakupan} · {a.monthLabel}{a.isRunningMonth && ' (berjalan)'}</>}
           filters={
@@ -338,7 +341,7 @@ export default async function AnalitikPage({ searchParams }: PageProps) {
 
         <Suspense fallback={<SeksiMemuat info={S.capaian} judul="Capaian per Kelas" />}>
           <SeksiCapaian info={S.capaian} jenjang={jenjang} program={program} fokus={fokus} bulan={a.monthKey}
-            tanpaTargetAngkatan={isKoorAnalitik(session.role)} jalur={cjalur} opsiJalur={opsiJalur} />
+            tanpaTargetAngkatan={isKoorAnalitik(session.role) || boarding} jalur={cjalur} opsiJalur={opsiJalur} />
         </Suspense>
 
         {tampilTahfidz && (
@@ -351,9 +354,11 @@ export default async function AnalitikPage({ searchParams }: PageProps) {
           <SeksiUjianDrill info={S.ujian} jenjang={jenjang} program={program} fokus={fokus} />
         </Suspense>
 
-        <Suspense fallback={<SeksiMemuat info={S.kelengkapan} judul="Kelengkapan Pengisian" />}>
-          <SeksiKelengkapan info={S.kelengkapan} jenjang={jenjang} program={program} bulan={a.monthKey} />
-        </Suspense>
+        {!boarding && (
+          <Suspense fallback={<SeksiMemuat info={S.kelengkapan} judul="Kelengkapan Pengisian" />}>
+            <SeksiKelengkapan info={S.kelengkapan} jenjang={jenjang} program={program} bulan={a.monthKey} />
+          </Suspense>
+        )}
 
         {/* Pembinaan guru & karyawan punya halaman sendiri: pesertanya
             pegawai, unitnya bukan jenjang siswa, dan pemiliknya SDM. */}
@@ -370,14 +375,15 @@ export default async function AnalitikPage({ searchParams }: PageProps) {
           </Link>
         )}
 
-        <p className="border-t pt-4 text-[11px] text-muted-foreground">
+        {/* Halaman rincian belum menyaring per program anak — tidak ditautkan untuk tampilan boarding. */}
+        {!boarding && <p className="border-t pt-4 text-[11px] text-muted-foreground">
           Rincian per program dan per siswa:{' '}
           <Link href="/dashboard/analitik/unit" className="text-primary hover:underline">Analitik per Unit &amp; Program</Link>
           {' · '}
           <Link href="/dashboard/analitik/target-tahfidz" className="text-primary hover:underline">Target Tahfidz per Kelas</Link>
           {' · '}
           <Link href="/dashboard/analitik/kurikulum" className="text-primary hover:underline">Capaian per Angkatan</Link>
-        </p>
+        </p>}
       </div>
     </div>
   )

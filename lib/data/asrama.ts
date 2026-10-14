@@ -212,3 +212,20 @@ export async function rapikanAnggotaAsrama(
   await supabase.from('asrama_anggota').delete().eq('student_id', studentId)
   return k?.nama ?? 'kelompok asrama'
 }
+
+/**
+ * Nama pengampu kelompok asrama per siswa (0110) — disebut di samping
+ * pengampu sekolah pada daftar anak Analitik BTHCQ. Tabel belum ada = kosong.
+ */
+export async function getPengampuAsramaPerSiswa(): Promise<Record<string, string[]>> {
+  const { data, error } = await createServerClient()
+    .from('asrama_anggota')
+    .select('student_id, kelompok:asrama_kelompok!asrama_anggota_kelompok_id_fkey(is_active, pengampu:teachers!asrama_kelompok_pengampu_id_fkey(full_name))')
+  if (error) return {}
+  const hasil: Record<string, string[]> = {}
+  for (const r of (data ?? []) as unknown as { student_id: string; kelompok: { is_active: boolean; pengampu: { full_name: string } | null } | null }[]) {
+    const nama = r.kelompok?.is_active ? r.kelompok.pengampu?.full_name : null
+    if (nama) (hasil[r.student_id] ??= []).push(nama)
+  }
+  return hasil
+}

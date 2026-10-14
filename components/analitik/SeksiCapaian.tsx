@@ -1,5 +1,6 @@
 import { Target } from 'lucide-react'
-import { capaianSemua, kurikulumBulan } from '@/lib/data/analitik-cache'
+import { capaianBoarding, capaianSemua, kurikulumBulan } from '@/lib/data/analitik-cache'
+import { PROGRAM_SMP_BOARDING } from '@/lib/auth/permissions'
 import { BELUM_TERCATAT, getCapaianKelas, type MatriksCapaian } from '@/lib/data/capaian-kelas'
 import { getIdPesertaJalur, hitungIrisanJalur } from '@/lib/data/jalur-siswa'
 import { JENJANG_LABELS } from '@/lib/auth/permissions'
@@ -42,8 +43,10 @@ export async function SeksiCapaian({ info, jenjang, program = null, fokus, bulan
 }) {
   // Irisan Ekstra × TR hanya ada di SD — TR milik SDIT.
   const lain = jalur === 'ekstra' ? 'tr' : 'ekstra'
+  // Penyempitan ke anak boarding (Div Qur'an BPA/BPI) — bukan jalur QULS.
+  const programBoarding = !!program && program.every(p => (PROGRAM_SMP_BOARDING as readonly string[]).includes(p))
   const [capaian, kurikulum, irisan] = await Promise.all([
-    jalur && jenjang
+    programBoarding ? capaianBoarding() : jalur && jenjang
       ? getIdPesertaJalur(jalur).then(ids => getCapaianKelas([jenjang], { hanyaSiswa: ids }))
       : capaianSemua(),
     kurikulumBulan(bulan),
@@ -57,7 +60,7 @@ export async function SeksiCapaian({ info, jenjang, program = null, fokus, bulan
     berurutan menurut jenjang; kelompok tanpa siswa tidak ditampilkan.
   */
   const kelompok = capaian.kelompok.filter(k =>
-    (!jenjang || k.jenjang === jenjang) && (!program || k.jalur === 'quls') && k.siswa > 0)
+    (!jenjang || k.jenjang === jenjang) && (!program || programBoarding || k.jalur === 'quls') && k.siswa > 0)
   const unit = UNIT_ORDER.filter(u => kelompok.some(k => k.jenjang === u))
   const angkatan = kurikulum.rows.filter(r => unit.includes(r.jenjang))
 

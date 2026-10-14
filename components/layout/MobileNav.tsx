@@ -16,7 +16,7 @@ import {
   DASHBOARD_LABELS, getAccessibleDashboards, DEFAULT_DASHBOARD,
   canViewTerms, canViewGukarRecap, canViewFinance, canViewFinanceNotes, canPostToHome, canViewHumasRequests, canCreateNews,
   canAccessProgramMenu, canEditAbout,
-  canViewStudents, canViewHalaqoh, canViewAsrama, canViewTeachers, canViewUnitAnalytics,
+  canViewStudents, canViewHalaqoh, canViewAsrama, canViewTeachers, canViewUnitAnalytics, canViewAnalitikBthcq,
   canManageHomepage,
   canViewKpi, canCatatSetoranGuru, canManageAllAccounts, canManagePengurus, canManageEmployees, canViewUjian, canManageTeacherProfiles,
   canAccessKpiPublikasi, canManageRaporTemplate, canManageKalenderQuran, canManageRiyadhoh, canViewRiyadhohAnalitik, canManageTahsinRekomendasi, canViewTahsinRekomendasiAnalitik, canManageEkstra, canManageKaldik, canViewKpiBanding, canViewTasks, canViewRoutineBoard, isAdmin, canViewLaporanKurikulum, canViewPapanRapat, canViewTargetBulanan, canKelolaPanduanGuru } from '@/lib/auth/permissions'
@@ -200,7 +200,7 @@ export function MobileNav({ role, displayName, username, lencanaKpi }: Props) {
               {/* Urutannya disamakan dengan sidebar (analitik menurut abjad) — menu
                   yang sama berpindah tempat antara layar lebar dan HP membuat orang
                   harus mencari ulang tiap ganti perangkat. */}
-              {canViewUnitAnalytics(role) && (
+              {canViewAnalitikBthcq(role) && (
                 <DrawerLink
                   href="/dashboard/analitik"
                   icon={<BarChart3 className="h-4 w-4" />}

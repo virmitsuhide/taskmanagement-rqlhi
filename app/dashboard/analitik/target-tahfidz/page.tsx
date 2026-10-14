@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { AlertTriangle, Target, UserCheck, Users } from 'lucide-react'
 import { getSession } from '@/lib/auth/session'
 import {
-  canEditKalenderTahfidz, canTandaiAsalSdLhi, canViewUnitAnalytics, getAnalyticsJenjang, getAnalyticsProgramScope,
+  canEditKalenderTahfidz, canTandaiAsalSdLhi, canViewAnalitikBthcq, getAnalyticsJenjang, getAnalyticsProgramScope,
 } from '@/lib/auth/permissions'
 import { cocokProgram } from '@/lib/rq/programs'
 import { getTabelTargetBulanan, getTargetTahfidz, saringTargetTahfidz, type RingkasStatus, type SiswaTarget, type StatusSiswa } from '@/lib/data/target-tahfidz'
@@ -40,7 +40,7 @@ const STATUS: { kunci: StatusSiswa; label: string; warna: string; wash: string }
 export default async function TargetTahfidzPage({ searchParams }: PageProps) {
   const session = await getSession()
   if (!session) redirect('/login')
-  if (!canViewUnitAnalytics(session.role)) redirect('/dashboard')
+  if (!canViewAnalitikBthcq(session.role)) redirect('/dashboard')
 
   const scope = getAnalyticsJenjang(session.role)
   const params = await searchParams

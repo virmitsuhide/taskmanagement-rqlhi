@@ -16,7 +16,7 @@ import { DASHBOARD_LABELS, getAccessibleDashboards, ROLE_LABELS , canManageTeach
 import {
   canViewTerms, canViewGukarRecap, canViewFinance, canViewFinanceNotes, canPostToHome, canViewHumasRequests, canCreateNews,
   canAccessProgramMenu, canEditAbout,
-  canViewStudents, canViewHalaqoh, canViewAsrama, canViewTeachers, canViewUnitAnalytics,
+  canViewStudents, canViewHalaqoh, canViewAsrama, canViewTeachers, canViewUnitAnalytics, canViewAnalitikBthcq,
   canManageHomepage, canViewKpi, canCatatSetoranGuru, canManageAllAccounts, canManagePengurus, canManageEmployees, canViewUjian,
   canAccessKpiPublikasi, canManageRaporTemplate, canManageKalenderQuran, canManageRiyadhoh, canViewRiyadhohAnalitik, canManageTahsinRekomendasi, canViewTahsinRekomendasiAnalitik, canManageEkstra, canManageKaldik, canViewKpiBanding, canViewTasks, canViewRoutineBoard,
   isAdmin, canViewLaporanKurikulum, canViewPapanRapat, canViewTargetBulanan, canKelolaPanduanGuru,
@@ -139,7 +139,7 @@ export function Sidebar({ role, displayName, username, lencanaKpi, ciutAwal = fa
               </li>
             ))}
             {/* Menu analitik diurutkan menurut abjad. */}
-            {canViewUnitAnalytics(role) && (
+            {canViewAnalitikBthcq(role) && (
               <NavItem
                 href="/dashboard/analitik"
                 icon={<BarChart3 className="h-4 w-4" />}
