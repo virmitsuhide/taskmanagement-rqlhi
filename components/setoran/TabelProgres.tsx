@@ -18,6 +18,7 @@ import { cn } from '@/lib/utils'
 import { BARIS_MAKS, LABEL_STATUS_TAHSIN, URUTAN_STATUS_TAHSIN } from '@/lib/rq/status-tahsin'
 import type { TahsinStatus } from '@/types'
 import { LencanaLevel } from '@/components/asrama/LencanaLevel'
+import { LencanaJalur, RincianCapaianJalur } from '@/components/setoran/LencanaJalur'
 import type { JenisRekap, ProgresSesi, SelProgres, SuntingSetoran } from '@/lib/data/rekap-sesi'
 
 const HARI = ['Ahad', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab']
@@ -29,6 +30,8 @@ function tanggalPanjang(iso: string): string {
 }
 
 const HURUF_ABSEN = { izin: 'I', sakit: 'S', alfa: 'A' } as const
+/** Penanda setoran di luar sekolah (asrama sudah punya "A" sendiri). */
+const HURUF_JALUR = { ekstra: 'E', tr: 'T', riyadhoh: 'R' } as const
 
 function Sel({ isi, absen, hadirTanpaSetor, onSunting }: {
   isi: SelProgres[] | undefined
@@ -72,6 +75,9 @@ function Sel({ isi, absen, hadirTanpaSetor, onSunting }: {
             {s.label}
             {s.drill && <sup className="ml-0.5 text-[8px] font-bold">D</sup>}
             {s.asrama && <sup className="ml-0.5 text-[8px] font-bold" aria-label="asrama">A</sup>}
+            {s.jalur in HURUF_JALUR && (
+              <sup className="ml-0.5 text-[8px] font-bold" aria-label={s.jalur}>{HURUF_JALUR[s.jalur as keyof typeof HURUF_JALUR]}</sup>
+            )}
             {s.adabRendah && (
               <span className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-destructive" aria-label="adab rendah" />
             )}
@@ -112,6 +118,8 @@ export function TabelProgres({
   const [sunting, setSunting] = useState<{ s: SuntingSetoran; nama: string } | null>(null)
   const adaSetoran = data.baris.some(b => b.jumlahHari > 0)
   const adaAsrama = data.baris.some(b => Object.values(b.sel).some(xs => xs.some(x => x.asrama)))
+  const adaJalur = data.baris.some(b => Object.values(b.sel).some(xs => xs.some(x => x.jalur in HURUF_JALUR)))
+  const adaRincian = data.baris.some(b => b.jalur.length > 0 || Object.keys(b.capaian).some(j => j !== 'sekolah'))
 
   return (
     <div className="rounded-2xl border bg-card">
@@ -153,12 +161,14 @@ export function TabelProgres({
                       {b.nama}
                     </Link>
                     <LencanaLevel level={b.level} />
+                    <LencanaJalur jalur={b.jalur} kecuali={b.level ? ['asrama'] : undefined} />
                   </span>
                   <span className="mt-0.5 block text-[11px] text-muted-foreground">
                     {b.jumlahHari.toLocaleString('id-ID')} hari setor
                     {Object.keys(b.absen).length > 0 && <> · {Object.keys(b.absen).length} tidak hadir</>}
                     {b.adabRendah > 0 && <span className="text-destructive"> · adab rendah {b.adabRendah}×</span>}
                   </span>
+                  <RincianCapaianJalur capaian={b.capaian} jalur={b.jalur} />
                   {b.hadirTanpaSetor.length > 0 && (
                     <span className="block text-[11px] font-medium text-warning">Hadir tanpa setor {b.hadirTanpaSetor.length}×</span>
                   )}
@@ -212,6 +222,14 @@ export function TabelProgres({
         )}
         <span><b className="text-warning">kuning</b> = ulang</span>
         {adaAsrama && <span><b className="text-primary">A</b> = setoran di asrama</span>}
+        {adaJalur && (
+          <span>
+            <b className="text-primary">E</b> / <b className="text-primary">T</b> / <b className="text-primary">R</b> = setoran ekstra / Tahsin Rekomendasi / Riyadhoh
+          </span>
+        )}
+        {adaRincian && (
+          <span>baris <b>Sekolah 12 · Ekstra 5 hlm</b> = {jenis === 'tahsin' ? 'halaman lulus' : 'halaman mushaf ziyadah'} bulan ini per tempat setor</span>
+        )}
         {jenis === 'tahsin' && (
           <span><b className="text-info">12·b5</b> = lanjut, halaman belum tuntas (sampai baris 5)</span>
         )}

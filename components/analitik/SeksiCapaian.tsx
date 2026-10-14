@@ -1,10 +1,11 @@
 import { Target } from 'lucide-react'
 import { capaianSemua, kurikulumBulan } from '@/lib/data/analitik-cache'
-import { BELUM_TERCATAT, type MatriksCapaian } from '@/lib/data/capaian-kelas'
+import { BELUM_TERCATAT, getCapaianKelas, type MatriksCapaian } from '@/lib/data/capaian-kelas'
+import { getIdPesertaJalur, hitungIrisanJalur } from '@/lib/data/jalur-siswa'
 import { JENJANG_LABELS } from '@/lib/auth/permissions'
 import { UNIT_LABELS, UNIT_ORDER } from '@/lib/rq/programs'
 import { formatPeriod, monthName } from '@/lib/finance/period'
-import { Panel } from '@/components/dashboard/kit'
+import { Panel, Slicer, type SlicerOption } from '@/components/dashboard/kit'
 import { CapaianKelompokPanel } from '@/components/dashboard/CapaianKelompok'
 import { Seksi, Kunci, type InfoSeksi } from './seksi'
 import type { Jenjang } from '@/types'
@@ -19,7 +20,7 @@ import type { Jenjang } from '@/types'
  * per angkatan versi rekap bulanan (halaman Kurikulum) tidak ditampilkan
  * lagi di sini karena sudah diwakili matriks.
  */
-export async function SeksiCapaian({ info, jenjang, program = null, fokus, bulan, tanpaTargetAngkatan }: {
+export async function SeksiCapaian({ info, jenjang, program = null, fokus, bulan, tanpaTargetAngkatan, jalur = null, opsiJalur }: {
   info: InfoSeksi
   jenjang: Jenjang | null
   /**
@@ -31,8 +32,23 @@ export async function SeksiCapaian({ info, jenjang, program = null, fokus, bulan
   bulan: string
   /** Koordinator unit: tabel target per angkatan tidak perlu, sudah terwakili matriks. */
   tanpaTargetAngkatan?: boolean
+  /**
+   * Penyempitan ke peserta satu jalur tambahan (SD & SMP): matriks dihitung
+   * ulang hanya dari anak-anak itu — aturan kolomnya tetap sama persis.
+   */
+  jalur?: 'ekstra' | 'tr' | null
+  /** Pilihan Semua / Ekstra / TR; tidak ada = unit ini tanpa pilihan jalur. */
+  opsiJalur?: SlicerOption[]
 }) {
-  const [capaian, kurikulum] = await Promise.all([capaianSemua(), kurikulumBulan(bulan)])
+  // Irisan Ekstra × TR hanya ada di SD — TR milik SDIT.
+  const lain = jalur === 'ekstra' ? 'tr' : 'ekstra'
+  const [capaian, kurikulum, irisan] = await Promise.all([
+    jalur && jenjang
+      ? getIdPesertaJalur(jalur).then(ids => getCapaianKelas([jenjang], { hanyaSiswa: ids }))
+      : capaianSemua(),
+    kurikulumBulan(bulan),
+    jalur && jenjang === 'sd' ? hitungIrisanJalur(jalur, lain, jenjang, program) : Promise.resolve(0),
+  ])
   /*
     Cakupan unit HANYA dari filter Unit di atas halaman. Dulu seksi ini punya
     saringan unit kedua (?cunit=) dan, pada pilihan "Semua", hanya membuka
@@ -53,11 +69,18 @@ export async function SeksiCapaian({ info, jenjang, program = null, fokus, bulan
   }
   const belumTotal = kelompok.reduce((n, k) => n + belum(k.tahsin) + k.tahfidz.reduce((a, m) => a + belum(m), 0), 0)
 
+  // Pilihan tunggal, bukan centang: tiap pilihan menjawab satu pertanyaan
+  // ("di mana anak-anak TR berada?"), dan anak yang ikut ekstra sekaligus TR
+  // tidak terhitung dua kali.
+  const pilihJalur = opsiJalur && opsiJalur.length > 1 ? <Slicer label="Peserta" options={opsiJalur} /> : null
+
   if (kelompok.length === 0) {
     return (
       <Seksi info={info} judul="Capaian per Kelas" pertanyaan="Di jilid dan juz mana siswa tiap kelas berada?">
+        {pilihJalur}
         <p className="rounded-2xl border border-dashed p-6 text-center text-sm text-muted-foreground bg-muted/30">
-          {jenjang ? 'Belum ada siswa aktif di unit ini.' : 'Belum ada siswa aktif di unit mana pun.'}
+          {jalur ? `Belum ada peserta ${jalur === 'tr' ? 'Tahsin Rekomendasi' : 'ekstra'} di unit ini.`
+            : jenjang ? 'Belum ada siswa aktif di unit ini.' : 'Belum ada siswa aktif di unit mana pun.'}
         </p>
       </Seksi>
     )
@@ -68,16 +91,26 @@ export async function SeksiCapaian({ info, jenjang, program = null, fokus, bulan
       info={info}
       judul="Capaian per Kelas"
       pertanyaan="Di jilid dan juz mana siswa tiap kelas berada?"
-      catatan="setoran terakhir"
+      catatan={jalur ? (
+        <>
+          setoran terakhir · hanya peserta {jalur === 'tr' ? 'Tahsin Rekomendasi' : 'ekstra'}
+          {irisan > 0 && (
+            <> · <span className="font-medium text-foreground">
+              {irisan.toLocaleString('id-ID')} di antaranya juga ikut {lain === 'tr' ? 'TR' : 'ekstra'}
+            </span></>
+          )}
+        </>
+      ) : 'setoran terakhir'}
       kunci={
         <>
-          <Kunci label="Siswa" nilai={siswa.toLocaleString('id-ID')} />
+          <Kunci label={jalur ? `Peserta ${jalur === 'tr' ? 'TR' : 'ekstra'}` : 'Siswa'} nilai={siswa.toLocaleString('id-ID')} />
           {fokus !== 'tahfidz' && <Kunci label="Capai target tahsin" nilai={persen(k => [k.tahsin])} />}
           {fokus !== 'tahsin' && <Kunci label="Capai target tahfidz" nilai={persen(k => k.tahfidz)} />}
           <Kunci label="Belum ada setoran" nilai={belumTotal.toLocaleString('id-ID')} nada={belumTotal > 0 ? 'waspada' : 'baik'} />
         </>
       }
     >
+      {pilihJalur}
       {unit.map(u => {
         const diUnit = kelompok.filter(k => k.jenjang === u)
         const siswaUnit = diUnit.reduce((n, k) => n + k.siswa, 0)
@@ -102,7 +135,8 @@ export async function SeksiCapaian({ info, jenjang, program = null, fokus, bulan
         )
       })}
 
-      {fokus !== 'tahfidz' && !tanpaTargetAngkatan && angkatan.length > 0 && (
+      {/* Rekap target per angkatan berisi seluruh siswa — tidak bisa dipersempit ke peserta jalur. */}
+      {fokus !== 'tahfidz' && !tanpaTargetAngkatan && !jalur && angkatan.length > 0 && (
         <Panel
           title="Ketercapaian Target Tahsin per Angkatan"
           icon={<Target className="h-4 w-4" />}

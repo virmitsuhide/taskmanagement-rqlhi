@@ -12,6 +12,8 @@ import {
 } from '@/components/ui/dialog'
 import { sesiLabel } from '@/lib/rq/sesi'
 import { cn } from '@/lib/utils'
+import type { JalurTambahan } from '@/lib/rq/jalur'
+import { LencanaJalur } from '@/components/setoran/LencanaJalur'
 
 export interface SiswaBaris {
   id: string
@@ -19,6 +21,8 @@ export interface SiswaBaris {
   nis: string | null
   kelas: string | null
   gender: 'L' | 'P' | null
+  /** Jalur mengaji tambahan — lencana (lib/rq/jalur.ts). */
+  jalur?: JalurTambahan[]
 }
 
 export interface HalaqohTujuanOpsi {
@@ -160,7 +164,10 @@ export function PindahSiswa({ siswa, tujuan, sesiSekarang, canManage }: Props) {
           const isi = (
             <>
               <span className="min-w-0">
-                <span className="block truncate text-sm font-medium">{s.full_name}</span>
+                <span className="flex min-w-0 flex-wrap items-center gap-1.5">
+                  <span className="truncate text-sm font-medium">{s.full_name}</span>
+                  <LencanaJalur jalur={s.jalur ?? []} />
+                </span>
                 <span className="block text-xs text-muted-foreground">
                   {s.kelas ? `Kelas ${s.kelas}` : '—'} {s.nis && `· NIS ${s.nis}`}
                 </span>

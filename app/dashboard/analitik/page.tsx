@@ -32,7 +32,7 @@ import {
 type Fokus = 'semua' | 'tahsin' | 'tahfidz'
 
 interface PageProps {
-  searchParams: Promise<{ bulan?: string; unit?: string; fokus?: string; tunit?: string }>
+  searchParams: Promise<{ bulan?: string; unit?: string; fokus?: string; tunit?: string; cjalur?: string }>
 }
 
 const PATH = '/dashboard/analitik'
@@ -112,8 +112,19 @@ export default async function AnalitikPage({ searchParams }: PageProps) {
   const titik = trend.points[iBulan]
   const titikLalu = iBulan > 0 ? trend.points[iBulan - 1] : undefined
 
-  const params = { bulan: bulanDiminta ?? undefined, unit: jenjang ?? undefined, fokus: fokus === 'semua' ? undefined : fokus }
+  // Capaian per Kelas bisa dipersempit ke peserta jalur tambahan — hanya SD
+  // (ekstra & Tahsin Rekomendasi) dan SMP (ekstra), yang memang punya jalurnya.
+  const jalurBoleh: ('ekstra' | 'tr')[] = jenjang === 'sd' ? ['ekstra', 'tr'] : jenjang === 'smp' ? ['ekstra'] : []
+  const cjalur = jalurBoleh.find(j => j === sp.cjalur) ?? null
+
+  const params = { bulan: bulanDiminta ?? undefined, unit: jenjang ?? undefined, fokus: fokus === 'semua' ? undefined : fokus, cjalur: cjalur ?? undefined }
   const href = (ganti: Record<string, string | undefined>) => hrefDengan(PATH, params, ganti)
+  const opsiJalur = jalurBoleh.length === 0 ? undefined : [
+    { label: 'Semua', href: `${href({ cjalur: undefined })}#capaian`, active: !cjalur },
+    ...jalurBoleh.map(j => ({
+      label: j === 'tr' ? 'Tahsin Rekomendasi' : 'Ekstra', href: `${href({ cjalur: j })}#capaian`, active: cjalur === j,
+    })),
+  ]
   const bulanHref = (i: number) =>
     i < 0 || i >= kunciBulan.length ? null : href({ bulan: i === kunciBulan.length - 1 ? undefined : kunciBulan[i] })
 
@@ -327,7 +338,7 @@ export default async function AnalitikPage({ searchParams }: PageProps) {
 
         <Suspense fallback={<SeksiMemuat info={S.capaian} judul="Capaian per Kelas" />}>
           <SeksiCapaian info={S.capaian} jenjang={jenjang} program={program} fokus={fokus} bulan={a.monthKey}
-            tanpaTargetAngkatan={isKoorAnalitik(session.role)} />
+            tanpaTargetAngkatan={isKoorAnalitik(session.role)} jalur={cjalur} opsiJalur={opsiJalur} />
         </Suspense>
 
         {tampilTahfidz && (

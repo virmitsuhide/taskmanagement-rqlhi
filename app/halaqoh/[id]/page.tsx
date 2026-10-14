@@ -11,6 +11,7 @@ import { getHalaqohSessions } from '@/lib/data/terms'
 import { SessionEditor } from '@/components/halaqoh/SessionEditor'
 import { PindahSiswa, type HalaqohTujuanOpsi } from '@/components/halaqoh/PindahSiswa'
 import { programLabel } from '@/lib/rq/programs'
+import { getJalurSiswa } from '@/lib/data/jalur-siswa'
 import type { Jenjang, UserRole } from '@/types'
 
 interface PageProps {
@@ -43,7 +44,10 @@ export default async function HalaqohDetailPage({ params }: PageProps) {
 
   const canEdit = canManageHalaqoh(session.role, halaqoh.jenjang as Jenjang, halaqoh.program as string | null)
   const sessions = await getHalaqohSessions(id)
-  const activeStudents = (students ?? []).filter(s => s.is_active)
+  const aktif = (students ?? []).filter(s => s.is_active)
+  // Lencana ekstra / TR / Riyadhoh / boarding: anak yang punya waktu mengaji tambahan.
+  const jalur = await getJalurSiswa(aktif.map(s => s.id))
+  const activeStudents = aktif.map(s => ({ ...s, jalur: jalur.get(s.id) ?? [] }))
   const inactiveStudents = (students ?? []).filter(s => !s.is_active)
 
   // Halaqoh lain sejenjang yang boleh diisi pengurus ini — calon tujuan

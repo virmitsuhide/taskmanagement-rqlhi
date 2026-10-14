@@ -219,7 +219,11 @@ async function fetchAll<T>(
   for (let page = 0; page < 50; page++) {
     const { data, error } = await build().range(page * SIZE, page * SIZE + SIZE - 1)
     if (error) {
-      console.error('[kelengkapan] gagal mengambil data:', error)
+      // Ditulis per kolom: PostgrestError adalah turunan Error, dan konsol
+      // peramban Next menampilkannya sebagai "{}" — penyebabnya hilang.
+      const e = error as { message?: string; code?: string; details?: string; hint?: string }
+      console.error(`[kelengkapan] gagal mengambil data (halaman ${page}): ${e.message ?? String(error)}`,
+        { code: e.code, details: e.details, hint: e.hint })
       break
     }
     const batch = (data ?? []) as T[]
