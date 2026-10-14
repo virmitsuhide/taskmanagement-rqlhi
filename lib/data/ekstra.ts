@@ -1,5 +1,9 @@
 import { cache } from 'react'
 import { createServerClient } from '@/lib/supabase/server'
+import { getInfoSurat } from '@/lib/data/nama-surat'
+import { teksRentang } from '@/lib/rq/rentang-surat'
+import { teksBaris } from '@/lib/rq/status-tahsin'
+import type { SetoranItem } from '@/components/siswa/SetoranKoreksi'
 
 /**
  * Ekstra tahsin & tahfidz (0091).
@@ -501,4 +505,58 @@ export function hariIniWIB(): string {
 /** Saat ini digeser ke WIB (baca dengan getUTC*) — di luar komponen agar render tetap murni. */
 export function kiniWIB(): Date {
   return new Date(Date.now() + 7 * 3600_000)
+}
+
+/**
+ * Setoran ekstra satu slot dalam rentang tanggal, siap disunting guru
+ * pengampunya (lihat guardGuruEkstra di app/actions/setoran-koreksi.ts).
+ * Nama anak didahulukan di judul — daftarnya memuat seluruh peserta.
+ */
+export async function getSetoranEkstraSunting(slotId: string, dari: string, sampai: string): Promise<SetoranItem[]> {
+  const supabase = createServerClient()
+  const [ts, tf, infoSurat] = await Promise.all([
+    supabase.from('tahsin_logs')
+      .select('id, setoran_date, halaman, baris_dari, baris_ke, status, catatan, nilai_tahsin, nilai_sikap, student:students!tahsin_logs_student_id_fkey(full_name), jilid:jilid_levels!tahsin_logs_jilid_id_fkey(label)')
+      .eq('ekstra_slot_id', slotId).gte('setoran_date', dari).lte('setoran_date', sampai),
+    supabase.from('tahfidz_logs')
+      .select('*, student:students!tahfidz_logs_student_id_fkey(full_name), surat:surat_master!tahfidz_logs_surat_id_fkey(name_latin)')
+      .eq('ekstra_slot_id', slotId).gte('setoran_date', dari).lte('setoran_date', sampai),
+    getInfoSurat(),
+  ])
+  if (ts.error && tf.error) return []
+
+  const num = (v: unknown) => (v === null || v === undefined ? null : Number(v))
+  const nama = (r: Record<string, unknown>) => (r.student as { full_name: string } | null)?.full_name ?? 'Siswa'
+  const judulTahfidz = (r: Record<string, unknown>): string => {
+    const surat = (r.surat as { name_latin: string } | null)?.name_latin
+    if (!surat) return 'Tahfidz'
+    const d = num(r.ayat_dari), k = num(r.ayat_ke)
+    const akhir = r.surat_ke_id ? infoSurat.get(Number(r.surat_ke_id))?.name_latin ?? `Surat ${r.surat_ke_id}` : null
+    if (!akhir && d !== null) return `${surat} ayat ${d}–${k ?? ''}`
+    return teksRentang(surat, d, akhir, k)
+  }
+
+  const items: SetoranItem[] = [
+    ...((ts.data ?? []) as unknown as Record<string, unknown>[]).map(r => ({
+      id: String(r.id), table: 'tahsin_logs' as const,
+      tanggal: String(r.setoran_date),
+      judul: `${nama(r)} — ` + ([
+        (r.jilid as { label: string } | null)?.label,
+        r.halaman ? `hal ${r.halaman}` : null,
+        teksBaris(num(r.baris_dari), num(r.baris_ke)),
+      ].filter(Boolean).join(' · ') || 'Tahsin'),
+      nilai: num(r.nilai_tahsin), sikap: num(r.nilai_sikap),
+      status: (r.status as string) ?? null, catatan: (r.catatan as string) ?? null,
+      halaman: num(r.halaman), barisDari: num(r.baris_dari), barisKe: num(r.baris_ke),
+    })),
+    ...((tf.data ?? []) as unknown as Record<string, unknown>[]).map(r => ({
+      id: String(r.id), table: 'tahfidz_logs' as const,
+      tanggal: String(r.setoran_date),
+      judul: `${nama(r)} — ${judulTahfidz(r)}`,
+      nilai: num(r.nilai_tahfidz), sikap: num(r.nilai_sikap),
+      status: null, catatan: (r.catatan as string) ?? null,
+      ayatDari: num(r.ayat_dari), ayatKe: num(r.ayat_ke),
+    })),
+  ]
+  return items.sort((a, b) => b.tanggal.localeCompare(a.tanggal) || a.judul.localeCompare(b.judul, 'id'))
 }

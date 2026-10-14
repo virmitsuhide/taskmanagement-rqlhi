@@ -42,6 +42,9 @@ const LABEL: Record<LogTable, string> = {
  * Guru mencatat, pengurus membetulkan. Pemisahan itu disengaja: riwayat
  * capaian tidak boleh bisa diubah diam-diam oleh orang yang nilainya sedang
  * dinilai, sementara salah input tetap harus ada jalan keluarnya.
+ *
+ * Satu pengecualian: guru ekstra menyunting setoran EKSTRA slotnya sendiri
+ * di /guru/ekstra (dijaga guardGuruEkstra di server).
  */
 export function SetoranKoreksi({ items }: { items: SetoranItem[] }) {
   const [editing, setEditing] = useState<SetoranItem | null>(null)

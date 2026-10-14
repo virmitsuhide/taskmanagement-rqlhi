@@ -2,9 +2,10 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { BookOpen, Sparkles } from 'lucide-react'
 import { getTeacherSession } from '@/lib/auth/teacher-session'
-import { getHadirEkstra, getSlotGuru, labelSlot } from '@/lib/data/ekstra'
+import { getHadirEkstra, getSetoranEkstraSunting, getSlotGuru, labelSlot } from '@/lib/data/ekstra'
+import { SetoranKoreksi } from '@/components/siswa/SetoranKoreksi'
 import { HadirEkstra } from '@/components/ekstra/HadirEkstra'
-import { LaporanEkstra } from '@/components/ekstra/LaporanEkstra'
+import { LaporanEkstra, rentangBulan } from '@/components/ekstra/LaporanEkstra'
 import { cn } from '@/lib/utils'
 
 /**
@@ -25,6 +26,11 @@ export default async function GuruEkstraPage({ searchParams }: { searchParams: P
   const awal = Object.fromEntries(hadir.map(h => [h.booking_id, h.status]))
   const bisaSetor = anggota.filter(p => p.student_id && (awal[p.id] ?? 'hadir') === 'hadir').length
   const bidang = aktif?.jenis?.bidang
+  // Bulan dari tanggal pertemuan terpilih — guru membuka bulan lalu cukup
+  // dengan memilih tanggal di bulan itu.
+  const bulan = tanggal.slice(0, 7)
+  const { dari, sampai, label: namaBulan } = rentangBulan(bulan)
+  const setoranSunting = aktif ? await getSetoranEkstraSunting(aktif.id, dari, sampai) : []
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--secondary)' }}>
@@ -103,9 +109,20 @@ export default async function GuruEkstraPage({ searchParams }: { searchParams: P
             )}
 
             {aktif && (
+              <section>
+                <h2 className="font-heading text-2xl">Ubah setoran ekstra · {namaBulan}</h2>
+                <p className="mb-3 mt-1 max-w-2xl text-sm text-muted-foreground">
+                  Setoran ekstra bulan {namaBulan} di halaqoh ini. Ganti tanggal pertemuan di atas untuk membuka bulan lain —
+                  pertemuan yang terlewat bisa diisi lewat Setor tahsin/tahfidz pada tanggal itu. Posisi anak dihitung ulang setiap ada perubahan.
+                </p>
+                <SetoranKoreksi items={setoranSunting} />
+              </section>
+            )}
+
+            {aktif && (
               <div>
-                <h2 className="mb-3 font-heading text-2xl">Laporan ekstra bulan ini</h2>
-                <LaporanEkstra slot={[aktif]} peserta={anggota} bulan={hariIni.slice(0, 7)} />
+                <h2 className="mb-3 font-heading text-2xl">Laporan ekstra · {namaBulan}</h2>
+                <LaporanEkstra slot={[aktif]} peserta={anggota} bulan={bulan} />
               </div>
             )}
           </>

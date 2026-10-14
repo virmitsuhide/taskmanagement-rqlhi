@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { createServerClient } from '@/lib/supabase/server'
 import { getSession } from '@/lib/auth/session'
+import { getTeacherSession } from '@/lib/auth/teacher-session'
 import { canManageAsrama, canManageSetoran } from '@/lib/auth/permissions'
 import { genderAsramaSiswa } from '@/lib/data/asrama'
 import { recalcPosisi, recalcMutqin } from '@/lib/rq/hitung-ulang-setoran'
@@ -26,14 +27,43 @@ type LogTable = 'tahsin_logs' | 'tahfidz_logs' | 'tasmi_logs'
  * terakhir.
  */
 
+/**
+ * Guru ekstra boleh membetulkan setoran EKSTRA yang tercatat di slot yang ia
+ * ampu — pengecualian dari "guru mencatat, pengurus membetulkan": setoran
+ * ekstra tidak masuk penilaian KPI guru, dan guru ekstra kerap mengisi
+ * pertemuan yang lalu sehingga perlu bisa meralatnya sendiri.
+ */
+async function guardGuruEkstra(
+  table: LogTable,
+  logId: string,
+  teacherId: string,
+): Promise<{ studentId: string; guru: true } | { error: string }> {
+  if (table === 'tasmi_logs') return { error: 'Anda tidak memiliki izin untuk setoran ini.' }
+  const supabase = createServerClient()
+  const { data: log } = await supabase
+    .from(table).select('student_id, ekstra_slot_id').eq('id', logId).maybeSingle()
+  const row = log as { student_id: string; ekstra_slot_id: string | null } | null
+  if (!row) return { error: 'Setoran tidak ditemukan.' }
+  if (!row.ekstra_slot_id) return { error: 'Hanya setoran ekstra yang bisa Anda ubah.' }
+  const { data: slot } = await supabase
+    .from('ekstra_slot').select('teacher_id').eq('id', row.ekstra_slot_id).maybeSingle()
+  if ((slot as { teacher_id: string } | null)?.teacher_id !== teacherId) {
+    return { error: 'Setoran ini bukan dari halaqoh ekstra yang Anda ampu.' }
+  }
+  return { studentId: row.student_id, guru: true }
+}
+
 /** Pastikan penindak berwenang atas jenjang siswa pemilik setoran ini. */
 async function guard(
   table: LogTable,
   logId: string,
-): Promise<{ studentId: string } | { error: string }> {
-  const session = await getSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+): Promise<{ studentId: string; guru?: true } | { error: string }> {
   if (!logId) return { error: 'Setoran tidak dikenali.' }
+  const session = await getSession()
+  if (!session) {
+    const guru = await getTeacherSession()
+    return guru ? guardGuruEkstra(table, logId, guru.teacherId) : { error: 'Sesi tidak valid.' }
+  }
 
   const supabase = createServerClient()
   const { data: log } = await supabase
@@ -69,6 +99,7 @@ function refresh(studentId: string) {
   revalidatePath('/dashboard/analitik/kelengkapan')
   revalidatePath('/setoran')
   revalidatePath('/asrama')
+  revalidatePath('/guru/ekstra')
 }
 
 // ── Hapus ────────────────────────────────────────────────────────────────────
@@ -128,6 +159,10 @@ export async function updateSetoranAction(_: unknown, formData: FormData): Promi
 
   const tanggal = ((formData.get('setoran_date') as string) ?? '').trim()
   if (!/^\d{4}-\d{2}-\d{2}$/.test(tanggal)) return { error: 'Tanggal tidak valid.' }
+  // Setoran tidak ditulis di muka — sama dengan saat guru mencatat.
+  if (auth.guru && tanggal > new Date(Date.now() + 7 * 3600_000).toISOString().slice(0, 10)) {
+    return { error: 'Tanggal setoran tidak boleh melewati hari ini.' }
+  }
 
   const catatan = ((formData.get('catatan') as string) ?? '').trim() || null
   const sikap = score(formData.get('nilai_sikap'))
