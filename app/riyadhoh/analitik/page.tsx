@@ -17,20 +17,24 @@ const tglPendek = (t: string) => `${Number(t.slice(8))} ${BULAN[Number(t.slice(5
 const tglPanjang = (t: string) => new Date(`${t}T00:00:00+07:00`).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', timeZone: 'Asia/Jakarta' })
 const bintang = (b: number | null) => (b === null ? '—' : `★ ${b.toLocaleString('id-ID', { maximumFractionDigits: 1 })}`)
 
-// Warna seri — hijau Teduh untuk hadir/ziyadah, gradasi untuk muroja'ah & tahsin.
+// Warna seri — token tema (ikut suasana & mode gelap). Capaian berjenjang memakai
+// --chart-N: di Teduh terang chart-5 = #0E3531 (ziyadah), chart-1 = #256B60; di
+// mode gelap urutannya terbalik — yang terkuat paling terang. Netral dicampur dari
+// muted-foreground supaya tidak menyilaukan di latar gelap.
+const NETRAL = (persen: number) => `color-mix(in srgb, var(--muted-foreground) ${persen}%, var(--card))`
 const W_HADIR = [
   { k: 'hadir', l: 'Hadir', c: 'var(--primary)' },
   { k: 'izin', l: 'Izin', c: '#7FA6D6' },
   { k: 'sakit', l: 'Sakit', c: '#E8B45C' },
   { k: 'alfa', l: 'Alfa', c: 'var(--destructive)' },
-  { k: 'belum', l: 'Belum dicatat', c: '#CFC8B8' },
+  { k: 'belum', l: 'Belum dicatat', c: NETRAL(45) },
 ] as const
 const W_CAPAIAN: { k: CapaianUtama; l: string; c: string }[] = [
-  { k: 'ziyadah', l: 'Ziyadah', c: '#0E3531' },
-  { k: 'murojaah_baru', l: "Muroja'ah baru", c: '#256B60' },
-  { k: 'murojaah_lama', l: "Muroja'ah lama", c: '#8FBFB2' },
-  { k: 'tahsin', l: 'Tahsin saja', c: '#C9D9A6' },
-  { k: 'tidak_setor', l: 'Tidak setor', c: '#E4DFD3' },
+  { k: 'ziyadah', l: 'Ziyadah', c: 'var(--chart-5)' },
+  { k: 'murojaah_baru', l: "Muroja'ah baru", c: 'var(--chart-1)' },
+  { k: 'murojaah_lama', l: "Muroja'ah lama", c: 'var(--chart-2)' },
+  { k: 'tahsin', l: 'Tahsin saja', c: 'var(--chart-4)' },
+  { k: 'tidak_setor', l: 'Tidak setor', c: NETRAL(22) },
 ]
 const WARNA_KELOMPOK: Record<KelompokRiyadhoh, string> = { L: '#2E5A8F', P: '#BC5A0B' }
 
@@ -221,7 +225,7 @@ export default async function AnalitikRiyadhohPage({ searchParams }: {
                           </td>
                           <td className="py-2.5 pr-3 text-muted-foreground">{k.anak}</td>
                           <td className="py-2.5 pr-4"><Batang n={k.hadirPersen} nada={nadaHadir(k.hadirPersen)} /></td>
-                          <td className="py-2.5 pr-4"><Batang n={k.ziyadahPersen} nada="bg-[#0E3531]" /></td>
+                          <td className="py-2.5 pr-4"><Batang n={k.ziyadahPersen} nada="bg-[var(--chart-5)]" /></td>
                           <td className={cn('py-2.5 text-right font-bold tabular-nums', (k.tidakSetorPerSabtu ?? 0) >= 4 && 'text-accent-warm')}>
                             {k.tidakSetorPerSabtu === null ? '—' : k.tidakSetorPerSabtu.toLocaleString('id-ID', { maximumFractionDigits: 1 })}
                           </td>
@@ -298,7 +302,8 @@ function KartuTerakhir({ t }: { t: NonNullable<Awaited<ReturnType<typeof getAnal
   ].filter(x => x.l === 'Hadir' || Number(x.v) > 0)
   const lengkap = t.pengampu.filter(p => p.lengkap).length
   return (
-    <section className="space-y-4 rounded-[20px] bg-[#0E3531] p-6 text-white md:p-7">
+    // Warna sidebar tema: sama dengan bawaan (#0E3531) dan ikut tiap suasana.
+    <section className="space-y-4 rounded-[20px] bg-sidebar p-6 text-sidebar-foreground md:p-7">
       <div className="flex flex-wrap items-end gap-4">
         <div className="min-w-0 flex-1">
           <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#F2B27A]">Sabtu terakhir · {tglPanjang(t.tanggal)} · {LABEL_KELOMPOK[t.kelompok]}</p>
@@ -309,19 +314,19 @@ function KartuTerakhir({ t }: { t: NonNullable<Awaited<ReturnType<typeof getAnal
       </div>
       <div className="flex flex-wrap gap-2">
         {chip.map(x => (
-          <span key={x.l} className="min-w-[76px] rounded-xl border border-white/10 bg-white/[0.08] px-3.5 py-2.5">
+          <span key={x.l} className="min-w-[76px] rounded-xl border border-sidebar-border bg-sidebar-accent/60 px-3.5 py-2.5">
             <span className="block font-heading text-2xl leading-none tabular-nums">{x.v}</span>
-            <span className="text-[11.5px] text-white/75">{x.l}</span>
+            <span className="text-[11.5px] opacity-75">{x.l}</span>
           </span>
         ))}
       </div>
       {t.pengampu.length > 0 && (
-        <div className="border-t border-white/10 pt-3.5">
-          <p className="text-xs font-bold text-white/60">Pencatatan pengampu Sabtu ini · {lengkap} dari {t.pengampu.length} lengkap</p>
+        <div className="border-t border-sidebar-border pt-3.5">
+          <p className="text-xs font-bold opacity-60">Pencatatan pengampu Sabtu ini · {lengkap} dari {t.pengampu.length} lengkap</p>
           <div className="mt-2 flex flex-wrap gap-x-6 gap-y-1.5">
             {t.pengampu.map(p => (
               <span key={p.nama} className="inline-flex items-center gap-2 text-[13px]">
-                <span className={cn('h-2 w-2 rounded-full', p.lengkap ? 'bg-[#9FE0C9]' : 'bg-[#F2B27A]')} />{p.nama} <span className="text-white/60">· {p.ket}</span>
+                <span className={cn('h-2 w-2 rounded-full', p.lengkap ? 'bg-[#9FE0C9]' : 'bg-[#F2B27A]')} />{p.nama} <span className="opacity-60">· {p.ket}</span>
               </span>
             ))}
           </div>
