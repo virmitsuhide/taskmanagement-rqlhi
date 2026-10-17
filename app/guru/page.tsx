@@ -6,6 +6,8 @@ import { getTeacherSession } from '@/lib/auth/teacher-session'
 import { getTeacherHalaqohPeran, getTeacherStudents } from '@/lib/data/teacher'
 import { getTeacherWeeklyStats, getTeacherHalaqohSummary } from '@/lib/data/teacher-stats'
 import { getKonteksPengumuman, getPengumumanGuru } from '@/lib/data/pengumuman-guru'
+import { getChangelog } from '@/lib/data/changelog'
+import { PembaruanBaru } from '@/components/changelog/PembaruanBaru'
 import { TandaiPengumumanTerbaca } from '@/components/guru/TandaiPengumumanTerbaca'
 import { getUjianGuru, getUnitUjianGuru } from '@/lib/data/ujian'
 import { getNotifUjianGuru } from '@/lib/data/ujian-notifikasi'
@@ -70,7 +72,10 @@ export default async function TeacherHomePage() {
   const jumlahSiswaBerikut = berikut
     ? halaqohSummary.find(h => h.id === berikut.halaqoh.id)?.studentCount ?? 0
     : 0
-  const pengumuman = await getPengumumanGuru(konteks.unit, konteks.seenAt)
+  const [pengumuman, pembaruan] = await Promise.all([
+    getPengumumanGuru(konteks.unit, konteks.seenAt),
+    getChangelog('guru', 10),
+  ])
   const todayStr = now.toISOString().slice(0, 10)
   /*
     Anak yang hanya diampu di asrama diukur dari setoran TAHFIDZ terakhirnya:
@@ -112,6 +117,10 @@ export default async function TeacherHomePage() {
             <span style={{ borderBottom: '3px solid var(--accent-warm)', paddingBottom: 2 }}>{session.fullName}</span>
           </h1>
         </div>
+
+        {pembaruan && pembaruan.length > 0 && (
+          <div className="mb-6"><PembaruanBaru entri={pembaruan} pembaca="guru" href="/guru/pembaruan" /></div>
+        )}
 
         {/* Sesi berikutnya — pintu masuk "Mulai sesi". Jamnya dari jadwal sesi baku. */}
         {berikut && (

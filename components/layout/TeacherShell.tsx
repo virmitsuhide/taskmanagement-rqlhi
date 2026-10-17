@@ -6,7 +6,7 @@ import {
   BarChart3, ScrollText, GraduationCap, IdCard, Palette, ClipboardCheck, ListChecks,
   Table2, UserCheck,
   FileText, CalendarHeart, Play, PieChart, BookHeart,
-  LibraryBig,
+  LibraryBig, Sparkles,
 } from 'lucide-react'
 import { cookies } from 'next/headers'
 import { getTeacherSession } from '@/lib/auth/teacher-session'
@@ -98,6 +98,7 @@ export async function TeacherShell({ children }: { children: React.ReactNode }) 
       title: 'Lainnya',
       items: [
         { label: 'Panduan Guru', href: '/guru/panduan', icon: <LibraryBig /> },
+        { label: 'Pembaruan Sistem', href: '/guru/pembaruan', icon: <Sparkles /> },
         { label: 'Profil Saya', href: '/guru/profil', icon: <IdCard /> },
         { label: 'Tampilan', href: '/guru/profil/tampilan', icon: <Palette /> },
       ],
@@ -181,6 +182,7 @@ export async function TeacherShell({ children }: { children: React.ReactNode }) 
         ...(bolehGukar ? [{ label: 'Pembinaan Gukar', href: '/guru/gukar', icon: <GraduationCap /> }] : []),
         // SOP & dokumen PDF dari pengurus (0104).
         { label: 'Panduan Guru', href: '/guru/panduan', icon: <LibraryBig /> },
+        { label: 'Pembaruan Sistem', href: '/guru/pembaruan', icon: <Sparkles /> },
         { label: 'Profil Saya', href: '/guru/profil', icon: <IdCard /> },
         { label: 'Tampilan', href: '/guru/profil/tampilan', icon: <Palette /> },
       ],

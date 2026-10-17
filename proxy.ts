@@ -31,6 +31,8 @@ const ADMIN_PREFIXES = [
   // Target bulanan (0103) & kelola Panduan Guru (0104).
   '/target-bulanan',
   '/panduan-guru',
+  // Pembaruan Sistem / changelog (0121).
+  '/pembaruan',
   // Sisi koordinator Ekstra. Pendaftaran orang tua ada di /daftar-ekstra (publik).
   '/ekstra',
   // Tahsin Rekomendasi SDIT (0115) — Koor SD; analitik juga Kumik & Kepala RQ.
@@ -125,6 +127,7 @@ export const config: ProxyConfig = {
     '/laporan-kurikulum/:path*',
     '/target-bulanan/:path*',
     '/panduan-guru/:path*',
+    '/pembaruan/:path*',
     '/guru/:path*',
   ],
 }

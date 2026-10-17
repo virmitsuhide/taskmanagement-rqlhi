@@ -1879,6 +1879,18 @@ export function canKelolaPanduanGuru(role: UserRole): boolean {
   return sasaranUnggahPanduan(role) !== null
 }
 
+// ── Pembaruan Sistem / changelog (0121) ─────────────────────────────────
+
+/** Menulis kabar perubahan fitur untuk pengurus, guru, dan karyawan — Kepala RQ saja. */
+export function canKelolaChangelog(role: UserRole): boolean {
+  return role === 'kepala_rq'
+}
+
+/** Membaca pembaruan sistem di dashboard: semua pengurus, bukan akun admin sistem. */
+export function canViewChangelog(role: UserRole): boolean {
+  return role !== 'admin'
+}
+
 // ── Target bulanan tahsin & tahfidz (0103) ───────────────────────────────
 
 /**

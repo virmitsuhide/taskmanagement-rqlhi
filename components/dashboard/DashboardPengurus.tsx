@@ -33,7 +33,9 @@ import {
 import { Fragment } from 'react'
 import { TeamTasksSwitcher } from '@/components/dashboard/TeamTasksSwitcher'
 import { CompletionHistory } from '@/components/dashboard/CompletionHistory'
-import { getBoardDivisions } from '@/lib/auth/permissions'
+import { canViewChangelog, getBoardDivisions } from '@/lib/auth/permissions'
+import { getChangelog } from '@/lib/data/changelog'
+import { PembaruanBaru } from '@/components/changelog/PembaruanBaru'
 import type { ContentRequest, Jenjang, MeetingType, SessionData, UjianStats, UserRole } from '@/types'
 
 /**
@@ -270,7 +272,7 @@ export async function DashboardPengurus({ halaman, session, searchParams, atas }
   const saringBoleh = k.tim ? SARING_TIM : SARING_PRIBADI
   const saring = bacaSaring(searchParams.tugas, saringBoleh)
 
-  const [tugas, review, rapat, capaian, ujian, gukar, request, tim] = await Promise.all([
+  const [tugas, review, rapat, capaian, ujian, gukar, request, tim, pembaruan] = await Promise.all([
     !denganTugas ? Promise.resolve([]) : k.tim ? getTeamActiveTasks() : getSemuaTugasAktifSaya(session.userId),
     denganTugas ? getPendingVerifications(session.userId) : Promise.resolve([]),
     (async () => { const t = k.rapat(role); return ada('rapat') && t.length ? getRecentMeetings(t, 5) : [] })(),
@@ -287,6 +289,7 @@ export async function DashboardPengurus({ halaman, session, searchParams, atas }
     k.tim
       ? Promise.all([getCompletionHistory(), getBoardTasks({ session, scope: 'divisi', divisi: null })])
       : Promise.resolve(null),
+    canViewChangelog(role) ? getChangelog('pengurus', 10) : Promise.resolve(null),
   ])
 
   const fokus = ringkasFokus(tugas, saring, hariIni)
@@ -376,6 +379,8 @@ export async function DashboardPengurus({ halaman, session, searchParams, atas }
             </>
           }
         />
+
+        {pembaruan && pembaruan.length > 0 && <PembaruanBaru entri={pembaruan} pembaca="pengurus" href="/pembaruan" />}
 
         {jawaban.length > 0 && (
           <p className="rounded-2xl border-l-4 border-accent-warm bg-card px-5 py-4 text-[15px] leading-relaxed">

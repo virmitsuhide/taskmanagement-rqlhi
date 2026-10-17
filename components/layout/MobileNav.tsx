@@ -8,7 +8,7 @@ import {
   ImageIcon, Megaphone, FileText, User, LogOut, GraduationCap, Newspaper, LayoutGrid,
   Users, UserCog, BookMarked, BarChart3, LayoutTemplate, Info, Wallet, CalendarRange, CalendarDays,
   ClipboardCheck, KeyRound, ScrollText, Repeat, IdCard, UsersRound, Briefcase, Stamp, Scale, ListChecks, Kanban, CalendarHeart, BookHeart, Lock, UserRound,
-  Crosshair, LibraryBig, Table2, BedDouble, DatabaseBackup, Palette,
+  Crosshair, LibraryBig, Sparkles, Table2, BedDouble, DatabaseBackup, Palette,
 } from 'lucide-react'
 import { domainBackupUntuk } from '@/lib/backup/domain'
 import { cn } from '@/lib/utils'
@@ -19,7 +19,7 @@ import {
   canViewStudents, canViewHalaqoh, canViewAsrama, canViewTeachers, canViewUnitAnalytics, canViewAnalitikBthcq,
   canManageHomepage,
   canViewKpi, canCatatSetoranGuru, canManageAllAccounts, canManagePengurus, canManageEmployees, canViewUjian, canManageTeacherProfiles,
-  canAccessKpiPublikasi, canManageRaporTemplate, canManageKalenderQuran, canManageRiyadhoh, canViewRiyadhohAnalitik, canManageTahsinRekomendasi, canViewTahsinRekomendasiAnalitik, canManageEkstra, canManageKaldik, canViewKpiBanding, canViewTasks, canViewRoutineBoard, isAdmin, canViewLaporanKurikulum, canViewPapanRapat, canViewTargetBulanan, canKelolaPanduanGuru } from '@/lib/auth/permissions'
+  canAccessKpiPublikasi, canManageRaporTemplate, canManageKalenderQuran, canManageRiyadhoh, canViewRiyadhohAnalitik, canManageTahsinRekomendasi, canViewTahsinRekomendasiAnalitik, canManageEkstra, canManageKaldik, canViewKpiBanding, canViewTasks, canViewRoutineBoard, isAdmin, canViewLaporanKurikulum, canViewPapanRapat, canViewTargetBulanan, canKelolaPanduanGuru, canViewChangelog } from '@/lib/auth/permissions'
 import type { UserRole } from '@/types'
 import { logoutAction } from '@/app/actions/auth'
 import { Logo } from '@/components/brand/Logo'
@@ -309,6 +309,9 @@ export function MobileNav({ role, displayName, username, lencanaKpi }: Props) {
               )}
               {canKelolaPanduanGuru(role) && (
                 <DrawerLink href="/panduan-guru" icon={<LibraryBig className="h-4 w-4" />} label="Panduan Guru" active={isActive('/panduan-guru')} onNavigate={close} />
+              )}
+              {canViewChangelog(role) && (
+                <DrawerLink href="/pembaruan" icon={<Sparkles className="h-4 w-4" />} label="Pembaruan Sistem" active={isActive('/pembaruan')} onNavigate={close} />
               )}
               {canViewHumasRequests(role) && (
                 <DrawerLink href="/humas-request" icon={<ImageIcon className="h-4 w-4" />} label="Request Humas" active={isActive('/humas-request')} onNavigate={close} />

@@ -9,6 +9,9 @@ import { Button } from '@/components/ui/button'
 import { Logo } from '@/components/brand/Logo'
 import { TEACHER_EMPLOYMENT_LABELS } from '@/types'
 import { TautanTampilan } from '@/components/tampilan/TautanTampilan'
+import { getChangelog } from '@/lib/data/changelog'
+import { DaftarChangelog } from '@/components/changelog/DaftarChangelog'
+import { PembaruanBaru } from '@/components/changelog/PembaruanBaru'
 import type { EmployeeProfile } from '@/types'
 
 /**
@@ -32,6 +35,7 @@ export default async function ProfilKaryawanPage() {
 
   if (!data) redirect('/karyawan/login')
   const profile = data as unknown as EmployeeProfile
+  const pembaruan = await getChangelog('karyawan', 20)
 
   return (
     <div className="min-h-screen">
@@ -65,6 +69,22 @@ export default async function ProfilKaryawanPage() {
         </p>
 
         <TautanTampilan href="/karyawan/profil/tampilan" className="mb-5" />
+
+        {/* Pembaruan Sistem (0121). Portal ini satu halaman, jadi kabarnya
+            tinggal di sini — bukan halaman terpisah yang perlu menu. */}
+        {pembaruan && pembaruan.length > 0 && (
+          <div className="mb-3"><PembaruanBaru entri={pembaruan} pembaca="karyawan" href="#pembaruan-sistem" /></div>
+        )}
+        {pembaruan && pembaruan.length > 0 && (
+          <details id="pembaruan-sistem" className="group mb-6 rounded-xl border bg-card">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-4 py-3 text-sm font-semibold">
+              <span>Pembaruan sistem <span className="font-normal text-muted-foreground">· {pembaruan.length}</span></span>
+              <span className="text-xs font-normal text-primary group-open:hidden">Lihat</span>
+              <span className="hidden text-xs font-normal text-muted-foreground group-open:inline">Tutup</span>
+            </summary>
+            <div className="border-t p-4"><DaftarChangelog daftar={pembaruan} /></div>
+          </details>
+        )}
 
         {/* Terlihat tapi terkunci — kalau ada yang keliru, ia perlu melihatnya
             untuk bisa melaporkannya. */}
