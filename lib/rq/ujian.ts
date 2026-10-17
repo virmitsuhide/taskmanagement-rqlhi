@@ -414,6 +414,50 @@ ${DOA_PENUTUP}
 ${WA_FOOTER}`
 }
 
+const HARI_WIB = ['Ahad', 'Senin', 'Selasa', 'Rabu', 'Kamis', "Jum'at", 'Sabtu']
+const ROMAWI = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII']
+
+/** '6A' → 'VI A'; teks yang tidak diawali angka dibiarkan apa adanya. */
+function kelasRomawi(kelas: string): string {
+  const m = /^\s*(\d{1,2})\s*(.*)$/.exec(kelas)
+  if (!m || !ROMAWI[Number(m[1])]) return kelas
+  return `${ROMAWI[Number(m[1])]}${m[2] ? ` ${m[2]}` : ''}`
+}
+
+/** "Jum'at 16 Oktober 2026" menurut WIB. */
+function hariTanggalWIB(iso: string | null): string {
+  if (!iso) return '-'
+  const hari = HARI_WIB[new Date(new Date(iso).toLocaleString('en-US', { timeZone: 'Asia/Jakarta' })).getDay()]
+  return `${hari} ${formatTanggal(iso)}`
+}
+
+/**
+ * Ta'limat setoran SD LHI Juara — format grup wali SD Juara, dipakai sebagai
+ * pengganti generateWAText untuk unit itu. Durasi & catatan diketik ulang
+ * penguji saat menyalin: durasi tidak disimpan di ujian, dan catatan penguji
+ * yang tersimpan bisa jadi catatan internal yang tidak untuk wali.
+ */
+export function generateTalimatSdJuara(item: UjianTahfidz, opsi: { durasi: string; catatan: string }): string {
+  const setoran = item.tipe === '1_juz' ? `juz ${item.juz}` : getTahfidzLabel(item.tipe, item.juz).replace(/^Tasmi'\s*/i, '').toLowerCase()
+  const durasi = opsi.durasi.trim() ? ` durasi waktu ${opsi.durasi.trim()} menit` : ''
+  const baris = [
+    "TA'LIMAT",
+    `SETORAN ${setoran.toUpperCase()}`,
+    '',
+    'Bismillahirrahmanirrahim',
+    '',
+    'Alhamdulillah pada hari ini:',
+    `${hariTanggalWIB(item.jadwal)} telah terlaksana setoran hafalan ${setoran} bil ghoib sekali duduk${durasi} x 1 siswa atas nama ananda:`,
+    `🏆${namaPublik(item)}`,
+    '',
+    `Siswa  kelas : ${kelasRomawi(item.kelas)}${item.is_quls ? ' QULS' : ''} ${NAMA_UNIT_LENGKAP[item.unit]}`,
+    `Dengan hasil Predikat ${getPredikatLabel(item.predikat)}`,
+  ]
+  if (opsi.catatan.trim()) baris.push('', opsi.catatan.trim())
+  baris.push('', 'Barakallahufiikum', "Allahummarhamnabil Qur'an", '🎖️🎖️🎖️🎖️🎖️🎖️🎖️🎖️🎖️')
+  return baris.join('\n')
+}
+
 /** Data poin ringkas untuk pembuat flyer — sengaja tanpa kalimat pengantar. */
 export function generateFlyerText(item: UjianTahfidz): string {
   return `👑Laporan ${getTahfidzLabel(item.tipe, item.juz)}

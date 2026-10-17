@@ -87,18 +87,18 @@ export async function getLaporanOrtu(
   const kosong = <T,>() => Promise.resolve([] as T[])
   type LogTahsin = {
     id: string; student_id: string; setoran_date: string; created_at: string; status: string; drill: boolean | null
-    halaman: number | null; baris_dari: number | null; baris_ke: number | null
+    halaman: number | null; baris_dari: number | null; baris_ke: number | null; jilid_id: string | null
   }
-  type LogTahfidz = { id: string; student_id: string; setoran_date: string; kind: string; surat_id: number; ayat_dari: number | null; surat_ke_id: number | null; ayat_ke: number | null }
+  type LogTahfidz = { id: string; student_id: string; setoran_date: string; created_at: string; kind: string; surat_id: number; ayat_dari: number | null; surat_ke_id: number | null; ayat_ke: number | null }
   type Ziyadah = { student_id: string; surat_id: number; ayat_dari: number | null; ayat_ke: number | null; setoran_date: string; created_at: string }
 
   const [guruRes, tahsinSemua, tahfidzSemua, ziyadahSemua, progres, juzTeruji, ujianTf, ujianTs, peta, surat, logEkstra, materiPerJilid, hasilMateri, drill] = await Promise.all([
     supabase.from('teachers').select('full_name, sapaan, nickname, signature_path').eq('id', teacherId).maybeSingle(),
     ids.length ? ambilSemua<LogTahsin>((a, b) =>
-      supabase.from('tahsin_logs').select('id, student_id, setoran_date, created_at, status, drill, halaman, baris_dari, baris_ke')
+      supabase.from('tahsin_logs').select('id, student_id, setoran_date, created_at, status, drill, halaman, baris_dari, baris_ke, jilid_id')
         .in('student_id', ids).gte('setoran_date', periode.dari).lte('setoran_date', periode.sampai).range(a, b)) : kosong<LogTahsin>(),
     ids.length ? ambilSemua<LogTahfidz>((a, b) =>
-      supabase.from('tahfidz_logs').select('id, student_id, setoran_date, kind, surat_id, ayat_dari, surat_ke_id, ayat_ke')
+      supabase.from('tahfidz_logs').select('id, student_id, setoran_date, created_at, kind, surat_id, ayat_dari, surat_ke_id, ayat_ke')
         .in('student_id', ids).gte('setoran_date', periode.dari).lte('setoran_date', periode.sampai).range(a, b)) : kosong<LogTahfidz>(),
     // Setoran ziyadah terakhir sepanjang masa — posisi hafalan hari ini.
     ids.length ? ambilSemua<Ziyadah>((a, b) =>
@@ -127,6 +127,18 @@ export async function getLaporanOrtu(
   ])
   const tahsin = tahsinSemua.filter(l => !logEkstra.tahsin.has(l.id))
   const tahfidz = tahfidzSemua.filter(l => !logEkstra.tahfidz.has(l.id))
+
+  // TPAIT (PAUD): baris "Fun Qur'an" dibaca dari setoran TERAKHIR periode —
+  // jilid & halaman yang disetor beserta hasilnya, bukan halaman lulus.
+  const funQuran = siswa.some(s => s.jenjang === 'paud')
+  const idJilidLog = funQuran ? [...new Set(tahsin.map(l => l.jilid_id).filter((x): x is string => Boolean(x)))] : []
+  const labelJilid = new Map<string, string>()
+  if (idJilidLog.length) {
+    const { data } = await supabase.from('jilid_levels').select('id, label').in('id', idJilidLog)
+    for (const j of (data ?? []) as { id: string; label: string }[]) labelJilid.set(j.id, j.label)
+  }
+  const terbaru = <T extends { setoran_date: string; created_at: string }>(daftar: T[]) =>
+    [...daftar].sort((a, b) => (a.setoran_date + a.created_at).localeCompare(b.setoran_date + b.created_at)).at(-1)
 
   const guru = guruRes.data as { full_name: string; sapaan: string | null; nickname: string | null; signature_path: string | null } | null
   const ttdUrl = await ttdSrc(guru?.signature_path).catch(() => null)
@@ -240,11 +252,24 @@ export async function getLaporanOrtu(
         })(),
       },
       ujian: ujianPer.get(s.id) ?? [],
+      funQuran: s.jenjang === 'paud' ? (() => {
+        const lt = terbaru(ts)
+        const lf = terbaru(tf.filter(l => l.kind !== 'tasmi'))
+        const label = lt?.jilid_id ? labelJilid.get(lt.jilid_id) ?? s.jilid?.label ?? null : s.jilid?.label ?? null
+        return {
+          tahsin: lt && label ? { jilid: label, halaman: lt.halaman, status: lt.status } : null,
+          tahfidz: lf
+            ? { surat: namaSurat(lf.surat_id), ayatDari: lf.ayat_dari, ayatKe: lf.ayat_ke, murojaah: !ZIYADAH.includes(lf.kind) }
+            : terakhir && terakhir.ayat_dari !== null
+              ? { surat: namaSurat(terakhir.surat_id), ayatDari: terakhir.ayat_dari, ayatKe: terakhir.ayat_ke, murojaah: false }
+              : null,
+        }
+      })() : undefined,
     }
   })
 
   return {
-    sesi: { id: halaqoh.id, nama: halaqoh.name },
+    sesi: { id: halaqoh.id, nama: halaqoh.name, jenjang: halaqoh.jenjang },
     guru: {
       nama: sapaanName(guru?.sapaan, guru?.nickname, guru?.full_name ?? ''),
       ttdUrl,

@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/dialog'
 import {
   PREDIKAT_OPTIONS, STATUS_FLOW,
-  fromDatetimeLocalWIB, generateFlyerText, generateWAText,
+  fromDatetimeLocalWIB, generateFlyerText, generateTalimatSdJuara, generateWAText,
   getStatusLabel, getTahfidzLabel, toDatetimeLocalWIB,
 } from '@/lib/rq/ujian'
 import { deleteTahfidzUjianAction, updateTahfidzUjianAction } from '@/app/actions/ujian'
@@ -37,6 +37,10 @@ export function EditTahfidzDialog({ item, pengujiOptions, onClose }: Props) {
   const [catatan, setCatatan] = useState(item.catatan ?? '')
   const [isQuls, setIsQuls] = useState(item.is_quls)
   const [gender, setGender] = useState<'putra' | 'putri'>('putri')
+  // Ta'limat SD Juara: durasi tidak disimpan; catatan untuk wali bermula dari
+  // catatan penguji tapi boleh diketik ulang tanpa mengubah catatan tersimpan.
+  const [durasi, setDurasi] = useState('')
+  const [catatanWa, setCatatanWa] = useState(item.catatan ?? '')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [konfirmasi, setKonfirmasi] = useState<'hapus' | 'batal-jadwal' | null>(null)
@@ -206,6 +210,28 @@ export function EditTahfidzDialog({ item, pengujiOptions, onClose }: Props) {
 
         {sudahDinilai && (
           <>
+            {item.unit === 'SD Juara' ? (
+              <BlokSalin
+                icon={<MessageCircle className="h-4 w-4" />}
+                judul="Ta'limat WhatsApp (SD LHI Juara)"
+                teks={generateTalimatSdJuara(pratinjau, { durasi, catatan: catatanWa })}
+                baris={12}
+              >
+                <div className="grid gap-2 sm:grid-cols-[8rem_1fr]">
+                  <div className="space-y-1">
+                    <Label htmlFor="durasi" className="text-xs">Durasi (menit)</Label>
+                    <Input id="durasi" inputMode="numeric" className="h-9" value={durasi}
+                      onChange={e => setDurasi(e.target.value)} placeholder="mis. 58" />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="catatan_wa" className="text-xs">Catatan untuk wali</Label>
+                    <Textarea id="catatan_wa" rows={2} value={catatanWa}
+                      onChange={e => setCatatanWa(e.target.value)}
+                      placeholder="mis. Sedikit ayat lupa karena suara bising di luar kelas." />
+                  </div>
+                </div>
+              </BlokSalin>
+            ) : (
             <BlokSalin
               icon={<MessageCircle className="h-4 w-4" />}
               judul="Pengumuman WhatsApp"
@@ -225,6 +251,7 @@ export function EditTahfidzDialog({ item, pengujiOptions, onClose }: Props) {
                 ))}
               </div>
             </BlokSalin>
+            )}
 
             <BlokSalin
               icon={<Megaphone className="h-4 w-4" />}

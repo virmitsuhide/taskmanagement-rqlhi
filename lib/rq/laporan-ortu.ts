@@ -67,10 +67,15 @@ export interface AnakLaporan {
   }
   /** Ujian yang selesai dalam periode, mis. "Tasmi' Juz 30 · Mumtaz". */
   ujian: string[]
+  /** TPAIT (PAUD) saja: setoran terakhir periode, bahan baris pesan "Fun Qur'an". */
+  funQuran?: {
+    tahsin: { jilid: string; halaman: number | null; status: string } | null
+    tahfidz: { surat: string; ayatDari: number | null; ayatKe: number | null; murojaah: boolean } | null
+  }
 }
 
 export interface LaporanOrtu {
-  sesi: { id: string; nama: string }
+  sesi: { id: string; nama: string; jenjang?: string }
   guru: { nama: string; ttdUrl: string | null }
   periode: PeriodeLaporan
   /** Hari yang ada setoran di sesi ini — bukan hari kalender, supaya libur tidak terbaca bolos. */
@@ -213,6 +218,73 @@ export interface OpsiPesan {
    * tidak diberi tautan tidak boleh disuruh membuka sesuatu yang tak ada.
    */
   tautan?: string
+}
+
+// ─── Teks WhatsApp TPAIT: "Laporan Capaian Fun Qur'an" ───────────────────────
+
+/** Bagian yang disunting guru — antara judul pendampingan dan "Jazakumullahu". */
+export const PENDAMPINGAN_BAWAAN = [
+  "🌈 Muroja'ah hafalan minimal 5–10 menit/hari, dengan di talaqqi perayat.",
+  "🌈 Muraja'ah Tahsin jilid sesuai capaian ananda, dengan fokus pembetulan bacaan per huruf. agar progres lebih cepat, hafalan terjaga, dan bacaan semakin baik.",
+].join('\n')
+
+/** Laporan sesi TPAIT memakai format Fun Qur'an. */
+export function pakaiFunQuran(l: LaporanOrtu): boolean {
+  return l.sesi.jenjang === 'paud'
+}
+
+/** Nama buku UMMI seperti yang dipakai guru TPAIT: 'Pra-UMMI' → 'Pra Ummi', 'Jilid 1' → 'Ummi 1'. */
+function namaBukuTpait(label: string): string {
+  return label.trim()
+    .replace(/^pra[\s-]*(ummi)?/i, 'Pra Ummi')
+    .replace(/^jilid\s*(\d)/i, 'Ummi $1')
+    .replace(/\bhal\./g, 'hlm')
+}
+
+/**
+ * Hasil setoran dalam bahasa guru TPAIT: lulus = lanjut ke halaman berikut,
+ * ulang = ulang. Status "Lanjut" aplikasi (halaman belum tuntas) ditulis
+ * "belum tuntas" supaya tidak tertukar dengan "lanjut" milik guru.
+ */
+const HASIL_TPAIT: Record<string, string> = { lulus: 'lanjut', ulang: 'ulang', lanjut: 'belum tuntas' }
+
+function barisFunQuran(a: AnakLaporan): string {
+  const f = a.funQuran
+  const ts = f?.tahsin
+    ? `${namaBukuTpait(f.tahsin.jilid)}${f.tahsin.halaman ? ` hlm ${f.tahsin.halaman}` : ''}${HASIL_TPAIT[f.tahsin.status] ? ` (${HASIL_TPAIT[f.tahsin.status]})` : ''}`
+    : a.tahsin.posisi ? namaBukuTpait(a.tahsin.posisi) : '-'
+  const tf = f?.tahfidz
+  const ayat = tf?.ayatDari
+    ? tf.ayatKe && tf.ayatKe !== tf.ayatDari ? `${tf.ayatDari}-${tf.ayatKe}` : `${tf.ayatDari}`
+    : ''
+  const teksTf = tf
+    ? tf.murojaah ? `penguatan QS. ${tf.surat}${ayat ? ` ${ayat}` : ''}` : `${tf.surat}${ayat ? ` ayat ${ayat}` : ''}`
+    : '-'
+  return `${a.nama} : ${ts}/${teksTf}`
+}
+
+export function teksWaFunQuran(l: LaporanOrtu, pendampingan: string): string {
+  return [
+    '🕌✨🕌✨🕌✨🕌✨',
+    " Laporan Capaian Fun Qur'an ",
+    '',
+    `  ${l.periode.label}`,
+    '',
+    'Assalamu’alaikum warahmatullahi wabarakatuh,',
+    '',
+    `Ayah/Bunda, berikut kami sampaikan laporan ngaji ananda selama ${l.periode.preset === 'hari' ? 'hari ini' : l.periode.preset === 'bulan' ? '1 bulan' : '1 pekan'}:`,
+    '',
+    ...l.anak.map((a, i) => `${i + 1}. ${barisFunQuran(a)}`),
+    '',
+    '==================',
+    ' Mohon Pendampingan Ayah/Bunda di Rumah: ',
+    pendampingan.trim(),
+    '',
+    'Jazakumullahu khairan Katsir atas kerja samanya Ayah/Bunda semua.',
+    'Semoga Allah mudahkan ananda menjadi generasi cinta Al-Qur’an. Aamiin 🤍',
+    '',
+    "Wassalamu'alaikum warahmatullahi wabarakatuh",
+  ].join('\n')
 }
 
 /**

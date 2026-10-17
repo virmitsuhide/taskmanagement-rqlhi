@@ -1,11 +1,11 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useSyncExternalStore } from 'react'
 import { toast } from 'sonner'
 import { Check, Copy, FileDown, ImageDown, Link2, Loader2, MessageCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-import { teksWaLaporanOrtu, type LaporanOrtu } from '@/lib/rq/laporan-ortu'
+import { PENDAMPINGAN_BAWAAN, pakaiFunQuran, teksWaFunQuran, teksWaLaporanOrtu, type LaporanOrtu } from '@/lib/rq/laporan-ortu'
 
 /**
  * Tombol unduh PDF + kotak pesan WhatsApp untuk laporan orang tua satu sesi.
@@ -94,9 +94,29 @@ export function PesanWaLaporanOrtu({ laporan, tautan }: { laporan: LaporanOrtu; 
   const [rincian, setRincian] = useState(true)
   const [sertakanTautan, setSertakanTautan] = useState(true)
   const [pesan, setPesan] = useState('')
+  // TPAIT: format "Fun Qur'an". Guru hanya menyunting bagian pendampingan;
+  // isiannya diingat per sesi di peramban ini supaya pekan depan tidak diketik ulang.
+  const funQuran = pakaiFunQuran(laporan)
+  const kunciPendampingan = `laporan-ortu:pendampingan:${laporan.sesi.id}`
+  // Isian tersimpan dibaca lewat useSyncExternalStore: server & hidrasi pertama
+  // memakai bawaan, sesudahnya nilai peramban — tanpa salah-cocok hidrasi.
+  const tersimpan = useSyncExternalStore(
+    () => () => {},
+    () => { try { return window.localStorage.getItem(kunciPendampingan) } catch { return null } },
+    () => null,
+  )
+  const [diubah, setDiubah] = useState<string | null>(null)
+  const pendampingan = diubah ?? tersimpan ?? PENDAMPINGAN_BAWAAN
+  function ubahPendampingan(teks: string) {
+    setDiubah(teks)
+    setSuntingan(null)
+    try { window.localStorage.setItem(kunciPendampingan, teks) } catch { /* penyimpanan ditolak: tetap jalan */ }
+  }
   const dasar = useMemo(
-    () => teksWaLaporanOrtu(laporan, { rincian, pesan, tautan: sertakanTautan ? tautan : undefined }),
-    [laporan, rincian, pesan, sertakanTautan, tautan],
+    () => funQuran
+      ? teksWaFunQuran(laporan, pendampingan)
+      : teksWaLaporanOrtu(laporan, { rincian, pesan, tautan: sertakanTautan ? tautan : undefined }),
+    [funQuran, laporan, pendampingan, rincian, pesan, sertakanTautan, tautan],
   )
   // Teks boleh disunting guru. Suntingan disimpan terpisah dan dibuang saat
   // opsi diubah — teksnya lalu disusun ulang dari awal.
@@ -123,6 +143,27 @@ export function PesanWaLaporanOrtu({ laporan, tautan }: { laporan: LaporanOrtu; 
         </p>
       </div>
 
+      {funQuran ? (
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between gap-2">
+            <label htmlFor="pendampingan" className="text-xs font-medium">Mohon Pendampingan Ayah/Bunda di Rumah</label>
+            {pendampingan !== PENDAMPINGAN_BAWAAN && (
+              <button type="button" onClick={() => ubahPendampingan(PENDAMPINGAN_BAWAAN)}
+                className="text-[11px] text-muted-foreground underline hover:text-foreground">
+                Kembalikan bawaan
+              </button>
+            )}
+          </div>
+          <textarea
+            id="pendampingan"
+            value={pendampingan}
+            onChange={e => ubahPendampingan(e.target.value)}
+            rows={4}
+            className="w-full resize-y rounded-md border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          />
+          <p className="text-[11px] text-muted-foreground">Diingat untuk sesi ini di perangkat ini.</p>
+        </div>
+      ) : (<>
       <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs">
         <label className="inline-flex items-center gap-2">
           <input type="checkbox" checked={rincian} onChange={e => { setRincian(e.target.checked); setSuntingan(null) }} className="h-4 w-4 accent-[var(--primary)]" />
@@ -152,6 +193,7 @@ export function PesanWaLaporanOrtu({ laporan, tautan }: { laporan: LaporanOrtu; 
         placeholder="Pesan tambahan dari Ustadz/Ustadzah (opsional), mis. pengingat muroja'ah atau agenda pekan depan…"
         className="w-full resize-y rounded-md border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
       />
+      </>)}
 
       {/* Pratinjau seperti yang akan terbaca di WhatsApp. */}
       <div>
