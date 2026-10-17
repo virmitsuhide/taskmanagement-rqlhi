@@ -3,7 +3,7 @@ import { getJuzUjianPerSiswa, getSiswaUrutanBebas, juzBerjalanPerSiswa, juzGabun
 import { getTargetTahfidz, getTargetTahfidzSemua } from '@/lib/data/target-tahfidz'
 import { ayatPerJuz } from '@/lib/rq/batas-juz'
 import { getInfoSurat } from '@/lib/data/nama-surat'
-import { hitungJuzHafalan, posisiJuz, URUTAN_JUZ } from '@/lib/rq/hafalan'
+import { hitungJuzHafalan, posisiJuz, URUTAN_JUZ, urutanBebas } from '@/lib/rq/hafalan'
 import { posisiJuz30, UNIT_PER_SURAT, URUTAN_SURAT_JUZ30 } from '@/lib/rq/hafalan-juz30'
 import { KELAS_TETAP } from '@/lib/rq/kelas'
 import { mencapaiTarget } from '@/lib/rq/level'
@@ -339,6 +339,22 @@ function labelTahfidzLepas(letak: { blok: number; kolom: string }): string {
 const URUTAN_TAHFIDZ_LEPAS = Array.from({ length: URUTAN_JUZ.length / PER_BLOK }, (_, blok) =>
   kolomBlok(blok).map(kolom => labelTahfidzLepas({ blok, kolom }))).flat()
 
+// ─── Tabel jumlah juz (SMA, urutan bebas) ───────────────────────────────────
+//
+// Anak SMA menghafal juz yang berbeda-beda (lib/rq/hafalan.ts urutanBebas),
+// jadi kolom "Juz 30 · Juz 29 …" tidak bermakna di sana. Kolomnya JUMLAH juz
+// yang sudah lulus ujian — 1 juz … 5 juz, lalu tabel 6–10 juz, dan seterusnya.
+
+function kolomJumlahBlok(blok: number): string[] {
+  return Array.from({ length: PER_BLOK }, (_, i) => `${blok * PER_BLOK + i + 1} juz`)
+}
+
+function letakJumlahJuz(tuntas: number): { blok: number; kolom: string } | null {
+  if (tuntas <= 0) return null
+  const n = Math.min(tuntas, URUTAN_JUZ.length)
+  return { blok: Math.floor((n - 1) / PER_BLOK), kolom: `${n} juz` }
+}
+
 // ─── Tabel per surat Juz 30 (PAUD) ──────────────────────────────────────────
 //
 // Unit yang menghafal Juz 30 mundur per surat (lib/rq/hafalan-juz30.ts) tidak
@@ -555,7 +571,9 @@ export async function getCapaianKelas(jenjangBoleh: Jenjang[], opsi: {
   }
 
   const entriTahfidz = (s: Siswa): Entri & { blok: number } => {
-    const { tuntas, letak } = bacaTahfidz(s.id)
+    const baca = bacaTahfidz(s.id)
+    const { tuntas } = baca
+    const letak = urutanBebas(s.jenjang) ? letakJumlahJuz(tuntas) : baca.letak
     const log = ziyadahTerakhir.get(s.id)
     const status = statusTahfidz.get(s.id)
 
@@ -651,6 +669,15 @@ export async function getCapaianKelas(jenjangBoleh: Jenjang[], opsi: {
       const blokTerisi = new Set(tahfidzEntri.map(e => e.blok))
       blokTerisi.add(0)
       const tahfidz = UNIT_PER_SURAT.has(jenjang) ? tabelPerSurat(siswa) : [...blokTerisi].sort((a, b) => a - b).map(blok => {
+        if (urutanBebas(jenjang)) {
+          const kolom = kolomJumlahBlok(blok)
+          return susunMatriks(
+            tahfidzEntri.filter(e => e.blok === blok),
+            [...kolom, BELUM_TERCATAT],
+            new Set(blok === 0 ? [...kolom, BELUM_TERCATAT] : kolom),
+            { judul: `${blok * PER_BLOK + 1}–${(blok + 1) * PER_BLOK} juz` },
+          )
+        }
         const kolom = kolomBlok(blok)
         const juz = juzBlok(blok)
         return susunMatriks(
@@ -850,6 +877,7 @@ export async function getPosisiUnit(jenjang: Jenjang): Promise<PosisiUnit> {
   const jilidLog = new Map<string, string | null>()
   for (const l of logTahsin) if (!jilidLog.get(l.student_id)) jilidLog.set(l.student_id, l.jilid_id)
   const bacaTahfidz = pembacaTahfidz(juzProgress, juzUjian, await getSiswaUrutanBebas())
+  const bebasUnit = urutanBebas(jenjang)
 
   const siswa: PosisiSiswaUnit[] = siswaRows.map(s => {
     const lvSiswa = s.current_jilid_id ? levelById.get(s.current_jilid_id) : undefined
@@ -862,7 +890,9 @@ export async function getPosisiUnit(jenjang: Jenjang): Promise<PosisiUnit> {
     const logJilid = jilidLog.get(s.id)
     const lv = adaSetoran ? lvSiswa ?? (logJilid ? levelById.get(logJilid) : undefined)
       : lvSiswa?.is_terminal ? lvSiswa : undefined
-    const { letak } = bacaTahfidz(s.id)
+    const baca = bacaTahfidz(s.id)
+    // SMA (urutan bebas): jumlah juz lulus ujian, bukan nama juz.
+    const letak = bebasUnit ? letakJumlahJuz(baca.tuntas) : baca.letak
     return {
       id: s.id,
       halaqoh_id: s.halaqoh_id,
@@ -870,7 +900,7 @@ export async function getPosisiUnit(jenjang: Jenjang): Promise<PosisiUnit> {
       metode_id: (lv ?? lvSiswa)?.method_id ?? null,
       level: lv?.label ?? null,
       tahsin: lv ? kolomTahsin(lv) : BELUM_TERCATAT,
-      tahfidz: letak ? labelTahfidzLepas(letak) : BELUM_TERCATAT,
+      tahfidz: letak ? (bebasUnit ? letak.kolom : labelTahfidzLepas(letak)) : BELUM_TERCATAT,
     }
   })
 
@@ -891,6 +921,6 @@ export async function getPosisiUnit(jenjang: Jenjang): Promise<PosisiUnit> {
     metode,
     tangga,
     urutanTahsin: [...URUTAN_TAHSIN],
-    urutanTahfidz: URUTAN_TAHFIDZ_LEPAS,
+    urutanTahfidz: bebasUnit ? URUTAN_JUZ.map((_, i) => `${i + 1} juz`) : URUTAN_TAHFIDZ_LEPAS,
   }
 }

@@ -3,12 +3,14 @@ import type { CapaianKelompok } from '@/lib/data/capaian-kelas'
 import { Panel } from '@/components/dashboard/kit'
 import { MatriksCapaianTable } from '@/components/dashboard/MatriksCapaianTable'
 import { UNIT_PER_SURAT } from '@/lib/rq/hafalan-juz30'
+import { urutanBebas } from '@/lib/rq/hafalan'
 
 /**
  * Tahsin & tahfidz satu kelompok (unit × jalur). Tahfidz bisa lebih dari satu
  * tabel: blok Juz 30–26 selalu ada, blok Juz 1–5 dan seterusnya muncul begitu
  * ada anak yang sampai di sana. PAUD: satu tabel per delapan surat Juz 30,
- * mulai An-Nas (lib/rq/hafalan-juz30.ts).
+ * mulai An-Nas (lib/rq/hafalan-juz30.ts). SMA (urutan bebas): kolomnya jumlah
+ * juz lulus ujian — 1–5 juz, 6–10 juz, dan seterusnya.
  */
 export function CapaianKelompokPanel({ k, tampil = 'semua' }: {
   k: CapaianKelompok
@@ -30,6 +32,8 @@ export function CapaianKelompokPanel({ k, tampil = 'semua' }: {
         <Panel title="Capaian Tahfidz" icon={<BookMarked className="h-4 w-4" />}
           sub={UNIT_PER_SURAT.has(k.jenjang)
             ? "Surat terjauh menurut setoran ziyadah · urut An-Nas → An-Naba'"
+            : urutanBebas(k.jenjang)
+            ? 'Jumlah juz yang sudah lulus ujian (juznya bebas, tanpa urutan) · % = siswa yang sesuai atau di atas target tahfidznya'
             : 'Juz menurut setoran terakhir & ujian · % = siswa yang sesuai atau di atas target tahfidznya'}>
           {k.siswa === 0 ? (
             <p className="text-sm text-muted-foreground">{kosong}</p>
