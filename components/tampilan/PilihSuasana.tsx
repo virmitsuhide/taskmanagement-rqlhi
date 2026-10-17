@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { simpanSuasanaAction, type PortalTampilan } from '@/app/actions/tampilan'
 import {
-  KUNCI_PAKSA_TERANG, LABEL_UKURAN, SUASANA, SUASANA_GELAP, SUASANA_TERANG, UKURAN_TEKS,
+  KUNCI_PAKSA_TERANG, LABEL_UKURAN, SUASANA, SUASANA_GELAP, SUASANA_UMUM, SUASANA_UNIT, UKURAN_TEKS,
   terapkanPrefDiPeramban,
   type PilihanGelap, type PrefTampilan, type Suasana, type UkuranTeks,
 } from '@/lib/tampilan/suasana'
@@ -124,7 +124,23 @@ export function PilihSuasana({
       <fieldset className="mt-7">
         <legend className="mb-3 text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">Terang</legend>
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 lg:gap-4">
-          {SUASANA_TERANG.map(id => (
+          {SUASANA_UMUM.map(id => (
+            <KartuSuasana
+              key={id}
+              id={id}
+              name="suasana-terang"
+              terpilih={pref.terang === id}
+              onPilih={() => ubah({ terang: id })}
+            />
+          ))}
+        </div>
+      </fieldset>
+
+      <fieldset className="mt-7">
+        <legend className="mb-1 text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">Tema unit LHI</legend>
+        <p className="mb-3 text-xs text-muted-foreground">Warna logo tiap unit — dipakai saat mode terang.</p>
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 lg:gap-4">
+          {SUASANA_UNIT.map(id => (
             <KartuSuasana
               key={id}
               id={id}

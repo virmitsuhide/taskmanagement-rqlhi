@@ -563,6 +563,292 @@
     --sidebar-accent-foreground: #000000;
     --sidebar-border: #1A1A1A;
   }
+  /* ── Tema unit LHI — warna logo tiap unit (0120) ── */
+  /* Tema TPAIT LHI — Hijau pucuk TPAIT, ceria, daun jingga */
+  html[data-suasana-terang="tpait"]:not(.dark) {
+    --background: #F6F8EE;
+    --foreground: #1A2210;
+    --card: #FFFFFF;
+    --card-foreground: #1A2210;
+    --popover: #FFFFFF;
+    --popover-foreground: #1A2210;
+    --primary: #4E6B00;
+    --primary-foreground: #FFFFFF;
+    --secondary: #ECF0DD;
+    --muted: #ECF0DD;
+    --muted-foreground: #55603F;
+    --accent: #E9F1D2;
+    --secondary-foreground: #3A5000;
+    --accent-foreground: #3A5000;
+    --destructive: #A8261D;
+    --destructive-foreground: #FFFFFF;
+    --destructive-wash: #FAE6E3;
+    --success: #1E6B4E;
+    --success-foreground: #FFFFFF;
+    --success-wash: #E1F0E8;
+    --warning: #A84F00;
+    --warning-foreground: #FFFFFF;
+    --warning-wash: #FCEBDA;
+    --info: #2E5A8F;
+    --info-foreground: #FFFFFF;
+    --info-wash: #E5EDF7;
+    --border: #E1E7CF;
+    --input: #D6DBC5;
+    --ring: #4E6B00;
+    --chart-1: #4E6B00;
+    --chart-2: #95A666;
+    --chart-3: #374B00;
+    --chart-4: #CAD3B2;
+    --chart-5: #273600;
+    --primary-wash: #E9F1D2;
+    --accent-warm: #A84F00;
+    --accent-warm-wash: #FCEBDA;
+    --seri-1: #7FA80E;
+    --seri-2: #E5761F;
+    --sidebar: #26360A;
+    --sidebar-foreground: #EEF4DF;
+    --sidebar-primary: #FFFFFF;
+    --sidebar-primary-foreground: #26360A;
+    --sidebar-accent: #41580F;
+    --sidebar-accent-foreground: #FFFFFF;
+    --sidebar-border: rgb(255 255 255 / 0.10);
+    --sidebar-ring: #95A666;
+  }
+  html[data-suasana-terang="tpait"]:not(.dark) .portal-guru {
+    --sidebar: #FDFDFB;
+    --sidebar-foreground: #1A2210;
+    --sidebar-accent: #E9F1D2;
+    --sidebar-accent-foreground: #26360A;
+    --sidebar-border: #E1E7CF;
+  }
+  /* Tema SDIT LHI — Teal pohon SDIT, putih bersih, daun jingga */
+  html[data-suasana-terang="sdit"]:not(.dark) {
+    --background: #F2F7F7;
+    --foreground: #122221;
+    --card: #FFFFFF;
+    --card-foreground: #122221;
+    --popover: #FFFFFF;
+    --popover-foreground: #122221;
+    --primary: #0B6A63;
+    --primary-foreground: #FFFFFF;
+    --secondary: #E6F0EF;
+    --muted: #E6F0EF;
+    --muted-foreground: #4C5F5E;
+    --accent: #DCF0EE;
+    --secondary-foreground: #08504A;
+    --accent-foreground: #08504A;
+    --destructive: #A8261D;
+    --destructive-foreground: #FFFFFF;
+    --destructive-wash: #FAE6E3;
+    --success: #1E6B4E;
+    --success-foreground: #FFFFFF;
+    --success-wash: #E1F0E8;
+    --warning: #A84F00;
+    --warning-foreground: #FFFFFF;
+    --warning-wash: #FCEBDA;
+    --info: #2E5A8F;
+    --info-foreground: #FFFFFF;
+    --info-wash: #E5EDF7;
+    --border: #D7E5E4;
+    --input: #CCDAD9;
+    --ring: #0B6A63;
+    --chart-1: #0B6A63;
+    --chart-2: #6DA6A1;
+    --chart-3: #084A45;
+    --chart-4: #B6D2D0;
+    --chart-5: #063532;
+    --primary-wash: #DCF0EE;
+    --accent-warm: #A84F00;
+    --accent-warm-wash: #FCEBDA;
+    --seri-1: #1BA899;
+    --seri-2: #E5761F;
+    --sidebar: #08423D;
+    --sidebar-foreground: #E4F2F1;
+    --sidebar-primary: #FFFFFF;
+    --sidebar-primary-foreground: #08423D;
+    --sidebar-accent: #13615A;
+    --sidebar-accent-foreground: #FFFFFF;
+    --sidebar-border: rgb(255 255 255 / 0.10);
+    --sidebar-ring: #6DA6A1;
+  }
+  html[data-suasana-terang="sdit"]:not(.dark) .portal-guru {
+    --sidebar: #FCFDFD;
+    --sidebar-foreground: #122221;
+    --sidebar-accent: #DCF0EE;
+    --sidebar-accent-foreground: #08423D;
+    --sidebar-border: #D7E5E4;
+  }
+  /* Tema SD LHI Juara — Teal logo Juara, jingga daun lebih menonjol */
+  html[data-suasana-terang="sdjuara"]:not(.dark) {
+    --background: #F3F8F6;
+    --foreground: #132321;
+    --card: #FFFFFF;
+    --card-foreground: #132321;
+    --popover: #FFFFFF;
+    --popover-foreground: #132321;
+    --primary: #0E6B62;
+    --primary-foreground: #FFFFFF;
+    --secondary: #E8F1EE;
+    --muted: #E8F1EE;
+    --muted-foreground: #4D605C;
+    --accent: #DDF1EC;
+    --secondary-foreground: #0A504A;
+    --accent-foreground: #0A504A;
+    --destructive: #A8261D;
+    --destructive-foreground: #FFFFFF;
+    --destructive-wash: #FAE6E3;
+    --success: #1E6B4E;
+    --success-foreground: #FFFFFF;
+    --success-wash: #E1F0E8;
+    --warning: #A84F00;
+    --warning-foreground: #FFFFFF;
+    --warning-wash: #FDEBDA;
+    --info: #2E5A8F;
+    --info-foreground: #FFFFFF;
+    --info-wash: #E5EDF7;
+    --border: #D9E7E3;
+    --input: #CEDBD8;
+    --ring: #0E6B62;
+    --chart-1: #0E6B62;
+    --chart-2: #6EA6A1;
+    --chart-3: #0A4B45;
+    --chart-4: #B7D3D0;
+    --chart-5: #073631;
+    --primary-wash: #DDF1EC;
+    --accent-warm: #A84F00;
+    --accent-warm-wash: #FDEBDA;
+    --seri-1: #16A090;
+    --seri-2: #E5761F;
+    --sidebar: #0B3A35;
+    --sidebar-foreground: #E6F3F0;
+    --sidebar-primary: #FFFFFF;
+    --sidebar-primary-foreground: #0B3A35;
+    --sidebar-accent: #7A3A06;
+    --sidebar-accent-foreground: #FFFFFF;
+    --sidebar-border: rgb(255 255 255 / 0.10);
+    --sidebar-ring: #6EA6A1;
+  }
+  html[data-suasana-terang="sdjuara"]:not(.dark) .portal-guru {
+    --sidebar: #FCFDFD;
+    --sidebar-foreground: #132321;
+    --sidebar-accent: #DDF1EC;
+    --sidebar-accent-foreground: #0B3A35;
+    --sidebar-border: #D9E7E3;
+  }
+  /* Tema SMPIT LHI — Biru langit SMPIT, daun jingga */
+  html[data-suasana-terang="smpit"]:not(.dark) {
+    --background: #F1F6FA;
+    --foreground: #112130;
+    --card: #FFFFFF;
+    --card-foreground: #112130;
+    --popover: #FFFFFF;
+    --popover-foreground: #112130;
+    --primary: #006A9C;
+    --primary-foreground: #FFFFFF;
+    --secondary: #E5EEF5;
+    --muted: #E5EEF5;
+    --muted-foreground: #4A5D6D;
+    --accent: #DCEEF8;
+    --secondary-foreground: #005075;
+    --accent-foreground: #005075;
+    --destructive: #A8261D;
+    --destructive-foreground: #FFFFFF;
+    --destructive-wash: #FAE6E3;
+    --success: #1E6B4E;
+    --success-foreground: #FFFFFF;
+    --success-wash: #E1F0E8;
+    --warning: #A84F00;
+    --warning-foreground: #FFFFFF;
+    --warning-wash: #FCEBDA;
+    --info: #3A4F9A;
+    --info-foreground: #FFFFFF;
+    --info-wash: #E6EAF7;
+    --border: #D6E3EE;
+    --input: #CBD8E2;
+    --ring: #006A9C;
+    --chart-1: #006A9C;
+    --chart-2: #66A6C4;
+    --chart-3: #004A6D;
+    --chart-4: #B2D2E1;
+    --chart-5: #00354E;
+    --primary-wash: #DCEEF8;
+    --accent-warm: #A84F00;
+    --accent-warm-wash: #FCEBDA;
+    --seri-1: #0596CF;
+    --seri-2: #E5761F;
+    --sidebar: #06324B;
+    --sidebar-foreground: #E3F0F8;
+    --sidebar-primary: #FFFFFF;
+    --sidebar-primary-foreground: #06324B;
+    --sidebar-accent: #0B4E72;
+    --sidebar-accent-foreground: #FFFFFF;
+    --sidebar-border: rgb(255 255 255 / 0.10);
+    --sidebar-ring: #66A6C4;
+  }
+  html[data-suasana-terang="smpit"]:not(.dark) .portal-guru {
+    --sidebar: #FCFDFE;
+    --sidebar-foreground: #112130;
+    --sidebar-accent: #DCEEF8;
+    --sidebar-accent-foreground: #06324B;
+    --sidebar-border: #D6E3EE;
+  }
+  /* Tema SMA LHI — Biru dongker SMA, daun jingga */
+  html[data-suasana-terang="sma"]:not(.dark) {
+    --background: #F2F4F8;
+    --foreground: #121A2B;
+    --card: #FFFFFF;
+    --card-foreground: #121A2B;
+    --popover: #FFFFFF;
+    --popover-foreground: #121A2B;
+    --primary: #1D4886;
+    --primary-foreground: #FFFFFF;
+    --secondary: #E7EBF2;
+    --muted: #E7EBF2;
+    --muted-foreground: #4B5568;
+    --accent: #E0E8F4;
+    --secondary-foreground: #163664;
+    --accent-foreground: #163664;
+    --destructive: #A8261D;
+    --destructive-foreground: #FFFFFF;
+    --destructive-wash: #FAE6E3;
+    --success: #1E6B4E;
+    --success-foreground: #FFFFFF;
+    --success-wash: #E1F0E8;
+    --warning: #A84F00;
+    --warning-foreground: #FFFFFF;
+    --warning-wash: #FCEBDA;
+    --info: #24607A;
+    --info-foreground: #FFFFFF;
+    --info-wash: #E0EEF3;
+    --border: #D9DFEA;
+    --input: #CED4DE;
+    --ring: #1D4886;
+    --chart-1: #1D4886;
+    --chart-2: #7791B6;
+    --chart-3: #14325E;
+    --chart-4: #BBC8DB;
+    --chart-5: #0E2443;
+    --primary-wash: #E0E8F4;
+    --accent-warm: #A84F00;
+    --accent-warm-wash: #FCEBDA;
+    --seri-1: #1D4886;
+    --seri-2: #E5761F;
+    --sidebar: #0F2449;
+    --sidebar-foreground: #E4EAF4;
+    --sidebar-primary: #FFFFFF;
+    --sidebar-primary-foreground: #0F2449;
+    --sidebar-accent: #24427A;
+    --sidebar-accent-foreground: #FFFFFF;
+    --sidebar-border: rgb(255 255 255 / 0.10);
+    --sidebar-ring: #7791B6;
+  }
+  html[data-suasana-terang="sma"]:not(.dark) .portal-guru {
+    --sidebar: #FCFCFD;
+    --sidebar-foreground: #121A2B;
+    --sidebar-accent: #E0E8F4;
+    --sidebar-accent-foreground: #0F2449;
+    --sidebar-border: #D9DFEA;
+  }
   /* Senja — Gelap hangat: coklat kurma, jingga lembut */
   html.dark[data-suasana-gelap="senja"] {
     --background: #17120F;
