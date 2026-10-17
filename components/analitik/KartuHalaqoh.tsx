@@ -1,9 +1,9 @@
 import Link from 'next/link'
-import { ArrowDown, ArrowUp, ChevronRight, Minus } from 'lucide-react'
+import { ArrowDown, ArrowUp, Check, ChevronRight, Minus, TriangleAlert, X } from 'lucide-react'
 import { monthName } from '@/lib/finance/period'
 import {
-  MULAI_LAPORAN_BULANAN, PERTEMUAN_BAWAAN, labelTahap,
-  type KartuHalaqoh as DataKartu, type MetrikHalaqoh, type TitikHalaqoh,
+  MULAI_LAPORAN_BULANAN, PERTEMUAN_BAWAAN, RUMUS_AWAL_AKHIR_SEJAK, labelTahap,
+  type IsianBulan, type KartuHalaqoh as DataKartu, type MetrikHalaqoh, type TitikHalaqoh,
 } from '@/lib/data/analitik-halaqoh'
 import { AvatarGuru } from './AvatarGuru'
 import { cn } from '@/lib/utils'
@@ -122,35 +122,86 @@ export function teksPertemuan(p: TitikHalaqoh['pertemuan']): string {
   return `${p.tm} TM${p.dariKalender ? '' : '*'}`
 }
 
+const STATUS_ISIAN = {
+  lengkap: { Ikon: Check, kelas: 'bg-success', judul: 'Lengkap' },
+  sebagian: { Ikon: TriangleAlert, kelas: 'bg-warning', judul: 'Perhatian — baru sebagian' },
+  kosong: { Ikon: X, kelas: 'bg-destructive', judul: 'Belum diisi' },
+} as const
+type StatusIsian = keyof typeof STATUS_ISIAN
+
+/** Kotak berwarna berisi ikon putih: hijau ✓, kuning !, merah ✗. */
+function KotakStatus({ status, besar }: { status: StatusIsian; besar?: boolean }) {
+  const { Ikon, kelas, judul } = STATUS_ISIAN[status]
+  return (
+    <span role="img" aria-label={judul} title={judul}
+      className={cn('inline-flex shrink-0 items-center justify-center rounded-[4px] text-white', kelas, besar ? 'size-4' : 'size-3.5')}>
+      <Ikon className={besar ? 'size-3' : 'size-2.5'} strokeWidth={3} aria-hidden />
+    </span>
+  )
+}
+
+/** Patokan "lengkap" bulan itu — September cukup tahsin & tahfidz terisi. */
+const patokanLengkap = (bulan: string) =>
+  bulan < RUMUS_AWAL_AKHIR_SEJAK ? 'tahsin & tahfidz terisi' : 'awal & akhir bulan terisi'
+
+/** Status halaqoh sebulan: ✓ semua anak lengkap, ✗ tak satu pun terisi, selain itu perhatian. */
+function statusBulan(isian: IsianBulan): StatusIsian {
+  const n = isian.lengkap.length + isian.sebagian.length + isian.kosong.length
+  if (isian.lengkap.length === n) return 'lengkap'
+  if (isian.kosong.length === n) return 'kosong'
+  return 'sebagian'
+}
+
+/** Jumlah anak berstatus itu; nama-namanya di tooltip. */
+function SelIsian({ status, nama }: { status: StatusIsian; nama: string[] }) {
+  if (nama.length === 0) return <td className="py-1 text-right tabular-nums text-muted-foreground/50">0</td>
+  return (
+    <td className="py-1 text-right" title={`${STATUS_ISIAN[status].judul}:\n${nama.join('\n')}`}>
+      <span className="font-semibold tabular-nums">{nama.length}</span>
+    </td>
+  )
+}
+
 /**
- * Laporan per bulan sejak MULAI_LAPORAN_BULANAN: tiap bulan dihitung dari
- * nol (capaian bulan itu saja), bulan sebelumnya tetap tampil.
+ * Laporan per bulan sejak MULAI_LAPORAN_BULANAN: apakah guru sudah mengisi
+ * Capaian Bulanan tiap anak — awal dan akhir bulan. ✓ keduanya, ! salah
+ * satunya, ✗ belum sama sekali. Arahkan kursor ke angka untuk nama anaknya.
  */
 export function LaporanBulanan({ titik, berjalan }: { titik: TitikHalaqoh[]; berjalan: boolean }) {
-  const bulan = titik.filter(t => t.bulan >= MULAI_LAPORAN_BULANAN)
+  const bulan = titik.filter((t): t is TitikHalaqoh & { isian: IsianBulan } => t.bulan >= MULAI_LAPORAN_BULANAN && t.isian !== null)
   if (bulan.length === 0) return null
   const adaBawaan = bulan.some(t => t.pertemuan && !t.pertemuan.dariKalender)
   return (
     <div className="border-t pt-3">
-      <p className="mb-1.5 text-[11px] text-muted-foreground">Laporan per bulan · per anak</p>
+      <p className="mb-1.5 text-[11px] text-muted-foreground">Laporan per bulan · isian capaian awal & akhir per anak</p>
       <table className="w-full text-[11px]">
         <thead>
           <tr className="text-left text-muted-foreground">
             <th className="pb-1 font-medium">Bulan</th>
-            <th className="pb-1 text-right font-medium">Tahsin</th>
-            <th className="pb-1 text-right font-medium">Tahfidz</th>
-            <th className="pb-1 text-right font-medium" title="Pertemuan (tatap muka) bulan itu">Pertemuan</th>
+            {(Object.keys(STATUS_ISIAN) as StatusIsian[]).map(s => (
+              <th key={s} className="pb-1 text-right font-medium"><KotakStatus status={s} /></th>
+            ))}
+            <th className="pb-1 text-right font-medium" title="Pertemuan (tatap muka) bulan itu">TM</th>
           </tr>
         </thead>
         <tbody>
-          {[...bulan].reverse().map((t, i) => (
-            <tr key={t.bulan} className="border-t border-dashed">
-              <td className="py-1">{monthName(t.bulan).slice(0, 3)} {t.bulan.slice(2, 4)}{i === 0 && berjalan && <span className="text-muted-foreground"> (berjalan)</span>}</td>
-              <td className="py-1 text-right font-semibold tabular-nums">{t.adaData ? teksMetrik('tahsin', t.tahsin) : '—'}</td>
-              <td className="py-1 text-right font-semibold tabular-nums">{t.adaData ? teksMetrik('tahfidz', t.tahfidz) : '—'}</td>
-              <td className="py-1 text-right tabular-nums text-muted-foreground">{teksPertemuan(t.pertemuan)}</td>
-            </tr>
-          ))}
+          {[...bulan].reverse().map((t, i) => {
+            return (
+              <tr key={t.bulan} className="border-t border-dashed">
+                <td className="py-1" title={`Lengkap = ${patokanLengkap(t.bulan)}`}>
+                  <span className="inline-flex items-center gap-1.5">
+                    <KotakStatus status={statusBulan(t.isian)} besar />
+                    {monthName(t.bulan).slice(0, 3)} {t.bulan.slice(2, 4)}
+                    {i === 0 && berjalan && <span className="text-muted-foreground">(berjalan)</span>}
+                  </span>
+                </td>
+                <SelIsian status="lengkap" nama={t.isian.lengkap} />
+                <SelIsian status="sebagian" nama={t.isian.sebagian} />
+                <SelIsian status="kosong" nama={t.isian.kosong} />
+                <td className="py-1 text-right tabular-nums text-muted-foreground">{teksPertemuan(t.pertemuan)}</td>
+              </tr>
+            )
+          })}
         </tbody>
       </table>
       {adaBawaan && <p className="mt-1 text-[10px] text-muted-foreground">* bawaan {PERTEMUAN_BAWAAN} — Kalender Qur&apos;an bulan itu belum diatur koor</p>}

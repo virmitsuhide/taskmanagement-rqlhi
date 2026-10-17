@@ -453,7 +453,8 @@ export default async function AnalitikHalaqohPage({ searchParams }: PageProps) {
 
             <p className="max-w-3xl text-xs leading-relaxed text-muted-foreground">
               <b>Tahsin/Tahfidz per bulan</b> = jumlah halaman lulus / halaman ziyadah seluruh anak di bulan itu dibagi banyak anak —
-              tiap bulan dihitung dari nol, bulan lalu tetap tersimpan di laporan per bulan. Hanya setoran halaqoh sekolah
+              tiap bulan dihitung dari nol. <b>Laporan per bulan</b> di kartu = isian Capaian Bulanan tiap anak:
+              ✓ awal & akhir bulan terisi, ! baru salah satunya, ✗ belum diisi (September 2026: cukup tahsin & tahfidz terisi; anak Lulus Tahsin cukup tahfidz). Hanya setoran halaqoh sekolah
               (ekstra, TR, Riyadhoh, dan asrama tidak dihitung). <b>Pertemuan</b> = tatap muka menurut Kalender Qur&apos;an
               (jadwal program dikurangi hari kosong angkatan); bertanda * = bawaan {PERTEMUAN_BAWAAN} karena koor belum mengatur kalender bulan itu. <b>Jilid</b> dan <b>hafalan</b> = posisi rata-rata di akhir bulan.
               Anggota halaqoh dibaca sesuai susunan sekarang. <b>Kehadiran</b> = catatan “hadir” dibagi seluruh catatan presensi bulan itu.

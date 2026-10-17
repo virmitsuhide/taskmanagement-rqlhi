@@ -78,12 +78,31 @@ export interface TitikHalaqoh {
    * TM terbanyak anggotanya.
    */
   pertemuan: { tm: number; dariKalender: boolean } | null
+  /**
+   * Kelengkapan isian Capaian Bulanan (student_monthly) per anak, berupa nama
+   * anak: lengkap = awal & akhir terisi (sebelum RUMUS_AWAL_AKHIR_SEJAK:
+   * tahsin & tahfidz terisi), sebagian = salah satunya, kosong = keduanya
+   * belum. null = bulan sebelum MULAI_LAPORAN_BULANAN.
+   */
+  isian: IsianBulan | null
+}
+
+export interface IsianBulan {
+  lengkap: string[]
+  sebagian: string[]
+  kosong: string[]
 }
 
 /** Pertemuan sebulan bila koor belum mengatur Kalender Qur'an. */
 export const PERTEMUAN_BAWAAN = 16
 /** Laporan per bulan di kartu dimulai September 2026. */
 export const MULAI_LAPORAN_BULANAN = '2026-09'
+/**
+ * Sejak bulan ini isian bulanan dianggap lengkap bila awal & akhir bulan
+ * terisi. Bulan sebelumnya (September 2026) cukup tahsin & tahfidz terisi —
+ * kebijakan Kumik, karena kewajiban isian awal bulan baru berlaku Oktober.
+ */
+export const RUMUS_AWAL_AKHIR_SEJAK = '2026-10'
 
 export interface GuruKartu {
   id: string
@@ -142,9 +161,19 @@ function tebakGender(gender: string | null, sapaan: string | null, namaHalaqoh: 
   return null
 }
 
+interface BarisBulanan {
+  student_id: string
+  period: string
+  halaman_awal_tahsin: string
+  tahfidz_awal: string
+  halaman_akhir_tahsin: string
+  tahfidz_akhir: string
+}
+
 interface Siswa {
   id: string
   halaqoh_id: string
+  full_name: string
   jenjang: Jenjang
   kelas: string | null
   program: string | null
@@ -196,7 +225,7 @@ export async function getAnalitikHalaqoh(opsi: {
       .select('id, name, jenjang, sesi, program, wali:teachers!halaqoh_wali_teacher_id_fkey(id, full_name, gender, sapaan)')
       .eq('is_active', true).in('jenjang', opsi.jenjang),
     supabase.from('students')
-      .select('id, halaqoh_id, jenjang, kelas, program, current_jilid_id, tahsin_drill_sejak')
+      .select('id, halaqoh_id, full_name, jenjang, kelas, program, current_jilid_id, tahsin_drill_sejak')
       .eq('is_active', true).in('jenjang', opsi.jenjang).not('halaqoh_id', 'is', null)
       .limit(5000),
     supabase.from('jilid_levels').select('id, label, is_quran, is_terminal'),
@@ -218,7 +247,7 @@ export async function getAnalitikHalaqoh(opsi: {
   const awalJendela = `${daftarBulan[0]}-01`
   const akhirJendela = akhirBulan(opsi.bulan)
 
-  const [logTahsinJendela, logTahsinPosisi, promosiJilid, logZiyadah, promosiJuz, ujian, drillJuz, peta, infoSurat, bebas, kalender] = await Promise.all([
+  const [logTahsinJendela, logTahsinPosisi, promosiJilid, logZiyadah, promosiJuz, ujian, drillJuz, peta, infoSurat, bebas, kalender, bulanan] = await Promise.all([
     // '*' supaya penanda jalur (ekstra/TR/riyadhoh/asrama) ikut bila kolomnya ada.
     ambilPerPotongSejajar<LogTahsin>(ids, p => supabase.from('tahsin_logs').select('*')
       .in('student_id', p).gte('setoran_date', awalJendela).lte('setoran_date', akhirJendela).order('id')),
@@ -242,7 +271,39 @@ export async function getAnalitikHalaqoh(opsi: {
     getInfoSurat(),
     getSiswaUrutanBebas(),
     kalenderJendela(supabase, opsi.jenjang, awalJendela, akhirJendela),
+    opsi.bulan < MULAI_LAPORAN_BULANAN
+      ? Promise.resolve([] as BarisBulanan[])
+      : ambilPerPotongSejajar<BarisBulanan>(ids, p => supabase.from('student_monthly')
+          .select('student_id, period, halaman_awal_tahsin, tahfidz_awal, halaman_akhir_tahsin, tahfidz_akhir')
+          .in('student_id', p).gte('period', `${MULAI_LAPORAN_BULANAN}-01`).lte('period', `${opsi.bulan}-01`).order('id')),
   ])
+
+  // Isian Capaian Bulanan per `bulan|student_id`, dibaca dua sumbu:
+  //   awal/akhir    — kolom tahsin ATAU tahfidz-nya terisi (anak tahfidz tak punya tahsin)
+  //   tahsin/tahfidz — kolom awal ATAU akhir-nya terisi
+  const terisi = (...xs: (string | null)[]) => xs.some(x => !!x?.trim())
+  const isianAnak = new Map(bulanan.map(b => [`${b.period.slice(0, 7)}|${b.student_id}`, {
+    awal: terisi(b.halaman_awal_tahsin, b.tahfidz_awal),
+    akhir: terisi(b.halaman_akhir_tahsin, b.tahfidz_akhir),
+    tahsin: terisi(b.halaman_awal_tahsin, b.halaman_akhir_tahsin),
+    tahfidz: terisi(b.tahfidz_awal, b.tahfidz_akhir),
+  }]))
+  const isianBulan = (anak: Siswa[], bulan: string, lulusTahsin: (s: Siswa) => boolean): IsianBulan | null => {
+    if (bulan < MULAI_LAPORAN_BULANAN) return null
+    // Sebelum RUMUS_AWAL_AKHIR_SEJAK patokannya tahsin & tahfidz terisi —
+    // anak yang sudah Lulus Tahsin cukup tahfidz; sejak itu harus awal & akhir bulan.
+    const rumusLama = bulan < RUMUS_AWAL_AKHIR_SEJAK
+    const hasil: IsianBulan = { lengkap: [], sebagian: [], kosong: [] }
+    for (const s of anak) {
+      const i = isianAnak.get(`${bulan}|${s.id}`)
+      const syarat = !i ? [false]
+        : !rumusLama ? [i.awal, i.akhir]
+        : lulusTahsin(s) ? [i.tahfidz]
+        : [i.tahsin, i.tahfidz]
+      hasil[syarat.every(Boolean) ? 'lengkap' : syarat.some(Boolean) ? 'sebagian' : 'kosong'].push(s.full_name)
+    }
+    return hasil
+  }
 
   const level = new Map(((levelRes.data ?? []) as { id: string; label: string; is_quran: boolean; is_terminal: boolean }[])
     .map(l => [l.id, l]))
@@ -372,9 +433,11 @@ export async function getAnalitikHalaqoh(opsi: {
       const anak = anggota.get(h.id)!
       const mulai = anak.map(s => bulanPertama.get(s.id) ?? '9999-99').sort()[0]
       const titik = perBulan.map(({ bulan, jilid, hafalan, lamaJuz }): TitikHalaqoh => {
+        // Posisi akhir bulan itu sudah di tahap terakhir URUTAN_TAHSIN (Lulus Tahsin).
+        const lulusTahsin = (s: Siswa) => (jilid.get(s.id) ?? -1) >= iLulus
         if (bulan < mulai) {
           const nol = { anak: 0, rataHari: null }
-          return { bulan, adaData: false, tahsin: null, tahfidz: null, jilid: null, hafalan: null, nTahsin: 0, nJilid: 0, drillJilid: nol, drillJuz: nol, pertemuan: null }
+          return { bulan, adaData: false, tahsin: null, tahfidz: null, jilid: null, hafalan: null, nTahsin: 0, nJilid: 0, drillJilid: nol, drillJuz: nol, pertemuan: null, isian: isianBulan(anak, bulan, lulusTahsin) }
         }
         // Penyebut tahsin: anak yang masih tahsin di akhir bulan itu, ditambah
         // yang bulan itu masih menyetor halaman (lulus tahsin di tengah bulan).
@@ -413,6 +476,7 @@ export async function getAnalitikHalaqoh(opsi: {
           drillJilid: { anak: anakDrillT.length, rataHari: rh === null ? null : Math.round(rh) },
           drillJuz: { anak: hariDrillJ.length, rataHari: rj === null ? null : Math.round(rj) },
           pertemuan: pertemuanBulan(kalender, anak, bulan),
+          isian: isianBulan(anak, bulan, lulusTahsin),
         }
       })
       return {
