@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation'
 import { ChevronLeft } from 'lucide-react'
 import { getTeacherSession } from '@/lib/auth/teacher-session'
 import { createServerClient } from '@/lib/supabase/server'
-import { getHadirEkstra, getSlotGuru, labelSlot } from '@/lib/data/ekstra'
+import { getHadirEkstra, getSlotGuru, hariIniWIB, labelSlot } from '@/lib/data/ekstra'
 import { getPilihanJilidAwal, getSiswaSesiTahfidz, getSiswaSesiTahsin } from '@/lib/data/setoran-sesi'
 import { SetoranSesiTahfidz, type SuratPilihan } from '@/components/setoran/SetoranSesiTahfidz'
 import { SetoranSesiTahsin } from '@/components/setoran/SetoranSesiTahsin'
@@ -19,7 +19,7 @@ export default async function SetorEkstraPage({ searchParams }: { searchParams: 
 
   const sp = await searchParams
   const jenis = sp.jenis === 'tahfidz' ? 'tahfidz' : 'tahsin'
-  const hariIni = new Date(Date.now() + 7 * 3600_000).toISOString().slice(0, 10)
+  const hariIni = hariIniWIB()
   const tanggal = /^\d{4}-\d{2}-\d{2}$/.test(sp.tanggal ?? '') && sp.tanggal! <= hariIni ? sp.tanggal! : hariIni
 
   const { slot, peserta } = await getSlotGuru(session.teacherId)

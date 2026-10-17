@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { BookOpen, Sparkles } from 'lucide-react'
 import { getTeacherSession } from '@/lib/auth/teacher-session'
-import { getHadirEkstra, getMateriEkstra, getSetoranEkstraSunting, getSlotGuru, labelSlot } from '@/lib/data/ekstra'
+import { getHadirEkstra, getMateriEkstra, getSetoranEkstraSunting, getSlotGuru, hariIniWIB, labelSlot } from '@/lib/data/ekstra'
 import { FormMateriEkstra } from '@/components/ekstra/FormMateriEkstra'
 import { SetoranKoreksi } from '@/components/siswa/SetoranKoreksi'
 import { HadirEkstra } from '@/components/ekstra/HadirEkstra'
@@ -20,7 +20,7 @@ export default async function GuruEkstraPage({ searchParams }: { searchParams: P
 
   const sp = await searchParams
   const { tabelAda, slot, peserta } = await getSlotGuru(session.teacherId)
-  const hariIni = new Date(Date.now() + 7 * 3600_000).toISOString().slice(0, 10)
+  const hariIni = hariIniWIB()
   const tanggal = /^\d{4}-\d{2}-\d{2}$/.test(sp.tanggal ?? '') && sp.tanggal! <= hariIni ? sp.tanggal! : hariIni
   const aktif = slot.find(s => s.id === sp.slot) ?? slot[0]
   const anggota = aktif ? peserta.filter(p => p.slot_id === aktif.id) : []
@@ -37,6 +37,11 @@ export default async function GuruEkstraPage({ searchParams }: { searchParams: P
     aktif && !materiBidang ? getSetoranEkstraSunting(aktif.id, dari, sampai) : Promise.resolve([]),
     aktif && materiBidang ? getMateriEkstra([aktif.id], dari, sampai) : Promise.resolve(null),
   ])
+  // Dua privat di jam yang sama (mis. kakak-adik) berlabel kembar — nama
+  // pesertanya membedakan, supaya anak di halaqoh kedua tidak tampak hilang.
+  const labelPil = (x: typeof slot[number]) => `${x.jenis?.nama} · ${labelSlot(x)}`
+  const kembar = new Set(slot.map(labelPil).filter((l, i, a) => a.indexOf(l) !== i))
+  const namaPeserta = (id: string) => peserta.filter(p => p.slot_id === id).map(p => p.nama_anak.split(' ').slice(0, 2).join(' ')).join(', ')
   const materiHariIni = materi?.materi.find(m => m.tanggal === tanggal)?.deskripsi ?? ''
 
   return (
@@ -62,7 +67,7 @@ export default async function GuruEkstraPage({ searchParams }: { searchParams: P
                   <Link key={s.id} href={`/guru/ekstra?slot=${s.id}`}
                     className={cn('rounded-full border px-3.5 py-1.5 text-sm font-medium',
                       s.id === aktif?.id ? 'border-primary bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:text-foreground')}>
-                    {s.jenis?.nama} · {labelSlot(s)}
+                    {labelPil(s)}{kembar.has(labelPil(s)) && namaPeserta(s.id) ? ` · ${namaPeserta(s.id)}` : ''}
                   </Link>
                 ))}
               </nav>

@@ -373,10 +373,19 @@ export async function idSetoranEkstra(studentIds: string[], dari: string, sampai
 }
 
 /** Ringan, untuk menu portal guru: apakah guru ini punya slot ekstra aktif? */
+/**
+ * Menu Ekstra di portal guru: pengampu halaqoh ekstra, ATAU guru yang terdaftar
+ * aktif di Guru Ekstra (0095) — guru unit mana pun, bukan hanya guru RQ.
+ * Yang kedua melihat halaman kosong sampai koordinator membuatkan halaqohnya,
+ * bukan menu yang hilang sama sekali.
+ */
 export async function punyaSlotEkstra(teacherId: string): Promise<boolean> {
-  const { data, error } = await createServerClient()
-    .from('ekstra_slot').select('id').eq('teacher_id', teacherId).eq('aktif', true).limit(1)
-  return !error && (data ?? []).length > 0
+  const supabase = createServerClient()
+  const [slot, guru] = await Promise.all([
+    supabase.from('ekstra_slot').select('id').eq('teacher_id', teacherId).eq('aktif', true).limit(1),
+    supabase.from('ekstra_guru').select('teacher_id').eq('teacher_id', teacherId).eq('aktif', true).limit(1),
+  ])
+  return (!slot.error && (slot.data ?? []).length > 0) || (!guru.error && (guru.data ?? []).length > 0)
 }
 
 /** Bentuk jenis ekstra yang aman ditampilkan ke publik (formulir booking & beranda). */

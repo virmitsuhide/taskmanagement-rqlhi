@@ -60,12 +60,17 @@ export function DaftarPeringkat({ siswa, perHalaman, mulai = 1, maks, tampilUnit
               <span className={cn('w-7 shrink-0 text-xs font-bold tabular-nums', no <= 3 ? 'text-primary' : 'text-muted-foreground')}>{no}</span>
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-sm font-medium">{s.name}</span>
-                <span className="block truncate text-[11px] text-muted-foreground">
-                  {[
-                    tampilUnit ? s.unit : null,
-                    s.kelas ? `Kelas ${s.kelas}` : null,
-                    perHalaman && s.posisi ? `sampai ${s.posisi}` : null,
-                  ].filter(Boolean).join(' · ') || '—'}
+                <span className="flex min-w-0 items-center gap-1.5 text-[11px] text-muted-foreground">
+                  {/* Tab Semua mencampur unit — unitnya dijadikan label agar terbaca sekilas. */}
+                  {tampilUnit && (
+                    <span className="shrink-0 rounded-md bg-primary/10 px-1.5 py-px font-semibold text-primary">{s.unit}</span>
+                  )}
+                  <span className="truncate">
+                    {[
+                      s.kelas ? `Kelas ${s.kelas}` : null,
+                      perHalaman && s.posisi ? `sampai ${s.posisi}` : null,
+                    ].filter(Boolean).join(' · ') || (tampilUnit ? '' : '—')}
+                  </span>
                 </span>
               </span>
               <span className="hidden h-1.5 w-16 shrink-0 overflow-hidden rounded-full bg-muted sm:block">
