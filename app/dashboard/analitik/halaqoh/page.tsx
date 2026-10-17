@@ -8,15 +8,15 @@ import {
 import { UNIT_LABELS, UNIT_ORDER, programLabel } from '@/lib/rq/programs'
 import { formatPeriod, monthName, shiftPeriod } from '@/lib/finance/period'
 import { tanggalWIB } from '@/lib/rq/ujian'
-import { getAnalitikHalaqoh, JENDELA_BULAN, type KartuHalaqoh as DataKartu, type MetrikHalaqoh } from '@/lib/data/analitik-halaqoh'
+import { getAnalitikHalaqoh, JENDELA_BULAN, PERTEMUAN_BAWAAN, type KartuHalaqoh as DataKartu, type MetrikHalaqoh } from '@/lib/data/analitik-halaqoh'
 import { getKelengkapanMingguan } from '@/lib/data/kelengkapan-mingguan'
 import { getTargetTahfidz } from '@/lib/data/target-tahfidz'
 import { getTambahanRingkas, persenHadir, type Kehadiran } from '@/lib/data/analitik-halaqoh-detail'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { KpiCard, MonthStepper, Panel, Slicer, hrefDengan } from '@/components/dashboard/kit'
-import { KartuHalaqoh, LABEL_METRIK, Selisih, metrikAliran, peringkat, teksMetrik } from '@/components/analitik/KartuHalaqoh'
+import { KartuHalaqoh, LABEL_METRIK, Selisih, metrikAliran, peringkat, teksMetrik, teksPertemuan } from '@/components/analitik/KartuHalaqoh'
 import { AvatarGuru } from '@/components/analitik/AvatarGuru'
-import { TitikPekan, type TitikPekanData } from '@/components/analitik/TitikPekan'
+import type { TitikPekanData } from '@/components/analitik/TitikPekan'
 import { ChipFilter, Lencana } from '@/components/analitik/ChipFilter'
 import { cn } from '@/lib/utils'
 import type { Jenjang } from '@/types'
@@ -397,11 +397,13 @@ export default async function AnalitikHalaqohPage({ searchParams }: PageProps) {
                       <tr className="border-b text-left text-[11px] font-bold uppercase tracking-[0.08em] text-muted-foreground">
                         <th className="px-4 py-3">#</th>
                         <th className="px-2 py-3">Halaqoh</th>
-                        <th className="px-2 py-3 text-right">{LABEL_METRIK[metrik]}</th>
+                        <th className="px-2 py-3 text-right">{LABEL_METRIK.tahsin}</th>
+                        <th className="px-2 py-3 text-right">{LABEL_METRIK.tahfidz}</th>
+                        {!metrikAliran(metrik) && <th className="px-2 py-3 text-right">{LABEL_METRIK[metrik]}</th>}
+                        <th className="px-2 py-3 text-right">Pertemuan</th>
                         <th className="px-2 py-3 text-right">Hadir</th>
                         <th className="px-2 py-3 text-right">Sesuai target</th>
-                        <th className="px-2 py-3 text-right">Drill</th>
-                        <th className="px-4 py-3">Laporan per pekan</th>
+                        <th className="px-4 py-3 text-right">Drill</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y">
@@ -416,14 +418,16 @@ export default async function AnalitikHalaqohPage({ searchParams }: PageProps) {
                               <Link href={detailHref(k.id)} className="font-bold hover:underline">{k.nama}</Link>
                               <span className="block text-xs text-muted-foreground">{k.guru?.nama ?? 'Tanpa wali'} · {k.siswa} siswa{k.sesi ? ` · sesi ${k.sesi}` : ''}</span>
                             </td>
-                            <td className="px-2 py-2.5 text-right">
-                              <b className="tabular-nums">{teksMetrik(metrik, kini[metrik])}</b>
-                              <span className="block text-[11px]"><Selisih m={metrik} kini={kini[metrik]} lalu={k.titik[iKini - 1]?.[metrik] ?? null} berjalan={data.berjalan} /></span>
-                            </td>
+                            {(metrikAliran(metrik) ? ['tahsin', 'tahfidz'] as const : ['tahsin', 'tahfidz', metrik] as const).map(m => (
+                              <td key={m} className="px-2 py-2.5 text-right">
+                                <b className="tabular-nums">{teksMetrik(m, kini[m])}</b>
+                                <span className="block text-[11px]"><Selisih m={m} kini={kini[m]} lalu={k.titik[iKini - 1]?.[m] ?? null} berjalan={data.berjalan} /></span>
+                              </td>
+                            ))}
+                            <td className="px-2 py-2.5 text-right tabular-nums text-muted-foreground">{teksPertemuan(kini.pertemuan)}</td>
                             <td className={cn('px-2 py-2.5 text-right font-semibold tabular-nums', ph !== null && ph < AMBANG_HADIR && 'text-destructive')}>{ph === null ? '—' : `${ph}%`}</td>
                             <td className="px-2 py-2.5 text-right tabular-nums">{t && t.terukur > 0 ? `${t.sesuai}/${t.terukur}` : '—'}</td>
-                            <td className="px-2 py-2.5 text-right tabular-nums">{kini.drillJilid.anak + kini.drillJuz.anak}</td>
-                            <td className="px-4 py-2.5"><TitikPekan pekan={pekanPer(k.id)} /></td>
+                            <td className="px-4 py-2.5 text-right tabular-nums">{kini.drillJilid.anak + kini.drillJuz.anak}</td>
                           </tr>
                         )
                       })}
@@ -439,7 +443,7 @@ export default async function AnalitikHalaqohPage({ searchParams }: PageProps) {
                         tambahan={{
                           rataUnit, hadir: persenHadir(tambahan.hadir[k.id]),
                           target: t ? { sesuai: t.sesuai, terukur: t.terukur } : null,
-                          pekan: pekanPer(k.id), href: detailHref(k.id),
+                          href: detailHref(k.id),
                         }} />
                     )
                   })}
@@ -448,8 +452,10 @@ export default async function AnalitikHalaqohPage({ searchParams }: PageProps) {
             </section>
 
             <p className="max-w-3xl text-xs leading-relaxed text-muted-foreground">
-              <b>Tahsin/Tahfidz per bulan</b> = rata-rata halaman lulus / halaman ziyadah per anak, hanya setoran halaqoh sekolah
-              (ekstra, TR, Riyadhoh, dan asrama tidak dihitung). <b>Jilid</b> dan <b>hafalan</b> = posisi rata-rata di akhir bulan.
+              <b>Tahsin/Tahfidz per bulan</b> = jumlah halaman lulus / halaman ziyadah seluruh anak di bulan itu dibagi banyak anak —
+              tiap bulan dihitung dari nol, bulan lalu tetap tersimpan di laporan per bulan. Hanya setoran halaqoh sekolah
+              (ekstra, TR, Riyadhoh, dan asrama tidak dihitung). <b>Pertemuan</b> = tatap muka menurut Kalender Qur&apos;an
+              (jadwal program dikurangi hari kosong angkatan); bertanda * = bawaan {PERTEMUAN_BAWAAN} karena koor belum mengatur kalender bulan itu. <b>Jilid</b> dan <b>hafalan</b> = posisi rata-rata di akhir bulan.
               Anggota halaqoh dibaca sesuai susunan sekarang. <b>Kehadiran</b> = catatan “hadir” dibagi seluruh catatan presensi bulan itu.
               <b> Sesuai target</b> = anak sesuai/di atas target tahfidz dari yang terukur, posisi hari ini.
               {data.berjalan && ' Bulan berjalan: capaian per bulan belum dibandingkan, garis trennya putus-putus.'}

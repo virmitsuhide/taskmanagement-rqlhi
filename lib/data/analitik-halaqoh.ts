@@ -9,6 +9,9 @@ import { jalurSetoran } from '@/lib/rq/jalur'
 import { getPetaHalaman } from '@/lib/data/target-tahfidz'
 import { getInfoSurat } from '@/lib/data/nama-surat'
 import { getSiswaUrutanBebas, juzBerjalanPerSiswa } from '@/lib/data/hafalan'
+import { getHariKosong } from '@/lib/data/kalender-quran'
+import { hitungTM, type HariKosong, type JadwalProgram } from '@/lib/rq/kalender-quran'
+import { tingkatOf } from '@/lib/rq/sesi'
 import {
   URUTAN_TAHSIN, ambilPerPotongSejajar, kolomTahsin, pembacaTahfidz, progresDariZiyadah,
 } from '@/lib/data/capaian-kelas'
@@ -67,7 +70,20 @@ export interface TitikHalaqoh {
   nJilid: number
   drillJilid: DrillBulan
   drillJuz: DrillBulan
+  /**
+   * Pertemuan (TM) bulan itu — keterangan di samping capaian per anak.
+   * Dari Kalender Qur'an bila koor sudah mengatur jadwal programnya atau
+   * menandai hari kosong angkatannya di bulan itu; selain itu 16.
+   * Anak satu halaqoh bisa berbeda TM (QULS + Jum'at): yang ditampilkan
+   * TM terbanyak anggotanya.
+   */
+  pertemuan: { tm: number; dariKalender: boolean } | null
 }
+
+/** Pertemuan sebulan bila koor belum mengatur Kalender Qur'an. */
+export const PERTEMUAN_BAWAAN = 16
+/** Laporan per bulan di kartu dimulai September 2026. */
+export const MULAI_LAPORAN_BULANAN = '2026-09'
 
 export interface GuruKartu {
   id: string
@@ -129,6 +145,8 @@ function tebakGender(gender: string | null, sapaan: string | null, namaHalaqoh: 
 interface Siswa {
   id: string
   halaqoh_id: string
+  jenjang: Jenjang
+  kelas: string | null
   program: string | null
   current_jilid_id: string | null
   tahsin_drill_sejak: string | null
@@ -178,7 +196,7 @@ export async function getAnalitikHalaqoh(opsi: {
       .select('id, name, jenjang, sesi, program, wali:teachers!halaqoh_wali_teacher_id_fkey(id, full_name, gender, sapaan)')
       .eq('is_active', true).in('jenjang', opsi.jenjang),
     supabase.from('students')
-      .select('id, halaqoh_id, program, current_jilid_id, tahsin_drill_sejak')
+      .select('id, halaqoh_id, jenjang, kelas, program, current_jilid_id, tahsin_drill_sejak')
       .eq('is_active', true).in('jenjang', opsi.jenjang).not('halaqoh_id', 'is', null)
       .limit(5000),
     supabase.from('jilid_levels').select('id, label, is_quran, is_terminal'),
@@ -200,7 +218,7 @@ export async function getAnalitikHalaqoh(opsi: {
   const awalJendela = `${daftarBulan[0]}-01`
   const akhirJendela = akhirBulan(opsi.bulan)
 
-  const [logTahsinJendela, logTahsinPosisi, promosiJilid, logZiyadah, promosiJuz, ujian, drillJuz, peta, infoSurat, bebas] = await Promise.all([
+  const [logTahsinJendela, logTahsinPosisi, promosiJilid, logZiyadah, promosiJuz, ujian, drillJuz, peta, infoSurat, bebas, kalender] = await Promise.all([
     // '*' supaya penanda jalur (ekstra/TR/riyadhoh/asrama) ikut bila kolomnya ada.
     ambilPerPotongSejajar<LogTahsin>(ids, p => supabase.from('tahsin_logs').select('*')
       .in('student_id', p).gte('setoran_date', awalJendela).lte('setoran_date', akhirJendela).order('id')),
@@ -223,6 +241,7 @@ export async function getAnalitikHalaqoh(opsi: {
     getPetaHalaman().catch(() => null),
     getInfoSurat(),
     getSiswaUrutanBebas(),
+    kalenderJendela(supabase, opsi.jenjang, awalJendela, akhirJendela),
   ])
 
   const level = new Map(((levelRes.data ?? []) as { id: string; label: string; is_quran: boolean; is_terminal: boolean }[])
@@ -355,7 +374,7 @@ export async function getAnalitikHalaqoh(opsi: {
       const titik = perBulan.map(({ bulan, jilid, hafalan, lamaJuz }): TitikHalaqoh => {
         if (bulan < mulai) {
           const nol = { anak: 0, rataHari: null }
-          return { bulan, adaData: false, tahsin: null, tahfidz: null, jilid: null, hafalan: null, nTahsin: 0, nJilid: 0, drillJilid: nol, drillJuz: nol }
+          return { bulan, adaData: false, tahsin: null, tahfidz: null, jilid: null, hafalan: null, nTahsin: 0, nJilid: 0, drillJilid: nol, drillJuz: nol, pertemuan: null }
         }
         // Penyebut tahsin: anak yang masih tahsin di akhir bulan itu, ditambah
         // yang bulan itu masih menyetor halaman (lulus tahsin di tengah bulan).
@@ -393,6 +412,7 @@ export async function getAnalitikHalaqoh(opsi: {
           nJilid: posisiJilid.length,
           drillJilid: { anak: anakDrillT.length, rataHari: rh === null ? null : Math.round(rh) },
           drillJuz: { anak: hariDrillJ.length, rataHari: rj === null ? null : Math.round(rj) },
+          pertemuan: pertemuanBulan(kalender, anak, bulan),
         }
       })
       return {
@@ -408,6 +428,63 @@ export async function getAnalitikHalaqoh(opsi: {
     })
 
   return { ...kosong, kartu }
+}
+
+// ─── Pertemuan per bulan (Kalender Qur'an, 0084) ────────────────────────────
+
+interface KalenderJendela {
+  terms: { id: string; start_date: string; end_date: string }[]
+  /** term_id → jadwal yang disimpan koor. */
+  jadwal: Map<string, JadwalProgram[]>
+  kosong: HariKosong[]
+}
+
+/** Term, jadwal, dan hari kosong sepanjang jendela. Tahan tabel yang belum ada. */
+async function kalenderJendela(
+  supabase: ReturnType<typeof createServerClient>, jenjang: Jenjang[], dari: string, sampai: string,
+): Promise<KalenderJendela> {
+  const { data: termRows } = await supabase.from('academic_terms')
+    .select('id, start_date, end_date').lte('start_date', sampai).gte('end_date', dari)
+  const terms = (termRows ?? []) as KalenderJendela['terms']
+  const [jadwalRes, kosongRes] = await Promise.all([
+    terms.length
+      ? supabase.from('kalender_jadwal').select('term_id, jenjang, program, hari').in('term_id', terms.map(t => t.id))
+      : Promise.resolve({ data: [], error: null }),
+    getHariKosong(jenjang, dari, sampai),
+  ])
+  const jadwal = new Map<string, JadwalProgram[]>()
+  if (!jadwalRes.error) {
+    for (const j of (jadwalRes.data ?? []) as { term_id: string; jenjang: Jenjang; program: string | null; hari: number[] | null }[]) {
+      jadwal.set(j.term_id, [...(jadwal.get(j.term_id) ?? []), { jenjang: j.jenjang, program: j.program ?? '', hari: j.hari ?? [] }])
+    }
+  }
+  return { terms, jadwal, kosong: kosongRes.kosong }
+}
+
+/**
+ * TM satu halaqoh di satu bulan. Seorang anak memakai Kalender Qur'an bila
+ * koor sudah menyimpan jadwal programnya di term itu atau menandai hari kosong
+ * angkatannya di bulan itu; selain itu PERTEMUAN_BAWAAN.
+ */
+function pertemuanBulan(k: KalenderJendela, anak: Siswa[], bulan: string): { tm: number; dariKalender: boolean } | null {
+  if (anak.length === 0) return null
+  const dari = `${bulan}-01`
+  const sampai = akhirBulan(bulan)
+  const term = k.terms.find(t => t.start_date <= sampai && t.end_date >= dari)
+  const jadwal = term ? k.jadwal.get(term.id) ?? [] : []
+  const hitung = new Map<string, { tm: number; dariKalender: boolean; n: number }>()
+  for (const s of anak) {
+    const sasaran = { jenjang: s.jenjang, tingkat: tingkatOf(s.kelas) ?? 0, kelas: s.kelas, program: s.program }
+    const diatur = jadwal.some(j => j.jenjang === s.jenjang && j.program === (s.program ?? ''))
+      || k.kosong.some(x => x.jenjang === s.jenjang && x.tingkat === sasaran.tingkat && x.tanggal >= dari && x.tanggal <= sampai)
+    const tm = diatur ? hitungTM(dari, sampai, jadwal, k.kosong, sasaran) : PERTEMUAN_BAWAAN
+    const kunci = `${tm}|${diatur}`
+    const e = hitung.get(kunci) ?? { tm, dariKalender: diatur, n: 0 }
+    e.n++
+    hitung.set(kunci, e)
+  }
+  const terbanyak = [...hitung.values()].sort((a, b) => b.n - a.n || b.tm - a.tm)[0]
+  return { tm: terbanyak.tm, dariKalender: terbanyak.dariKalender }
 }
 
 /** Indeks rata-rata tahap → label terdekat, mis. 3,4 → 'Jilid 3'. */

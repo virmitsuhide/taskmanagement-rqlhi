@@ -1,9 +1,11 @@
 import Link from 'next/link'
 import { ArrowDown, ArrowUp, ChevronRight, Minus } from 'lucide-react'
 import { monthName } from '@/lib/finance/period'
-import { labelTahap, type KartuHalaqoh as DataKartu, type MetrikHalaqoh, type TitikHalaqoh } from '@/lib/data/analitik-halaqoh'
+import {
+  MULAI_LAPORAN_BULANAN, PERTEMUAN_BAWAAN, labelTahap,
+  type KartuHalaqoh as DataKartu, type MetrikHalaqoh, type TitikHalaqoh,
+} from '@/lib/data/analitik-halaqoh'
 import { AvatarGuru } from './AvatarGuru'
-import { TitikPekan, type TitikPekanData } from './TitikPekan'
 import { cn } from '@/lib/utils'
 
 export const LABEL_METRIK: Record<MetrikHalaqoh, string> = {
@@ -114,6 +116,48 @@ function GarisTren({ titik, m, berjalan, rataUnit }: {
   )
 }
 
+/** "16 TM" — tanda * bila memakai bawaan karena kalender belum diatur koor. */
+export function teksPertemuan(p: TitikHalaqoh['pertemuan']): string {
+  if (!p) return '—'
+  return `${p.tm} TM${p.dariKalender ? '' : '*'}`
+}
+
+/**
+ * Laporan per bulan sejak MULAI_LAPORAN_BULANAN: tiap bulan dihitung dari
+ * nol (capaian bulan itu saja), bulan sebelumnya tetap tampil.
+ */
+export function LaporanBulanan({ titik, berjalan }: { titik: TitikHalaqoh[]; berjalan: boolean }) {
+  const bulan = titik.filter(t => t.bulan >= MULAI_LAPORAN_BULANAN)
+  if (bulan.length === 0) return null
+  const adaBawaan = bulan.some(t => t.pertemuan && !t.pertemuan.dariKalender)
+  return (
+    <div className="border-t pt-3">
+      <p className="mb-1.5 text-[11px] text-muted-foreground">Laporan per bulan · per anak</p>
+      <table className="w-full text-[11px]">
+        <thead>
+          <tr className="text-left text-muted-foreground">
+            <th className="pb-1 font-medium">Bulan</th>
+            <th className="pb-1 text-right font-medium">Tahsin</th>
+            <th className="pb-1 text-right font-medium">Tahfidz</th>
+            <th className="pb-1 text-right font-medium" title="Pertemuan (tatap muka) bulan itu">Pertemuan</th>
+          </tr>
+        </thead>
+        <tbody>
+          {[...bulan].reverse().map((t, i) => (
+            <tr key={t.bulan} className="border-t border-dashed">
+              <td className="py-1">{monthName(t.bulan).slice(0, 3)} {t.bulan.slice(2, 4)}{i === 0 && berjalan && <span className="text-muted-foreground"> (berjalan)</span>}</td>
+              <td className="py-1 text-right font-semibold tabular-nums">{t.adaData ? teksMetrik('tahsin', t.tahsin) : '—'}</td>
+              <td className="py-1 text-right font-semibold tabular-nums">{t.adaData ? teksMetrik('tahfidz', t.tahfidz) : '—'}</td>
+              <td className="py-1 text-right tabular-nums text-muted-foreground">{teksPertemuan(t.pertemuan)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {adaBawaan && <p className="mt-1 text-[10px] text-muted-foreground">* bawaan {PERTEMUAN_BAWAAN} — Kalender Qur&apos;an bulan itu belum diatur koor</p>}
+    </div>
+  )
+}
+
 export interface TambahanKartu {
   /** Rata-rata unit per titik untuk metrik terpilih — garis pembanding. */
   rataUnit?: (number | null)[]
@@ -121,7 +165,6 @@ export interface TambahanKartu {
   hadir?: number | null
   /** Target TAHFIDZ: anak sesuai/di atas target dari yang terukur. */
   target?: { sesuai: number; terukur: number } | null
-  pekan?: TitikPekanData[]
   href?: string
 }
 
@@ -138,7 +181,7 @@ export function KartuHalaqoh({ k, metrik, rank, rankLalu, berjalan, tambahan = {
   const naik = rank !== undefined && rankLalu !== undefined ? rankLalu - rank : null
   const lain = (['tahsin', 'tahfidz', 'jilid', 'hafalan'] as MetrikHalaqoh[]).filter(m => m !== metrik)
   const drillAnak = kini.drillJilid.anak + kini.drillJuz.anak
-  const { hadir, target, pekan, href } = tambahan
+  const { hadir, target, href } = tambahan
 
   const isi = (
     <>
@@ -171,19 +214,26 @@ export function KartuHalaqoh({ k, metrik, rank, rankLalu, berjalan, tambahan = {
         <p className="mt-4 text-sm text-muted-foreground">Belum ada setoran tercatat di bulan ini.</p>
       ) : (
         <>
-          <div className="mt-4 grid grid-cols-[auto_1fr] items-end gap-4">
-            <div>
-              <p className="text-[11px] leading-tight text-muted-foreground">{LABEL_METRIK[metrik]}</p>
-              <p className="mt-1 font-heading text-2xl leading-none tabular-nums">
-                {kini[metrik] === null && metrik === 'tahsin' ? <span className="text-sm text-muted-foreground">tidak berlaku</span> : teksMetrik(metrik, kini[metrik])}
-              </p>
-              <p className="mt-1 text-[11px]"><Selisih m={metrik} kini={kini[metrik]} lalu={lalu ? lalu[metrik] : null} berjalan={berjalan} /></p>
-            </div>
+          {/* Tahsin & tahfidz setara: dua ubin sama besar, per anak per bulan. */}
+          <div className="mt-4 grid grid-cols-2 gap-2">
+            {(['tahsin', 'tahfidz'] as const).map(m => (
+              <div key={m} className={cn('rounded-xl border p-2.5', metrik === m && 'border-primary/40 bg-primary/5')}>
+                <p className="text-[11px] leading-tight text-muted-foreground">{LABEL_METRIK[m]}</p>
+                <p className="mt-1 font-heading text-xl leading-none tabular-nums">
+                  {kini[m] === null && m === 'tahsin' ? <span className="text-sm text-muted-foreground">tidak berlaku</span> : teksMetrik(m, kini[m])}
+                </p>
+                <p className="mt-0.5 text-[10px] text-muted-foreground">per anak</p>
+                <p className="mt-1 text-[11px]"><Selisih m={m} kini={kini[m]} lalu={lalu ? lalu[m] : null} berjalan={berjalan} /></p>
+              </div>
+            ))}
+          </div>
+          <div className="mt-3">
+            <p className="mb-1 text-[11px] text-muted-foreground">Tren {LABEL_METRIK[metrik].toLowerCase()}</p>
             <GarisTren titik={k.titik} m={metrik} berjalan={berjalan} rataUnit={tambahan.rataUnit} />
           </div>
 
           <p className="mt-2 text-[11px] text-muted-foreground">
-            {lain.map((m, i) => (
+            {lain.filter(m => !metrikAliran(m)).map((m, i) => (
               <span key={m}>{i > 0 && ' · '}{LABEL_METRIK[m].replace(' / bulan', '').replace('Rata-rata ', '')}{' '}
                 <b className="font-semibold text-foreground tabular-nums">{teksMetrik(m, kini[m])}</b></span>
             ))}
@@ -210,17 +260,14 @@ export function KartuHalaqoh({ k, metrik, rank, rankLalu, berjalan, tambahan = {
         </>
       )}
 
-      {(pekan || href) && (
-        <div className="mt-auto flex items-center justify-between gap-2 pt-3">
-          {pekan ? (
-            <div className="flex min-w-0 items-center gap-2">
-              <span className="text-[11px] text-muted-foreground">Laporan per pekan</span>
-              <TitikPekan pekan={pekan} />
-            </div>
-          ) : <span />}
-          {href && <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" aria-hidden />}
-        </div>
-      )}
+      <div className="mt-auto pt-3">
+        <LaporanBulanan titik={k.titik} berjalan={berjalan} />
+        {href && (
+          <div className="mt-2 flex justify-end">
+            <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" aria-hidden />
+          </div>
+        )}
+      </div>
     </>
   )
 
