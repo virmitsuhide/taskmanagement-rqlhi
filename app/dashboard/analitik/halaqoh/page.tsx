@@ -8,7 +8,8 @@ import {
 import { UNIT_LABELS, UNIT_ORDER, programLabel } from '@/lib/rq/programs'
 import { formatPeriod, monthName, shiftPeriod } from '@/lib/finance/period'
 import { tanggalWIB } from '@/lib/rq/ujian'
-import { getAnalitikHalaqoh, JENDELA_BULAN, PERTEMUAN_BAWAAN, type KartuHalaqoh as DataKartu, type MetrikHalaqoh } from '@/lib/data/analitik-halaqoh'
+import { TombolRangkumKumik } from '@/components/analitik/TombolRangkumKumik'
+import { getAnalitikHalaqoh, JENDELA_BULAN, MULAI_LAPORAN_BULANAN, PERTEMUAN_BAWAAN, type KartuHalaqoh as DataKartu, type MetrikHalaqoh } from '@/lib/data/analitik-halaqoh'
 import { getKelengkapanMingguan } from '@/lib/data/kelengkapan-mingguan'
 import { getTargetTahfidz } from '@/lib/data/target-tahfidz'
 import { getTambahanRingkas, persenHadir, type Kehadiran } from '@/lib/data/analitik-halaqoh-detail'
@@ -66,6 +67,7 @@ export default async function AnalitikHalaqohPage({ searchParams }: PageProps) {
 
   const sp = await searchParams
   const penuh = canViewAnalytics(session.role)
+  const bisaRangkum = session.role === 'kumik' || session.role === 'kepala_rq'
   const unitBoleh = penuh ? UNIT_ORDER : UNIT_ORDER.filter(j => getAnalyticsJenjang(session.role).includes(j))
   const jenjang: Jenjang | undefined = unitBoleh.includes(sp.unit as Jenjang) ? (sp.unit as Jenjang) : unitBoleh[0]
   if (!jenjang) redirect('/dashboard')
@@ -265,8 +267,13 @@ export default async function AnalitikHalaqohPage({ searchParams }: PageProps) {
               {UNIT_LABELS[jenjang]} · {labelBulan}{data.berjalan && ' (berjalan)'} · {kartu.length.toLocaleString('id-ID')} halaqoh · tren {JENDELA_BULAN} bulan
             </p>
           </div>
-          <MonthStepper label="Bulan" current={labelBulan}
-            prevHref={bulanHref(shiftPeriod(bulan, -1))} nextHref={bulanHref(shiftPeriod(bulan, 1))} />
+          <div className="flex flex-wrap items-end gap-2">
+            {bisaRangkum && bulan >= MULAI_LAPORAN_BULANAN && (
+              <TombolRangkumKumik jenjang={jenjang} bulan={bulan} labelUnit={UNIT_LABELS[jenjang]} labelBulan={labelBulan} />
+            )}
+            <MonthStepper label="Bulan" current={labelBulan}
+              prevHref={bulanHref(shiftPeriod(bulan, -1))} nextHref={bulanHref(shiftPeriod(bulan, 1))} />
+          </div>
         </div>
 
         {/* ── Filter ── */}
