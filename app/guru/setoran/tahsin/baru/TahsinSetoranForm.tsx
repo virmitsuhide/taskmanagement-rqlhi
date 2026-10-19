@@ -400,7 +400,7 @@ export function TahsinSetoranForm({
                 : { borderColor: 'var(--border)', background: 'var(--card)' }}
             >
               <p className="font-heading text-lg font-medium">{LABEL_STATUS_TAHSIN.lanjut}</p>
-              <p className="text-xs text-muted-foreground">Baru beberapa baris, dilanjutkan</p>
+              <p className="text-xs text-muted-foreground">Belum tuntas, tetap di halaman ini</p>
             </button>
           )}
           <button

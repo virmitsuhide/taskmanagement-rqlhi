@@ -16,7 +16,7 @@ import type { TahsinStatus } from '@/types'
  */
 export const LABEL_STATUS_TAHSIN: Record<TahsinStatus, string> = {
   lulus: 'Lulus',
-  lanjut: 'Lanjut',
+  lanjut: 'Tetap',
   ulang: 'Ulang',
 }
 

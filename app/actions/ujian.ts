@@ -441,8 +441,8 @@ export async function updateTahsinUjianAction(
         return {
           success: true,
           warning:
-            `Ujian tersimpan, tapi capaian ${tidakCocok.length} anak belum bisa dinaikkan — ` +
-            `level ujiannya tidak ada di metode tahsin mereka: ${tidakCocok.join(', ')}.`,
+            `Ujian tersimpan, tapi capaian ${tidakCocok.length} anak belum bisa dinaikkan: ` +
+            `${tidakCocok.join(', ')}. Naikkan jilidnya lewat Edit Siswa.`,
         }
       }
     }
@@ -473,10 +473,11 @@ export async function updateTahsinUjianAction(
  * ke 1. Yang predikatnya 'mengulang' atau belum dinilai tidak disentuh sama
  * sekali.
  *
- * Anak tanpa student_id — pengajuan lama yang namanya diketik bebas — juga
- * dilewati. Menebak siapa yang dimaksud dari sebuah nama berarti berisiko
- * menaikkan anak yang keliru, dan kekeliruan seperti itu baru ketahuan
- * berbulan-bulan kemudian lewat rapor yang tidak masuk akal.
+ * Anak tanpa student_id — pengajuan lama yang namanya diketik bebas — hanya
+ * ditautkan bila nama lengkapnya persis sama dengan satu siswa; selebihnya
+ * dilewati dan dilaporkan. Menebak dari nama singkat berisiko menaikkan anak
+ * yang keliru, dan kekeliruan seperti itu baru ketahuan berbulan-bulan
+ * kemudian lewat rapor yang tidak masuk akal.
  *
  * TIDAK BISA MENAIKKAN DUA KALI
  *
@@ -493,13 +494,46 @@ async function terapkanKelulusanTahsin(ujianId: string): Promise<string[]> {
 
   const { data: ujian } = await supabase
     .from('ujian_tahsin')
-    .select('id, siswa, level')
+    .select('id, siswa, level, unit')
     .eq('id', ujianId)
     .maybeSingle()
   if (!ujian) return tidakCocok
 
   const ujianLevel = (ujian.level ?? '') as string
   const daftar = (ujian.siswa ?? []) as UjianSiswa[]
+
+  /*
+    Anak tanpa student_id ditautkan hanya bila NAMA LENGKAPNYA persis sama
+    dengan tepat satu siswa aktif di unit ujian itu — itu bukan tebakan. Nama
+    singkat ("Ozil") atau nama kembar tetap tidak ditautkan, tapi kini
+    dilaporkan: dulu anak seperti ini dilewati diam-diam dan tertinggal di
+    jilid lama walau tercatat lulus.
+  */
+  const tanpaId = daftar.filter(s => s.predikat === 'lulus' && !s.student_id)
+  if (tanpaId.length > 0) {
+    const { data: calon } = await supabase
+      .from('students')
+      .select('id, full_name')
+      .eq('jenjang', UJIAN_UNIT_JENJANG[ujian.unit as UjianUnit])
+      .eq('is_active', true)
+    const perNama = new Map<string, string[]>()
+    for (const c of (calon ?? []) as { id: string; full_name: string }[]) {
+      const k = c.full_name.trim().toLowerCase()
+      perNama.set(k, [...(perNama.get(k) ?? []), c.id])
+    }
+    let tertaut = false
+    for (const s of tanpaId) {
+      const cocokNama = perNama.get(s.nama.trim().toLowerCase()) ?? []
+      if (cocokNama.length === 1) {
+        s.student_id = cocokNama[0]
+        tertaut = true
+      } else {
+        tidakCocok.push(`${s.nama} (belum tertaut ke data siswa)`)
+      }
+    }
+    if (tertaut) await supabase.from('ujian_tahsin').update({ siswa: daftar }).eq('id', ujianId)
+  }
+
   const lulus = daftar.filter(s => s.predikat === 'lulus' && s.student_id)
   if (lulus.length === 0) return tidakCocok
 

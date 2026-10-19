@@ -211,7 +211,7 @@ function EditForm({ item, onDone }: { item: SetoranItem; onDone: () => void }) {
               className="h-9 w-full rounded-md border bg-transparent px-3 text-sm"
             >
               <option value="lulus">Lulus</option>
-              <option value="lanjut">Lanjut (halaman belum tuntas)</option>
+              <option value="lanjut">Tetap (halaman belum tuntas)</option>
               <option value="ulang">Ulang</option>
             </select>
           </div>

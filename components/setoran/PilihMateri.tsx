@@ -41,7 +41,7 @@ export type PilihanMateri = Record<string, HasilMateri>
  */
 const HASIL: { nilai: HasilMateri; label: string; aktif: string }[] = [
   { nilai: 'ulang',  label: 'Ulang',  aktif: 'border-warning text-warning' },
-  { nilai: 'lanjut', label: 'Lanjut', aktif: 'border-primary text-primary' },
+  { nilai: 'lanjut', label: 'Tetap',  aktif: 'border-primary text-primary' },
   { nilai: 'lulus',  label: 'Lulus',  aktif: 'border-success text-success' },
 ]
 

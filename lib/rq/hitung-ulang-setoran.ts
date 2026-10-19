@@ -65,6 +65,7 @@ export async function recalcPosisi(
   const logs = (logRows ?? []) as {
     id: string; method_id: string | null; jilid_id: string | null
     halaman: number | null; status: string; drill: boolean | null
+    setoran_date: string; created_at: string
     quran_halaman: number | null; quran_surat_id: number | null
     quran_ayat_dari: number | null; quran_ayat_ke: number | null
   }[]
@@ -90,18 +91,41 @@ export async function recalcPosisi(
   const [{ data: promRows }, { data: jilidRows }] = await Promise.all([
     supabase
       .from('jilid_promotions')
-      .select('source_log_id, to_jilid_id')
+      .select('source_log_id, to_jilid_id, promotion_date, created_at')
       .eq('student_id', studentId)
-      .not('source_log_id', 'is', null),
+      .order('promotion_date', { ascending: true })
+      .order('created_at', { ascending: true }),
     jilidIds.length
       ? supabase.from('jilid_levels').select('id, total_pages').in('id', jilidIds)
       : Promise.resolve({ data: [] }),
   ])
 
+  type Promosi = { source_log_id: string | null; to_jilid_id: string; promotion_date: string; created_at: string }
+  const semuaPromosi = (promRows ?? []) as Promosi[]
   const promosiDari = new Map(
-    ((promRows ?? []) as { source_log_id: string; to_jilid_id: string }[])
-      .map(p => [p.source_log_id, p.to_jilid_id]),
+    semuaPromosi.filter(p => p.source_log_id).map(p => [p.source_log_id!, p.to_jilid_id]),
   )
+  /*
+    Kenaikan yang tidak lahir dari setoran — kelulusan ujian tahsin (kini
+    satu-satunya pintu naik) dan kenaikan di luar sistem — diselipkan menurut
+    tanggalnya. Dulu hanya kenaikan bertaut setoran yang diputar ulang, jadi
+    satu koreksi setoran saja mengembalikan anak yang sudah lulus ujian ke
+    halaman terakhir jilid lamanya.
+  */
+  const promosiTanggal = semuaPromosi.filter(p => !p.source_log_id)
+  let iPromosi = 0
+  const terapkanPromosiSampai = (log: { setoran_date: string; created_at: string } | null) => {
+    while (iPromosi < promosiTanggal.length) {
+      const p = promosiTanggal[iPromosi]
+      const sebelum = log === null
+        || p.promotion_date < log.setoran_date
+        || (p.promotion_date === log.setoran_date && p.created_at <= log.created_at)
+      if (!sebelum) break
+      jilid = p.to_jilid_id
+      page = 1
+      iPromosi++
+    }
+  }
   const totalHalaman = new Map(
     ((jilidRows ?? []) as { id: string; total_pages: number | null }[]).map(j => [j.id, j.total_pages]),
   )
@@ -120,6 +144,7 @@ export async function recalcPosisi(
   let bacaanTerakhir: BacaanQuran | null = null
 
   for (const log of logs) {
+    terapkanPromosiSampai(log)
     if (log.status === 'lulus') {
       if (!log.drill) {
         method = log.method_id
@@ -154,6 +179,7 @@ export async function recalcPosisi(
       page = 1
     }
   }
+  terapkanPromosiSampai(null)
 
   const posisiQuran: PosisiQuran = bacaanTerakhir
     ? await posisiQuranBerikutnya(supabase, bacaanTerakhir)
