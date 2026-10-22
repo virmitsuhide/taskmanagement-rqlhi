@@ -1,5 +1,6 @@
 import { createServerClient } from '@/lib/supabase/server'
 import { teksBaris } from '@/lib/rq/status-tahsin'
+import { getInfoSurat } from '@/lib/data/nama-surat'
 import type { TahsinStatus } from '@/types'
 
 /**
@@ -33,6 +34,21 @@ export interface SetoranLuar {
 
 export interface PosisiLuar { method_id: string | null; jilid_id: string | null; halaman: number | null }
 
+export type JenisTahfidzLuar = 'ziyadah' | 'murojaah'
+
+/** Setoran tahfidz peserta luar (0123). */
+export interface SetoranTahfidzLuar {
+  id: string
+  tanggal: string
+  jenis: JenisTahfidzLuar
+  surat_id: number
+  ayat_dari: number
+  ayat_ke: number
+  /** Mis. "Al-Mulk 1–10". */
+  ringkas: string
+  created_at: string
+}
+
 export interface PesertaLuar {
   id: string
   nama: string
@@ -42,8 +58,10 @@ export interface PesertaLuar {
   /** Teks pendek posisi, mis. "Jilid 2 hal. 14" / "Belum ditempatkan". */
   teksPosisi: string
   setoran: SetoranLuar[]
+  /** Posisi akhir hafalan: ziyadah terbaru menurut tanggal, mis. "Al-Mulk 1–10". Null = belum ada. */
+  posisiTahfidz: string | null
+  setoranTahfidz: SetoranTahfidzLuar[]
 }
-
 /** Metode tahsin aktif beserta tahapnya (tanpa tahap akhir "Lulus Tahsin"). */
 export async function getMetodeLuar(): Promise<MetodeLuar[]> {
   const supabase = createServerClient()
@@ -66,30 +84,39 @@ export function posisiSesudah(s: Pick<SetoranLuar, 'jilid_id' | 'halaman' | 'sta
  * Peserta luar untuk sekumpulan booking (kunci = booking id), beserta setoran
  * sejak `dari` (kosongkan untuk semua). `tabelAda` false bila 0122 belum dijalankan.
  */
-export async function getPesertaLuar(bookingIds: string[], dari?: string): Promise<{ tabelAda: boolean; peserta: Map<string, PesertaLuar> }> {
+export async function getPesertaLuar(bookingIds: string[], dari?: string): Promise<{ tabelAda: boolean; tahfidzAda: boolean; peserta: Map<string, PesertaLuar> }> {
   const hasil = new Map<string, PesertaLuar>()
-  if (bookingIds.length === 0) return { tabelAda: true, peserta: hasil }
+  if (bookingIds.length === 0) return { tabelAda: true, tahfidzAda: true, peserta: hasil }
   const supabase = createServerClient()
   const { data: bRows, error } = await supabase.from('ekstra_booking').select('id, peserta_luar_id').in('id', bookingIds)
-  if (tabelHilang(error)) return { tabelAda: false, peserta: hasil }
+  if (tabelHilang(error)) return { tabelAda: false, tahfidzAda: false, peserta: hasil }
   const tautan = ((bRows ?? []) as { id: string; peserta_luar_id: string | null }[]).filter(b => b.peserta_luar_id)
   const pids = [...new Set(tautan.map(b => b.peserta_luar_id!))]
-  if (pids.length === 0) return { tabelAda: true, peserta: hasil }
+  if (pids.length === 0) return { tabelAda: true, tahfidzAda: true, peserta: hasil }
 
-  const [{ data: pRows }, { data: sRows }, { data: jRows }] = await Promise.all([
+  const [{ data: pRows }, { data: sRows }, { data: jRows }, tfRes, surat] = await Promise.all([
     supabase.from('ekstra_peserta_luar').select('id, nama, method_id, jilid_id, halaman').in('id', pids),
     // Semua setoran dibaca untuk posisi; `dari` hanya menyaring daftar yang dikembalikan.
     supabase.from('ekstra_setoran_luar')
       .select('id, peserta_id, tanggal, jilid_id, halaman, baris_dari, baris_ke, status, catatan, slot_id, created_at')
       .in('peserta_id', pids).order('tanggal').order('created_at'),
     supabase.from('jilid_levels').select('id, method_id, label, total_pages'),
+    supabase.from('ekstra_setoran_tahfidz_luar')
+      .select('id, peserta_id, tanggal, jenis, surat_id, ayat_dari, ayat_ke, created_at')
+      .in('peserta_id', pids).order('tanggal').order('created_at'),
+    getInfoSurat(),
   ])
+  const tahfidzAda = !tabelHilang(tfRes.error)
+  const namaSurat = (id: number) => surat.get(id)?.name_latin ?? `Surat ${id}`
+  const semuaTf = ((tfRes.data ?? []) as (Omit<SetoranTahfidzLuar, 'ringkas'> & { peserta_id: string })[])
+    .map(t => ({ ...t, ringkas: `${namaSurat(t.surat_id)} ${t.ayat_dari === t.ayat_ke ? t.ayat_dari : `${t.ayat_dari}–${t.ayat_ke}`}` }))
   const jilid = new Map(((jRows ?? []) as { id: string; method_id: string; label: string; total_pages: number | null }[]).map(j => [j.id, j]))
   type Baris = Omit<SetoranLuar, 'jilid'> & { peserta_id: string }
   const semua = (sRows ?? []) as Baris[]
 
   for (const p of (pRows ?? []) as { id: string; nama: string; method_id: string | null; jilid_id: string | null; halaman: number | null }[]) {
     const milik = semua.filter(s => s.peserta_id === p.id)
+    const tf = semuaTf.filter(t => t.peserta_id === p.id)
     const akhir = milik.at(-1)
     const lanjut = akhir ? posisiSesudah(akhir, akhir.jilid_id ? jilid.get(akhir.jilid_id)?.total_pages ?? null : null) : null
     const posisi: PosisiLuar = lanjut
@@ -103,10 +130,12 @@ export async function getPesertaLuar(bookingIds: string[], dari?: string): Promi
       posisi,
       teksPosisi: label ? `${label}${posisi.halaman ? ` hal. ${posisi.halaman}` : ''}` : 'Belum ditempatkan',
       setoran: milik.filter(s => !dari || s.tanggal >= dari).map(s => ({ ...s, jilid: s.jilid_id ? jilid.get(s.jilid_id)?.label ?? null : null })),
+      posisiTahfidz: tf.filter(t => t.jenis === 'ziyadah').at(-1)?.ringkas ?? null,
+      setoranTahfidz: tf.filter(t => !dari || t.tanggal >= dari),
     }
     for (const b of tautan.filter(t => t.peserta_luar_id === p.id)) hasil.set(b.id, isi)
   }
-  return { tabelAda: true, peserta: hasil }
+  return { tabelAda: true, tahfidzAda, peserta: hasil }
 }
 
 /** Ringkas satu setoran, mis. "Jilid 2 hal. 14 baris 1–5 · Tetap". */

@@ -498,17 +498,55 @@ export async function simpanSetoranLuarAction(slotId: string, bookingId: string,
   return { success: true }
 }
 
-/** Hapus setoran peserta luar — oleh guru yang mencatatnya / pengampu halaqohnya, atau koordinator. */
-export async function hapusSetoranLuarAction(id: string): Promise<Hasil> {
+/**
+ * Guru pengampu mencatat setoran tahfidz peserta non-LHI (0123): ziyadah atau
+ * muroja'ah, satu surat dengan rentang ayat. Yang ditampilkan hanya posisi akhir.
+ */
+export async function simpanSetoranTahfidzLuarAction(slotId: string, bookingId: string, tanggal: string, isi: {
+  jenis: string; surat_id: number; ayat_dari: number; ayat_ke: number; catatan: string
+}): Promise<Hasil> {
+  const session = await getTeacherSession()
+  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!TANGGAL.test(tanggal) || tanggal > hariIniWIB()) return { error: 'Tanggal tidak valid.' }
+
   const supabase = createServerClient()
-  const { data } = await supabase.from('ekstra_setoran_luar').select('teacher_id, slot:ekstra_slot(teacher_id)').eq('id', id).maybeSingle()
+  const [{ data: slot }, { data: b }, { data: s }] = await Promise.all([
+    supabase.from('ekstra_slot').select('teacher_id').eq('id', slotId).maybeSingle(),
+    supabase.from('ekstra_booking').select('id').eq('id', bookingId).eq('slot_id', slotId).eq('status', 'aktif').maybeSingle(),
+    supabase.from('surat_master').select('total_ayat').eq('id', isi.surat_id).maybeSingle(),
+  ])
+  if ((slot as { teacher_id: string } | null)?.teacher_id !== session.teacherId) return { error: 'Anda bukan pengampu halaqoh ini.' }
+  if (!b) return { error: 'Peserta ini bukan peserta aktif halaqoh ini.' }
+  const total = (s as { total_ayat: number } | null)?.total_ayat
+  if (!total) return { error: 'Pilih surat.' }
+  const { ayat_dari: dari, ayat_ke: ke } = isi
+  if (!Number.isInteger(dari) || !Number.isInteger(ke) || dari < 1 || ke < dari || ke > total) return { error: `Ayat 1–${total}, dan ayat akhir tidak sebelum ayat awal.` }
+
+  const p = await pastikanPesertaLuar(bookingId)
+  if ('error' in p) return { error: p.error }
+  const { error } = await supabase.from('ekstra_setoran_tahfidz_luar').insert({
+    peserta_id: p.id, slot_id: slotId, teacher_id: session.teacherId, tanggal,
+    jenis: isi.jenis === 'murojaah' ? 'murojaah' : 'ziyadah', surat_id: isi.surat_id, ayat_dari: dari, ayat_ke: ke,
+    catatan: isi.catatan.trim().slice(0, 300),
+  })
+  if (error) return { error: tabelHilang(error) ? 'Setoran tahfidz peserta non-LHI belum aktif. Minta admin menjalankan migrasi 0123.' : 'Gagal menyimpan setoran.' }
+  revalidatePath('/guru/ekstra')
+  revalidatePath('/ekstra/halaqoh', 'layout')
+  return { success: true }
+}
+
+/** Hapus setoran peserta luar — oleh guru yang mencatatnya / pengampu halaqohnya, atau koordinator. */
+export async function hapusSetoranLuarAction(id: string, jenis: 'tahsin' | 'tahfidz' = 'tahsin'): Promise<Hasil> {
+  const supabase = createServerClient()
+  const tabel = jenis === 'tahfidz' ? 'ekstra_setoran_tahfidz_luar' : 'ekstra_setoran_luar'
+  const { data } = await supabase.from(tabel).select('teacher_id, slot:ekstra_slot(teacher_id)').eq('id', id).maybeSingle()
   const s = data as unknown as { teacher_id: string | null; slot: { teacher_id: string } | null } | null
   if (!s) return { error: 'Setoran tidak ditemukan.' }
   const [guru, pengurus] = await Promise.all([getTeacherSession(), getSession()])
   const koor = !!pengurus && canManageEkstra(pengurus.role)
   const pengampu = !!guru && (s.teacher_id === guru.teacherId || s.slot?.teacher_id === guru.teacherId)
   if (!koor && !pengampu) return { error: 'Tidak memiliki izin.' }
-  const { error } = await supabase.from('ekstra_setoran_luar').delete().eq('id', id)
+  const { error } = await supabase.from(tabel).delete().eq('id', id)
   if (error) return { error: 'Gagal menghapus setoran.' }
   revalidatePath('/guru/ekstra')
   revalidatePath('/ekstra/halaqoh', 'layout')

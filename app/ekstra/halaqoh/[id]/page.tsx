@@ -155,8 +155,9 @@ export default async function DetailHalaqohEkstraPage({ params }: { params: Prom
                           </>
                         ) : p.asal !== 'lhi' && luar.get(p.id) ? (
                           <>
-                            <p className="font-bold">{luar.get(p.id)!.setoran.length} setoran</p>
-                            <p className="text-muted-foreground">Posisi: {luar.get(p.id)!.teksPosisi}</p>
+                            <p className="font-bold">{luar.get(p.id)!.setoran.length + luar.get(p.id)!.setoranTahfidz.length} setoran</p>
+                            <p className="text-muted-foreground">Tahsin: {luar.get(p.id)!.teksPosisi}</p>
+                            {luar.get(p.id)!.posisiTahfidz && <p className="text-muted-foreground">Hafalan: {luar.get(p.id)!.posisiTahfidz}</p>}
                           </>
                         ) : <p className="text-muted-foreground">{p.asal === 'lhi' ? 'Tautkan dulu untuk mencatat setoran' : 'Belum ada setoran'}</p>}
                       </div>

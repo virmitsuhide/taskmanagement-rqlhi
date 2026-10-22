@@ -7,7 +7,9 @@ import { FormMateriEkstra } from '@/components/ekstra/FormMateriEkstra'
 import { SetoranKoreksi } from '@/components/siswa/SetoranKoreksi'
 import { HadirEkstra } from '@/components/ekstra/HadirEkstra'
 import { TanggalPertemuan } from '@/components/ekstra/TanggalPertemuan'
-import { SetorLuarEkstra, type BarisLuar } from '@/components/ekstra/SetorLuarEkstra'
+import { SetorLuarEkstra, type BarisLuar, type SuratLuar } from '@/components/ekstra/SetorLuarEkstra'
+import { getInfoSurat } from '@/lib/data/nama-surat'
+import { LABEL_STATUS_TAHSIN } from '@/lib/rq/status-tahsin'
 import { getMetodeLuar, getPesertaLuar, ringkasSetoranLuar } from '@/lib/data/ekstra-luar'
 import { LaporanEkstra, rentangBulan } from '@/components/ekstra/LaporanEkstra'
 import { cn } from '@/lib/utils'
@@ -46,10 +48,11 @@ export default async function GuruEkstraPage({ searchParams }: { searchParams: P
   const namaPeserta = (id: string) => peserta.filter(p => p.slot_id === id).map(p => p.nama_anak.split(' ').slice(0, 2).join(' ')).join(', ')
   const materiHariIni = materi?.materi.find(m => m.tanggal === tanggal)?.deskripsi ?? ''
   // Peserta non-LHI (0122): setoran tahsinnya disimpan di data peserta ekstra sendiri.
-  const anggotaLuar = materiBidang || bidang === 'tahfidz' ? [] : anggota.filter(p => p.asal === 'luar')
-  const [luar, metode] = anggotaLuar.length
-    ? await Promise.all([getPesertaLuar(anggotaLuar.map(p => p.id), tanggal), getMetodeLuar()])
-    : [null, []]
+  const anggotaLuar = materiBidang ? [] : anggota.filter(p => p.asal === 'luar')
+  const [luar, metode, infoSurat] = anggotaLuar.length
+    ? await Promise.all([getPesertaLuar(anggotaLuar.map(p => p.id), tanggal), getMetodeLuar(), getInfoSurat()])
+    : [null, [], new Map<number, { name_latin: string; total_ayat: number }>()]
+  const suratLuar: SuratLuar[] = [...infoSurat.entries()].sort((a, b) => a[0] - b[0]).map(([id, s]) => ({ id, nama: s.name_latin, ayat: s.total_ayat }))
   const barisLuar: BarisLuar[] = anggotaLuar.map(p => {
     const d = luar?.peserta.get(p.id)
     return {
@@ -58,7 +61,13 @@ export default async function GuruEkstraPage({ searchParams }: { searchParams: P
       absen: (awal[p.id] ?? 'hadir') !== 'hadir',
       posisi: d?.posisi ?? { method_id: null, jilid_id: null, halaman: null },
       teksPosisi: d?.teksPosisi ?? 'Belum ditempatkan',
-      hariIni: (d?.setoran ?? []).filter(s => s.tanggal === tanggal).map(s => ({ id: s.id, ringkas: ringkasSetoranLuar(s), status: s.status })),
+      posisiTahfidz: d?.posisiTahfidz ?? null,
+      hariIni: [
+        ...(d?.setoran ?? []).filter(s => s.tanggal === tanggal)
+          .map(s => ({ id: s.id, jenis: 'tahsin' as const, teks: `Tahsin ${ringkasSetoranLuar(s)} · ${LABEL_STATUS_TAHSIN[s.status]}` })),
+        ...(d?.setoranTahfidz ?? []).filter(s => s.tanggal === tanggal)
+          .map(s => ({ id: s.id, jenis: 'tahfidz' as const, teks: `${s.jenis === 'ziyadah' ? 'Ziyadah' : 'Muroja’ah'} ${s.ringkas}` })),
+      ],
     }
   })
 
@@ -103,7 +112,7 @@ export default async function GuruEkstraPage({ searchParams }: { searchParams: P
                       <p className="text-sm text-muted-foreground">Belum ada peserta aktif.</p>
                     ) : (
                       <HadirEkstra key={`${aktif.id}|${tanggal}`} slotId={aktif.id} tanggal={tanggal}
-                        peserta={anggota.map(p => ({ id: p.id, nama: p.nama_anak, ket: p.asal === 'lhi' ? (p.student_id ? 'Siswa LHI' : 'Siswa LHI · belum ditautkan koordinator') : 'Non LHI · setoran tahsin di bawah' }))}
+                        peserta={anggota.map(p => ({ id: p.id, nama: p.nama_anak, ket: p.asal === 'lhi' ? (p.student_id ? 'Siswa LHI' : 'Siswa LHI · belum ditautkan koordinator') : 'Non LHI · setoran di bawah' }))}
                         awal={awal} />
                     )}
                   </div>
@@ -155,14 +164,15 @@ export default async function GuruEkstraPage({ searchParams }: { searchParams: P
                   </div>
                   {anggotaLuar.length > 0 && (
                     <div className="mt-5 border-t pt-4">
-                      <h3 className="text-sm font-bold">Peserta non-LHI · setoran tahsin</h3>
+                      <h3 className="text-sm font-bold">Peserta non-LHI</h3>
                       <p className="mb-2 mt-0.5 text-xs text-muted-foreground">
                         Tersimpan di data peserta ekstra, terpisah dari data siswa LHI. Posisi mengikuti setoran terbaru.
                       </p>
                       {luar && !luar.tabelAda ? (
                         <p className="text-sm text-muted-foreground">Fitur ini belum aktif — minta admin menjalankan migrasi 0122.</p>
                       ) : (
-                        <SetorLuarEkstra key={`${aktif.id}|${tanggal}`} slotId={aktif.id} tanggal={tanggal} peserta={barisLuar} metode={metode} />
+                        <SetorLuarEkstra key={`${aktif.id}|${tanggal}`} slotId={aktif.id} tanggal={tanggal} peserta={barisLuar} metode={metode}
+                          surat={suratLuar} tahsin={bidang !== 'tahfidz'} tahfidz={bidang !== 'tahsin'} tahfidzAda={luar?.tahfidzAda ?? true} />
                       )}
                     </div>
                   )}
