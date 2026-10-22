@@ -1,13 +1,14 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import { AlertCircle, ChevronRight, Search } from 'lucide-react'
+import { ChevronRight, Search } from 'lucide-react'
 import { getSession } from '@/lib/auth/session'
 import { canManageEkstra, JENJANG_LABELS } from '@/lib/auth/permissions'
 import { createServerClient } from '@/lib/supabase/server'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { EkstraSubNav, MigrasiEkstra } from '@/components/ekstra/EkstraSubNav'
 import { hrefDengan } from '@/components/dashboard/kit'
-import { getBookingEkstra, getDataEkstra, getHadirEkstra, hariIniWIB, hitungSetoranEkstra, kunciOrang, labelSlot, type BookingEkstra } from '@/lib/data/ekstra'
+import { TautkanBelumTertaut, type BelumTertaut } from '@/components/ekstra/TautkanBelumTertaut'
+import { getBookingEkstra, getCalonSiswa, getDataEkstra, getHadirEkstra, hariIniWIB, hitungSetoranEkstra, kunciOrang, labelSlot, type BookingEkstra } from '@/lib/data/ekstra'
 import type { Jenjang } from '@/types'
 import { cn } from '@/lib/utils'
 
@@ -82,7 +83,17 @@ export default async function SiswaEkstraPage({ searchParams }: {
   const guruDipakai = [...new Map(data.slot.filter(s => booking.some(b => b.slot_id === s.id)).map(s => [s.teacher_id, s.guru ?? '—'])).entries()]
     .sort((a, b) => a[1].localeCompare(b[1], 'id'))
   // Siswa LHI aktif yang belum tertaut — guru belum bisa mencatat setorannya.
-  const belumTertaut = booking.filter(b => b.status === 'aktif' && b.asal === 'lhi' && !b.student_id)
+  // Calon data siswanya disiapkan di sini supaya bisa langsung ditautkan dari banner.
+  const belumTertaut: BelumTertaut[] = await Promise.all(booking
+    .filter(b => b.status === 'aktif' && b.asal === 'lhi' && !b.student_id)
+    .map(async b => {
+      const sl = b.slot_id ? slotById.get(b.slot_id) : undefined
+      return {
+        id: b.id, nama: b.nama_anak, kelas: b.kelas,
+        halaqoh: sl ? `${jenisById.get(b.jenis_id)?.nama ?? 'Ekstra'} · ${sl.guru} · ${labelSlot(sl)}` : '',
+        calon: await getCalonSiswa(b.nama_anak, b.kelas),
+      }
+    }))
 
   const pill = (label: string, on: boolean, href: string, n?: number) => (
     <Link key={label} href={href} aria-current={on ? 'page' : undefined}
@@ -106,18 +117,7 @@ export default async function SiswaEkstraPage({ searchParams }: {
 
         {!data.tabelAda ? <MigrasiEkstra /> : (
           <>
-            {belumTertaut.length > 0 && (
-              <div className="flex flex-wrap items-center gap-3 rounded-2xl bg-accent-warm-wash px-5 py-4">
-                <AlertCircle className="h-5 w-5 shrink-0 text-accent-warm" />
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-bold text-accent-warm">{belumTertaut.length} siswa LHI belum tertaut ke data siswa</p>
-                  <p className="text-sm">Guru belum bisa mencatat setoran mereka, dan capaian sekolahnya tidak ikut maju.</p>
-                </div>
-                <Link href={`/ekstra?status=aktif&id=${belumTertaut[0].id}`} className="inline-flex h-9 items-center rounded-xl bg-accent-warm px-4 text-sm font-bold text-white hover:opacity-90">
-                  Tautkan sekarang
-                </Link>
-              </div>
-            )}
+            {belumTertaut.length > 0 && <TautkanBelumTertaut daftar={belumTertaut} />}
 
             <div className="flex flex-wrap items-center gap-2">
               {pill('Semua', !asal, hrefDengan(PATH, param, { asal: undefined }), semua.length)}

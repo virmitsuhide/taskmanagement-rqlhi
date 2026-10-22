@@ -35,6 +35,7 @@ function segarkan() {
   revalidatePath('/ekstra/guru')
   revalidatePath('/')
   revalidatePath('/ekstra/halaqoh', 'layout')
+  revalidatePath('/ekstra/siswa', 'layout')
   revalidatePath('/ekstra/analitik')
   revalidatePath('/ekstra/atur')
   revalidatePath('/daftar-ekstra')
