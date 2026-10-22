@@ -19,7 +19,7 @@ const PATH = '/ekstra/halaqoh'
  * Pesertanya dibuka di halaman detail.
  */
 export default async function HalaqohEkstraPage({ searchParams }: {
-  searchParams: Promise<{ hari?: string; jenis?: string; q?: string; status?: string; tampil?: string }>
+  searchParams: Promise<{ hari?: string; jenis?: string; q?: string; status?: string; tampil?: string; isi?: string }>
 }) {
   const session = await getSession()
   if (!session) redirect('/login')
@@ -51,11 +51,14 @@ export default async function HalaqohEkstraPage({ searchParams }: {
   const hariAda = [1, 2, 3, 4, 5, 6, 7].filter(h => dasar.some(s => s.hari === h))
   const hari = Number(sp.hari)
   const hariDipilih = hariAda.includes(hari) ? hari : null
+  // ?isi=kosong: hanya halaqoh yang belum punya peserta aktif.
+  const hanyaKosong = sp.isi === 'kosong'
   const daftar = dasar.filter(s => !hariDipilih || s.hari === hariDipilih)
+    .filter(s => !hanyaKosong || s.peserta === 0)
     .sort((a, b) => a.hari - b.hari || a.jam_mulai.localeCompare(b.jam_mulai) || (a.guru ?? '').localeCompare(b.guru ?? ''))
 
   const papan = sp.tampil !== 'daftar'
-  const param = { hari: sp.hari, jenis: sp.jenis, q: sp.q, status: sp.status, tampil: sp.tampil }
+  const param = { hari: sp.hari, jenis: sp.jenis, q: sp.q, status: sp.status, tampil: sp.tampil, isi: sp.isi }
   const aktifDasar = dasar.filter(s => s.aktif)
   const ringkas = [
     { n: aktifDasar.length, l: 'halaqoh berjalan', c: '' },
@@ -105,6 +108,7 @@ export default async function HalaqohEkstraPage({ searchParams }: {
                 {sp.jenis && <input type="hidden" name="jenis" value={sp.jenis} />}
                 {sp.tampil && <input type="hidden" name="tampil" value={sp.tampil} />}
                 {sp.status && <input type="hidden" name="status" value={sp.status} />}
+                {sp.isi && <input type="hidden" name="isi" value={sp.isi} />}
                 <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
                 <input name="q" defaultValue={sp.q ?? ''} placeholder="Guru, tempat, atau nama peserta" aria-label="Cari halaqoh" className="min-w-0 flex-1 bg-transparent text-sm outline-none" />
               </form>
@@ -133,7 +137,15 @@ export default async function HalaqohEkstraPage({ searchParams }: {
 
 
             <div className="grid grid-cols-2 gap-y-3 rounded-2xl border bg-card py-4 sm:grid-cols-5">
-              {ringkas.map(r => (
+              {ringkas.map(r => r.l === 'belum ada peserta' ? (
+                <Link key={r.l} href={hrefDengan(PATH, param, { isi: hanyaKosong ? undefined : 'kosong' })} aria-current={hanyaKosong ? 'true' : undefined}
+                  className={cn('px-5 sm:border-l', hanyaKosong && 'rounded-lg bg-accent-warm-wash')}>
+                  <p className={cn('font-heading text-3xl leading-none tabular-nums', r.c)}>{r.n}</p>
+                  <p className="mt-1 text-xs font-semibold text-accent-warm underline-offset-2 hover:underline">
+                    {r.l} · {hanyaKosong ? 'tampilkan semua' : 'lihat'}
+                  </p>
+                </Link>
+              ) : (
                 <div key={r.l} className="px-5 sm:border-l sm:first:border-l-0">
                   <p className={cn('font-heading text-3xl leading-none tabular-nums', r.c)}>{r.n}</p>
                   <p className="mt-1 text-xs text-muted-foreground">{r.l}</p>
@@ -205,7 +217,9 @@ export default async function HalaqohEkstraPage({ searchParams }: {
                 </Link>
               </div>
               {daftar.length === 0 ? (
-                <p className="px-5 py-10 text-center text-sm text-muted-foreground">Tidak ada halaqoh ekstra yang cocok dengan saringan ini.</p>
+                <p className="px-5 py-10 text-center text-sm text-muted-foreground">
+                  {hanyaKosong ? 'Semua halaqoh ekstra yang berjalan sudah punya peserta.' : 'Tidak ada halaqoh ekstra yang cocok dengan saringan ini.'}
+                </p>
               ) : (
                 <ul className="divide-y">
                   {daftar.map(s => {

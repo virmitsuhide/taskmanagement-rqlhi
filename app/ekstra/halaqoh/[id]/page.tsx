@@ -8,6 +8,7 @@ import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { EkstraSubNav } from '@/components/ekstra/EkstraSubNav'
 import { FormSlotEkstra } from '@/components/ekstra/FormEkstra'
 import { AksiPesertaEkstra } from '@/components/ekstra/AksiPesertaEkstra'
+import { TambahPesertaEkstra } from '@/components/ekstra/TambahPesertaEkstra'
 import { Panel } from '@/components/dashboard/kit'
 import { bolehGuruEkstra, getCalonSiswa, getDataEkstra, getGuruEkstra, getHalaqohEkstra, HARI_PENDEK, labelSlot, nomorWa, rupiah, type StatusHadirEkstra } from '@/lib/data/ekstra'
 import { cn } from '@/lib/utils'
@@ -104,10 +105,11 @@ export default async function DetailHalaqohEkstraPage({ params }: { params: Prom
                 <h2 className="font-heading text-xl">Peserta</h2>
                 <p className="text-xs text-muted-foreground">Hadir &amp; setoran: {bulan} · setoran hanya untuk siswa LHI yang tertaut</p>
               </div>
+              {slot.aktif && <TambahPesertaEkstra slotId={slot.id} sisa={slot.kuotaEfektif - slot.peserta} />}
             </div>
             {peserta.length === 0 ? (
               <p className="px-5 py-10 text-center text-sm text-muted-foreground">
-                Belum ada peserta. Masukkan dari kotak masuk <Link href="/ekstra" className="font-medium text-primary hover:underline">Booking</Link>.
+                Belum ada peserta. Klik <b>Tambah peserta</b> di atas, atau masukkan dari kotak masuk <Link href="/ekstra" className="font-medium text-primary hover:underline">Booking</Link>.
               </p>
             ) : (
               <ul className="divide-y">

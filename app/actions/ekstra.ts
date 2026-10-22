@@ -316,6 +316,62 @@ export async function pindahHalaqohEkstraAction(id: string, slotId: string): Pro
   return { success: true }
 }
 
+/**
+ * Koordinator menambah peserta langsung ke halaqoh ekstra yang sudah ada, tanpa
+ * booking orang tua: siswa LHI dipilih dari data siswa (kelas & wali ikut
+ * terisi), non LHI cukup diketik namanya. Disimpan sebagai booking berstatus
+ * aktif supaya kehadiran, setoran, dan laporan tetap satu jalur.
+ */
+export async function tambahPesertaEkstraAction(slotId: string, isian: {
+  studentId: string | null
+  namaAnak: string
+  kelas: string
+  namaOrtu: string
+  waOrtu: string
+}): Promise<Hasil> {
+  const k = await koordinator()
+  if ('error' in k) return { error: k.error }
+  const supabase = createServerClient()
+  const { data: s } = await supabase.from('ekstra_slot').select('id, jenis_id, aktif').eq('id', slotId).maybeSingle()
+  const slot = s as { id: string; jenis_id: string; aktif: boolean } | null
+  if (!slot) return { error: 'Halaqoh ekstra tidak ditemukan.' }
+  if (!slot.aktif) return { error: 'Halaqoh ini nonaktif. Aktifkan dulu lewat Data halaqoh.' }
+  if (await slotPenuh(slotId)) return { error: 'Kuota halaqoh ini sudah penuh. Naikkan kuotanya lebih dulu.' }
+
+  let namaAnak = isian.namaAnak.trim().slice(0, 120)
+  let kelas = isian.kelas.trim().slice(0, 40)
+  let namaOrtu = isian.namaOrtu.trim().slice(0, 120)
+  let wa = isian.waOrtu.replace(/[^\d+]/g, '').slice(0, 20)
+
+  if (isian.studentId) {
+    const { data: st } = await supabase.from('students')
+      .select('id, full_name, kelas, wali_name, wali_phone').eq('id', isian.studentId).eq('is_active', true).maybeSingle()
+    const siswa = st as { id: string; full_name: string; kelas: string | null; wali_name: string | null; wali_phone: string | null } | null
+    if (!siswa) return { error: 'Data siswa tidak ditemukan atau sudah tidak aktif.' }
+    const { data: ada } = await supabase.from('ekstra_booking').select('id')
+      .eq('slot_id', slotId).eq('student_id', siswa.id).eq('status', 'aktif').limit(1)
+    if ((ada ?? []).length) return { error: `${siswa.full_name} sudah menjadi peserta halaqoh ini.` }
+    namaAnak = siswa.full_name
+    kelas = kelas || (siswa.kelas ?? '')
+    namaOrtu = namaOrtu || (siswa.wali_name ?? '')
+    wa = wa || (siswa.wali_phone ?? '').replace(/[^\d+]/g, '')
+  }
+  if (namaAnak.length < 3) return { error: 'Nama peserta minimal 3 huruf.' }
+  // WA boleh kosong (diisi belakangan), tetapi bila diisi harus nomor yang valid.
+  if (wa && !/^(\+?62|0)8\d{7,12}$/.test(wa)) return { error: 'Nomor WhatsApp tidak valid (contoh 08123456789), atau kosongkan.' }
+
+  const kini = new Date().toISOString()
+  const { error } = await supabase.from('ekstra_booking').insert({
+    jenis_id: slot.jenis_id, slot_id: slotId, status: 'aktif',
+    nama_anak: namaAnak, asal: isian.studentId ? 'lhi' : 'luar', student_id: isian.studentId,
+    kelas, nama_ortu: namaOrtu, wa_ortu: wa, catatan_koor: 'Ditambahkan langsung oleh koordinator',
+    mulai: hariIniWIB(), ditangani_oleh: k.session.userId, ditangani_at: kini, updated_at: kini,
+  })
+  if (error) return { error: 'Gagal menambah peserta.' }
+  segarkan()
+  return { success: true }
+}
+
 export async function tautkanSiswaEkstraAction(id: string, studentId: string | null): Promise<Hasil> {
   const k = await koordinator()
   if ('error' in k) return { error: k.error }
