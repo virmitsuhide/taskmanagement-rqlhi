@@ -37,14 +37,14 @@ export function LembarLaporanOrtu({ l }: { l: LaporanOrtu }) {
           </div>
         </div>
         <dl className="text-[11px] leading-relaxed sm:shrink-0 sm:text-right">
-          <div><dt className="inline text-muted-foreground">Sesi: </dt><dd className="inline font-semibold">{l.sesi.nama}</dd></div>
+          <div><dt className="inline text-muted-foreground">{l.sesi.ekstra ? 'Ekstra' : 'Sesi'}: </dt><dd className="inline font-semibold">{l.sesi.nama}</dd></div>
           <div><dt className="inline text-muted-foreground">Pengampu: </dt><dd className="inline font-semibold">{l.guru.nama}</dd></div>
           <div><dt className="inline text-muted-foreground">Periode: </dt><dd className="inline font-semibold">{l.periode.label}</dd></div>
         </dl>
       </header>
 
       {l.anak.length === 0 ? (
-        <p className="py-8 text-center text-sm text-muted-foreground">Sesi ini belum berisi siswa aktif.</p>
+        <p className="py-8 text-center text-sm text-muted-foreground">{l.sesi.ekstra ? 'Kelompok ekstra ini belum berisi siswa LHI yang tertaut.' : 'Sesi ini belum berisi siswa aktif.'}</p>
       ) : (
         <>
           {/* Ringkasan */}
@@ -78,7 +78,7 @@ export function LembarLaporanOrtu({ l }: { l: LaporanOrtu }) {
           </table>
           <p className="mt-2 text-[10px] leading-snug text-muted-foreground">
             <b>Posisi</b> = capaian terakhir per tanggal cetak (tahsin: halaman terakhir yang lulus). <b>(+…)</b> = tambahan selama periode ini.
-            Setor = hari Ananda setor dari seluruh hari pertemuan sesi. Halaman tahfidz dalam halaman mushaf Madinah.
+            Setor = hari Ananda setor dari seluruh hari pertemuan {l.sesi.ekstra ? 'ekstra' : 'sesi'}. Halaman tahfidz dalam halaman mushaf Madinah.
           </p>
 
           {/* Penutup */}

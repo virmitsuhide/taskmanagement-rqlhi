@@ -75,7 +75,8 @@ export interface AnakLaporan {
 }
 
 export interface LaporanOrtu {
-  sesi: { id: string; nama: string; jenjang?: string }
+  /** `ekstra` = laporan satu kelompok ekstra (0091): hanya setoran pertemuan ekstranya. */
+  sesi: { id: string; nama: string; jenjang?: string; ekstra?: boolean }
   guru: { nama: string; ttdUrl: string | null }
   periode: PeriodeLaporan
   /** Hari yang ada setoran di sesi ini — bukan hari kalender, supaya libur tidak terbaca bolos. */
@@ -296,7 +297,7 @@ export function teksWaLaporanOrtu(l: LaporanOrtu, opsi: OpsiPesan): string {
   const baris: string[] = [
     "Assalamu'alaikum warahmatullahi wabarakatuh 🌿",
     '',
-    `Ayah/Bunda yang dirahmati Allah, berikut laporan capaian pembelajaran Al-Qur'an Ananda di *${l.sesi.nama}* pada *${l.periode.label}*.`,
+    `Ayah/Bunda yang dirahmati Allah, berikut laporan capaian pembelajaran Al-Qur'an Ananda di *${l.sesi.ekstra ? `ekstra ${l.sesi.nama}` : l.sesi.nama}* pada *${l.periode.label}*.`,
     '',
     '📊 *Ringkasan*',
   ]

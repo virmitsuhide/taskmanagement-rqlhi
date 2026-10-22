@@ -1,4 +1,4 @@
-import { idSetoranEkstra } from '@/lib/data/ekstra'
+import { getDataEkstra, idSetoranEkstra, labelSlot } from '@/lib/data/ekstra'
 import { getHasilMateriPerSiswa, getMateriPerJilid } from '@/lib/data/materi-tahsin'
 import { createServerClient } from '@/lib/supabase/server'
 import { getSesiPelaporGuru, halamanDrill, idHalaqohSesi, type HalaqohSesi } from '@/lib/data/setoran-sesi'
@@ -61,17 +61,47 @@ export async function getSesiGuruLaporan(teacherId: string): Promise<HalaqohSesi
   return getSesiPelaporGuru(teacherId)
 }
 
-export async function getLaporanOrtu(
+/**
+ * Asal laporan: satu sesi halaqoh (anak = anggota halaqoh, setoran ekstra
+ * disisihkan), atau satu kelompok ekstra (anak = peserta LHI yang tertaut,
+ * HANYA setoran yang ditandai kelompok itu, tanpa ujian sekolah).
+ */
+type SumberLaporan =
+  | { jenis: 'halaqoh'; halaqoh: HalaqohSesi }
+  | { jenis: 'ekstra'; slotId: string; nama: string; siswa: string[] }
+
+export async function getLaporanOrtu(teacherId: string, halaqoh: HalaqohSesi, periode: PeriodeLaporan): Promise<LaporanOrtu> {
+  return susunLaporan(teacherId, { jenis: 'halaqoh', halaqoh }, periode)
+}
+
+/**
+ * Laporan orang tua satu kelompok ekstra. Null bila kelompoknya tidak ada.
+ * `teacherId` = penanda tangan; kepemilikan kelompok diperiksa pemanggil.
+ */
+export async function getLaporanOrtuEkstra(teacherId: string, slotId: string, periode: PeriodeLaporan): Promise<LaporanOrtu | null> {
+  const { slot } = await getDataEkstra()
+  const s = slot.find(x => x.id === slotId)
+  if (!s) return null
+  const { data } = await createServerClient().from('ekstra_booking').select('student_id')
+    .eq('slot_id', slotId).eq('status', 'aktif').not('student_id', 'is', null)
+  const siswa = [...new Set(((data ?? []) as { student_id: string }[]).map(b => b.student_id))]
+  return susunLaporan(teacherId, { jenis: 'ekstra', slotId, nama: `${s.jenis?.nama ?? 'Ekstra'} · ${labelSlot(s)}`, siswa }, periode)
+}
+
+async function susunLaporan(
   teacherId: string,
-  halaqoh: HalaqohSesi,
+  sumber: SumberLaporan,
   periode: PeriodeLaporan,
 ): Promise<LaporanOrtu> {
   const supabase = createServerClient()
-  const { data: siswaRows } = await supabase
+  const slotEkstra = sumber.jenis === 'ekstra' ? sumber.slotId : null
+  const qSiswa = supabase
     .from('students')
     .select('id, full_name, kelas, jenjang, current_jilid_id, current_jilid_page, current_quran_halaman, tahsin_drill_sejak,' +
       ' jilid:jilid_levels!students_current_jilid_id_fkey(label, total_pages, is_terminal)')
-    .in('halaqoh_id', idHalaqohSesi(halaqoh))
+  const { data: siswaRows } = await (sumber.jenis === 'halaqoh'
+    ? qSiswa.in('halaqoh_id', idHalaqohSesi(sumber.halaqoh))
+    : qSiswa.in('id', sumber.siswa.length ? sumber.siswa : ['00000000-0000-0000-0000-000000000000']))
     .eq('is_active', true)
     .order('full_name')
   const siswa = (siswaRows ?? []) as unknown as {
@@ -94,12 +124,17 @@ export async function getLaporanOrtu(
 
   const [guruRes, tahsinSemua, tahfidzSemua, ziyadahSemua, progres, juzTeruji, ujianTf, ujianTs, peta, surat, logEkstra, materiPerJilid, hasilMateri, drill] = await Promise.all([
     supabase.from('teachers').select('full_name, sapaan, nickname, signature_path').eq('id', teacherId).maybeSingle(),
-    ids.length ? ambilSemua<LogTahsin>((a, b) =>
-      supabase.from('tahsin_logs').select('id, student_id, setoran_date, created_at, status, drill, halaman, baris_dari, baris_ke, jilid_id')
-        .in('student_id', ids).gte('setoran_date', periode.dari).lte('setoran_date', periode.sampai).range(a, b)) : kosong<LogTahsin>(),
-    ids.length ? ambilSemua<LogTahfidz>((a, b) =>
-      supabase.from('tahfidz_logs').select('id, student_id, setoran_date, created_at, kind, surat_id, ayat_dari, surat_ke_id, ayat_ke')
-        .in('student_id', ids).gte('setoran_date', periode.dari).lte('setoran_date', periode.sampai).range(a, b)) : kosong<LogTahfidz>(),
+    // Laporan ekstra: hanya setoran pertemuan kelompok itu.
+    ids.length ? ambilSemua<LogTahsin>((a, b) => {
+      const q = supabase.from('tahsin_logs').select('id, student_id, setoran_date, created_at, status, drill, halaman, baris_dari, baris_ke, jilid_id')
+        .in('student_id', ids).gte('setoran_date', periode.dari).lte('setoran_date', periode.sampai)
+      return (slotEkstra ? q.eq('ekstra_slot_id', slotEkstra) : q).range(a, b)
+    }) : kosong<LogTahsin>(),
+    ids.length ? ambilSemua<LogTahfidz>((a, b) => {
+      const q = supabase.from('tahfidz_logs').select('id, student_id, setoran_date, created_at, kind, surat_id, ayat_dari, surat_ke_id, ayat_ke')
+        .in('student_id', ids).gte('setoran_date', periode.dari).lte('setoran_date', periode.sampai)
+      return (slotEkstra ? q.eq('ekstra_slot_id', slotEkstra) : q).range(a, b)
+    }) : kosong<LogTahfidz>(),
     // Setoran ziyadah terakhir sepanjang masa — posisi hafalan hari ini.
     ids.length ? ambilSemua<Ziyadah>((a, b) =>
       supabase.from('tahfidz_logs').select('student_id, surat_id, ayat_dari, ayat_ke, setoran_date, created_at')
@@ -108,17 +143,19 @@ export async function getLaporanOrtu(
     ids.length ? ambilSemua<BarisJuzProgress>((a, b) =>
       supabase.from('juz_progress').select('student_id, juz_number, ayat_hafal, mutqin').in('student_id', ids).range(a, b)) : kosong<BarisJuzProgress>(),
     getJuzTerujiPerSiswa(ids),
-    ids.length
+    // Ujian milik halaqoh sekolah — tidak dilaporkan di laporan ekstra.
+    ids.length && !slotEkstra
       ? supabase.from('ujian_tahfidz').select('student_id, tipe, juz, predikat')
           .in('student_id', ids).eq('status', 'selesai').gte('jadwal', waktuDari).lt('jadwal', waktuSampai)
       : Promise.resolve({ data: [] }),
     // Ujian tahsin menyimpan pesertanya di larik JSON — disaring per anak di bawah.
-    supabase.from('ujian_tahsin').select('level, siswa').eq('status', 'selesai')
+    slotEkstra ? Promise.resolve({ data: [] }) : supabase.from('ujian_tahsin').select('level, siswa').eq('status', 'selesai')
       .gte('jadwal', waktuDari).lt('jadwal', waktuSampai),
     getPetaHalaman(),
     getInfoSurat(),
     // Setoran pertemuan ekstra (0091) masuk laporan ekstra, bukan laporan halaqoh.
-    idSetoranEkstra(ids, periode.dari, periode.sampai),
+    // Di laporan ekstra justru setoran itulah isinya — tidak ada yang disisihkan.
+    slotEkstra ? Promise.resolve({ tahsin: new Set<string>(), tahfidz: new Set<string>() }) : idSetoranEkstra(ids, periode.dari, periode.sampai),
     // Gharib/Tajwid disetor per materi — halaman lulusnya dibaca dari materi.
     getMateriPerJilid(siswa.map(s => s.current_jilid_id ?? '')),
     getHasilMateriPerSiswa(ids),
@@ -269,7 +306,9 @@ export async function getLaporanOrtu(
   })
 
   return {
-    sesi: { id: halaqoh.id, nama: halaqoh.name, jenjang: halaqoh.jenjang },
+    sesi: sumber.jenis === 'halaqoh'
+      ? { id: sumber.halaqoh.id, nama: sumber.halaqoh.name, jenjang: sumber.halaqoh.jenjang }
+      : { id: sumber.slotId, nama: sumber.nama, ekstra: true },
     guru: {
       nama: sapaanName(guru?.sapaan, guru?.nickname, guru?.full_name ?? ''),
       ttdUrl,

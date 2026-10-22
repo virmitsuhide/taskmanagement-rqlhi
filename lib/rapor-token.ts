@@ -50,8 +50,8 @@ export async function verifyRaporToken(token: string): Promise<RaporTokenPayload
  * `tid` = guru yang membagikan. Laporan ditandatangani atas namanya, jadi
  * penandatangannya ikut dibekukan bersama tanggalnya.
  */
-export interface LaporanTokenPayload {
-  hid: string   // halaqoh id
+export type LaporanTokenPayload = ({ hid: string } | { eid: string }) & {
+  // hid = halaqoh id (laporan sesi), eid = ekstra_slot id (laporan kelompok ekstra)
   tid: string   // teacher id — penanda tangan laporan
   d: string     // dari, YYYY-MM-DD
   s: string     // sampai, YYYY-MM-DD
@@ -68,9 +68,11 @@ export async function verifyLaporanToken(token: string): Promise<LaporanTokenPay
   try {
     const { payload } = await jwtVerify(token, getSecret())
     if (payload.kind !== 'laporan') return null
-    const { hid, tid, d, s } = payload as unknown as LaporanTokenPayload & { kind: string }
-    if (!hid || !tid || !d || !s) return null
-    return { hid, tid, d, s }
+    const { hid, eid, tid, d, s } = payload as unknown as { hid?: string; eid?: string; tid: string; d: string; s: string }
+    if (!tid || !d || !s) return null
+    if (eid) return { eid, tid, d, s }
+    if (hid) return { hid, tid, d, s }
+    return null
   } catch {
     return null
   }

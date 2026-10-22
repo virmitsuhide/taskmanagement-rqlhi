@@ -3,7 +3,7 @@ import type { Metadata } from 'next'
 import { Lora } from 'next/font/google'
 import { verifyLaporanToken } from '@/lib/rapor-token'
 import { createServerClient } from '@/lib/supabase/server'
-import { getLaporanOrtu } from '@/lib/data/laporan-ortu'
+import { getLaporanOrtu, getLaporanOrtuEkstra } from '@/lib/data/laporan-ortu'
 import { rentangLaporan, type LaporanOrtu } from '@/lib/rq/laporan-ortu'
 import { LembarLaporanOrtu } from '@/components/rapor/LembarLaporanOrtu'
 import { LaporanHP } from './LaporanHP'
@@ -26,13 +26,15 @@ async function muat(token: string): Promise<LaporanOrtu | null> {
   const isi = await verifyLaporanToken(token)
   if (!isi) return null
 
+  // Tanggal dibekukan di token; 'rentang' memakainya apa adanya.
+  const periode = rentangLaporan('rentang', isi.s, { dari: isi.d, sampai: isi.s })
+  // Laporan kelompok ekstra (0091).
+  if ('eid' in isi) return getLaporanOrtuEkstra(isi.tid, isi.eid, periode)
+
   const supabase = createServerClient()
   const { data: halaqoh } = await supabase
     .from('halaqoh').select('id, name, sesi, jenjang').eq('id', isi.hid).maybeSingle()
   if (!halaqoh) return null
-
-  // Tanggal dibekukan di token; 'rentang' memakainya apa adanya.
-  const periode = rentangLaporan('rentang', isi.s, { dari: isi.d, sampai: isi.s })
   return getLaporanOrtu(isi.tid, halaqoh as HalaqohSesi, periode)
 }
 
@@ -73,7 +75,7 @@ export default async function LaporanPublikPage({ params }: PageProps) {
           <LembarLaporanOrtu l={laporan} />
         </div>
         <p className="mt-6 text-center text-xs text-muted-foreground print:hidden">
-          Laporan digital Rumah Qur&apos;an LHI · Dibagikan oleh pengampu sesi.
+          Laporan digital Rumah Qur&apos;an LHI · Dibagikan oleh pengampu {laporan.sesi.ekstra ? 'ekstra' : 'sesi'}.
         </p>
       </div>
     </div>

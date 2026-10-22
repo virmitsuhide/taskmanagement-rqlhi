@@ -28,7 +28,7 @@ export function LaporanHP({ l }: { l: LaporanOrtu }) {
           </p>
         </div>
         <dl className="mt-3 grid grid-cols-[88px_minmax(0,1fr)] gap-x-3 gap-y-1 text-sm">
-          <dt className="text-white/70">Sesi</dt><dd className="font-bold">{l.sesi.nama}</dd>
+          <dt className="text-white/70">{l.sesi.ekstra ? 'Ekstra' : 'Sesi'}</dt><dd className="font-bold">{l.sesi.nama}</dd>
           <dt className="text-white/70">Pengampu</dt><dd className="font-bold">{l.guru.nama}</dd>
           <dt className="text-white/70">Periode</dt><dd className="font-bold">{l.periode.label}</dd>
         </dl>
@@ -70,7 +70,7 @@ export function LaporanHP({ l }: { l: LaporanOrtu }) {
             <summary className="cursor-pointer font-bold">Cara membaca laporan</summary>
             <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
               <b>Posisi</b> = capaian terakhir per tanggal cetak (tahsin: halaman terakhir yang lulus). <b>(+…)</b> = tambahan selama periode ini.
-              Setor = hari Ananda setor dari seluruh hari pertemuan sesi. Halaman tahfidz dalam halaman mushaf Madinah.
+              Setor = hari Ananda setor dari seluruh hari pertemuan {l.sesi.ekstra ? 'ekstra' : 'sesi'}. Halaman tahfidz dalam halaman mushaf Madinah.
             </p>
           </details>
 

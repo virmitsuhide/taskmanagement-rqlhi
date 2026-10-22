@@ -1,7 +1,10 @@
+import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { getTeacherSession } from '@/lib/auth/teacher-session'
 import { hanyaGuruTahsin } from '@/lib/data/teacher'
-import { getLaporanOrtu, getSesiGuruLaporan } from '@/lib/data/laporan-ortu'
+import { getLaporanOrtu, getLaporanOrtuEkstra, getSesiGuruLaporan } from '@/lib/data/laporan-ortu'
+import { getSlotGuru, labelSlot, type SlotEkstra } from '@/lib/data/ekstra'
+import { cn } from '@/lib/utils'
 import { pilihHalaqoh } from '@/lib/data/setoran-sesi'
 import { rentangLaporan, type PresetPeriode } from '@/lib/rq/laporan-ortu'
 import { tanggalWIB } from '@/lib/rq/ujian'
@@ -11,7 +14,7 @@ import { PesanWaLaporanOrtu, TombolUnduhPdf, TombolUnduhPng } from '@/components
 import { LembarLaporanOrtu } from '@/components/rapor/LembarLaporanOrtu'
 
 interface PageProps {
-  searchParams: Promise<{ sesi?: string; p?: string; dari?: string; sampai?: string }>
+  searchParams: Promise<{ sesi?: string; ekstra?: string; p?: string; dari?: string; sampai?: string }>
 }
 
 const PATH = '/guru/laporan-ortu'
@@ -30,26 +33,49 @@ const PRESET: { kode: PresetPeriode; label: string }[] = [
 export default async function LaporanOrtuPage({ searchParams }: PageProps) {
   const session = await getTeacherSession()
   if (!session) redirect('/guru/login')
-  // Rapor & laporan ortu dikirim guru tahfidz; guru khusus tahsin (SMA) tidak.
-  if (await hanyaGuruTahsin(session.teacherId)) redirect('/guru')
 
   const sp = await searchParams
-  const semuaSesi = await getSesiGuruLaporan(session.teacherId)
-  const sesi = pilihHalaqoh(semuaSesi, sp.sesi)
+  // Rapor & laporan ortu sesi dikirim guru tahfidz; guru khusus tahsin (SMA) tidak.
+  const [hanyaTahsin, ekstra] = await Promise.all([hanyaGuruTahsin(session.teacherId), getSlotGuru(session.teacherId)])
+  // Kelompok ekstra yang diampu — satu tab masing-masing. Ekstra bidang materi
+  // tidak punya setoran, jadi tidak punya laporan capaian.
+  const slotLapor = ekstra.slot.filter(s => s.jenis?.bidang !== 'materi')
+  if (hanyaTahsin && slotLapor.length === 0) redirect('/guru')
+  const semuaSesi = hanyaTahsin ? [] : await getSesiGuruLaporan(session.teacherId)
+  // Guru ekstra tanpa halaqoh sekolah langsung membuka kelompok ekstra pertamanya.
+  const ekstraDipilih = slotLapor.find(s => s.id === sp.ekstra) ?? (semuaSesi.length === 0 ? slotLapor[0] : undefined)
+  const sesi = ekstraDipilih ? null : pilihHalaqoh(semuaSesi, sp.sesi)
   const preset: PresetPeriode = PRESET.some(x => x.kode === sp.p) ? (sp.p as PresetPeriode) : 'pekan'
   const periode = rentangLaporan(preset, tanggalWIB(new Date()), { dari: sp.dari, sampai: sp.sampai })
 
-  const params = { sesi: sesi?.id, p: preset, dari: preset === 'rentang' ? periode.dari : undefined, sampai: preset === 'rentang' ? periode.sampai : undefined }
+  const params = {
+    sesi: sesi?.id, ekstra: ekstraDipilih?.id, p: preset,
+    dari: preset === 'rentang' ? periode.dari : undefined, sampai: preset === 'rentang' ? periode.sampai : undefined,
+  }
   const href = (g: Record<string, string | undefined>) => hrefDengan(PATH, params, g)
 
-  const laporan = sesi ? await getLaporanOrtu(session.teacherId, sesi, periode) : null
+  const laporan = ekstraDipilih ? await getLaporanOrtuEkstra(session.teacherId, ekstraDipilih.id, periode)
+    : sesi ? await getLaporanOrtu(session.teacherId, sesi, periode) : null
 
   // Tautan publik untuk grup wali — tanggalnya dibekukan di dalam token, jadi
   // tautan "pekan ini" tetap menampilkan pekan ini meski dibuka bulan depan.
-  const tautan = sesi
+  const asal = ekstraDipilih ? { eid: ekstraDipilih.id } : sesi ? { hid: sesi.id } : null
+  const tautan = asal
     ? `${process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'}/laporan/${
-        await createLaporanToken({ hid: sesi.id, tid: session.teacherId, d: periode.dari, s: periode.sampai })}`
+        await createLaporanToken({ ...asal, tid: session.teacherId, d: periode.dari, s: periode.sampai })}`
     : ''
+
+  // Dua privat di jam yang sama (mis. kakak-adik) berlabel kembar — nama pesertanya membedakan.
+  const labelEkstra = (s: SlotEkstra) => `${s.jenis?.nama ?? 'Ekstra'} · ${labelSlot(s)}`
+  const kembar = new Set(slotLapor.map(labelEkstra).filter((l, i, a) => a.indexOf(l) !== i))
+  const tabEkstra = (s: SlotEkstra) => kembar.has(labelEkstra(s))
+    ? `${labelEkstra(s)} · ${ekstra.peserta.filter(p => p.slot_id === s.id).map(p => p.nama_anak.split(' ')[0]).join(', ')}`
+    : labelEkstra(s)
+  const tab = [
+    ...(semuaSesi.length > 0 ? [{ label: 'Pembelajaran Qur’an', href: href({ ekstra: undefined }), on: !ekstraDipilih }] : []),
+    ...slotLapor.map(s => ({ label: tabEkstra(s), href: href({ ekstra: s.id, sesi: undefined }), on: ekstraDipilih?.id === s.id })),
+  ]
+  const namaBerkas = laporan ? `Laporan Ortu - ${laporan.sesi.nama} - ${periode.label}` : ''
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--secondary)' }}>
@@ -64,7 +90,20 @@ export default async function LaporanOrtuPage({ searchParams }: PageProps) {
           </p>
         </div>
 
-        {!sesi ? (
+        {/* ── Tab: sesi halaqoh, lalu tiap kelompok ekstra yang diampu ── */}
+        {slotLapor.length > 0 && (
+          <nav aria-label="Jenis laporan" className="flex flex-wrap gap-2 print:hidden">
+            {tab.map(t => (
+              <Link key={t.href} href={t.href} aria-current={t.on ? 'page' : undefined}
+                className={cn('rounded-full border px-3.5 py-1.5 text-sm font-medium',
+                  t.on ? 'border-primary bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:text-foreground')}>
+                {t.label}
+              </Link>
+            ))}
+          </nav>
+        )}
+
+        {!sesi && !ekstraDipilih ? (
           <div className="rounded-xl border border-dashed bg-card py-10 text-center text-sm text-muted-foreground print:hidden">
             Anda belum mengampu halaqoh aktif.
           </div>
@@ -72,8 +111,14 @@ export default async function LaporanOrtuPage({ searchParams }: PageProps) {
           <>
             {/* ── Pilihan ── */}
             <div className="space-y-3 rounded-xl border bg-card p-4 print:hidden">
+              {ekstraDipilih && (
+                <p className="text-xs text-muted-foreground">
+                  Laporan ekstra hanya memuat setoran pertemuan ekstra ini, untuk peserta siswa LHI yang sudah ditautkan koordinator.
+                  Posisi tahsin &amp; hafalan tetap posisi terakhir anak.
+                </p>
+              )}
               <div className="flex flex-wrap items-end gap-x-4 gap-y-3">
-                {semuaSesi.length > 1 && (
+                {sesi && semuaSesi.length > 1 && (
                   <Slicer label="Sesi" options={semuaSesi.map(h => ({
                     // "Sesi 2" cukup membedakan halaqoh seorang guru; nama lengkap bila nomornya kosong/kembar.
                     label: h.sesi && semuaSesi.filter(x => x.sesi === h.sesi).length === 1 ? `Sesi ${h.sesi}` : h.name,
@@ -88,7 +133,8 @@ export default async function LaporanOrtuPage({ searchParams }: PageProps) {
               </div>
               {preset === 'rentang' && (
                 <form action={PATH} className="flex flex-wrap items-end gap-2 text-xs">
-                  <input type="hidden" name="sesi" value={sesi.id} />
+                  {sesi && <input type="hidden" name="sesi" value={sesi.id} />}
+                  {ekstraDipilih && <input type="hidden" name="ekstra" value={ekstraDipilih.id} />}
                   <input type="hidden" name="p" value="rentang" />
                   <label className="space-y-1">
                     <span className="block text-muted-foreground">Dari</span>
@@ -106,8 +152,8 @@ export default async function LaporanOrtuPage({ searchParams }: PageProps) {
               <div className="flex flex-wrap items-center justify-between gap-2 border-t pt-3">
                 <p className="text-sm"><span className="text-muted-foreground">Periode:</span> <b>{periode.label}</b></p>
                 <div className="flex flex-wrap gap-2">
-                  <TombolUnduhPng namaBerkas={`Laporan Ortu - ${sesi.name} - ${periode.label}`} />
-                  <TombolUnduhPdf namaBerkas={`Laporan Ortu - ${sesi.name} - ${periode.label}`} />
+                  <TombolUnduhPng namaBerkas={namaBerkas} />
+                  <TombolUnduhPdf namaBerkas={namaBerkas} />
                 </div>
               </div>
             </div>

@@ -152,7 +152,8 @@ export async function TeacherShell({ children }: { children: React.ReactNode }) 
         // Sebaran capaian seluruh halaqoh di unit guru — jumlah saja, tanpa nama siswa.
         { label: 'Capaian Unit', href: '/guru/capaian-unit', icon: <PieChart /> },
         // Laporan per SESI untuk grup wali; rapor per anak ada di halaman siswa.
-        ...(bolehLapor ? [{ label: 'Laporan Orang Tua', href: '/guru/laporan-ortu', icon: <FileText /> }] : []),
+        // Guru ekstra ikut: tiap kelompok ekstranya punya tab laporan sendiri.
+        ...(bolehLapor || pengampuEkstra ? [{ label: 'Laporan Orang Tua', href: '/guru/laporan-ortu', icon: <FileText /> }] : []),
         // Rapor semester memakai format yang ditetapkan koordinator (0082).
         ...(bolehLapor ? [{ label: 'Rapor Qur’an', href: '/guru/rapor-quran', icon: <ScrollText /> }] : []),
         ...(riyadhoh.length > 0 ? [{ label: 'Riyadhoh Sabtu', href: '/guru/riyadhoh', icon: <CalendarHeart /> }] : []),
