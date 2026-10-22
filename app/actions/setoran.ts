@@ -20,6 +20,7 @@ import {
 } from '@/lib/data/setoran-ganda'
 import type { TahsinStatus, TahfidzKind } from '@/types'
 import { tanggalWIB } from '@/lib/rq/ujian'
+import { recalcPosisi } from '@/lib/rq/hitung-ulang-setoran'
 import { BARIS_MAKS, statusTahsinSah } from '@/lib/rq/status-tahsin'
 
 /**
@@ -507,6 +508,19 @@ async function simpanSetoranTahsin(teacherId: string, input: InputSetoranTahsin)
         }
       })()
     : {}
+
+  /*
+    Setoran susulan (pertemuan lama yang baru diisi): sudah ada setoran yang
+    tanggalnya lebih baru, jadi posisi anak bukan hasil setoran ini. Posisi
+    diputar ulang dari seluruh riwayat menurut tanggal, supaya yang tampak
+    tetap posisi setoran terbaru — bukan ditimpa setoran lama.
+  */
+  const { data: lebihBaru } = await supabase.from('tahsin_logs').select('id')
+    .eq('student_id', studentId).gt('setoran_date', input.setoran_date).limit(1)
+  if ((lebihBaru ?? []).length > 0) {
+    await recalcPosisi(supabase, studentId)
+    return null
+  }
 
   await supabase
     .from('students')
