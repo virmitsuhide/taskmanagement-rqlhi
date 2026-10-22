@@ -7,6 +7,7 @@ import { getHadirEkstra, getSlotGuru, hariIniWIB, labelSlot } from '@/lib/data/e
 import { getPilihanJilidAwal, getSiswaSesiTahfidz, getSiswaSesiTahsin } from '@/lib/data/setoran-sesi'
 import { SetoranSesiTahfidz, type SuratPilihan } from '@/components/setoran/SetoranSesiTahfidz'
 import { SetoranSesiTahsin } from '@/components/setoran/SetoranSesiTahsin'
+import { TanggalPertemuan } from '@/components/ekstra/TanggalPertemuan'
 
 /**
  * Setoran pertemuan ekstra — formulir per sesi yang sama dengan halaqoh,
@@ -49,6 +50,9 @@ export default async function SetorEkstraPage({ searchParams }: { searchParams: 
           <p className="text-sm text-muted-foreground">
             {tanggalTeks} · {labelSlot(aktif)} · setoran ini memajukan capaian sekolah anak dan tercatat di laporan ekstra.
           </p>
+          {/* Setoran pertemuan yang terlewat: ganti tanggal di sini, kehadiran tanggal itu ikut dimuat ulang. */}
+          <TanggalPertemuan key={tanggal} href={`/guru/ekstra/setor?slot=${aktif.id}&jenis=${jenis}`} tanggal={tanggal} maks={hariIni}
+            keterangan="Untuk setoran lama, ganti tanggal ini." />
         </div>
 
         {ids.length === 0 ? (

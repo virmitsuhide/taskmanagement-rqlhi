@@ -78,7 +78,8 @@ export default async function GuruEkstraPage({ searchParams }: { searchParams: P
                 <section className="rounded-2xl border bg-card p-4 md:p-5">
                   <h2 className="font-heading text-xl">{aktif.jenis?.nama}</h2>
                   <p className="text-xs text-muted-foreground">{labelSlot(aktif)}{aktif.tempat ? ` · ${aktif.tempat}` : ''} · {anggota.length} peserta</p>
-                  <TanggalPertemuan key={`${aktif.id}|${tanggal}`} slotId={aktif.id} tanggal={tanggal} maks={hariIni} />
+                  <TanggalPertemuan key={`${aktif.id}|${tanggal}`} href={`/guru/ekstra?slot=${aktif.id}`} tanggal={tanggal} maks={hariIni}
+                    keterangan="Pertemuan yang terlewat: pilih tanggalnya dulu, lalu Setor." />
                   <div className="mt-4">
                     {anggota.length === 0 ? (
                       <p className="text-sm text-muted-foreground">Belum ada peserta aktif.</p>
