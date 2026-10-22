@@ -9,8 +9,9 @@ import { EkstraSubNav } from '@/components/ekstra/EkstraSubNav'
 import { FormSlotEkstra } from '@/components/ekstra/FormEkstra'
 import { AksiPesertaEkstra } from '@/components/ekstra/AksiPesertaEkstra'
 import { TambahPesertaEkstra } from '@/components/ekstra/TambahPesertaEkstra'
+import { getPesertaLuar } from '@/lib/data/ekstra-luar'
 import { Panel } from '@/components/dashboard/kit'
-import { bolehGuruEkstra, getCalonSiswa, getDataEkstra, getGuruEkstra, getHalaqohEkstra, HARI_PENDEK, labelSlot, nomorWa, rupiah, type StatusHadirEkstra } from '@/lib/data/ekstra'
+import { bolehGuruEkstra, getCalonSiswa, getDataEkstra, getGuruEkstra, getHalaqohEkstra, HARI_PENDEK, hariIniWIB, labelSlot, nomorWa, rupiah, type StatusHadirEkstra } from '@/lib/data/ekstra'
 import { cn } from '@/lib/utils'
 
 const HURUF: Record<StatusHadirEkstra, { h: string; k: string }> = {
@@ -51,6 +52,10 @@ export default async function DetailHalaqohEkstraPage({ params }: { params: Prom
   const calon = new Map(await Promise.all(peserta.filter(p => p.asal === 'lhi' && !p.student_id).map(async p => [
     p.id, await getCalonSiswa(p.nama_anak, p.kelas),
   ] as const)))
+
+  // Peserta non-LHI (0122): posisi & setoran dari data peserta ekstra sendiri.
+  const awalBulan = `${hariIniWIB().slice(0, 7)}-01`
+  const { peserta: luar } = await getPesertaLuar(peserta.filter(p => p.asal !== 'lhi').map(p => p.id), awalBulan)
 
   const j = slot.jenis
   const bulan = labelBulanIni()
@@ -148,7 +153,12 @@ export default async function DetailHalaqohEkstraPage({ params }: { params: Prom
                             <p className="font-bold">{p.setoran} setoran</p>
                             {p.setoranTerakhir && <p className="text-muted-foreground">{p.setoranTerakhir.ringkas} · {tglPendek(p.setoranTerakhir.tanggal)}</p>}
                           </>
-                        ) : <p className="text-muted-foreground">{p.asal === 'lhi' ? 'Tautkan dulu untuk mencatat setoran' : 'Hanya presensi & posisi bacaan'}</p>}
+                        ) : p.asal !== 'lhi' && luar.get(p.id) ? (
+                          <>
+                            <p className="font-bold">{luar.get(p.id)!.setoran.length} setoran</p>
+                            <p className="text-muted-foreground">Posisi: {luar.get(p.id)!.teksPosisi}</p>
+                          </>
+                        ) : <p className="text-muted-foreground">{p.asal === 'lhi' ? 'Tautkan dulu untuk mencatat setoran' : 'Belum ada setoran'}</p>}
                       </div>
                       <AksiPesertaEkstra id={p.id} nama={p.nama_anak} tujuan={tujuan} calon={calon.get(p.id) ?? null} />
                     </div>

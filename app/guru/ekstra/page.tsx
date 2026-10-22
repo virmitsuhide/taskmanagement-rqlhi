@@ -7,6 +7,8 @@ import { FormMateriEkstra } from '@/components/ekstra/FormMateriEkstra'
 import { SetoranKoreksi } from '@/components/siswa/SetoranKoreksi'
 import { HadirEkstra } from '@/components/ekstra/HadirEkstra'
 import { TanggalPertemuan } from '@/components/ekstra/TanggalPertemuan'
+import { SetorLuarEkstra, type BarisLuar } from '@/components/ekstra/SetorLuarEkstra'
+import { getMetodeLuar, getPesertaLuar, ringkasSetoranLuar } from '@/lib/data/ekstra-luar'
 import { LaporanEkstra, rentangBulan } from '@/components/ekstra/LaporanEkstra'
 import { cn } from '@/lib/utils'
 
@@ -43,6 +45,22 @@ export default async function GuruEkstraPage({ searchParams }: { searchParams: P
   const kembar = new Set(slot.map(labelPil).filter((l, i, a) => a.indexOf(l) !== i))
   const namaPeserta = (id: string) => peserta.filter(p => p.slot_id === id).map(p => p.nama_anak.split(' ').slice(0, 2).join(' ')).join(', ')
   const materiHariIni = materi?.materi.find(m => m.tanggal === tanggal)?.deskripsi ?? ''
+  // Peserta non-LHI (0122): setoran tahsinnya disimpan di data peserta ekstra sendiri.
+  const anggotaLuar = materiBidang || bidang === 'tahfidz' ? [] : anggota.filter(p => p.asal === 'luar')
+  const [luar, metode] = anggotaLuar.length
+    ? await Promise.all([getPesertaLuar(anggotaLuar.map(p => p.id), tanggal), getMetodeLuar()])
+    : [null, []]
+  const barisLuar: BarisLuar[] = anggotaLuar.map(p => {
+    const d = luar?.peserta.get(p.id)
+    return {
+      bookingId: p.id,
+      nama: p.nama_anak,
+      absen: (awal[p.id] ?? 'hadir') !== 'hadir',
+      posisi: d?.posisi ?? { method_id: null, jilid_id: null, halaman: null },
+      teksPosisi: d?.teksPosisi ?? 'Belum ditempatkan',
+      hariIni: (d?.setoran ?? []).filter(s => s.tanggal === tanggal).map(s => ({ id: s.id, ringkas: ringkasSetoranLuar(s), status: s.status })),
+    }
+  })
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--secondary)' }}>
@@ -85,7 +103,7 @@ export default async function GuruEkstraPage({ searchParams }: { searchParams: P
                       <p className="text-sm text-muted-foreground">Belum ada peserta aktif.</p>
                     ) : (
                       <HadirEkstra key={`${aktif.id}|${tanggal}`} slotId={aktif.id} tanggal={tanggal}
-                        peserta={anggota.map(p => ({ id: p.id, nama: p.nama_anak, ket: p.asal === 'lhi' ? (p.student_id ? 'Siswa LHI' : 'Siswa LHI · belum ditautkan koordinator') : 'Luar LHI · hanya kehadiran' }))}
+                        peserta={anggota.map(p => ({ id: p.id, nama: p.nama_anak, ket: p.asal === 'lhi' ? (p.student_id ? 'Siswa LHI' : 'Siswa LHI · belum ditautkan koordinator') : 'Non LHI · setoran tahsin di bawah' }))}
                         awal={awal} />
                     )}
                   </div>
@@ -119,7 +137,7 @@ export default async function GuruEkstraPage({ searchParams }: { searchParams: P
                 <section className="rounded-2xl border bg-card p-4 md:p-5">
                   <h2 className="font-heading text-xl">Setoran pertemuan ini</h2>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    {bisaSetor} peserta LHI hadir bisa disetor. Peserta luar LHI dan yang belum ditautkan hanya dicatat kehadirannya.
+                    {bisaSetor} peserta LHI hadir bisa disetor. Siswa LHI yang belum ditautkan hanya dicatat kehadirannya; peserta non-LHI disetor di bawah.
                   </p>
                   <div className="mt-4 grid gap-2 sm:grid-cols-2">
                     {bidang !== 'tahfidz' && (
@@ -135,6 +153,19 @@ export default async function GuruEkstraPage({ searchParams }: { searchParams: P
                       </Link>
                     )}
                   </div>
+                  {anggotaLuar.length > 0 && (
+                    <div className="mt-5 border-t pt-4">
+                      <h3 className="text-sm font-bold">Peserta non-LHI · setoran tahsin</h3>
+                      <p className="mb-2 mt-0.5 text-xs text-muted-foreground">
+                        Tersimpan di data peserta ekstra, terpisah dari data siswa LHI. Posisi mengikuti setoran terbaru.
+                      </p>
+                      {luar && !luar.tabelAda ? (
+                        <p className="text-sm text-muted-foreground">Fitur ini belum aktif — minta admin menjalankan migrasi 0122.</p>
+                      ) : (
+                        <SetorLuarEkstra key={`${aktif.id}|${tanggal}`} slotId={aktif.id} tanggal={tanggal} peserta={barisLuar} metode={metode} />
+                      )}
+                    </div>
+                  )}
                 </section>
                 )}
               </div>
