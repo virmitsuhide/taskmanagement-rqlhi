@@ -48,6 +48,9 @@ export default async function DetailHalaqohEkstraPage({ params }: { params: Prom
   const tujuan = data.slot
     .filter(s => s.id !== slot.id && s.aktif && s.jenis_id === slot.jenis_id && s.peserta < s.kuotaEfektif)
     .map(s => ({ id: s.id, label: `${s.guru} · ${labelSlot(s)} · sisa ${s.kuotaEfektif - s.peserta}` }))
+  // Atau ke guru ekstra lain: dibuatkan halaqoh baru berjadwal sama.
+  const guruLain = guru.filter(g => g.id !== slot.teacher_id)
+    .map(g => ({ id: g.id, nama: g.full_name }))
   // Calon data siswa hanya untuk siswa LHI yang belum tertaut.
   const calon = new Map(await Promise.all(peserta.filter(p => p.asal === 'lhi' && !p.student_id).map(async p => [
     p.id, await getCalonSiswa(p.nama_anak, p.kelas),
@@ -161,7 +164,7 @@ export default async function DetailHalaqohEkstraPage({ params }: { params: Prom
                           </>
                         ) : <p className="text-muted-foreground">{p.asal === 'lhi' ? 'Tautkan dulu untuk mencatat setoran' : 'Belum ada setoran'}</p>}
                       </div>
-                      <AksiPesertaEkstra id={p.id} nama={p.nama_anak} tujuan={tujuan} calon={calon.get(p.id) ?? null} />
+                      <AksiPesertaEkstra id={p.id} nama={p.nama_anak} tujuan={tujuan} guruLain={guruLain} calon={calon.get(p.id) ?? null} />
                     </div>
                   </li>
                 ))}

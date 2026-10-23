@@ -301,16 +301,40 @@ export async function ubahStatusBookingAction(id: string, status: 'ditolak' | 'b
   return { success: true }
 }
 
-/** Pindahkan peserta aktif ke halaqoh ekstra lain dengan jenis yang sama. */
-export async function pindahHalaqohEkstraAction(id: string, slotId: string): Promise<Hasil> {
+/**
+ * Pindahkan peserta aktif ke halaqoh ekstra lain dengan jenis yang sama, atau
+ * ke guru ekstra lain. Ke guru: dibuatkan halaqoh baru untuk guru itu dengan
+ * jadwal & tempat halaqoh lama — privat berkuota 1 tidak pernah punya kursi
+ * kosong, jadi tanpa ini anak tidak bisa pindah guru sama sekali. Jadwalnya
+ * lalu diatur sendiri oleh guru barunya (ubahJadwalEkstraGuruAction).
+ */
+export async function pindahHalaqohEkstraAction(id: string, tujuan: { slotId: string } | { guruId: string }): Promise<Hasil> {
   const k = await koordinator()
   if ('error' in k) return { error: k.error }
   const b = await ambilBooking(id)
   if (!b || b.status !== 'aktif') return { error: 'Hanya peserta aktif yang bisa dipindahkan.' }
-  if (b.slot_id === slotId) return { error: 'Peserta sudah di halaqoh ini.' }
-  const h = await siapkanHalaqoh(b.jenis_id, { slotId })
-  if ('error' in h) return { error: h.error }
-  if (await slotPenuh(slotId)) return { error: 'Kuota halaqoh tujuan sudah penuh.' }
+  if ('slotId' in tujuan && b.slot_id === tujuan.slotId) return { error: 'Peserta sudah di halaqoh ini.' }
+
+  let slotId: string
+  if ('slotId' in tujuan) {
+    const h = await siapkanHalaqoh(b.jenis_id, tujuan)
+    if ('error' in h) return { error: h.error }
+    if (await slotPenuh(h.slotId)) return { error: 'Kuota halaqoh tujuan sudah penuh.' }
+    slotId = h.slotId
+  } else {
+    const { data: lama } = b.slot_id
+      ? await createServerClient().from('ekstra_slot').select('teacher_id, hari, jam_mulai, jam_selesai, tempat').eq('id', b.slot_id).maybeSingle()
+      : { data: null }
+    const l = lama as { teacher_id: string; hari: number; jam_mulai: string; jam_selesai: string; tempat: string } | null
+    if (!l) return { error: 'Halaqoh asal tidak ditemukan.' }
+    if (l.teacher_id === tujuan.guruId) return { error: 'Peserta sudah diampu guru ini.' }
+    const h = await siapkanHalaqoh(b.jenis_id, { baru: {
+      teacher_id: tujuan.guruId, hari: l.hari, jam_mulai: l.jam_mulai.slice(0, 5), jam_selesai: l.jam_selesai.slice(0, 5),
+      tempat: l.tempat ?? '', kuota: null,
+    } })
+    if ('error' in h) return { error: h.error }
+    slotId = h.slotId
+  }
   const { error } = await createServerClient().from('ekstra_booking')
     .update({ slot_id: slotId, ditangani_oleh: k.session.userId, ditangani_at: new Date().toISOString(), updated_at: new Date().toISOString() })
     .eq('id', id).eq('status', 'aktif')
@@ -615,6 +639,31 @@ export async function ubahGuruEkstraAction(teacherId: string, aktif: boolean, ca
   const { error } = await createServerClient().from('ekstra_guru')
     .update({ aktif, catatan: catatan.slice(0, 300), updated_at: new Date().toISOString() }).eq('teacher_id', teacherId)
   if (error) return { error: 'Gagal menyimpan.' }
+  segarkan()
+  return { success: true }
+}
+
+/**
+ * Pengampu mengatur sendiri hari, jam, dan tempat halaqoh ekstra yang ia ampu
+ * — mis. sesudah peserta dipindahkan kepadanya dengan jadwal guru lama.
+ * Jenis, kuota, dan status tetap urusan koordinator.
+ */
+export async function ubahJadwalEkstraGuruAction(slotId: string, isi: {
+  hari: number; jam_mulai: string; jam_selesai: string; tempat: string
+}): Promise<Hasil> {
+  const session = await getTeacherSession()
+  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!(Number.isInteger(isi.hari) && isi.hari >= 1 && isi.hari <= 7)) return { error: 'Hari tidak valid.' }
+  if (!JAM.test(isi.jam_mulai) || !JAM.test(isi.jam_selesai) || isi.jam_selesai <= isi.jam_mulai) return { error: 'Jam selesai harus setelah jam mulai.' }
+
+  const supabase = createServerClient()
+  const { data: slot } = await supabase.from('ekstra_slot').select('teacher_id').eq('id', slotId).maybeSingle()
+  if ((slot as { teacher_id: string } | null)?.teacher_id !== session.teacherId) return { error: 'Anda bukan pengampu halaqoh ini.' }
+  const { error } = await supabase.from('ekstra_slot').update({
+    hari: isi.hari, jam_mulai: isi.jam_mulai, jam_selesai: isi.jam_selesai,
+    tempat: isi.tempat.trim().slice(0, 120), updated_at: new Date().toISOString(),
+  }).eq('id', slotId).eq('teacher_id', session.teacherId)
+  if (error) return { error: 'Gagal menyimpan jadwal.' }
   segarkan()
   return { success: true }
 }

@@ -7,6 +7,7 @@ import { FormMateriEkstra } from '@/components/ekstra/FormMateriEkstra'
 import { SetoranKoreksi } from '@/components/siswa/SetoranKoreksi'
 import { HadirEkstra } from '@/components/ekstra/HadirEkstra'
 import { TanggalPertemuan } from '@/components/ekstra/TanggalPertemuan'
+import { JadwalSlotGuru } from '@/components/ekstra/JadwalSlotGuru'
 import { SetorLuarEkstra, type BarisLuar, type SuratLuar } from '@/components/ekstra/SetorLuarEkstra'
 import { getInfoSurat } from '@/lib/data/nama-surat'
 import { LABEL_STATUS_TAHSIN } from '@/lib/rq/status-tahsin'
@@ -104,7 +105,8 @@ export default async function GuruEkstraPage({ searchParams }: { searchParams: P
               <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
                 <section className="rounded-2xl border bg-card p-4 md:p-5">
                   <h2 className="font-heading text-xl">{aktif.jenis?.nama}</h2>
-                  <p className="text-xs text-muted-foreground">{labelSlot(aktif)}{aktif.tempat ? ` · ${aktif.tempat}` : ''} · {anggota.length} peserta</p>
+                  <JadwalSlotGuru key={aktif.id} slotId={aktif.id} label={labelSlot(aktif)} hari={aktif.hari}
+                    jamMulai={aktif.jam_mulai} jamSelesai={aktif.jam_selesai} tempat={aktif.tempat ?? ''} jumlahPeserta={anggota.length} />
                   <TanggalPertemuan key={`${aktif.id}|${tanggal}`} href={`/guru/ekstra?slot=${aktif.id}`} tanggal={tanggal} maks={hariIni}
                     keterangan="Pertemuan yang terlewat: pilih tanggalnya dulu, lalu Setor." />
                   <div className="mt-4">
