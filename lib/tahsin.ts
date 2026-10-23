@@ -37,6 +37,22 @@ export const JENJANG_METHODS: Record<Jenjang, string[]> = {
 }
 
 /**
+ * Metode untuk peserta yang BUKAN siswa: mentoring gukar dan peserta ekstra
+ * non-LHI (ketetapan RQ 2026-10-23). KIBAR & IQRO sengaja tidak ada — keduanya
+ * tangga anak SD. UMMI Dewasa (3 jilid → Al-Qur'an → Gharib → Tajwid) untuk
+ * orang dewasa yang mulai dari awal.
+ */
+export const METODE_NON_SISWA: string[] = [METHOD.UMMI, METHOD.UMMI_DEWASA, METHOD.SYAJAROH]
+
+/** Saring & urutkan daftar metode (dari DB) menjadi METODE_NON_SISWA. */
+export function metodeNonSiswa<T extends { name: string }>(semua: T[]): T[] {
+  const urutan = METODE_NON_SISWA.map(n => n.toLowerCase())
+  return semua
+    .filter(m => urutan.includes(m.name.toLowerCase()))
+    .sort((a, b) => urutan.indexOf(a.name.toLowerCase()) - urutan.indexOf(b.name.toLowerCase()))
+}
+
+/**
  * Metode yang berlaku untuk satu program di dalam jenjangnya.
  *
  * Sejauh ini hanya QULS SD yang lebih sempit daripada unitnya: SD secara umum

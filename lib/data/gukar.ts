@@ -4,6 +4,7 @@ import type { TeacherEmployment } from '@/types'
 import { type PeriodKey, periodsYearToDate, toPeriodDate } from '@/lib/finance/period'
 import type { TahapJilid } from '@/lib/rq/gukar-setoran'
 import { nilaiTahsin } from '@/lib/rq/gukar-standar'
+import { metodeNonSiswa } from '@/lib/tahsin'
 import type { GukarGroup, GukarMonthly, GukarParticipant } from '@/types'
 
 /**
@@ -292,16 +293,15 @@ export async function bolehMengampuGukar(teacherId: string): Promise<boolean> {
 /**
  * Metode tahsin yang boleh dipilih pembina gukar.
  *
- * Disaring ke UMMI & Syajaroh atas ketetapan RQ LHI. KIBAR aktif di
- * tahsin_methods tapi dipakai santri SD Juara, bukan pegawai — menawarkannya
- * di sini hanya akan menghasilkan catatan yang tidak ada padanannya di
- * pembinaan yang sebenarnya.
+ * Disaring ke METODE_NON_SISWA (UMMI, UMMI Dewasa, Syajaroh) atas ketetapan
+ * RQ LHI. KIBAR & IQRO aktif di tahsin_methods tapi dipakai santri SD, bukan
+ * pegawai — menawarkannya di sini hanya akan menghasilkan catatan yang tidak
+ * ada padanannya di pembinaan yang sebenarnya.
  *
  * Nama metode dicocokkan tanpa memandang huruf besar-kecil: tabelnya memuat
  * 'UMMI' yang aktif dan 'Ummi' lama yang sudah tidak aktif, dan hanya yang
  * aktif yang lolos.
  */
-const METODE_GUKAR = ['ummi', 'syajaroh']
 
 export interface MetodeTahsin {
   id: string
@@ -316,8 +316,7 @@ export async function getMetodeGukar(): Promise<MetodeTahsin[]> {
     .eq('is_active', true)
     .order('name')
 
-  return ((data ?? []) as MetodeTahsin[])
-    .filter(m => METODE_GUKAR.includes(m.name.toLowerCase()))
+  return metodeNonSiswa((data ?? []) as MetodeTahsin[])
 }
 
 /**

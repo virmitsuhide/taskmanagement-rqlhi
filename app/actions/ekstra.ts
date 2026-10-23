@@ -7,6 +7,7 @@ import { getTeacherSession } from '@/lib/auth/teacher-session'
 import { canManageEkstra } from '@/lib/auth/permissions'
 import { getCalonSiswa, type CalonSiswa, type StatusHadirEkstra } from '@/lib/data/ekstra'
 import { statusTahsinSah } from '@/lib/rq/status-tahsin'
+import { METODE_NON_SISWA, metodeNonSiswa } from '@/lib/tahsin'
 
 type Hasil = { error?: string; success?: true }
 
@@ -467,12 +468,13 @@ export async function simpanSetoranLuarAction(slotId: string, bookingId: string,
   const [{ data: slot }, { data: b }, { data: j }] = await Promise.all([
     supabase.from('ekstra_slot').select('teacher_id').eq('id', slotId).maybeSingle(),
     supabase.from('ekstra_booking').select('id').eq('id', bookingId).eq('slot_id', slotId).eq('status', 'aktif').maybeSingle(),
-    supabase.from('jilid_levels').select('id, method_id, total_pages, is_terminal').eq('id', isi.jilid_id).maybeSingle(),
+    supabase.from('jilid_levels').select('id, method_id, total_pages, is_terminal, metode:tahsin_methods(name)').eq('id', isi.jilid_id).maybeSingle(),
   ])
   if ((slot as { teacher_id: string } | null)?.teacher_id !== session.teacherId) return { error: 'Anda bukan pengampu halaqoh ini.' }
   if (!b) return { error: 'Peserta ini bukan peserta aktif halaqoh ini.' }
-  const jilid = j as { id: string; method_id: string; total_pages: number | null; is_terminal: boolean } | null
+  const jilid = j as { id: string; method_id: string; total_pages: number | null; is_terminal: boolean; metode: { name: string } | null } | null
   if (!jilid || jilid.is_terminal) return { error: 'Pilih jilid / tahap bacaan.' }
+  if (metodeNonSiswa([{ name: jilid.metode?.name ?? '' }]).length === 0) return { error: `Metode peserta non-LHI: ${METODE_NON_SISWA.join(', ')}.` }
 
   const batas = jilid.total_pages ?? 604
   const halaman = isi.halaman

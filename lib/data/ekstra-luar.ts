@@ -1,6 +1,7 @@
 import { createServerClient } from '@/lib/supabase/server'
 import { teksBaris } from '@/lib/rq/status-tahsin'
 import { getInfoSurat } from '@/lib/data/nama-surat'
+import { metodeNonSiswa } from '@/lib/tahsin'
 import type { TahsinStatus } from '@/types'
 
 /**
@@ -62,15 +63,18 @@ export interface PesertaLuar {
   posisiTahfidz: string | null
   setoranTahfidz: SetoranTahfidzLuar[]
 }
-/** Metode tahsin aktif beserta tahapnya (tanpa tahap akhir "Lulus Tahsin"). */
+/**
+ * Metode yang boleh dipilih untuk peserta non-LHI — METODE_NON_SISWA (UMMI,
+ * UMMI Dewasa, Syajaroh) — beserta tahapnya (tanpa tahap akhir "Lulus Tahsin").
+ */
 export async function getMetodeLuar(): Promise<MetodeLuar[]> {
   const supabase = createServerClient()
   const [{ data: m }, { data: j }] = await Promise.all([
-    supabase.from('tahsin_methods').select('id, name').eq('is_active', true).order('created_at'),
+    supabase.from('tahsin_methods').select('id, name').eq('is_active', true),
     supabase.from('jilid_levels').select('id, method_id, label, order_num, total_pages, is_quran').eq('is_terminal', false).order('order_num'),
   ])
   const jilid = (j ?? []) as JilidLuar[]
-  return ((m ?? []) as { id: string; name: string }[]).map(x => ({ ...x, jilid: jilid.filter(y => y.method_id === x.id) }))
+  return metodeNonSiswa((m ?? []) as { id: string; name: string }[]).map(x => ({ ...x, jilid: jilid.filter(y => y.method_id === x.id) }))
 }
 
 /** Posisi sesudah satu setoran: lulus maju satu halaman (berhenti di halaman terakhir buku), lainnya menahan. */
