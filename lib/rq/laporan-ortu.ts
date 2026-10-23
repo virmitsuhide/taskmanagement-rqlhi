@@ -293,48 +293,15 @@ export function teksWaFunQuran(l: LaporanOrtu, pendampingan: string): string {
  * ringkasan yang bisa dibaca tanpa membuka lampiran — bukan salinan tabel.
  */
 export function teksWaLaporanOrtu(l: LaporanOrtu, opsi: OpsiPesan): string {
-  const r = l.ringkas
   const baris: string[] = [
     "Assalamu'alaikum warahmatullahi wabarakatuh 🌿",
     '',
-    `Ayah/Bunda yang dirahmati Allah, berikut laporan capaian pembelajaran Al-Qur'an Ananda di *${l.sesi.ekstra ? `ekstra ${l.sesi.nama}` : l.sesi.nama}* pada *${l.periode.label}*.`,
+    `Ayah/Bunda yang dirahmati Allah, berikut laporan capaian pembelajaran Al-Qur'an Ananda di *${namaSesiPesan(l)}* pada *${l.periode.label}*.`,
     '',
     '📊 *Ringkasan*',
+    ...barisRingkasan(l),
   ]
-  if (l.hariPertemuan > 1) baris.push(`• Pertemuan: ${l.hariPertemuan} hari`)
-  baris.push(`• Ananda yang setor: ${r.anakSetor} dari ${r.jumlahAnak} anak`)
-  if (r.tahsinLulus > 0) baris.push(`• Tahsin: ${r.tahsinLulus} halaman lulus`)
-  if (r.ziyadahHalaman > 0 || r.murojaah > 0) {
-    baris.push(`• Tahfidz: ${[
-      r.ziyadahHalaman > 0 ? `${angka1(r.ziyadahHalaman)} halaman hafalan baru` : null,
-      r.murojaah > 0 ? `${angka1(r.murojaahHalaman)} halaman muroja'ah` : null,
-    ].filter(Boolean).join(' · ')}`)
-  }
-  if (r.ujian > 0) baris.push(`• Ujian selesai: ${r.ujian}`)
-
-  if (opsi.rincian && l.anak.length > 0) {
-    baris.push('', '📖 *Capaian per Ananda*')
-    l.anak.forEach((a, i) => {
-      const hadir = a.hariSetor === 0
-        ? 'belum setor'
-        : l.hariPertemuan > 1 ? `setor ${a.hariSetor}/${l.hariPertemuan} hari` : 'setor'
-      baris.push(`${i + 1}. *${a.nama}* — ${hadir}`)
-      // Anak yang sudah Lulus Tahsin: baris tahsin hanya bila periode ini ada setorannya.
-      if (a.tahsin.posisi && (!a.tahsin.selesai || a.tahsin.setoran > 0)) {
-        const ket = teksTahsinPeriode(a.tahsin)
-        baris.push(`   Tahsin: ${a.tahsin.posisi}${ket ? ` (${ket})` : ''}`)
-      }
-      const t = a.tahfidz
-      if (t.terakhir) baris.push(`   Tahfidz: ${t.terakhir}`)
-      const rincianTf = [
-        t.ziyadahAyat > 0 ? `ziyadah ${tambahHafalan(t.ziyadahHalaman, t.ziyadahAyat)}` : null,
-        t.murojaah > 0 ? `muroja'ah ${teksMurojaah(t)}` : null,
-        t.totalHalaman > 0 ? `total hafalan ${labelTotalHafalan(t)}` : null,
-      ].filter(Boolean)
-      if (rincianTf.length > 0) baris.push(`   ${t.terakhir ? '' : 'Tahfidz: '}${rincianTf.join(' · ')}`)
-      for (const u of a.ujian) baris.push(`   🎉 ${u}`)
-    })
-  }
+  if (opsi.rincian && l.anak.length > 0) baris.push('', '📖 *Capaian per Ananda*', ...barisRincian(l))
 
   if (opsi.pesan.trim()) baris.push('', opsi.pesan.trim())
   baris.push(
@@ -351,4 +318,101 @@ export function teksWaLaporanOrtu(l: LaporanOrtu, opsi: OpsiPesan): string {
     `${l.sesi.nama} · Rumah Qur'an LHI`,
   )
   return baris.join('\n')
+}
+
+const namaSesiPesan = (l: LaporanOrtu) => l.sesi.ekstra ? `ekstra ${l.sesi.nama}` : l.sesi.nama
+
+/** Butir ringkasan sesi ("• Ananda yang setor: …") — dipakai template dasar & {ringkasan}. */
+function barisRingkasan(l: LaporanOrtu): string[] {
+  const r = l.ringkas
+  const baris: string[] = []
+  if (l.hariPertemuan > 1) baris.push(`• Pertemuan: ${l.hariPertemuan} hari`)
+  baris.push(`• Ananda yang setor: ${r.anakSetor} dari ${r.jumlahAnak} anak`)
+  if (r.tahsinLulus > 0) baris.push(`• Tahsin: ${r.tahsinLulus} halaman lulus`)
+  if (r.ziyadahHalaman > 0 || r.murojaah > 0) {
+    baris.push(`• Tahfidz: ${[
+      r.ziyadahHalaman > 0 ? `${angka1(r.ziyadahHalaman)} halaman hafalan baru` : null,
+      r.murojaah > 0 ? `${angka1(r.murojaahHalaman)} halaman muroja'ah` : null,
+    ].filter(Boolean).join(' · ')}`)
+  }
+  if (r.ujian > 0) baris.push(`• Ujian selesai: ${r.ujian}`)
+  return baris
+}
+
+/** Rincian satu blok per anak — dipakai template dasar & {rincian}. */
+function barisRincian(l: LaporanOrtu): string[] {
+  const baris: string[] = []
+  l.anak.forEach((a, i) => {
+    const hadir = a.hariSetor === 0
+      ? 'belum setor'
+      : l.hariPertemuan > 1 ? `setor ${a.hariSetor}/${l.hariPertemuan} hari` : 'setor'
+    baris.push(`${i + 1}. *${a.nama}* — ${hadir}`)
+    // Anak yang sudah Lulus Tahsin: baris tahsin hanya bila periode ini ada setorannya.
+    if (a.tahsin.posisi && (!a.tahsin.selesai || a.tahsin.setoran > 0)) {
+      const ket = teksTahsinPeriode(a.tahsin)
+      baris.push(`   Tahsin: ${a.tahsin.posisi}${ket ? ` (${ket})` : ''}`)
+    }
+    const t = a.tahfidz
+    if (t.terakhir) baris.push(`   Tahfidz: ${t.terakhir}`)
+    const rincianTf = [
+      t.ziyadahAyat > 0 ? `ziyadah ${tambahHafalan(t.ziyadahHalaman, t.ziyadahAyat)}` : null,
+      t.murojaah > 0 ? `muroja'ah ${teksMurojaah(t)}` : null,
+      t.totalHalaman > 0 ? `total hafalan ${labelTotalHafalan(t)}` : null,
+    ].filter(Boolean)
+    if (rincianTf.length > 0) baris.push(`   ${t.terakhir ? '' : 'Tahfidz: '}${rincianTf.join(' · ')}`)
+    for (const u of a.ujian) baris.push(`   🎉 ${u}`)
+  })
+  return baris
+}
+
+// ─── Template WhatsApp milik guru (0124) ─────────────────────────────────────
+
+/** Maksimal template sendiri per guru, selain template dasar. Sama dengan CHECK slot di 0124. */
+export const MAKS_TEMPLATE_WA = 3
+
+export interface TemplateWa { slot: number; nama: string; isi: string }
+
+/** Penanda yang diisi aplikasi — urutan ini juga urutan tombol sisip di penyunting. */
+export const PENANDA_TEMPLATE: { kode: string; label: string }[] = [
+  { kode: '{sesi}', label: 'Nama sesi' },
+  { kode: '{periode}', label: 'Periode' },
+  { kode: '{ringkasan}', label: 'Ringkasan' },
+  { kode: '{rincian}', label: 'Rincian per anak' },
+  { kode: '{tautan}', label: 'Tautan laporan' },
+  { kode: '{guru}', label: 'Nama guru' },
+  { kode: '{jumlah_anak}', label: 'Jumlah anak' },
+  { kode: '{anak_setor}', label: 'Jumlah anak setor' },
+]
+
+/** Isi awal template baru — titik berangkat yang langsung terpakai, bukan kotak kosong. */
+export const TEMPLATE_CONTOH = [
+  "Assalamu'alaikum warahmatullahi wabarakatuh",
+  '',
+  'Ayah/Bunda, berikut capaian ngaji Ananda di *{sesi}* pada *{periode}*:',
+  '',
+  '{rincian}',
+  '',
+  'Laporan lengkap: {tautan}',
+  '',
+  'Jazakumullahu khairan.',
+  '{guru}',
+].join('\n')
+
+/**
+ * Isi penanda di template guru dengan data laporan. Penanda yang tidak
+ * dikenal dibiarkan apa adanya — guru melihatnya di pratinjau dan bisa
+ * memperbaikinya, alih-alih teksnya hilang diam-diam.
+ */
+export function isiTemplateWa(isi: string, l: LaporanOrtu, tautan: string): string {
+  const nilai: Record<string, string> = {
+    '{sesi}': namaSesiPesan(l),
+    '{periode}': l.periode.label,
+    '{ringkasan}': barisRingkasan(l).join('\n'),
+    '{rincian}': barisRincian(l).join('\n'),
+    '{tautan}': tautan,
+    '{guru}': l.guru.nama,
+    '{jumlah_anak}': String(l.ringkas.jumlahAnak),
+    '{anak_setor}': String(l.ringkas.anakSetor),
+  }
+  return isi.replace(/\{[a-z_]+\}/g, k => nilai[k] ?? k).trim()
 }

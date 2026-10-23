@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { getTeacherSession } from '@/lib/auth/teacher-session'
 import { hanyaGuruTahsin } from '@/lib/data/teacher'
-import { getLaporanOrtu, getLaporanOrtuEkstra, getSesiGuruLaporan } from '@/lib/data/laporan-ortu'
+import { getLaporanOrtu, getLaporanOrtuEkstra, getSesiGuruLaporan, getTemplateWaGuru } from '@/lib/data/laporan-ortu'
 import { getSlotGuru, labelSlot, type SlotEkstra } from '@/lib/data/ekstra'
 import { cn } from '@/lib/utils'
 import { pilihHalaqoh } from '@/lib/data/setoran-sesi'
@@ -54,8 +54,11 @@ export default async function LaporanOrtuPage({ searchParams }: PageProps) {
   }
   const href = (g: Record<string, string | undefined>) => hrefDengan(PATH, params, g)
 
-  const laporan = ekstraDipilih ? await getLaporanOrtuEkstra(session.teacherId, ekstraDipilih.id, periode)
-    : sesi ? await getLaporanOrtu(session.teacherId, sesi, periode) : null
+  const [laporan, templateWa] = await Promise.all([
+    ekstraDipilih ? getLaporanOrtuEkstra(session.teacherId, ekstraDipilih.id, periode)
+      : sesi ? getLaporanOrtu(session.teacherId, sesi, periode) : null,
+    getTemplateWaGuru(session.teacherId),
+  ])
 
   // Tautan publik untuk grup wali — tanggalnya dibekukan di dalam token, jadi
   // tautan "pekan ini" tetap menampilkan pekan ini meski dibuka bulan depan.
@@ -159,7 +162,9 @@ export default async function LaporanOrtuPage({ searchParams }: PageProps) {
             </div>
 
             {laporan && <LembarLaporanOrtu l={laporan} />}
-            {laporan && laporan.anak.length > 0 && <PesanWaLaporanOrtu laporan={laporan} tautan={tautan} />}
+            {laporan && laporan.anak.length > 0 && (
+              <PesanWaLaporanOrtu laporan={laporan} tautan={tautan} template={templateWa.template} templateAktif={templateWa.tabelAda} />
+            )}
           </>
         )}
       </div>

@@ -12,7 +12,7 @@ import { ttdSrc } from '@/lib/kpi/ttd-berkas'
 import { sapaanName } from '@/lib/auth/permissions'
 import { juzTerjauh, posisiJuz } from '@/lib/rq/hafalan'
 import { getPredikatLabel, getTahfidzLabel, tanggalWIB } from '@/lib/rq/ujian'
-import type { AnakLaporan, LaporanOrtu, PeriodeLaporan } from '@/lib/rq/laporan-ortu'
+import type { AnakLaporan, LaporanOrtu, PeriodeLaporan, TemplateWa } from '@/lib/rq/laporan-ortu'
 import type { Jenjang, TahfidzTipe, UjianPredikat, UjianSiswa } from '@/types'
 
 /**
@@ -327,4 +327,17 @@ async function susunLaporan(
     },
     dicetak: tanggalWIB(new Date()),
   }
+}
+
+/**
+ * Template WhatsApp milik guru (0124), urut slot. `tabelAda: false` selama
+ * migrasi 0124 belum dijalankan — pemilih template lalu hanya menawarkan
+ * template dasar, bukan galat 500.
+ */
+export async function getTemplateWaGuru(teacherId: string): Promise<{ tabelAda: boolean; template: TemplateWa[] }> {
+  const supabase = createServerClient()
+  const { data, error } = await supabase.from('template_wa_ortu')
+    .select('slot, nama, isi').eq('teacher_id', teacherId).order('slot')
+  if (error) return { tabelAda: !(error.code === '42P01' || error.code === 'PGRST205'), template: [] }
+  return { tabelAda: true, template: (data ?? []) as TemplateWa[] }
 }

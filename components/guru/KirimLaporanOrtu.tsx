@@ -5,7 +5,12 @@ import { toast } from 'sonner'
 import { Check, Copy, FileDown, ImageDown, Link2, Loader2, MessageCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-import { PENDAMPINGAN_BAWAAN, pakaiFunQuran, teksWaFunQuran, teksWaLaporanOrtu, type LaporanOrtu } from '@/lib/rq/laporan-ortu'
+import {
+  PENDAMPINGAN_BAWAAN, isiTemplateWa, pakaiFunQuran, teksWaFunQuran, teksWaLaporanOrtu, type LaporanOrtu, type TemplateWa,
+} from '@/lib/rq/laporan-ortu'
+import { PilihTemplateWa } from '@/components/guru/TemplateWaOrtu'
+
+const KUNCI_TEMPLATE = 'laporan-ortu:template'
 
 /**
  * Tombol unduh PDF + kotak pesan WhatsApp untuk laporan orang tua satu sesi.
@@ -90,7 +95,32 @@ export function TombolUnduhPng({ namaBerkas }: { namaBerkas: string }) {
  * dan tanggalnya dibekukan supaya tautan yang sama tetap menampilkan laporan
  * yang sama bulan depan.
  */
-export function PesanWaLaporanOrtu({ laporan, tautan }: { laporan: LaporanOrtu; tautan: string }) {
+export function PesanWaLaporanOrtu({ laporan, tautan, template, templateAktif }: {
+  laporan: LaporanOrtu
+  tautan: string
+  /** Template guru (0124) — selain template dasar. */
+  template: TemplateWa[]
+  /** false selama migrasi 0124 belum dijalankan. */
+  templateAktif: boolean
+}) {
+  // Template terakhir yang dipakai diingat di peramban ini — guru yang selalu
+  // memakai template sendiri tidak perlu memilihnya ulang tiap kali membuka.
+  const templateTersimpan = useSyncExternalStore(
+    () => () => {},
+    () => { try { return window.localStorage.getItem(KUNCI_TEMPLATE) } catch { return null } },
+    () => null,
+  )
+  const [pilihan, setPilihan] = useState<number | null>(null)
+  const pilihMentah = pilihan ?? Number(templateTersimpan ?? 0)
+  // Template yang sudah dihapus (di perangkat lain) kembali ke dasar.
+  const templatePilih = template.find(t => t.slot === pilihMentah) ?? null
+  const pilih = templatePilih?.slot ?? 0
+  function gantiTemplate(slot: number) {
+    setPilihan(slot)
+    setSuntingan(null)
+    try { window.localStorage.setItem(KUNCI_TEMPLATE, String(slot)) } catch { /* penyimpanan ditolak: tetap jalan */ }
+  }
+
   const [rincian, setRincian] = useState(true)
   const [sertakanTautan, setSertakanTautan] = useState(true)
   const [pesan, setPesan] = useState('')
@@ -113,10 +143,12 @@ export function PesanWaLaporanOrtu({ laporan, tautan }: { laporan: LaporanOrtu; 
     try { window.localStorage.setItem(kunciPendampingan, teks) } catch { /* penyimpanan ditolak: tetap jalan */ }
   }
   const dasar = useMemo(
-    () => funQuran
-      ? teksWaFunQuran(laporan, pendampingan)
-      : teksWaLaporanOrtu(laporan, { rincian, pesan, tautan: sertakanTautan ? tautan : undefined }),
-    [funQuran, laporan, pendampingan, rincian, pesan, sertakanTautan, tautan],
+    () => templatePilih
+      ? isiTemplateWa(templatePilih.isi, laporan, tautan)
+      : funQuran
+        ? teksWaFunQuran(laporan, pendampingan)
+        : teksWaLaporanOrtu(laporan, { rincian, pesan, tautan: sertakanTautan ? tautan : undefined }),
+    [templatePilih, funQuran, laporan, pendampingan, rincian, pesan, sertakanTautan, tautan],
   )
   // Teks boleh disunting guru. Suntingan disimpan terpisah dan dibuang saat
   // opsi diubah — teksnya lalu disusun ulang dari awal.
@@ -143,7 +175,9 @@ export function PesanWaLaporanOrtu({ laporan, tautan }: { laporan: LaporanOrtu; 
         </p>
       </div>
 
-      {funQuran ? (
+      <PilihTemplateWa template={template} tabelAda={templateAktif} pilih={pilih} onPilih={gantiTemplate} />
+
+      {templatePilih ? null : funQuran ? (
         <div className="space-y-1.5">
           <div className="flex items-center justify-between gap-2">
             <label htmlFor="pendampingan" className="text-xs font-medium">Mohon Pendampingan Ayah/Bunda di Rumah</label>
