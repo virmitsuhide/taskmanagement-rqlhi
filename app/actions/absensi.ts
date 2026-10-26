@@ -5,6 +5,7 @@ import { createServerClient } from '@/lib/supabase/server'
 import { getTeacherSession } from '@/lib/auth/teacher-session'
 import { halaqohSesiGuru } from '@/lib/data/setoran-sesi'
 import { STATUS_ABSENSI, type StatusAbsensi } from '@/lib/rq/absensi'
+import { tanggalWIB } from '@/lib/rq/ujian'
 
 type Hasil = { error?: string; success?: true }
 
@@ -32,6 +33,7 @@ export async function simpanAbsensiAction(
   const halaqohIds = await halaqohSesiGuru(session.teacherId, sesiId)
   if (!halaqohIds) return { error: 'Anda bukan pengampu sesi ini.' }
   if (!/^\d{4}-\d{2}-\d{2}$/.test(tanggal)) return { error: 'Tanggal tidak sah.' }
+  if (tanggal > tanggalWIB(new Date())) return { error: 'Tanggal pertemuan belum tiba.' }
   if (isian.some(i => !STATUS_ABSENSI.includes(i.status))) return { error: 'Status kehadiran tidak dikenal.' }
 
   const supabase = createServerClient()

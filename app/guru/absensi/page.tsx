@@ -7,6 +7,7 @@ import { getAbsensiTanggal, getSiswaSesi, getTanggalTerabsen } from '@/lib/data/
 import { tanggalWIB } from '@/lib/rq/ujian'
 import { TabDaftarHadir } from '@/components/guru/TabDaftarHadir'
 import { hrefDengan } from '@/components/dashboard/kit'
+import { TanggalPertemuan } from '@/components/ekstra/TanggalPertemuan'
 import { DaftarHadirHarian } from './DaftarHadirHarian'
 import type { StatusAbsensi } from '@/lib/rq/absensi'
 import { cn } from '@/lib/utils'
@@ -51,7 +52,8 @@ export default async function AbsensiPage({ searchParams }: PageProps) {
   const semuaSesi = await getHalaqohSesiGuru(session.teacherId)
   const sesi = pilihHalaqoh(semuaSesi, sp.sesi)
   const hariIni = tanggalWIB(new Date())
-  const tanggal = /^\d{4}-\d{2}-\d{2}$/.test(sp.tgl ?? '') ? sp.tgl! : hariIni
+  // Tanggal lampau boleh — guru menyusulkan absensi yang terlewat; yang belum tiba tidak.
+  const tanggal = /^\d{4}-\d{2}-\d{2}$/.test(sp.tgl ?? '') && sp.tgl! <= hariIni ? sp.tgl! : hariIni
 
   const params = { sesi: sesi?.id, tgl: tanggal === hariIni ? undefined : tanggal }
   const href = (g: Record<string, string | undefined>) => hrefDengan(PATH, params, g)
@@ -122,6 +124,17 @@ export default async function AbsensiPage({ searchParams }: PageProps) {
                   </Keping>
                 ))}
               </nav>
+
+              {/* Pertemuan yang terlewat diabsen tidak muncul di kepingan di atas —
+                  pilih tanggalnya di sini. */}
+              <TanggalPertemuan
+                key={`${sesi.id}|${tanggal}`}
+                href={href({ tgl: undefined })}
+                param="tgl"
+                tanggal={tanggal}
+                maks={hariIni}
+                keterangan={Object.keys(awal).length > 0 ? 'Sudah diabsen' : 'Belum diabsen'}
+              />
 
               {siswa.length === 0 ? (
                 <div className="rounded-2xl border border-dashed bg-muted/30 py-10 text-center text-sm text-muted-foreground">

@@ -6,9 +6,16 @@ import { useRouter } from 'next/navigation'
 /**
  * Pemilih tanggal pertemuan ekstra di portal guru. Begitu tanggal diganti,
  * halaman langsung memuat pertemuan itu — tanpa tombol "Buka". `href` = alamat
- * halaman tanpa parameter tanggal (sudah memuat `?`).
+ * halaman tanpa parameter tanggal; `param` = nama parameter tanggalnya.
+ * Dipakai juga oleh daftar hadir guru Qur'an (`param="tgl"`).
  */
-export function TanggalPertemuan({ href, tanggal, maks, keterangan }: { href: string; tanggal: string; maks: string; keterangan?: string }) {
+export function TanggalPertemuan({ href, tanggal, maks, keterangan, param = 'tanggal' }: {
+  href: string
+  tanggal: string
+  maks: string
+  keterangan?: string
+  param?: string
+}) {
   const router = useRouter()
   const [memuat, mulai] = useTransition()
   return (
@@ -23,7 +30,7 @@ export function TanggalPertemuan({ href, tanggal, maks, keterangan }: { href: st
             const t = e.target.value
             // Isian setengah jadi (saat mengetik tahun) atau tanggal yang belum tiba diabaikan.
             if (!/^\d{4}-\d{2}-\d{2}$/.test(t) || t > maks) return
-            mulai(() => router.push(`${href}&tanggal=${t}`, { scroll: false }))
+            mulai(() => router.push(`${href}${href.includes('?') ? '&' : '?'}${param}=${t}`, { scroll: false }))
           }}
           className="h-9 rounded-md border bg-background px-2 text-sm font-normal"
         />
