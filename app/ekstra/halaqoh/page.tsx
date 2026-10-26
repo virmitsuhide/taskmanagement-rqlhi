@@ -8,7 +8,7 @@ import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { EkstraSubNav, MigrasiEkstra } from '@/components/ekstra/EkstraSubNav'
 import { FormSlotEkstra } from '@/components/ekstra/FormEkstra'
 import { Slicer, hrefDengan } from '@/components/dashboard/kit'
-import { bolehGuruEkstra, getBookingEkstra, getDataEkstra, getGuruEkstra, HARI_EKSTRA, HARI_PENDEK, jam, kiniWIB, labelSlot } from '@/lib/data/ekstra'
+import { bertemuHari, bolehGuruEkstra, getBookingEkstra, getDataEkstra, getGuruEkstra, HARI_EKSTRA, HARI_PENDEK, jadwalSlot, jam, kiniWIB, labelSlot } from '@/lib/data/ekstra'
 import { cn } from '@/lib/utils'
 
 const PATH = '/ekstra/halaqoh'
@@ -48,12 +48,12 @@ export default async function HalaqohEkstraPage({ searchParams }: {
       || (s.guru ?? '').toLowerCase().includes(q)
       || s.tempat.toLowerCase().includes(q)
       || (pesertaPerSlot.get(s.id) ?? []).some(p => p.nama_anak.toLowerCase().includes(q)))
-  const hariAda = [1, 2, 3, 4, 5, 6, 7].filter(h => dasar.some(s => s.hari === h))
+  const hariAda = [1, 2, 3, 4, 5, 6, 7].filter(h => dasar.some(s => bertemuHari(s, h)))
   const hari = Number(sp.hari)
   const hariDipilih = hariAda.includes(hari) ? hari : null
   // ?isi=kosong: hanya halaqoh yang belum punya peserta aktif.
   const hanyaKosong = sp.isi === 'kosong'
-  const daftar = dasar.filter(s => !hariDipilih || s.hari === hariDipilih)
+  const daftar = dasar.filter(s => !hariDipilih || bertemuHari(s, hariDipilih))
     .filter(s => !hanyaKosong || s.peserta === 0)
     .sort((a, b) => a.hari - b.hari || a.jam_mulai.localeCompare(b.jam_mulai) || (a.guru ?? '').localeCompare(b.guru ?? ''))
 
@@ -118,7 +118,7 @@ export default async function HalaqohEkstraPage({ searchParams }: {
                 { label: 'Semua', href: hrefDengan(PATH, param, { hari: undefined }), active: !hariDipilih, count: dasar.length },
                 ...hariAda.map(h => ({
                   label: HARI_EKSTRA[h], href: hrefDengan(PATH, param, { hari: String(h) }),
-                  active: hariDipilih === h, count: dasar.filter(s => s.hari === h).length,
+                  active: hariDipilih === h, count: dasar.filter(s => bertemuHari(s, h)).length,
                 })),
               ]} />
             )}
@@ -157,19 +157,23 @@ export default async function HalaqohEkstraPage({ searchParams }: {
               <div className="-mx-4 overflow-x-auto px-4 md:mx-0 md:px-0">
                 <div className="grid min-w-[980px] grid-cols-7 items-start gap-2.5">
                   {[1, 2, 3, 4, 5, 6, 7].map(h => {
-                    const isi = daftar.filter(s => s.hari === h)
+                    // Satu kartu per WAKTU di hari itu — halaqoh pagi & sore (0125) muncul dua kali.
+                    const isi = daftar
+                      .flatMap(s => jadwalSlot(s).filter(w => w.hari === h).map(w => ({ ...s, jam_mulai: w.jam_mulai, tempat: w.tempat || s.tempat })))
+                      .sort((a, b) => a.jam_mulai.localeCompare(b.jam_mulai) || (a.guru ?? '').localeCompare(b.guru ?? ''))
+                    const unik = [...new Map(isi.map(s => [s.id, s])).values()]
                     const hariIni = h === hariIniNo
                     return (
                       <div key={h} className="flex min-w-0 flex-col gap-2">
                         <div className={cn('flex items-baseline gap-1.5 rounded-xl px-2.5 py-2', hariIni ? 'bg-primary text-primary-foreground' : 'bg-muted')}>
                           <span className="text-sm font-bold">{HARI_PENDEK[h]}</span>
-                          <span className="truncate text-[11px] opacity-75">{isi.length} halaqoh · {isi.reduce((n, s) => n + s.peserta, 0)}</span>
+                          <span className="truncate text-[11px] opacity-75">{unik.length} halaqoh · {unik.reduce((n, s) => n + s.peserta, 0)}</span>
                         </div>
                         {isi.map(s => {
                           const penuh = s.peserta >= s.kuotaEfektif
                           const kosong = s.peserta === 0
                           return (
-                            <Link key={s.id} href={`${PATH}/${s.id}`}
+                            <Link key={`${s.id}|${s.jam_mulai}`} href={`${PATH}/${s.id}`}
                               className={cn('flex flex-col gap-1.5 rounded-xl border bg-card p-2.5 transition-colors hover:border-primary/50',
                                 kosong && 'border-dashed border-accent-warm', !s.aktif && 'opacity-60')}>
                               <span className="flex items-center gap-1">

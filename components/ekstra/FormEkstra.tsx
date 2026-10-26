@@ -1,11 +1,12 @@
 'use client'
 
-import { useActionState, useEffect, useRef } from 'react'
+import { useActionState, useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { simpanJenisEkstraAction, simpanSlotEkstraAction } from '@/app/actions/ekstra'
-import type { JenisEkstra, SlotEkstra } from '@/lib/data/ekstra'
+import { jadwalSlot, type JenisEkstra, type SlotEkstra, type WaktuEkstra } from '@/lib/data/ekstra'
+import { EditorJadwalEkstra } from '@/components/ekstra/EditorJadwalEkstra'
 
 function Kolom({ label, children, lebar }: { label: string; children: React.ReactNode; lebar?: boolean }) {
   return (
@@ -56,7 +57,7 @@ export function FormJenisEkstra({ jenis, onSelesai }: { jenis?: JenisEkstra; onS
   )
 }
 
-const HARI = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Ahad']
+const WAKTU_AWAL: WaktuEkstra = { hari: 1, jam_mulai: '15:30', jam_selesai: '16:30', tempat: '' }
 
 /** Buka / ubah slot pekanan: jenis + guru + hari + jam. */
 export function FormSlotEkstra({ slot, jenis, guru, onSelesai }: {
@@ -67,7 +68,8 @@ export function FormSlotEkstra({ slot, jenis, guru, onSelesai }: {
 }) {
   const [state, aksi, pending] = useActionState(simpanSlotEkstraAction, null)
   const form = useRef<HTMLFormElement>(null)
-  useHasil(state, () => { if (!slot) form.current?.reset(); onSelesai?.() })
+  const [waktu, setWaktu] = useState<WaktuEkstra[]>(() => slot ? jadwalSlot(slot) : [WAKTU_AWAL])
+  useHasil(state, () => { if (!slot) { form.current?.reset(); setWaktu([WAKTU_AWAL]) } onSelesai?.() })
   return (
     <form ref={form} action={aksi} className="grid gap-3 sm:grid-cols-2">
       {slot && <input type="hidden" name="id" value={slot.id} />}
@@ -83,16 +85,11 @@ export function FormSlotEkstra({ slot, jenis, guru, onSelesai }: {
           {guru.map(g => <option key={g.id} value={g.id}>{g.full_name}</option>)}
         </select>
       </Kolom>
-      <Kolom label="Hari">
-        <select name="hari" defaultValue={slot?.hari ?? 1} className={pilih}>
-          {HARI.map((h, i) => <option key={h} value={i + 1}>{h}</option>)}
-        </select>
-      </Kolom>
-      <div className="grid grid-cols-2 gap-2">
-        <Kolom label="Mulai"><Input name="jam_mulai" type="time" required defaultValue={slot?.jam_mulai.slice(0, 5)} /></Kolom>
-        <Kolom label="Selesai"><Input name="jam_selesai" type="time" required defaultValue={slot?.jam_selesai.slice(0, 5)} /></Kolom>
+      <div className="flex flex-col gap-1 sm:col-span-2">
+        <span className="text-xs font-semibold">Waktu sepekan</span>
+        <input type="hidden" name="jadwal" value={JSON.stringify(waktu)} />
+        <EditorJadwalEkstra value={waktu} onChange={setWaktu} />
       </div>
-      <Kolom label="Tempat"><Input name="tempat" defaultValue={slot?.tempat} placeholder="mis. Ruang RQ lt. 2" /></Kolom>
       <Kolom label="Kuota (kosong = ikut jenis)"><Input name="kuota" type="number" min={1} max={50} defaultValue={slot?.kuota ?? ''} /></Kolom>
       <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="aktif" defaultChecked={slot?.aktif ?? true} className="h-4 w-4" />Halaqoh berjalan</label>
       <div className="flex justify-end"><Button type="submit" disabled={pending}>{pending ? 'Menyimpan…' : slot ? 'Simpan perubahan' : 'Buat halaqoh'}</Button></div>

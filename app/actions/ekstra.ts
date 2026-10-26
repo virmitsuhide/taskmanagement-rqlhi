@@ -5,7 +5,8 @@ import { createServerClient } from '@/lib/supabase/server'
 import { getSession } from '@/lib/auth/session'
 import { getTeacherSession } from '@/lib/auth/teacher-session'
 import { canManageEkstra } from '@/lib/auth/permissions'
-import { getCalonSiswa, type CalonSiswa, type StatusHadirEkstra } from '@/lib/data/ekstra'
+import { getCalonSiswa, type CalonSiswa, type StatusHadirEkstra, type WaktuEkstra } from '@/lib/data/ekstra'
+import { kolomJadwal, periksaJadwalEkstra } from '@/lib/rq/jadwal-ekstra'
 import { statusTahsinSah } from '@/lib/rq/status-tahsin'
 import { METODE_NON_SISWA, metodeNonSiswa } from '@/lib/tahsin'
 
@@ -88,13 +89,13 @@ export async function simpanSlotEkstraAction(_: unknown, fd: FormData): Promise<
   const id = teks(fd, 'id', 40)
   const jenisId = teks(fd, 'jenis_id', 40)
   const teacherId = teks(fd, 'teacher_id', 40)
-  const hari = Number(teks(fd, 'hari', 1))
-  const mulai = teks(fd, 'jam_mulai', 5)
-  const selesai = teks(fd, 'jam_selesai', 5)
   const kuotaTeks = teks(fd, 'kuota', 4)
   if (!jenisId || !teacherId) return { error: 'Jenis ekstra dan guru wajib dipilih.' }
-  if (!(hari >= 1 && hari <= 7)) return { error: 'Hari tidak valid.' }
-  if (!JAM.test(mulai) || !JAM.test(selesai) || selesai <= mulai) return { error: 'Jam selesai harus setelah jam mulai.' }
+  // Daftar waktu dari EditorJadwalEkstra (JSON); tempat tiap waktu ikut di dalamnya.
+  let masuk: unknown = null
+  try { masuk = JSON.parse(String(fd.get('jadwal') ?? '')) } catch { /* ditolak di bawah */ }
+  const jadwal = periksaJadwalEkstra(masuk)
+  if ('error' in jadwal) return { error: jadwal.error }
   const kuota = kuotaTeks ? Number(kuotaTeks) : null
   if (kuota !== null && (!Number.isInteger(kuota) || kuota < 1 || kuota > 50)) return { error: 'Kuota 1–50, atau kosongkan untuk ikut jenisnya.' }
 
@@ -106,18 +107,22 @@ export async function simpanSlotEkstraAction(_: unknown, fd: FormData): Promise<
   }
 
   const isi = {
-    jenis_id: jenisId, teacher_id: teacherId, hari, jam_mulai: mulai, jam_selesai: selesai,
-    tempat: teks(fd, 'tempat', 120), kuota, aktif: fd.get('aktif') === 'on',
+    jenis_id: jenisId, teacher_id: teacherId, ...kolomJadwal(jadwal.jadwal),
+    kuota, aktif: fd.get('aktif') === 'on',
     updated_at: new Date().toISOString(),
   }
   const supabase = createServerClient()
   const { error } = id
     ? await supabase.from('ekstra_slot').update(isi).eq('id', id)
     : await supabase.from('ekstra_slot').insert(isi)
-  if (error) return { error: tabelHilang(error) ? PESAN_MIGRASI : 'Gagal menyimpan halaqoh ekstra.' }
+  if (error) return { error: tabelHilang(error) ? PESAN_MIGRASI : kolomHilang(error) ? PESAN_MIGRASI_JADWAL : 'Gagal menyimpan halaqoh ekstra.' }
   segarkan()
   return { success: true }
 }
+
+/** Kolom jadwal_tambahan belum ada — migrasi 0125 belum dijalankan. */
+const kolomHilang = (e: { code?: string } | null) => !!e && (e.code === '42703' || e.code === 'PGRST204')
+const PESAN_MIGRASI_JADWAL = 'Jadwal ekstra butuh migrasi 0125. Minta admin menjalankannya lebih dulu.'
 
 // ─── Booking dari orang tua (publik, tanpa akun) ─────────────────────────────
 //
@@ -187,7 +192,11 @@ export async function ajukanBookingEkstraAction(_: unknown, fd: FormData): Promi
 /** Halaqoh tujuan: yang sudah ada, atau dibuat baru dari isian koordinator. */
 export type TujuanHalaqoh =
   | { slotId: string }
-  | { baru: { teacher_id: string; hari: number; jam_mulai: string; jam_selesai: string; tempat: string; kuota: number | null } }
+  | { baru: {
+      teacher_id: string; hari: number; jam_mulai: string; jam_selesai: string; tempat: string; kuota: number | null
+      /** Waktu lain sepekan (0125) — dipakai saat pindah guru menyalin jadwal halaqoh lama. */
+      jadwal_tambahan?: WaktuEkstra[]
+    } }
 
 async function ambilBooking(id: string) {
   const { data } = await createServerClient().from('ekstra_booking')
@@ -229,6 +238,7 @@ async function siapkanHalaqoh(jenisId: string, tujuan: TujuanHalaqoh): Promise<{
   const { data, error } = await supabase.from('ekstra_slot').insert({
     jenis_id: jenisId, teacher_id: b.teacher_id, hari: b.hari, jam_mulai: b.jam_mulai, jam_selesai: b.jam_selesai,
     tempat: b.tempat.slice(0, 120), kuota: b.kuota, aktif: true,
+    ...(b.jadwal_tambahan?.length ? { jadwal_tambahan: b.jadwal_tambahan } : {}),
   }).select('id').single()
   if (error || !data) return { error: 'Gagal membuat halaqoh ekstra baru.' }
   return { slotId: (data as { id: string }).id }
@@ -323,14 +333,14 @@ export async function pindahHalaqohEkstraAction(id: string, tujuan: { slotId: st
     slotId = h.slotId
   } else {
     const { data: lama } = b.slot_id
-      ? await createServerClient().from('ekstra_slot').select('teacher_id, hari, jam_mulai, jam_selesai, tempat').eq('id', b.slot_id).maybeSingle()
+      ? await createServerClient().from('ekstra_slot').select('*').eq('id', b.slot_id).maybeSingle()
       : { data: null }
-    const l = lama as { teacher_id: string; hari: number; jam_mulai: string; jam_selesai: string; tempat: string } | null
+    const l = lama as { teacher_id: string; hari: number; jam_mulai: string; jam_selesai: string; tempat: string; jadwal_tambahan?: WaktuEkstra[] | null } | null
     if (!l) return { error: 'Halaqoh asal tidak ditemukan.' }
     if (l.teacher_id === tujuan.guruId) return { error: 'Peserta sudah diampu guru ini.' }
     const h = await siapkanHalaqoh(b.jenis_id, { baru: {
       teacher_id: tujuan.guruId, hari: l.hari, jam_mulai: l.jam_mulai.slice(0, 5), jam_selesai: l.jam_selesai.slice(0, 5),
-      tempat: l.tempat ?? '', kuota: null,
+      tempat: l.tempat ?? '', kuota: null, jadwal_tambahan: l.jadwal_tambahan ?? [],
     } })
     if ('error' in h) return { error: h.error }
     slotId = h.slotId
@@ -644,26 +654,24 @@ export async function ubahGuruEkstraAction(teacherId: string, aktif: boolean, ca
 }
 
 /**
- * Pengampu mengatur sendiri hari, jam, dan tempat halaqoh ekstra yang ia ampu
- * — mis. sesudah peserta dipindahkan kepadanya dengan jadwal guru lama.
- * Jenis, kuota, dan status tetap urusan koordinator.
+ * Pengampu mengatur sendiri waktu halaqoh ekstra yang ia ampu — beberapa
+ * hari sepekan, dua waktu sehari, tempat per waktu (0125) — mis. sesudah
+ * peserta dipindahkan kepadanya dengan jadwal guru lama. Jenis, kuota, dan
+ * status tetap urusan koordinator.
  */
-export async function ubahJadwalEkstraGuruAction(slotId: string, isi: {
-  hari: number; jam_mulai: string; jam_selesai: string; tempat: string
-}): Promise<Hasil> {
+export async function ubahJadwalEkstraGuruAction(slotId: string, waktu: WaktuEkstra[]): Promise<Hasil> {
   const session = await getTeacherSession()
   if (!session) return { error: 'Sesi tidak valid.' }
-  if (!(Number.isInteger(isi.hari) && isi.hari >= 1 && isi.hari <= 7)) return { error: 'Hari tidak valid.' }
-  if (!JAM.test(isi.jam_mulai) || !JAM.test(isi.jam_selesai) || isi.jam_selesai <= isi.jam_mulai) return { error: 'Jam selesai harus setelah jam mulai.' }
+  const jadwal = periksaJadwalEkstra(waktu)
+  if ('error' in jadwal) return { error: jadwal.error }
 
   const supabase = createServerClient()
   const { data: slot } = await supabase.from('ekstra_slot').select('teacher_id').eq('id', slotId).maybeSingle()
   if ((slot as { teacher_id: string } | null)?.teacher_id !== session.teacherId) return { error: 'Anda bukan pengampu halaqoh ini.' }
   const { error } = await supabase.from('ekstra_slot').update({
-    hari: isi.hari, jam_mulai: isi.jam_mulai, jam_selesai: isi.jam_selesai,
-    tempat: isi.tempat.trim().slice(0, 120), updated_at: new Date().toISOString(),
+    ...kolomJadwal(jadwal.jadwal), updated_at: new Date().toISOString(),
   }).eq('id', slotId).eq('teacher_id', session.teacherId)
-  if (error) return { error: 'Gagal menyimpan jadwal.' }
+  if (error) return { error: kolomHilang(error) ? PESAN_MIGRASI_JADWAL : 'Gagal menyimpan jadwal.' }
   segarkan()
   return { success: true }
 }

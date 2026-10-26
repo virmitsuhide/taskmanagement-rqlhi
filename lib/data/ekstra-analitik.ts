@@ -1,6 +1,6 @@
 import { createServerClient } from '@/lib/supabase/server'
 import {
-  BAGIAN_HARI, getDataEkstra, getSetoranEkstra, HARI_EKSTRA, labelSlot,
+  BAGIAN_HARI, bertemuHari, getDataEkstra, getSetoranEkstra, HARI_EKSTRA, labelSlot,
   type BookingEkstra, type StatusHadirEkstra,
 } from '@/lib/data/ekstra'
 
@@ -149,7 +149,8 @@ export async function getAnalitikEkstra(bulan: string): Promise<AnalitikEkstra> 
     for (let d = new Date(`${dari}T00:00:00Z`); d.toISOString().slice(0, 10) <= batasAkhir; d = new Date(d.getTime() + 864e5)) {
       const t = d.toISOString().slice(0, 10)
       if (t < mulaiPaling) continue
-      if (((d.getUTCDay() + 6) % 7) + 1 !== s.hari) continue
+      // Presensi per tanggal: hari dengan dua waktu (pagi & sore) tetap satu pertemuan.
+      if (!bertemuHari(s, ((d.getUTCDay() + 6) % 7) + 1)) continue
       if (!tercatat.has(`${s.id}|${t}`)) tanpaPresensi++
     }
   }

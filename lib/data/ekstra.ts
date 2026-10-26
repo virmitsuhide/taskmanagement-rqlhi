@@ -58,14 +58,25 @@ export interface JenisEkstra {
   urutan: number
 }
 
-export interface SlotEkstra {
-  id: string
-  jenis_id: string
-  teacher_id: string
+/** Satu waktu pertemuan dalam sepekan. jam 'HH:MM'. */
+export interface WaktuEkstra {
   hari: number
   jam_mulai: string
   jam_selesai: string
   tempat: string
+}
+
+export interface SlotEkstra {
+  id: string
+  jenis_id: string
+  teacher_id: string
+  /** Jadwal utama — waktu lain di jadwal_tambahan; baca semuanya lewat jadwalSlot(). */
+  hari: number
+  jam_mulai: string
+  jam_selesai: string
+  tempat: string
+  /** Waktu selain jadwal utama (0125); kosong/tak ada sebelum migrasi. */
+  jadwal_tambahan?: WaktuEkstra[] | null
   kuota: number | null
   aktif: boolean
   /** Diisi pembaca: */
@@ -114,8 +125,29 @@ export function jam(t: string): string {
   return t.slice(0, 5).replace(':', '.')
 }
 
-export function labelSlot(s: Pick<SlotEkstra, 'hari' | 'jam_mulai' | 'jam_selesai'>): string {
-  return `${HARI_EKSTRA[s.hari]} ${jam(s.jam_mulai)}–${jam(s.jam_selesai)}`
+type SumberJadwal = Pick<SlotEkstra, 'hari' | 'jam_mulai' | 'jam_selesai'> & { tempat?: string; jadwal_tambahan?: WaktuEkstra[] | null }
+
+/**
+ * Semua waktu satu halaqoh dalam sepekan: jadwal utama (hari/jam_mulai)
+ * lalu jadwal_tambahan (0125), urut hari lalu jam. Pakai ini — bukan
+ * s.hari — di mana pun yang bertanya "kapan halaqoh ini bertemu".
+ */
+export function jadwalSlot(s: SumberJadwal): WaktuEkstra[] {
+  const utama: WaktuEkstra = { hari: s.hari, jam_mulai: s.jam_mulai.slice(0, 5), jam_selesai: s.jam_selesai.slice(0, 5), tempat: s.tempat ?? '' }
+  return [utama, ...(Array.isArray(s.jadwal_tambahan) ? s.jadwal_tambahan : [])]
+    .sort((a, b) => a.hari - b.hari || a.jam_mulai.localeCompare(b.jam_mulai))
+}
+
+/** Halaqoh ini bertemu pada hari ke-n (1 = Senin)? */
+export function bertemuHari(s: SumberJadwal, hari: number): boolean {
+  return jadwalSlot(s).some(w => w.hari === hari)
+}
+
+/** "Senin 15.30–16.30" · "Sabtu 07.15–08.15 & 15.30–16.30 · Ahad 18.15–19.15" */
+export function labelSlot(s: SumberJadwal): string {
+  const perHari = new Map<number, string[]>()
+  for (const w of jadwalSlot(s)) perHari.set(w.hari, [...(perHari.get(w.hari) ?? []), `${jam(w.jam_mulai)}–${jam(w.jam_selesai)}`])
+  return [...perHari].map(([h, j]) => `${HARI_EKSTRA[h]} ${j.join(' & ')}`).join(' · ')
 }
 
 export function rupiah(n: number): string {

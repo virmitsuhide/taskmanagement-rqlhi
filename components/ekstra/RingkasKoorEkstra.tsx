@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { ArrowUpRight, Clock, Inbox, UsersRound } from 'lucide-react'
 import { Panel } from '@/components/dashboard/kit'
-import { getBookingEkstra, getDataEkstra, getHadirEkstra, hariIniWIB, jam, kiniWIB, labelPreferensi } from '@/lib/data/ekstra'
+import { getBookingEkstra, getDataEkstra, getHadirEkstra, hariIniWIB, jadwalSlot, jam, kiniWIB, labelPreferensi, labelSlot } from '@/lib/data/ekstra'
 import { cn } from '@/lib/utils'
 
 const hariSejak = (iso: string) => Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 864e5))
@@ -24,8 +24,12 @@ export async function RingkasKoorEkstra() {
   const hariNo = ((kini.getUTCDay() + 6) % 7) + 1
   const jamKini = kini.toISOString().slice(11, 16)
   const halaqoh = data.slot.filter(s => s.aktif)
-  const hariIni = halaqoh.filter(s => s.hari === hariNo).sort((a, b) => a.jam_mulai.localeCompare(b.jam_mulai))
-  const pesertaHariIni = aktif.filter(b => b.slot_id && hariIni.some(s => s.id === b.slot_id))
+  // Satu baris per WAKTU hari ini — halaqoh pagi & sore (0125) tampil dua kali.
+  const hariIni = halaqoh
+    .flatMap(s => jadwalSlot(s).filter(w => w.hari === hariNo).map(w => ({ ...s, jam_mulai: w.jam_mulai, jam_selesai: w.jam_selesai, tempat: w.tempat || s.tempat })))
+    .sort((a, b) => a.jam_mulai.localeCompare(b.jam_mulai))
+  const slotHariIni = new Set(hariIni.map(s => s.id))
+  const pesertaHariIni = aktif.filter(b => b.slot_id && slotHariIni.has(b.slot_id))
   const hadir = await getHadirEkstra(pesertaHariIni.map(b => b.id), tanggal, tanggal)
   const slotTercatat = new Set(hadir.map(h => pesertaHariIni.find(b => b.id === h.booking_id)?.slot_id).filter(Boolean))
 
@@ -34,7 +38,8 @@ export async function RingkasKoorEkstra() {
       : s.peserta === 0 ? 'kosong' as const
       : s.jam_selesai.slice(0, 5) <= jamKini ? 'belum' as const
       : s.jam_mulai.slice(0, 5) <= jamKini ? 'berjalan' as const : 'nanti' as const
-  const belumPresensi = hariIni.filter(s => status(s) === 'belum').length
+  // Presensi dicatat per tanggal, jadi dihitung per halaqoh — bukan per waktu.
+  const belumPresensi = new Set(hariIni.filter(s => status(s) === 'belum').map(s => s.id)).size
 
   const baru = terbuka.filter(b => b.status === 'baru')
   const ditawarkan = terbuka.filter(b => b.status === 'ditawarkan')
@@ -51,7 +56,7 @@ export async function RingkasKoorEkstra() {
     ? <>Tidak ada permintaan yang menunggu.</>
     : <>{terbuka.length} permintaan menunggu{lama.length > 0 ? <> — <i>{lama.length} sudah lebih dari tiga hari.</i></> : '.'}</>
   const kalimat = [
-    hariIni.length ? `${hariIni.length} halaqoh ekstra berjalan hari ini${belumPresensi ? `; ${belumPresensi} belum mencatat presensi` : ''}.` : 'Tidak ada halaqoh ekstra hari ini.',
+    hariIni.length ? `${slotHariIni.size} halaqoh ekstra berjalan hari ini${belumPresensi ? `; ${belumPresensi} belum mencatat presensi` : ''}.` : 'Tidak ada halaqoh ekstra hari ini.',
     longgar[0] ? `Kursi paling longgar: ${longgar[0].guru} · ${longgar[0].jenis?.nama ?? ''} (${longgar[0].peserta}/${longgar[0].kuotaEfektif}).` : null,
   ].filter(Boolean).join(' ')
 
@@ -95,7 +100,7 @@ export async function RingkasKoorEkstra() {
                   kosong: ['Belum ada peserta', 'bg-accent-warm-wash text-accent-warm'],
                 }[st]
                 return (
-                  <li key={s.id}>
+                  <li key={`${s.id}|${s.jam_mulai}`}>
                     <Link href={`/ekstra/halaqoh/${s.id}`} className="grid grid-cols-[60px_minmax(0,1fr)_auto] items-center gap-3 py-3 hover:bg-muted/30 sm:grid-cols-[64px_minmax(0,1fr)_90px_auto]">
                       <span>
                         <span className="block font-heading text-xl leading-none">{jam(s.jam_mulai)}</span>
@@ -149,7 +154,7 @@ export async function RingkasKoorEkstra() {
                   <li key={s.id}>
                     <Link href={`/ekstra/halaqoh/${s.id}`} className="grid grid-cols-[minmax(0,1fr)_120px] items-center gap-3">
                       <span className="min-w-0">
-                        <span className="block truncate text-sm font-semibold">{s.guru} · {['', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Ahd'][s.hari]} {jam(s.jam_mulai)}</span>
+                        <span className="block truncate text-sm font-semibold">{s.guru} · {labelSlot(s)}</span>
                         <span className="block truncate text-xs text-muted-foreground">{s.jenis?.nama}{s.peserta === 0 ? ' · belum ada peserta' : ''}</span>
                       </span>
                       <span className="flex items-center gap-2">

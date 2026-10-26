@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { BookOpen, Sparkles } from 'lucide-react'
 import { getTeacherSession } from '@/lib/auth/teacher-session'
-import { getHadirEkstra, getMateriEkstra, getSetoranEkstraSunting, getSlotGuru, hariIniWIB, labelSlot } from '@/lib/data/ekstra'
+import { getHadirEkstra, getMateriEkstra, getSetoranEkstraSunting, getSlotGuru, hariIniWIB, jadwalSlot, labelSlot } from '@/lib/data/ekstra'
 import { FormMateriEkstra } from '@/components/ekstra/FormMateriEkstra'
 import { SetoranKoreksi } from '@/components/siswa/SetoranKoreksi'
 import { HadirEkstra } from '@/components/ekstra/HadirEkstra'
@@ -105,8 +105,7 @@ export default async function GuruEkstraPage({ searchParams }: { searchParams: P
               <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
                 <section className="rounded-2xl border bg-card p-4 md:p-5">
                   <h2 className="font-heading text-xl">{aktif.jenis?.nama}</h2>
-                  <JadwalSlotGuru key={aktif.id} slotId={aktif.id} label={labelSlot(aktif)} hari={aktif.hari}
-                    jamMulai={aktif.jam_mulai} jamSelesai={aktif.jam_selesai} tempat={aktif.tempat ?? ''} jumlahPeserta={anggota.length} />
+                  <JadwalSlotGuru key={aktif.id} slotId={aktif.id} label={labelSlot(aktif)} jadwal={jadwalSlot(aktif)} jumlahPeserta={anggota.length} />
                   <TanggalPertemuan key={`${aktif.id}|${tanggal}`} href={`/guru/ekstra?slot=${aktif.id}`} tanggal={tanggal} maks={hariIni}
                     keterangan="Pertemuan yang terlewat: pilih tanggalnya dulu, lalu Setor." />
                   <div className="mt-4">
