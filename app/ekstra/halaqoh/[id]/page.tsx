@@ -177,7 +177,8 @@ export default async function DetailHalaqohEkstraPage({ params }: { params: Prom
               {pertemuan.length === 0 ? <p className="text-sm text-muted-foreground">Guru belum mencatat presensi bulan ini.</p> : (
                 <div className="grid grid-cols-4 gap-1.5">
                   {pertemuan.map(t => {
-                    const d = new Date(`${t.tanggal}T00:00:00+07:00`)
+                    // Tengah malam UTC, dibaca dengan getUTCDay — hari kalender tanggal itu apa pun zona servernya.
+                    const d = new Date(`${t.tanggal}T00:00:00Z`)
                     return (
                       <div key={t.tanggal} className={cn('flex flex-col items-center rounded-xl py-2', t.hadir === t.total ? 'bg-primary-wash' : 'bg-accent-warm-wash')}>
                         <span className="text-[10px] font-bold uppercase text-muted-foreground">{HARI_PENDEK[((d.getUTCDay() + 6) % 7) + 1] ?? ''}</span>
