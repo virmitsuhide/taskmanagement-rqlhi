@@ -37,7 +37,7 @@ function Sel({ isi, absen, hadirTanpaSetor, onSunting }: {
   isi: SelProgres[] | undefined
   absen?: 'izin' | 'sakit' | 'alfa'
   hadirTanpaSetor?: boolean
-  onSunting?: (s: SuntingSetoran) => void
+  onSunting?: (s: SuntingSetoran, jalur: SelProgres['jalur']) => void
 }) {
   if (!isi || isi.length === 0) {
     // Tidak hadir = sudah tercatat, bukan lubang: ditandai tenang.
@@ -84,7 +84,7 @@ function Sel({ isi, absen, hadirTanpaSetor, onSunting }: {
           </>
         )
         return onSunting ? (
-          <button key={i} type="button" title={`${s.rinci}\n\nKlik untuk mengoreksi`} className={kelas} onClick={() => onSunting(s.sunting)}>
+          <button key={i} type="button" title={`${s.rinci}\n\nKlik untuk mengoreksi`} className={kelas} onClick={() => onSunting(s.sunting, s.jalur)}>
             {konten}
           </button>
         ) : (
@@ -116,7 +116,7 @@ export function TabelProgres({
   tautanSiswa?: string
   bisaSunting?: boolean
 }) {
-  const [sunting, setSunting] = useState<{ s: SuntingSetoran; nama: string } | null>(null)
+  const [sunting, setSunting] = useState<{ s: SuntingSetoran; nama: string; jalur: SelProgres['jalur'] } | null>(null)
   const adaSetoran = data.baris.some(b => b.jumlahHari > 0)
   const adaAsrama = data.baris.some(b => Object.values(b.sel).some(xs => xs.some(x => x.asrama)))
   const adaJalur = data.baris.some(b => Object.values(b.sel).some(xs => xs.some(x => x.jalur in HURUF_JALUR)))
@@ -200,7 +200,7 @@ export function TabelProgres({
                       isi={b.sel[t]}
                       absen={b.absen[t]}
                       hadirTanpaSetor={b.hadirTanpaSetor.includes(t)}
-                      onSunting={bisaSunting ? s => setSunting({ s, nama: b.nama }) : undefined}
+                      onSunting={bisaSunting ? (s, jalur) => setSunting({ s, nama: b.nama, jalur }) : undefined}
                     />
                   </td>
                 ))}
@@ -248,13 +248,13 @@ export function TabelProgres({
       </div>
 
       {sunting && (
-        <DialogKoreksi key={sunting.s.id} s={sunting.s} nama={sunting.nama} onTutup={() => setSunting(null)} />
+        <DialogKoreksi key={sunting.s.id} s={sunting.s} nama={sunting.nama} jalur={sunting.jalur} onTutup={() => setSunting(null)} />
       )}
     </div>
   )
 }
 
-function DialogKoreksi({ s, nama, onTutup }: { s: SuntingSetoran; nama: string; onTutup: () => void }) {
+function DialogKoreksi({ s, nama, jalur, onTutup }: { s: SuntingSetoran; nama: string; jalur: SelProgres['jalur']; onTutup: () => void }) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
   const [status, setStatus] = useState<TahsinStatus>(s.status ?? 'lulus')
@@ -311,6 +311,9 @@ function DialogKoreksi({ s, nama, onTutup }: { s: SuntingSetoran; nama: string; 
         <DialogHeader>
           <DialogTitle>Koreksi setoran{nama ? ` — ${nama}` : ''}</DialogTitle>
           <DialogDescription>
+            {jalur === 'ekstra' && (
+              <span className="mr-1.5 rounded bg-primary-wash px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary">Ekstra</span>
+            )}
             {tanggalPanjang(s.tanggal)} · {s.judul}
           </DialogDescription>
         </DialogHeader>

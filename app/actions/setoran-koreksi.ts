@@ -104,6 +104,7 @@ function refresh(studentId: string) {
   revalidatePath('/asrama')
   revalidatePath('/guru/ekstra')
   revalidatePath('/ekstra/progres')
+  revalidatePath('/ekstra/setoran')
 }
 
 // ── Hapus ────────────────────────────────────────────────────────────────────

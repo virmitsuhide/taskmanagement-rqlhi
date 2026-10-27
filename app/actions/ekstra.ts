@@ -8,6 +8,7 @@ import { canManageEkstra } from '@/lib/auth/permissions'
 import { getCalonSiswa, type CalonSiswa, type StatusHadirEkstra, type WaktuEkstra } from '@/lib/data/ekstra'
 import { kolomJadwal, periksaJadwalEkstra } from '@/lib/rq/jadwal-ekstra'
 import { statusTahsinSah } from '@/lib/rq/status-tahsin'
+import { recalcMutqin, recalcPosisi } from '@/lib/rq/hitung-ulang-setoran'
 import { METODE_NON_SISWA, metodeNonSiswa } from '@/lib/tahsin'
 
 type Hasil = { error?: string; success?: true }
@@ -620,6 +621,93 @@ export async function simpanMateriEkstraAction(slotId: string, tanggal: string, 
   revalidatePath('/guru/progres')
   revalidatePath('/ekstra/progres')
   return { success: true }
+}
+
+/**
+ * Pindahkan SATU pertemuan halaqoh ekstra ke tanggal lain — koordinator
+ * ekstra, untuk guru yang salah memilih tanggal saat menyetor. Yang ikut
+ * pindah hanya data bertanda halaqoh itu: setoran tahsin/tahfidz ber-
+ * ekstra_slot_id, kehadiran pesertanya, materi, dan setoran peserta non-LHI.
+ * Setoran sekolah anak yang sama di tanggal itu tidak disentuh.
+ *
+ * Ditolak bila tanggal tujuan sudah berisi pertemuan yang bertabrakan (anak
+ * yang sama sudah setor/diabsen di sana) — aturan satu setoran per anak per
+ * hari per jalur, sama seperti saat guru mencatat.
+ */
+export async function pindahTanggalEkstraAction(slotId: string, dari: string, ke: string): Promise<Hasil & { jumlah?: number }> {
+  const k = await koordinator()
+  if ('error' in k) return { error: k.error }
+  if (!TANGGAL.test(dari) || !TANGGAL.test(ke)) return { error: 'Tanggal tidak valid.' }
+  if (dari === ke) return { error: 'Tanggal tujuan sama dengan tanggal asal.' }
+  if (ke > hariIniWIB()) return { error: 'Tanggal tujuan tidak boleh melewati hari ini.' }
+
+  const supabase = createServerClient()
+  const { data: slot } = await supabase.from('ekstra_slot').select('id').eq('id', slotId).maybeSingle()
+  if (!slot) return { error: 'Halaqoh ekstra tidak ditemukan.' }
+  const { data: bRows } = await supabase.from('ekstra_booking').select('id').eq('slot_id', slotId)
+  const bookingIds = ((bRows ?? []) as { id: string }[]).map(b => b.id)
+
+  // Ambil isi kedua tanggal sekaligus untuk memeriksa tabrakan.
+  const [ts, tf, hadir, materi] = await Promise.all([
+    supabase.from('tahsin_logs').select('student_id, setoran_date').eq('ekstra_slot_id', slotId).in('setoran_date', [dari, ke]),
+    supabase.from('tahfidz_logs').select('student_id, setoran_date, kind').eq('ekstra_slot_id', slotId).in('setoran_date', [dari, ke]),
+    bookingIds.length
+      ? supabase.from('ekstra_hadir').select('booking_id, tanggal').in('booking_id', bookingIds).in('tanggal', [dari, ke])
+      : Promise.resolve({ data: [] as { booking_id: string; tanggal: string }[], error: null }),
+    supabase.from('ekstra_materi').select('tanggal').eq('slot_id', slotId).in('tanggal', [dari, ke]),
+  ])
+  const tahsin = (ts.data ?? []) as { student_id: string; setoran_date: string }[]
+  const tahfidz = (tf.data ?? []) as { student_id: string; setoran_date: string; kind: string }[]
+  const hadirRows = (hadir.data ?? []) as { booking_id: string; tanggal: string }[]
+  const materiRows = tabelHilang(materi.error) ? [] : (materi.data ?? []) as { tanggal: string }[]
+
+  const tabrak = (kunci: string[], tgl: (i: number) => string) => {
+    const asal = new Set(kunci.filter((_, i) => tgl(i) === dari))
+    return kunci.some((x, i) => tgl(i) === ke && asal.has(x))
+  }
+  if (tabrak(tahsin.map(l => l.student_id), i => tahsin[i].setoran_date)
+    || tabrak(tahfidz.map(l => `${l.student_id}|${l.kind}`), i => tahfidz[i].setoran_date)) {
+    return { error: 'Di tanggal tujuan sudah ada setoran ekstra anak yang sama di halaqoh ini. Hapus salah satunya dulu.' }
+  }
+  if (tabrak(hadirRows.map(h => h.booking_id), i => hadirRows[i].tanggal)) {
+    return { error: 'Kehadiran di tanggal tujuan sudah diisi untuk peserta yang sama. Pilih tanggal lain.' }
+  }
+  if (materiRows.some(m => m.tanggal === dari) && materiRows.some(m => m.tanggal === ke)) {
+    return { error: 'Materi di tanggal tujuan sudah diisi. Pilih tanggal lain.' }
+  }
+
+  const pindahTahsin = tahsin.filter(l => l.setoran_date === dari)
+  const pindahTahfidz = tahfidz.filter(l => l.setoran_date === dari)
+  const jumlah = pindahTahsin.length + pindahTahfidz.length
+    + hadirRows.filter(h => h.tanggal === dari).length + materiRows.filter(m => m.tanggal === dari).length
+  const [luarTs, luarTf] = await Promise.all([
+    supabase.from('ekstra_setoran_luar').update({ tanggal: ke }).eq('slot_id', slotId).eq('tanggal', dari).select('id'),
+    supabase.from('ekstra_setoran_tahfidz_luar').update({ tanggal: ke }).eq('slot_id', slotId).eq('tanggal', dari).select('id'),
+  ])
+  const jumlahLuar = (tabelHilang(luarTs.error) ? 0 : luarTs.data?.length ?? 0) + (tabelHilang(luarTf.error) ? 0 : luarTf.data?.length ?? 0)
+  if (jumlah + jumlahLuar === 0) return { error: 'Tidak ada data halaqoh ini di tanggal asal.' }
+
+  const hasil = await Promise.all([
+    pindahTahsin.length ? supabase.from('tahsin_logs').update({ setoran_date: ke }).eq('ekstra_slot_id', slotId).eq('setoran_date', dari) : null,
+    pindahTahfidz.length ? supabase.from('tahfidz_logs').update({ setoran_date: ke }).eq('ekstra_slot_id', slotId).eq('setoran_date', dari) : null,
+    bookingIds.length ? supabase.from('ekstra_hadir').update({ tanggal: ke, updated_at: new Date().toISOString() }).in('booking_id', bookingIds).eq('tanggal', dari) : null,
+    materiRows.length ? supabase.from('ekstra_materi').update({ tanggal: ke, updated_at: new Date().toISOString() }).eq('slot_id', slotId).eq('tanggal', dari) : null,
+  ])
+  if (hasil.some(h => h?.error)) return { error: 'Sebagian data gagal dipindahkan. Muat ulang halaman dan periksa kembali.' }
+
+  // Urutan setoran berubah, jadi posisi anak diputar ulang dari riwayatnya.
+  await Promise.all([
+    ...[...new Set(pindahTahsin.map(l => l.student_id))].map(id => recalcPosisi(supabase, id)),
+    ...[...new Set(pindahTahfidz.map(l => l.student_id))].map(id => recalcMutqin(supabase, id)),
+  ])
+
+  revalidatePath('/ekstra/setoran')
+  revalidatePath('/ekstra/progres')
+  revalidatePath('/ekstra/laporan')
+  revalidatePath('/ekstra/halaqoh', 'layout')
+  revalidatePath('/guru/ekstra')
+  revalidatePath('/guru/progres')
+  return { success: true, jumlah: jumlah + jumlahLuar }
 }
 
 // ─── Guru ekstra (0095) ──────────────────────────────────────────────────────
