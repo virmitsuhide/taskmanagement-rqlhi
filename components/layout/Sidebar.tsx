@@ -7,7 +7,7 @@ import {
   LayoutDashboard, BookOpen, CheckSquare, ImageIcon,
   FileText, User, Megaphone, LogOut, ChevronRight, GraduationCap, Newspaper, LayoutGrid,
   Users, UserCog, BookMarked, BarChart3, LayoutTemplate, Info, Wallet, CalendarRange, CalendarDays,
-  ClipboardCheck, KeyRound, ScrollText, Repeat, IdCard, UsersRound, Briefcase, Stamp, Scale, ListChecks, Kanban,
+  ClipboardCheck, KeyRound, ScrollText, Repeat, IdCard, UsersRound, PencilLine, Briefcase, Stamp, Scale, ListChecks, Kanban,
   PanelLeftClose, PanelLeftOpen, CalendarHeart, BookHeart, Lock, UserRound,
   Crosshair, LibraryBig, Sparkles, Table2, BedDouble, DatabaseBackup, Palette,
 } from 'lucide-react'
@@ -349,6 +349,7 @@ export function Sidebar({ role, displayName, username, lencanaKpi, ciutAwal = fa
                   <NavItem href="/ekstra" icon={<CalendarHeart className="h-4 w-4" />} label="Ekstra & Booking"
                     active={pathname === '/ekstra' || pathname.startsWith('/ekstra/atur') || pathname.startsWith('/ekstra/laporan')} />
                   <NavItem href="/ekstra/halaqoh" icon={<UsersRound className="h-4 w-4" />} label="Halaqoh Ekstra" active={isActive('/ekstra/halaqoh')} />
+                  <NavItem href="/ekstra/setoran" icon={<PencilLine className="h-4 w-4" />} label="Setoran Ekstra" active={isActive('/ekstra/setoran')} />
                   <NavItem href="/ekstra/siswa" icon={<UserRound className="h-4 w-4" />} label="Siswa Ekstra" active={isActive('/ekstra/siswa')} />
                   <NavItem href="/ekstra/guru" icon={<GraduationCap className="h-4 w-4" />} label="Guru Ekstra" active={isActive('/ekstra/guru')} />
                 </>

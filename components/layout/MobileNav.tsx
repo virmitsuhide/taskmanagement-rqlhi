@@ -7,7 +7,7 @@ import {
   Menu, X, LayoutDashboard, CheckSquare, BookOpen,
   ImageIcon, Megaphone, FileText, User, LogOut, GraduationCap, Newspaper, LayoutGrid,
   Users, UserCog, BookMarked, BarChart3, LayoutTemplate, Info, Wallet, CalendarRange, CalendarDays,
-  ClipboardCheck, KeyRound, ScrollText, Repeat, IdCard, UsersRound, Briefcase, Stamp, Scale, ListChecks, Kanban, CalendarHeart, BookHeart, Lock, UserRound,
+  ClipboardCheck, KeyRound, ScrollText, Repeat, IdCard, UsersRound, PencilLine, Briefcase, Stamp, Scale, ListChecks, Kanban, CalendarHeart, BookHeart, Lock, UserRound,
   Crosshair, LibraryBig, Sparkles, Table2, BedDouble, DatabaseBackup, Palette,
 } from 'lucide-react'
 import { domainBackupUntuk } from '@/lib/backup/domain'
@@ -381,6 +381,7 @@ export function MobileNav({ role, displayName, username, lencanaKpi }: Props) {
                     <DrawerLink href="/ekstra" icon={<CalendarHeart className="h-4 w-4" />} label="Ekstra & Booking"
                       active={pathname === '/ekstra' || pathname.startsWith('/ekstra/atur') || pathname.startsWith('/ekstra/laporan')} onNavigate={close} />
                     <DrawerLink href="/ekstra/halaqoh" icon={<UsersRound className="h-4 w-4" />} label="Halaqoh Ekstra" active={isActive('/ekstra/halaqoh')} onNavigate={close} />
+                    <DrawerLink href="/ekstra/setoran" icon={<PencilLine className="h-4 w-4" />} label="Setoran Ekstra" active={isActive('/ekstra/setoran')} onNavigate={close} />
                     <DrawerLink href="/ekstra/siswa" icon={<UserRound className="h-4 w-4" />} label="Siswa Ekstra" active={isActive('/ekstra/siswa')} onNavigate={close} />
                     <DrawerLink href="/ekstra/guru" icon={<GraduationCap className="h-4 w-4" />} label="Guru Ekstra" active={isActive('/ekstra/guru')} onNavigate={close} />
                   </>
