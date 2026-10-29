@@ -3,6 +3,7 @@ import { getHasilMateriPerSiswa, getMateriPerJilid } from '@/lib/data/materi-tah
 import { createServerClient } from '@/lib/supabase/server'
 import { getSesiPelaporGuru, halamanDrill, idHalaqohSesi, type HalaqohSesi } from '@/lib/data/setoran-sesi'
 import { teksDrill } from '@/lib/rq/drill-tahsin'
+import { halamanLulusPerSetoran, type LogHalaman } from '@/lib/rq/halaman-lulus'
 import { getPetaHalaman } from '@/lib/data/target-tahfidz'
 import { halamanHafalan } from '@/lib/rq/target-tahfidz'
 import { rekapMurojaah, suratMurojaah } from '@/lib/rq/murojaah'
@@ -38,8 +39,12 @@ async function ambilSemua<T>(buat: (dari: number, ke: number) => PromiseLike<{ d
 const ZIYADAH = ['ziyadah', 'hafalan_baru']
 
 function besok(iso: string): string {
+  return geserHari(iso, 1)
+}
+
+function geserHari(iso: string, hari: number): string {
   const d = new Date(`${iso}T00:00:00Z`)
-  d.setUTCDate(d.getUTCDate() + 1)
+  d.setUTCDate(d.getUTCDate() + hari)
   return d.toISOString().slice(0, 10)
 }
 
@@ -122,7 +127,13 @@ async function susunLaporan(
   type LogTahfidz = { id: string; student_id: string; setoran_date: string; created_at: string; kind: string; surat_id: number; ayat_dari: number | null; surat_ke_id: number | null; ayat_ke: number | null }
   type Ziyadah = { student_id: string; surat_id: number; ayat_dari: number | null; ayat_ke: number | null; setoran_date: string; created_at: string }
 
-  const [guruRes, tahsinSemua, tahfidzSemua, ziyadahSemua, progres, juzTeruji, ujianTf, ujianTs, peta, surat, logEkstra, materiPerJilid, hasilMateri, drill] = await Promise.all([
+  // Pembanding halaman Lulus: setoran Lulus dari SEMUA sumber, mundur dua
+  // bulan sebelum periode (dan sejak awal drill) supaya setoran pertama
+  // periode tetap punya setoran sebelumnya untuk diselisihkan.
+  const mundur = [geserHari(periode.dari, -62), ...siswa.map(s => s.tahsin_drill_sejak).filter((x): x is string => Boolean(x))].sort()[0]
+  type LogLulus = LogHalaman & { student_id: string }
+
+  const [guruRes, tahsinSemua, tahfidzSemua, ziyadahSemua, progres, juzTeruji, ujianTf, ujianTs, peta, surat, logEkstra, materiPerJilid, hasilMateri, drill, riwayatLulus] = await Promise.all([
     supabase.from('teachers').select('full_name, sapaan, nickname, signature_path').eq('id', teacherId).maybeSingle(),
     // Laporan ekstra: hanya setoran pertemuan kelompok itu.
     ids.length ? ambilSemua<LogTahsin>((a, b) => {
@@ -161,7 +172,16 @@ async function susunLaporan(
     getHasilMateriPerSiswa(ids),
     // Putaran drill dihitung dari SELURUH setoran drill sejak masuk drill, bukan periode saja.
     halamanDrill(supabase, siswa.map(s => ({ ...s, total_pages: s.jilid?.total_pages ?? null }))),
+    ids.length ? ambilSemua<LogLulus>((a, b) =>
+      supabase.from('tahsin_logs').select('id, student_id, halaman, status, drill, jilid_id')
+        .in('student_id', ids).eq('status', 'lulus').gte('setoran_date', mundur).lte('setoran_date', periode.sampai)
+        .order('setoran_date').order('created_at').range(a, b)) : kosong<LogLulus>(),
   ])
+  const halamanLulus = new Map<string, number>()
+  for (const id of ids) {
+    for (const [log, n] of halamanLulusPerSetoran(riwayatLulus.filter(l => l.student_id === id))) halamanLulus.set(log, n)
+  }
+  const jumlahHalaman = (daftar: LogTahsin[]) => daftar.reduce((n, l) => n + (halamanLulus.get(l.id) ?? 1), 0)
   const tahsin = tahsinSemua.filter(l => !logEkstra.tahsin.has(l.id))
   const tahfidz = tahfidzSemua.filter(l => !logEkstra.tahfidz.has(l.id))
 
@@ -262,8 +282,9 @@ async function susunLaporan(
       tahsin: {
         posisi: posisiTahsin,
         setoran: ts.length,
-        lulus: ts.filter(l => l.status === 'lulus' && !l.drill).length,
-        drillLulus: ts.filter(l => l.status === 'lulus' && l.drill).length,
+        // Halaman, bukan banyaknya setoran: satu setoran bisa melewati beberapa halaman.
+        lulus: jumlahHalaman(ts.filter(l => l.status === 'lulus' && !l.drill)),
+        drillLulus: jumlahHalaman(ts.filter(l => l.status === 'lulus' && l.drill)),
         baris: barisLanjut(ts),
         selesai: Boolean(s.jilid?.is_terminal),
       },

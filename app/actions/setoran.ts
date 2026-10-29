@@ -632,20 +632,21 @@ export async function createTahsinLogSesiAction(baris: InputSetoranTahsin[]): Pr
 
   const gagal: HasilSetoranSesi['gagal'] = []
   let tersimpan = 0
-  for (const b of baris) {
-    const galat = await simpanSetoranTahsin(session.teacherId, {
-      ...b,
-      nilai_tahsin: nilaiSah(b.nilai_tahsin),
-      nilai_sikap: nilaiSah(b.nilai_sikap),
-      status: statusTahsinSah(b.status),
-      baris_dari: typeof b.baris_dari === 'number' ? b.baris_dari : null,
-      baris_ke: typeof b.baris_ke === 'number' ? b.baris_ke : null,
-      catatan: b.catatan?.trim() || null,
-    })
+  const hasil = await perAnakSerentak(baris, b => simpanSetoranTahsin(session.teacherId, {
+    ...b,
+    nilai_tahsin: nilaiSah(b.nilai_tahsin),
+    nilai_sikap: nilaiSah(b.nilai_sikap),
+    status: statusTahsinSah(b.status),
+    baris_dari: typeof b.baris_dari === 'number' ? b.baris_dari : null,
+    baris_ke: typeof b.baris_ke === 'number' ? b.baris_ke : null,
+    catatan: b.catatan?.trim() || null,
+  }))
+  baris.forEach((b, i) => {
+    const galat = hasil[i]
     if (typeof galat === 'string') gagal.push({ student_id: b.student_id, pesan: galat })
     else if (galat) gagal.push({ student_id: b.student_id, pesan: 'Sudah ada setoran di hari ini.', ganda: galat.ganda })
     else tersimpan++
-  }
+  })
 
   segarkanSetoran(baris.map(b => b.student_id))
   return { tersimpan, gagal }
@@ -814,18 +815,41 @@ export async function createTahfidzLogSesiAction(baris: InputSetoranTahfidz[]): 
 
   const gagal: HasilSetoranSesi['gagal'] = []
   let tersimpan = 0
-  for (const b of baris) {
-    const galat = await simpanSetoranTahfidz(session.teacherId, {
-      ...b,
-      nilai_tahfidz: nilaiSah(b.nilai_tahfidz),
-      nilai_sikap: nilaiSah(b.nilai_sikap),
-      catatan: b.catatan?.trim() || null,
-    })
+  const hasil = await perAnakSerentak(baris, b => simpanSetoranTahfidz(session.teacherId, {
+    ...b,
+    nilai_tahfidz: nilaiSah(b.nilai_tahfidz),
+    nilai_sikap: nilaiSah(b.nilai_sikap),
+    catatan: b.catatan?.trim() || null,
+  }))
+  baris.forEach((b, i) => {
+    const galat = hasil[i]
     if (typeof galat === 'string') gagal.push({ student_id: b.student_id, pesan: galat })
     else if (galat) gagal.push({ student_id: b.student_id, pesan: 'Sudah ada setoran di hari ini.', ganda: galat.ganda })
     else tersimpan++
-  }
+  })
 
   segarkanSetoran(baris.map(b => b.student_id))
   return { tersimpan, gagal }
+}
+
+/**
+ * Simpan satu sesi tanpa menunggu anak demi anak: tiap setoran butuh belasan
+ * kueri berurutan, jadi 15 anak satu per satu terasa lambat. Anak yang
+ * berbeda disimpan serentak (paling banyak SERENTAK sekaligus); baris milik
+ * anak yang SAMA (ziyadah + muroja'ah) tetap berurutan, karena pemeriksaan
+ * setoran ganda dan posisinya membaca setoran sebelumnya. Hasil sejajar `baris`.
+ */
+const SERENTAK = 4
+async function perAnakSerentak<B extends { student_id: string }, H>(baris: B[], simpan: (b: B) => Promise<H>): Promise<H[]> {
+  const hasil = new Array<H>(baris.length)
+  const perAnak = new Map<string, number[]>()
+  baris.forEach((b, i) => perAnak.set(b.student_id, [...(perAnak.get(b.student_id) ?? []), i]))
+  const antrean = [...perAnak.values()]
+  const pekerja = async () => {
+    for (let urut = antrean.shift(); urut; urut = antrean.shift()) {
+      for (const i of urut) hasil[i] = await simpan(baris[i])
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(SERENTAK, antrean.length) }, pekerja))
+  return hasil
 }

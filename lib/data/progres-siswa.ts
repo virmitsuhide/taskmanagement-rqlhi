@@ -1,5 +1,6 @@
 import { createServerClient } from '@/lib/supabase/server'
 import { getPetaHalaman } from '@/lib/data/target-tahfidz'
+import { halamanLulusPerSetoran, type LogHalaman } from '@/lib/rq/halaman-lulus'
 import { rentangPeriode, wadahAktivitas, type KodePeriode, type RentangPeriode } from '@/lib/data/statistik-guru'
 
 /**
@@ -40,9 +41,17 @@ export async function getProgresSiswa(studentId: string, kode: KodePeriode): Pro
 
   // Satu anak, paling banyak setahun: satu setoran tahsin per hari, jadi jauh
   // di bawah batas 1.000 baris PostgREST tanpa perlu dipaginasi.
-  const [tahsinRes, tahfidzRes, peta] = await Promise.all([
+  // Setoran Lulus dihitung dalam HALAMAN (selisih dengan Lulus sebelumnya),
+  // jadi dibaca mundur dua bulan sebelum periode sebagai pembanding.
+  const mundur = new Date(`${periode.awal}T00:00:00Z`)
+  mundur.setUTCDate(mundur.getUTCDate() - 62)
+  const [tahsinRes, lulusRes, tahfidzRes, peta] = await Promise.all([
     supabase.from('tahsin_logs').select('setoran_date, status, drill')
       .eq('student_id', studentId).gte('setoran_date', periode.awal).lte('setoran_date', periode.akhir),
+    supabase.from('tahsin_logs').select('id, setoran_date, halaman, status, drill, jilid_id')
+      .eq('student_id', studentId).eq('status', 'lulus')
+      .gte('setoran_date', mundur.toISOString().slice(0, 10)).lte('setoran_date', periode.akhir)
+      .order('setoran_date').order('created_at'),
     supabase.from('tahfidz_logs').select('setoran_date, kind, surat_id, ayat_dari, ayat_ke')
       .eq('student_id', studentId).in('kind', ['ziyadah', 'hafalan_baru'])
       .gte('setoran_date', periode.awal).lte('setoran_date', periode.akhir),
@@ -50,6 +59,8 @@ export async function getProgresSiswa(studentId: string, kode: KodePeriode): Pro
   ])
   const tahsin = (tahsinRes.data ?? []) as { setoran_date: string; status: string; drill: boolean | null }[]
   const tahfidz = (tahfidzRes.data ?? []) as { setoran_date: string; surat_id: number; ayat_dari: number | null; ayat_ke: number | null }[]
+  const lulus = (lulusRes.data ?? []) as (LogHalaman & { setoran_date: string })[]
+  const halamanLulus = halamanLulusPerSetoran(lulus)
 
   const titik = wadahAktivitas(periode).map(w => {
     const di = (tgl: string) => tgl >= w.mulai && tgl <= w.selesai
@@ -58,7 +69,8 @@ export async function getProgresSiswa(studentId: string, kode: KodePeriode): Pro
     return {
       label: w.label,
       judul: w.judul,
-      tahsinLulus: ts.filter(l => l.status === 'lulus' && !l.drill).length,
+      // Halaman, bukan banyaknya setoran: satu setoran bisa melewati beberapa halaman.
+      tahsinLulus: lulus.filter(l => !l.drill && di(l.setoran_date)).reduce((n, l) => n + (halamanLulus.get(l.id) ?? 1), 0),
       // Lanjut (halaman belum tuntas) bukan ulang — anak sedang maju pelan.
       tahsinUlang: ts.filter(l => l.status === 'ulang').length,
       tahfidzHalaman: tf.reduce((n, l) => n + peta.bobot(l.surat_id, l.ayat_dari!, l.ayat_ke!), 0),
