@@ -490,8 +490,8 @@ export function SetoranSesiTahsin({ siswa: siswaAsli, surat, halaqohId, pengatur
       />
       <div className="flex flex-wrap items-end gap-3 rounded-2xl border bg-card p-4">
         <div className="space-y-1">
-          <label htmlFor="tanggal_sesi" className="text-xs font-medium">Tanggal setor</label>
-          <Input id="tanggal_sesi" type="date" value={tanggal} onChange={e => setTanggal(e.target.value)} readOnly={Boolean(tanggalTetap)} className="h-9 w-44 read-only:bg-muted" />
+          <label htmlFor={`tanggal_sesi${ekstraSlotId ?? ''}`} className="text-xs font-medium">Tanggal setor</label>
+          <Input id={`tanggal_sesi${ekstraSlotId ?? ''}`} type="date" value={tanggal} onChange={e => setTanggal(e.target.value)} readOnly={Boolean(tanggalTetap)} className="h-9 w-44 read-only:bg-muted" />
         </div>
         <div className="ml-auto flex flex-wrap gap-2">
           <Button type="button" variant="outline" size="sm" onClick={() => pilihSemua(true)}>Centang semua</Button>

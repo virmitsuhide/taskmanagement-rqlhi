@@ -189,8 +189,8 @@ export function SetoranSesiTahfidz({ siswa, surat, tanggalTetap, ekstraSlotId, a
       />
       <div className="flex flex-wrap items-end gap-3 rounded-2xl border bg-card p-4">
         <div className="space-y-1">
-          <label htmlFor="tanggal_sesi_tf" className="text-xs font-medium">Tanggal setor</label>
-          <Input id="tanggal_sesi_tf" type="date" value={tanggal} onChange={e => setTanggal(e.target.value)} readOnly={Boolean(tanggalTetap)} className="h-9 w-44 read-only:bg-muted" />
+          <label htmlFor={`tanggal_sesi_tf${ekstraSlotId ?? ''}`} className="text-xs font-medium">Tanggal setor</label>
+          <Input id={`tanggal_sesi_tf${ekstraSlotId ?? ''}`} type="date" value={tanggal} onChange={e => setTanggal(e.target.value)} readOnly={Boolean(tanggalTetap)} className="h-9 w-44 read-only:bg-muted" />
         </div>
         <div className="ml-auto flex gap-2">
           <Button type="button" variant="outline" size="sm" onClick={() => pilihSemua(true)}>Centang semua</Button>

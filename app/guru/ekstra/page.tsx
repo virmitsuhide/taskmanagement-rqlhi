@@ -151,13 +151,13 @@ export default async function GuruEkstraPage({ searchParams }: { searchParams: P
                   </p>
                   <div className="mt-4 grid gap-2 sm:grid-cols-2">
                     {bidang !== 'tahfidz' && (
-                      <Link href={`/guru/ekstra/setor?slot=${aktif.id}&jenis=tahsin&tanggal=${tanggal}`}
+                      <Link href={`/guru/ekstra/setor?jenis=tahsin&tanggal=${tanggal}&slot=${aktif.id}#slot-${aktif.id}`}
                         className="flex items-center gap-3 rounded-xl bg-primary px-4 py-3 text-primary-foreground hover:opacity-90">
                         <BookOpen className="h-5 w-5" /><span className="text-sm font-semibold">Setor tahsin</span>
                       </Link>
                     )}
                     {bidang !== 'tahsin' && (
-                      <Link href={`/guru/ekstra/setor?slot=${aktif.id}&jenis=tahfidz&tanggal=${tanggal}`}
+                      <Link href={`/guru/ekstra/setor?jenis=tahfidz&tanggal=${tanggal}&slot=${aktif.id}#slot-${aktif.id}`}
                         className="flex items-center gap-3 rounded-xl border px-4 py-3 hover:border-primary/40">
                         <Sparkles className="h-5 w-5 text-primary" /><span className="text-sm font-semibold">Setor tahfidz</span>
                       </Link>
