@@ -6,7 +6,7 @@ import { getSession } from '@/lib/auth/session'
 import { getTeacherSession } from '@/lib/auth/teacher-session'
 import { canManageAsrama, canManageEkstra, canManageSetoran } from '@/lib/auth/permissions'
 import { genderAsramaSiswa } from '@/lib/data/asrama'
-import { recalcPosisi, recalcMutqin } from '@/lib/rq/hitung-ulang-setoran'
+import { recalcPosisi, recalcMutqin, recalcJuzProgress } from '@/lib/rq/hitung-ulang-setoran'
 import { BARIS_MAKS, statusTahsinSah } from '@/lib/rq/status-tahsin'
 import type { Jenjang } from '@/types'
 
@@ -130,7 +130,10 @@ export async function deleteSetoranAction(table: LogTable, logId: string): Promi
   if (error) return { error: error.message || 'Gagal menghapus setoran.' }
 
   if (table === 'tahsin_logs') await recalcPosisi(supabase, auth.studentId, awal ?? undefined)
-  if (table === 'tahfidz_logs') await recalcMutqin(supabase, auth.studentId)
+  if (table === 'tahfidz_logs') {
+    await recalcMutqin(supabase, auth.studentId)
+    await recalcJuzProgress(supabase, auth.studentId)
+  }
 
   refresh(auth.studentId)
   return { success: true }
@@ -221,6 +224,8 @@ export async function updateSetoranAction(_: unknown, formData: FormData): Promi
   // Mengubah halaman atau status menggeser posisi siswa, jadi dihitung ulang
   // dari riwayat — sama seperti saat setoran dihapus.
   if (table === 'tahsin_logs') await recalcPosisi(supabase, auth.studentId)
+  // Rentang ayat ziyadah bisa berubah; trigger juz_progress hanya jalan saat INSERT.
+  if (table === 'tahfidz_logs') await recalcJuzProgress(supabase, auth.studentId)
 
   refresh(auth.studentId)
   return { success: true }

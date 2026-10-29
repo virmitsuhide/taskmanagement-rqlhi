@@ -236,6 +236,52 @@ export async function recalcMutqin(supabase: Supabase, studentId: string): Promi
 }
 
 /**
+ * Hitung ulang juz_progress seorang anak dari seluruh ziyadahnya.
+ *
+ * Dipakai jalur koreksi pengurus (hapus & sunting). Mengurangi selisihnya
+ * saja tidak cukup di sana: sunting mengubah rentang ayat, dan setoran yang
+ * dihapus dulu tanpa pengurangan sudah meninggalkan sisa yang tidak bisa
+ * dilacak lagi — juz 1 uji coba kelas 8 (Okt 2026) bertahan berminggu-minggu
+ * setelah setorannya hilang. Rumus sama dengan migrasi 0079: baris yang kini
+ * nol dihapus, kecuali yang bertanda mutqin (penandanya dijaga).
+ */
+export async function recalcJuzProgress(supabase: Supabase, studentId: string): Promise<void> {
+  const [{ data: logRows }, { data: progRows }] = await Promise.all([
+    supabase
+      .from('tahfidz_logs')
+      .select('surat_id, ayat_dari, ayat_ke')
+      .eq('student_id', studentId)
+      .in('kind', ['ziyadah', 'hafalan_baru']),
+    supabase.from('juz_progress').select('juz_number, ayat_hafal, mutqin').eq('student_id', studentId),
+  ])
+
+  const benar = new Map<number, number>()
+  for (const l of (logRows ?? []) as { surat_id: number; ayat_dari: number | null; ayat_ke: number | null }[]) {
+    if (l.ayat_dari === null || l.ayat_ke === null) continue
+    for (const [juz, n] of ayatPerJuz(l.surat_id, l.ayat_dari, l.ayat_ke)) benar.set(juz, (benar.get(juz) ?? 0) + n)
+  }
+
+  const sekarang = new Date().toISOString()
+  const ada = (progRows ?? []) as { juz_number: number; ayat_hafal: number; mutqin: boolean }[]
+  for (const p of ada) {
+    const n = benar.get(p.juz_number) ?? 0
+    if (n === p.ayat_hafal) continue
+    const q = supabase.from('juz_progress')
+    await (n === 0 && !p.mutqin
+      ? q.delete()
+      : q.update({ ayat_hafal: n, updated_at: sekarang })
+    ).eq('student_id', studentId).eq('juz_number', p.juz_number)
+  }
+  const sudah = new Set(ada.map(p => p.juz_number))
+  const baru = [...benar].filter(([juz]) => !sudah.has(juz))
+  if (baru.length) {
+    await supabase.from('juz_progress').insert(baru.map(([juz, n]) => ({
+      student_id: studentId, juz_number: juz, ayat_hafal: n, last_setoran_at: sekarang, updated_at: sekarang,
+    })))
+  }
+}
+
+/**
  * Kurangi ayat_hafal juz_progress sebanyak ziyadah yang dihapus.
  *
  * Trigger upsert_juz_progress hanya MENAMBAH saat setoran masuk; tidak ada

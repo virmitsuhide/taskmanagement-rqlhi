@@ -741,6 +741,16 @@ async function simpanSetoranTahfidz(teacherId: string, input: InputSetoranTahfid
     arsipIds = hasil.arsipIds
   }
 
+  if (input.kind === 'ziyadah') {
+    const galatUlang = await periksaZiyadahUlang(supabase, studentId, {
+      surat_id: suratId, ayat_dari: ayatDari, ayat_ke: ayatKe,
+      nama_surat: infoSurat.get(suratId)?.name_latin ?? `Surat ${suratId}`,
+      // Setoran hari ini yang sedang ditimpa tidak dihitung sebagai hafalan lama.
+      kecuali_tanggal: input.timpa ? input.setoran_date : null,
+    })
+    if (galatUlang) return galatUlang
+  }
+
   // Trigger DB upsert_juz_progress otomatis menambah ayat_hafal ke
   // juz_progress (hanya untuk kind='ziyadah').
   const { data: logRow, error: logErr } = await supabase.from('tahfidz_logs').insert({
@@ -776,6 +786,38 @@ async function simpanSetoranTahfidz(teacherId: string, input: InputSetoranTahfid
     })
   }
   return null
+}
+
+/**
+ * Ziyadah yang SELURUH ayatnya sudah pernah disetor sebagai ziyadah ditolak —
+ * itu muroja'ah, bukan hafalan baru. Tercatat sebagai ziyadah, ia menggelembungkan
+ * juz_progress dan bisa membuka drill juz yang belum dihafal (kasus uji coba
+ * juz 1 kelas 8, Okt 2026). Ziyadah yang sebagian ayatnya baru tetap diterima.
+ */
+async function periksaZiyadahUlang(
+  supabase: ReturnType<typeof createServerClient>,
+  studentId: string,
+  z: { surat_id: number; ayat_dari: number; ayat_ke: number; nama_surat: string; kecuali_tanggal: string | null },
+): Promise<string | null> {
+  const { data } = await supabase
+    .from('tahfidz_logs')
+    .select('ayat_dari, ayat_ke, setoran_date')
+    .eq('student_id', studentId)
+    .in('kind', ['ziyadah', 'hafalan_baru'])
+    .eq('surat_id', z.surat_id)
+    .lte('ayat_dari', z.ayat_ke)
+    .gte('ayat_ke', z.ayat_dari)
+    .order('setoran_date', { ascending: false })
+  const lama = ((data ?? []) as { ayat_dari: number; ayat_ke: number; setoran_date: string }[])
+    .filter(l => l.setoran_date !== z.kecuali_tanggal)
+  if (lama.length === 0) return null
+
+  const tertutup = new Set<number>()
+  for (const l of lama) for (let a = Math.max(l.ayat_dari, z.ayat_dari); a <= Math.min(l.ayat_ke, z.ayat_ke); a++) tertutup.add(a)
+  if (tertutup.size < z.ayat_ke - z.ayat_dari + 1) return null
+
+  const terakhir = lama[0].setoran_date
+  return `${z.nama_surat} ${z.ayat_dari}–${z.ayat_ke} sudah pernah disetor sebagai ziyadah (terakhir ${terakhir}). Catat sebagai muroja'ah, atau minta koordinator mengoreksi setoran lamanya bila keliru.`
 }
 
 export async function createTahfidzLogAction(_: unknown, formData: FormData): Promise<HasilSetoranSatu> {
