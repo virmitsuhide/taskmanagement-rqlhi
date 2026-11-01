@@ -3,7 +3,6 @@ import { getCapaianKelas, BELUM_TERCATAT, type CapaianKelompok, type MatriksCapa
 import { getTargetTahfidz } from '@/lib/data/target-tahfidz'
 import { getAnalitikEkstra } from '@/lib/data/ekstra-analitik'
 import { RENCANA } from '@/lib/rq/target-tahfidz'
-import { UNIT_LABELS } from '@/lib/rq/programs'
 import { unitUjianDariJenjang } from '@/lib/rq/ujian'
 import type { Jenjang } from '@/types'
 
@@ -23,8 +22,22 @@ import type { Jenjang } from '@/types'
  * ekstra (bab Ekstra): yang dihitung adalah yang aktif saat laporan dihitung.
  */
 
-/** SD Juara ikut sejak unit itu punya koordinator sendiri (0099) — sub-bab 2.5 (lihat nomorBab). */
-export const UNIT_LAPORAN: Jenjang[] = ['sd', 'sd_juara', 'smp']
+/**
+ * Unit yang dilaporkan, DALAM URUTAN BAB. SD Juara ikut sejak 0099; TPAIT/PAUD
+ * & SMA sejak 2026-11. Urutan ini juga urutan baris tabel lintas-unit.
+ */
+export const UNIT_LAPORAN: Jenjang[] = ['paud', 'sd', 'sd_juara', 'smp', 'sma']
+
+export const LABEL_UNIT_LAPORAN: Record<Jenjang, string> = {
+  paud: 'TPAIT/PAUD LHI', sd: 'SDIT LHI', sd_juara: 'SD LHI Juara', smp: 'SMPIT LHI', sma: 'SMA LHI',
+}
+const LABEL_PENDEK: Record<Jenjang, string> = { paud: 'TPAIT/PAUD', sd: 'SDIT', sd_juara: 'SD Juara', smp: 'SMPIT', sma: 'SMA' }
+
+/** Unit yang ada di sebuah edisi, mis. "TPAIT/PAUD, SDIT, SD Juara, SMPIT & SMA". */
+export function daftarUnit(isi: IsiLaporan): string {
+  const u = UNIT_LAPORAN.filter(j => isi.kelompok.some(k => k.jenjang === j)).map(j => LABEL_PENDEK[j])
+  return u.length > 1 ? `${u.slice(0, -1).join(', ')} & ${u.at(-1)}` : u.join('')
+}
 
 // ─── Bentuk snapshot ─────────────────────────────────────────────────────
 
@@ -318,7 +331,7 @@ export async function hitungIsiLaporan(periode: string): Promise<IsiLaporan> {
   const perGuru = new Map<string, KelengkapanBaris>()
   const perUnitLengkap = new Map<Jenjang, KelengkapanBaris>()
   for (const k of capaian.kelompok.filter(x => UNIT_LAPORAN.includes(x.jenjang))) {
-    const unit = UNIT_LABELS[k.jenjang]
+    const unit = LABEL_UNIT_LAPORAN[k.jenjang]
     const u = perUnitLengkap.get(k.jenjang) ?? { nama: unit, unit, siswa: 0, tahsin: 0, tahfidz: 0 }
     const iBelum = k.tahsin.kolom.indexOf(BELUM_TERCATAT)
     for (const b of k.tahsin.baris) b.rincian?.forEach((sel, i) => sel.forEach(s => {
@@ -350,7 +363,7 @@ export async function hitungIsiLaporan(periode: string): Promise<IsiLaporan> {
     const setT = new Set(tsh.map(l => l.student_id)), setF = new Set(tfz.map(l => l.student_id))
     const tingkatAda = [...new Set(ids.map(s => tingkatOf(s.kelas)).filter((t): t is number => t !== null))].sort((a, b) => a - b)
     return {
-      jenjang: j, label: UNIT_LABELS[j], siswa: ids.length,
+      jenjang: j, label: LABEL_UNIT_LAPORAN[j], siswa: ids.length,
       setorTahsin: setT.size, setorTahfidz: setF.size, setorSalahSatu: new Set([...setT, ...setF]).size,
       jumlahTahsin: tsh.length, jumlahTahfidz: tfz.length,
       perKelas: tingkatAda.map(t => {
@@ -368,8 +381,8 @@ export async function hitungIsiLaporan(periode: string): Promise<IsiLaporan> {
   const idTerm = (term as { id: string } | null)?.id
   const halaqohSepi = ((halaqohRows.data ?? []) as { id: string; name: string; jenjang: Jenjang; wali_teacher_id: string | null; term_id: string | null }[])
     .filter(h => (!idTerm || !h.term_id || h.term_id === idTerm) && !halaqohAktifPekan.has(h.id))
-    .map(h => ({ halaqoh: h.name, pengampu: h.wali_teacher_id ? namaGuru.get(h.wali_teacher_id) ?? '—' : '—', unit: UNIT_LABELS[h.jenjang] }))
-    .sort((a, b) => a.unit.localeCompare(b.unit) || a.halaqoh.localeCompare(b.halaqoh, 'id', { numeric: true }))
+    .sort((a, b) => UNIT_LAPORAN.indexOf(a.jenjang) - UNIT_LAPORAN.indexOf(b.jenjang) || a.name.localeCompare(b.name, 'id', { numeric: true }))
+    .map(h => ({ halaqoh: h.name, pengampu: h.wali_teacher_id ? namaGuru.get(h.wali_teacher_id) ?? '—' : '—', unit: LABEL_UNIT_LAPORAN[h.jenjang] }))
 
   // ── Ujian ──
   const ujian: UjianUnit[] = UNIT_LAPORAN.map(j => {
@@ -377,7 +390,7 @@ export async function hitungIsiLaporan(periode: string): Promise<IsiLaporan> {
     const tf = uTahfidz.filter(u => u.unit === kode)
     const ts = uTahsin.filter(u => u.unit === kode)
     return {
-      jenjang: j, label: UNIT_LABELS[j],
+      jenjang: j, label: LABEL_UNIT_LAPORAN[j],
       tahsinKelompok: ts.length,
       tahsinPeserta: ts.reduce((n, u) => n + (Array.isArray(u.siswa) ? u.siswa.length : 0), 0),
       juziyyah: tf.filter(u => u.tipe === '1_juz').length,
@@ -455,52 +468,63 @@ export interface SubBab {
   kunci: string
   nomor: string
   judul: string
+  /** Judul unit (mis. "2.2 SDIT LHI"), dicetak sebelum sub-bab pertamanya. */
+  induk?: string
+  /** Sub-bab capaian satu unit: kelompok mana yang dibaca. */
+  unit?: { jenjang: Jenjang; jalur?: 'reguler' | 'quls'; apa: 'tahsin' | 'tahfidz' }
 }
 
 /**
- * Nomor tampil sebuah bagian. SD LHI Juara (0099) disisipkan sebagai 2.5
- * sesudah SMP, jadi bagian 2.5 ke atas — termasuk 2.9 Identifikasi Masalah —
- * bergeser satu bila edisi itu memuat SD Juara. Yang bergeser hanya
- * nomornya: `kunci` narasi tetap, supaya isian edisi lama tidak berpindah
- * ke bagian lain.
- *
- * Bab Ekstra (kunci 'eks') disisipkan sesudah Kelengkapan Data, jadi
- * Identifikasi Masalah bergeser satu lagi bila edisi itu memuat ekstra.
+ * Kunci narasi sub-bab capaian per unit. Kunci SD ('2.1.x', '2.2.x') dan SMP
+ * ('2.3', '2.4') adalah nomor LAMA — sengaja tidak diganti, supaya isian
+ * narasi edisi lama tetap menempel ke bagian yang sama walau nomornya kini
+ * dihitung ulang.
  */
-export function nomorBab(isi: IsiLaporan, kunci: string): string {
-  const sdj = isi.kelompok.some(k => k.jenjang === 'sd_juara') ? 1 : 0
-  if (kunci === 'eks') return `2.${9 + sdj}`
-  const m = /^2\.(\d+)$/.exec(kunci)
-  if (!m || Number(m[1]) < 5) return kunci
-  const n = Number(m[1])
-  return `2.${n + sdj + (n >= 9 && isi.ekstra ? 1 : 0)}`
+const KUNCI_UNIT: Partial<Record<Jenjang, [string, string]>> = {
+  paud: ['paud.1', 'paud.2'], sd_juara: ['sdj.1', 'sdj.2'], smp: ['2.3', '2.4'], sma: ['sma.1', 'sma.2'],
+}
+const SD_JALUR: { jalur: 'reguler' | 'quls'; nama: string; kunci: string }[] = [
+  { jalur: 'reguler', nama: 'Kelas CLIL', kunci: '2.1' },
+  { jalur: 'quls', nama: 'QULS', kunci: '2.2' },
+]
+
+/**
+ * Susunan Bab 02 — SATU daftar untuk halaman, form narasi, draf narasi, dan
+ * .docx. Urutan (keputusan 2026-11): unit TPAIT/PAUD → SDIT → SD Juara →
+ * SMPIT → SMA, lalu bagian lintas-unit (keaktifan, ujian, target,
+ * kelengkapan), lalu Ekstra, lalu Identifikasi Masalah.
+ *
+ * Nomor dihitung berurutan dari isi edisi: unit yang tidak ada di snapshot
+ * (edisi lama sebelum TPAIT/SMA ikut dihitung) dilewati tanpa lubang nomor.
+ */
+export function strukturBab(isi: IsiLaporan): { sub: SubBab[]; nomorMasalah: string } {
+  const sub: SubBab[] = []
+  let n = 0
+  for (const j of UNIT_LAPORAN) {
+    if (!isi.kelompok.some(k => k.jenjang === j)) continue
+    const induk = `2.${++n} ${LABEL_UNIT_LAPORAN[j]}`
+    if (j === 'sd') {
+      let m = 0
+      for (const x of SD_JALUR.filter(x => isi.kelompok.some(k => k.kode === `sd:${x.jalur}`))) {
+        sub.push({ kunci: `${x.kunci}.1`, nomor: `2.${n}.${++m}`, judul: `Capaian Tahsin ${x.nama}`, induk: m === 1 ? induk : undefined, unit: { jenjang: j, jalur: x.jalur, apa: 'tahsin' } })
+        sub.push({ kunci: `${x.kunci}.2`, nomor: `2.${n}.${++m}`, judul: `Capaian Tahfidz ${x.nama}`, unit: { jenjang: j, jalur: x.jalur, apa: 'tahfidz' } })
+      }
+      continue
+    }
+    const [kt, kf] = KUNCI_UNIT[j]!
+    sub.push({ kunci: kt, nomor: `2.${n}.1`, judul: `Progres Tahsin ${LABEL_UNIT_LAPORAN[j]}`, induk, unit: { jenjang: j, apa: 'tahsin' } })
+    sub.push({ kunci: kf, nomor: `2.${n}.2`, judul: `Progres Hafalan (Tahfidz) ${LABEL_UNIT_LAPORAN[j]}`, unit: { jenjang: j, apa: 'tahfidz' } })
+  }
+  for (const [kunci, judul] of [['2.5', 'Keaktifan Setoran'], ['2.6', 'Ujian Bulan Ini'], ['2.7', 'Ketercapaian Target Tahfidz'], ['2.8', 'Kelengkapan Data']]) {
+    sub.push({ kunci, nomor: `2.${++n}`, judul })
+  }
+  if (isi.ekstra) sub.push({ kunci: 'eks', nomor: `2.${++n}`, judul: 'Ekstra Tahsin & Tahfidz' })
+  return { sub, nomorMasalah: `2.${++n}` }
 }
 
-export function susunBab(isi: IsiLaporan): { kelompok: Record<string, KelompokLaporan | undefined>; sub: SubBab[] } {
-  const k = (kode: string) => isi.kelompok.find(x => x.kode === kode)
-  const kel = {
-    sdReg: k('sd:reguler'), sdQuls: k('sd:quls'), smpReg: k('smp:reguler'), smpQuls: k('smp:quls'),
-    sdjReg: k('sd_juara:reguler'), sdjQuls: k('sd_juara:quls'),
-  }
-  const no = (kunci: string) => nomorBab(isi, kunci)
-  const sub: SubBab[] = [
-    { kunci: '2.1.1', nomor: '2.1.1', judul: 'Capaian Tahsin Kelas CLIL' },
-    { kunci: '2.1.2', nomor: '2.1.2', judul: 'Capaian Tahfidz Kelas CLIL' },
-    { kunci: '2.2.1', nomor: '2.2.1', judul: 'Capaian Tahsin QULS' },
-    { kunci: '2.2.2', nomor: '2.2.2', judul: 'Capaian Tahfidz QULS' },
-    { kunci: '2.3', nomor: '2.3', judul: 'Progres Tahsin SMP' },
-    { kunci: '2.4', nomor: '2.4', judul: 'Progres Hafalan (Tahfidz) SMP' },
-    ...(kel.sdjReg || kel.sdjQuls ? [
-      { kunci: 'sdj.1', nomor: '2.5.1', judul: 'Progres Tahsin SD LHI Juara' },
-      { kunci: 'sdj.2', nomor: '2.5.2', judul: 'Progres Hafalan (Tahfidz) SD LHI Juara' },
-    ] : []),
-    { kunci: '2.5', nomor: no('2.5'), judul: 'Keaktifan Setoran' },
-    { kunci: '2.6', nomor: no('2.6'), judul: 'Ujian Bulan Ini' },
-    { kunci: '2.7', nomor: no('2.7'), judul: 'Ketercapaian Target Tahfidz' },
-    { kunci: '2.8', nomor: no('2.8'), judul: 'Kelengkapan Data' },
-    ...(isi.ekstra ? [{ kunci: 'eks', nomor: no('eks'), judul: 'Ekstra Tahsin & Tahfidz' }] : []),
-  ]
-  return { kelompok: kel, sub }
+/** Kelompok capaian yang dibaca satu sub-bab unit (hanya yang bersiswa). */
+export function kelompokSub(isi: IsiLaporan, u: NonNullable<SubBab['unit']>): KelompokLaporan[] {
+  return isi.kelompok.filter(k => k.jenjang === u.jenjang && (!u.jalur || k.jalur === u.jalur) && k.siswa > 0)
 }
 
 // ─── Draf narasi otomatis ────────────────────────────────────────────────
@@ -551,19 +575,17 @@ function kalimatEkstra(e: EkstraLaporan): string {
 }
 
 export function drafNarasi(isi: IsiLaporan): NarasiLaporan {
-  const { kelompok: kel } = susunBab(isi)
+  const { sub } = strukturBab(isi)
   const analisis: Record<string, KotakAnalisis> = {}
   const kotak = (analisisTeks: string): KotakAnalisis => ({ analisis: analisisTeks, masalah: '', rekomendasi: '' })
 
   const tahfidzBlok = (k: KelompokLaporan) => k.tahfidz.map((m, i) => (i === 0 ? '' : `Blok ${m.judul}: `) + kalimatMatriks(m, 'tahfidz', k.judul)).join(' ')
-  if (kel.sdReg) { analisis['2.1.1'] = kotak(kalimatMatriks(kel.sdReg.tahsin, 'tahsin', kel.sdReg.judul)); analisis['2.1.2'] = kotak(tahfidzBlok(kel.sdReg)) }
-  if (kel.sdQuls) { analisis['2.2.1'] = kotak(kalimatMatriks(kel.sdQuls.tahsin, 'tahsin', kel.sdQuls.judul)); analisis['2.2.2'] = kotak(tahfidzBlok(kel.sdQuls)) }
-  analisis['2.3'] = kotak([kel.smpReg, kel.smpQuls].filter(Boolean).map(k => `${k!.judul}: ${kalimatMatriks(k!.tahsin, 'tahsin', k!.judul)}`).join(' '))
-  analisis['2.4'] = kotak([kel.smpReg, kel.smpQuls].filter(Boolean).map(k => `${k!.judul}: ${kalimatMatriks(k!.tahfidz[0], 'tahfidz', k!.judul)}`).join(' '))
-  const sdj = [kel.sdjReg, kel.sdjQuls].filter((k): k is KelompokLaporan => !!k && k.siswa > 0)
-  if (sdj.length) {
-    analisis['sdj.1'] = kotak(sdj.map(k => `${k.judul}: ${kalimatMatriks(k.tahsin, 'tahsin', k.judul)}`).join(' '))
-    analisis['sdj.2'] = kotak(sdj.map(k => `${k.judul}: ${kalimatMatriks(k.tahfidz[0], 'tahfidz', k.judul)}`).join(' '))
+  for (const s of sub) {
+    if (!s.unit) continue
+    const kel = kelompokSub(isi, s.unit)
+    if (kel.length === 0) continue
+    const awalan = (k: KelompokLaporan) => (kel.length > 1 ? `${k.judul}: ` : '')
+    analisis[s.kunci] = kotak(kel.map(k => awalan(k) + (s.unit!.apa === 'tahsin' ? kalimatMatriks(k.tahsin, 'tahsin', k.judul) : tahfidzBlok(k))).join(' '))
   }
   analisis['2.5'] = kotak(isi.keaktifan.map(k => `${k.label}: ${k.setorSalahSatu} dari ${k.siswa} siswa (${pct(k.setorSalahSatu, k.siswa)}%) setor setidaknya sekali; ${k.jumlahTahsin} setoran tahsin dan ${k.jumlahTahfidz} setoran tahfidz.`).join(' ')
     + (isi.halaqohSepi.length ? ` ${isi.halaqohSepi.length} halaqoh tanpa setoran pada pekan terakhir bulan ini.` : ''))

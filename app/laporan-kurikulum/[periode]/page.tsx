@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 import { getSession } from '@/lib/auth/session'
 import { canSetujuiLaporanKurikulum, canSusunLaporanKurikulum, canViewLaporanKurikulum } from '@/lib/auth/permissions'
-import { getEdisi, getEdisiSebelum, namaPeriode, nomorBab, periodeSah, susunBab } from '@/lib/data/laporan-kurikulum'
+import { getEdisi, getEdisiSebelum, namaPeriode, periodeSah, strukturBab } from '@/lib/data/laporan-kurikulum'
 import { susunLaporan } from '@/lib/laporan-kurikulum/susun'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { PratinjauBab } from '@/components/laporan-kurikulum/PratinjauBab'
@@ -29,7 +29,7 @@ export default async function EdisiLaporanPage({ params, searchParams }: {
   const bisaSetujui = canSetujuiLaporanKurikulum(session.role)
   const tampil = (await searchParams).tampil === 'narasi' ? 'narasi' : 'pratinjau'
   const model = susunLaporan(edisi.data, edisi.narasi, lalu?.data ?? null)
-  const { sub } = susunBab(edisi.data)
+  const { sub, nomorMasalah } = strukturBab(edisi.data)
   const jam = (iso: string | null) => iso
     ? new Date(iso).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta', day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })
     : '—'
@@ -68,7 +68,7 @@ export default async function EdisiLaporanPage({ params, searchParams }: {
         </header>
 
         {tampil === 'narasi'
-          ? <FormNarasi periode={periode} awal={edisi.narasi} sub={sub} nomorMasalah={nomorBab(edisi.data, '2.9')} bisaUbah={bisaSusun && edisi.status === 'draf'} />
+          ? <FormNarasi periode={periode} awal={edisi.narasi} sub={sub} nomorMasalah={nomorMasalah} bisaUbah={bisaSusun && edisi.status === 'draf'} />
           : <PratinjauBab m={model} />}
       </div>
     </div>
