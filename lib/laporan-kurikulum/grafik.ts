@@ -42,6 +42,34 @@ function warnaTeksDi(hex: string): string {
   return 0.299 * r + 0.587 * g + 0.114 * b < 140 ? '#ffffff' : '#1f2a28'
 }
 
+/** Lebar minimum potongan supaya angkanya muat di dalam (font 11, ~6,5 px per digit). */
+const lebarMinimum = (v: number) => 8 + String(v).length * 6.5
+
+/**
+ * Bagi `panjang` piksel ke potongan-potongan sebanding nilainya, tetapi tiap
+ * potongan bernilai paling sempit selebar angkanya. Potongan kecil (1–3 anak
+ * di samping 80) jadi sedikit lebih lebar dari proporsinya dan potongan besar
+ * sedikit menyusut — di laporan, angka yang tertulis lebih penting daripada
+ * proporsi piksel yang persis. Bila semua potongan minimum pun tidak muat,
+ * batang dibiarkan sedikit lebih panjang.
+ */
+function bagiLebar(nilai: number[], panjang: number): number[] {
+  const hasil = nilai.map(() => 0)
+  const terkunci = new Set<number>()
+  for (;;) {
+    const sisaPanjang = panjang - [...terkunci].reduce((n, i) => n + hasil[i], 0)
+    const bebas = nilai.map((v, i) => i).filter(i => nilai[i] > 0 && !terkunci.has(i))
+    const sisaNilai = bebas.reduce((n, i) => n + nilai[i], 0)
+    let berubah = false
+    for (const i of bebas) {
+      const w = sisaNilai > 0 ? (nilai[i] / sisaNilai) * Math.max(sisaPanjang, 0) : 0
+      if (w < lebarMinimum(nilai[i])) { hasil[i] = lebarMinimum(nilai[i]); terkunci.add(i); berubah = true }
+      else hasil[i] = w
+    }
+    if (!berubah) return hasil
+  }
+}
+
 export function svgBatang(g: GrafikBatang, opsi: { lebar?: number; teks?: string } = {}): string {
   const lebar = opsi.lebar ?? 680
   // currentColor: di halaman ikut warna teks (tema gelap); .docx menggantinya sebelum dirasterkan.
@@ -74,13 +102,16 @@ export function svgBatang(g: GrafikBatang, opsi: { lebar?: number; teks?: string
   g.baris.forEach((label, r) => {
     const y = yBatang + r * (tinggiBaris + jarak)
     bagian.push(`<text x="0" y="${y + tinggiBaris / 2 + 4}" font-size="12" fill="${teks}">${esc(label)}</text>`)
+    const nilai = seri.map(s => s.nilai[r] ?? 0)
+    const lebarSeg = bagiLebar(nilai, (total[r] / maks) * lebarBatang)
     let x = kiri
     seri.forEach((s, i) => {
-      const v = s.nilai[r] ?? 0
+      const v = nilai[i]
       if (v <= 0) return
-      const w = (v / maks) * lebarBatang
+      const w = lebarSeg[i]
       bagian.push(`<rect x="${x.toFixed(1)}" y="${y}" width="${Math.max(w - 1, 0.5).toFixed(1)}" height="${tinggiBaris}" rx="2" fill="${warna[i]}"><title>${esc(`${label} · ${s.label}: ${v}`)}</title></rect>`)
-      if (w >= 18) bagian.push(`<text x="${(x + w / 2).toFixed(1)}" y="${y + tinggiBaris / 2 + 4}" font-size="11" text-anchor="middle" fill="${warnaTeksDi(warna[i])}">${v}</text>`)
+      // Setiap potongan bernilai selalu bertuliskan angkanya (lihat bagiLebar).
+      bagian.push(`<text x="${(x + w / 2).toFixed(1)}" y="${y + tinggiBaris / 2 + 4}" font-size="11" text-anchor="middle" fill="${warnaTeksDi(warna[i])}">${v}</text>`)
       x += w
     })
     bagian.push(`<text x="${(x + 6).toFixed(1)}" y="${y + tinggiBaris / 2 + 4}" font-size="11" fill="${teks}" fill-opacity="0.7">${total[r]}</text>`)
