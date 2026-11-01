@@ -1,7 +1,7 @@
 import { createServerClient } from '@/lib/supabase/server'
 import {
-  BAGIAN_HARI, bertemuHari, getDataEkstra, getSetoranEkstra, HARI_EKSTRA, labelSlot,
-  type BookingEkstra, type StatusHadirEkstra,
+  BAGIAN_HARI, bertemuHari, getDataEkstra, getHadirEkstra, getSetoranEkstra, HARI_EKSTRA, labelSlot,
+  type BookingEkstra,
 } from '@/lib/data/ekstra'
 
 /**
@@ -9,6 +9,32 @@ import {
  * halaman hanya menerima angka jadi. Datanya kecil (ratusan baris), jadi
  * dibaca utuh lalu dihitung di memori.
  */
+
+/** Kelengkapan pengisian satu halaqoh ekstra sebulan (jadwal yang sudah lewat). */
+export interface KelengkapanHalaqohEkstra {
+  id: string
+  jadwalLabel: string
+  jenis: string
+  peserta: number
+  /** Tanggal terjadwal yang sudah lewat (hari ini belum dihitung). */
+  jadwal: number
+  /** Jadwal yang punya presensi atau setoran. */
+  terisi: number
+  kosong: string[]
+  /** Tanggal di luar jadwal yang terisi — tanda jadwal di aplikasi sudah tidak sesuai. */
+  luarJadwal: string[]
+  /** Tanggal terakhir ada isian bulan ini, terjadwal atau tidak. */
+  terakhir: string | null
+}
+
+export interface KelengkapanGuruEkstra {
+  teacherId: string
+  nama: string
+  jadwal: number
+  terisi: number
+  terakhir: string | null
+  halaqoh: KelengkapanHalaqohEkstra[]
+}
 
 export interface AnalitikEkstra {
   bulan: string
@@ -38,6 +64,11 @@ export interface AnalitikEkstra {
     berhentiBulanIni: number
     /** Jadwal halaqoh berpeserta yang sudah lewat bulan ini tetapi belum ada presensinya. */
     tanpaPresensi: number
+    /** Pertemuan yang berpresensi bulan ini: pasangan halaqoh × tanggal. */
+    pertemuan: number
+    /** Setoran peserta luar LHI (0122/0123) — tabel sendiri, tidak masuk `setoran`. */
+    setoranLuarTahsin: number
+    setoranLuarTahfidz: number
   }
   /** Estimasi pemasukan per jenis (tarif bulanan × peserta; keluarga per halaqoh). */
   pemasukanPerJenis: { nama: string; jumlah: number; rumus: string }[]
@@ -54,6 +85,8 @@ export interface AnalitikEkstra {
   pengampuEkstra: Record<string, string[]>
   /** Peserta aktif non siswa LHI (atau siswa LHI yang belum tertaut): tanpa target. */
   nonLhi: { id: string; nama: string; keterangan: string; asal: string; jenis: string; halaqoh: string; posisi: string; hadir: number; pertemuan: number }[]
+  /** Per guru, yang paling belum lengkap di atas. Isian = presensi atau setoran. */
+  kelengkapan: KelengkapanGuruEkstra[]
 }
 
 const NAMA_BULAN = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
@@ -86,9 +119,9 @@ export async function getAnalitikEkstra(bulan: string): Promise<AnalitikEkstra> 
   ])
   const kosong: AnalitikEkstra = {
     bulan, tabelAda: false,
-    kpi: { pesertaAktif: 0, pesertaLhi: 0, pesertaNon: 0, halaqoh: 0, guru: 0, permintaanBulanIni: 0, menunggu: 0, diterima: 0, diputus: 0, tanggapHari: null, hadir: 0, catatanHadir: 0, setoran: 0, pemasukanBulanan: 0, pesertaTanpaBiayaBulanan: 0, setoranTahsin: 0, setoranTahfidz: 0, berhentiBulanIni: 0, tanpaPresensi: 0 },
+    kpi: { pesertaAktif: 0, pesertaLhi: 0, pesertaNon: 0, halaqoh: 0, guru: 0, permintaanBulanIni: 0, menunggu: 0, diterima: 0, diputus: 0, tanggapHari: null, hadir: 0, catatanHadir: 0, setoran: 0, pemasukanBulanan: 0, pesertaTanpaBiayaBulanan: 0, setoranTahsin: 0, setoranTahfidz: 0, berhentiBulanIni: 0, tanpaPresensi: 0, pertemuan: 0, setoranLuarTahsin: 0, setoranLuarTahfidz: 0 },
     pemasukanPerJenis: [],
-    tren: [], perJenis: [], perGuru: [], permintaanHari: [], permintaanBagian: [], keterisian: [], menungguLama: [], idSiswaLhi: [], pengampuEkstra: {}, nonLhi: [],
+    tren: [], perJenis: [], perGuru: [], permintaanHari: [], permintaanBagian: [], keterisian: [], menungguLama: [], idSiswaLhi: [], pengampuEkstra: {}, nonLhi: [], kelengkapan: [],
   }
   if (!data.tabelAda) return kosong
 
@@ -100,11 +133,15 @@ export async function getAnalitikEkstra(bulan: string): Promise<AnalitikEkstra> 
   const halaqoh = data.slot.filter(s => s.aktif)
   const jenisById = new Map(data.jenis.map(j => [j.id, j]))
 
-  const [hadirRes, setoran] = await Promise.all([
-    supabase.from('ekstra_hadir').select('booking_id, status, tanggal').gte('tanggal', dari).lte('tanggal', sampai),
+  const [hadirRes, setoran, luarTsRes, luarTfRes] = await Promise.all([
+    // Ada setoran = hadir, meski guru lupa mengisi presensi (lihat getHadirEkstra).
+    getHadirEkstra(booking.filter(b => b.slot_id).map(b => b.id), dari, sampai),
     getSetoranEkstra(data.slot.map(s => s.id), dari, sampai),
+    // Hanya jumlah. Tabel belum ada (0122/0123 belum dijalankan) → count null → 0.
+    supabase.from('ekstra_setoran_luar').select('id', { count: 'exact', head: true }).gte('tanggal', dari).lte('tanggal', sampai),
+    supabase.from('ekstra_setoran_tahfidz_luar').select('id', { count: 'exact', head: true }).gte('tanggal', dari).lte('tanggal', sampai),
   ])
-  const hadir = (hadirRes.data ?? []) as { booking_id: string; status: StatusHadirEkstra; tanggal: string }[]
+  const hadir = hadirRes
   const slotById = new Map(data.slot.map(s => [s.id, s]))
 
   // Keputusan 90 hari terakhir: diterima = pernah jadi peserta (aktif/berhenti).
@@ -142,18 +179,50 @@ export async function getAnalitikEkstra(bulan: string): Promise<AnalitikEkstra> 
   const bookingSlot = new Map(booking.map(b => [b.id, b.slot_id]))
   const tercatat = new Set(hadir.map(h => `${bookingSlot.get(h.booking_id)}|${h.tanggal}`))
   let tanpaPresensi = 0
+  // Tanggal berisian per halaqoh (presensi atau setoran), untuk kelengkapan.
+  const isianSlot = new Map<string, Set<string>>()
+  for (const k of tercatat) {
+    const [sid, t] = k.split('|')
+    if (!slotById.has(sid) || t > batasAkhir) continue
+    const set = isianSlot.get(sid) ?? new Set<string>()
+    set.add(t); isianSlot.set(sid, set)
+  }
+  const kelengkapanHalaqoh: (KelengkapanHalaqohEkstra & { teacherId: string; guru: string })[] = []
   for (const s of halaqoh) {
     const anggota = aktif.filter(b => b.slot_id === s.id)
     if (anggota.length === 0) continue
     const mulaiPaling = anggota.map(b => b.mulai ?? dari).sort()[0]
+    const isian = isianSlot.get(s.id) ?? new Set<string>()
+    const kosong: string[] = [], terjadwal = new Set<string>()
     for (let d = new Date(`${dari}T00:00:00Z`); d.toISOString().slice(0, 10) <= batasAkhir; d = new Date(d.getTime() + 864e5)) {
       const t = d.toISOString().slice(0, 10)
       if (t < mulaiPaling) continue
       // Presensi per tanggal: hari dengan dua waktu (pagi & sore) tetap satu pertemuan.
       if (!bertemuHari(s, ((d.getUTCDay() + 6) % 7) + 1)) continue
-      if (!tercatat.has(`${s.id}|${t}`)) tanpaPresensi++
+      terjadwal.add(t)
+      if (!isian.has(t)) { tanpaPresensi++; kosong.push(t) }
     }
+    const urutIsian = [...isian].sort()
+    kelengkapanHalaqoh.push({
+      id: s.id, teacherId: s.teacher_id, guru: s.guru ?? '—',
+      jadwalLabel: labelSlot(s), jenis: s.jenis?.nama ?? '—', peserta: anggota.length,
+      jadwal: terjadwal.size, terisi: terjadwal.size - kosong.length, kosong,
+      luarJadwal: urutIsian.filter(t => !terjadwal.has(t)),
+      terakhir: urutIsian.at(-1) ?? null,
+    })
   }
+  const rasio = (x: { jadwal: number; terisi: number }) => (x.jadwal ? x.terisi / x.jadwal : 1)
+  const perGuruIsi = new Map<string, KelengkapanGuruEkstra>()
+  for (const h of kelengkapanHalaqoh) {
+    const g = perGuruIsi.get(h.teacherId) ?? { teacherId: h.teacherId, nama: h.guru, jadwal: 0, terisi: 0, terakhir: null, halaqoh: [] }
+    g.jadwal += h.jadwal; g.terisi += h.terisi
+    if (h.terakhir && (!g.terakhir || h.terakhir > g.terakhir)) g.terakhir = h.terakhir
+    g.halaqoh.push({ id: h.id, jadwalLabel: h.jadwalLabel, jenis: h.jenis, peserta: h.peserta, jadwal: h.jadwal, terisi: h.terisi, kosong: h.kosong, luarJadwal: h.luarJadwal, terakhir: h.terakhir })
+    perGuruIsi.set(h.teacherId, g)
+  }
+  const kelengkapan = [...perGuruIsi.values()]
+    .map(g => ({ ...g, halaqoh: g.halaqoh.sort((a, b) => rasio(a) - rasio(b) || b.kosong.length - a.kosong.length) }))
+    .sort((a, b) => rasio(a) - rasio(b) || (b.jadwal - b.terisi) - (a.jadwal - a.terisi) || a.nama.localeCompare(b.nama))
 
   const tren = Array.from({ length: 6 }, (_, i) => geserBulan(bulan, i - 5)).map(p => ({
     bulan: p,
@@ -208,6 +277,9 @@ export async function getAnalitikEkstra(bulan: string): Promise<AnalitikEkstra> 
       setoranTahfidz: setoran.filter(x => x.jenis === 'tahfidz').length,
       berhentiBulanIni: booking.filter(b => b.berhenti?.slice(0, 7) === bulan).length,
       tanpaPresensi,
+      pertemuan: [...tercatat].filter(x => !x.startsWith('null|') && !x.startsWith('undefined|')).length,
+      setoranLuarTahsin: luarTsRes.count ?? 0,
+      setoranLuarTahfidz: luarTfRes.count ?? 0,
     },
     pemasukanPerJenis,
     tren,
@@ -233,5 +305,6 @@ export async function getAnalitikEkstra(bulan: string): Promise<AnalitikEkstra> 
         posisi: b.posisi_bacaan, hadir: h.filter(r => r.status === 'hadir').length, pertemuan: h.length,
       }
     }).sort((a, b) => a.jenis.localeCompare(b.jenis) || a.nama.localeCompare(b.nama)),
+    kelengkapan,
   }
 }

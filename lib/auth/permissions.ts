@@ -1843,6 +1843,15 @@ export function canManageEkstra(role: UserRole): boolean {
   return role === 'kepala_rq' || role === 'koor_ekstra'
 }
 
+/**
+ * Membaca Analitik Ekstra tanpa ikut mengelola: Kumik memantau capaian &
+ * keaktifan ekstra untuk Laporan Kurikulum, tapi booking, halaqoh, dan guru
+ * ekstra tetap urusan Koordinator Ekstra.
+ */
+export function canViewEkstraAnalitik(role: UserRole): boolean {
+  return canManageEkstra(role) || role === 'kumik'
+}
+
 // ── Laporan bulanan Kurikulum (Bab 02 BPH, 0092) ─────────────────────
 
 /** Membuka laporan bulanan kurikulum: Kumik yang menyusun, Kepala RQ yang menyetujui. */

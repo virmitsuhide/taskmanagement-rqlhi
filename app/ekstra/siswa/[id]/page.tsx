@@ -220,10 +220,10 @@ export default async function DetailSiswaEkstraPage({ params }: { params: Promis
               {hadirBulan.length === 0 ? <p className="text-sm text-muted-foreground">Belum ada presensi ekstra bulan ini.</p> : (
                 <ul className="grid grid-cols-4 gap-1.5">
                   {hadirBulan.map(h => (
-                    <li key={`${h.booking_id}-${h.tanggal}`} title={`${namaSlot(slotBooking.get(h.booking_id) ?? '')}${h.catatan ? ` · ${h.catatan}` : ''}`}
+                    <li key={`${h.booking_id}-${h.tanggal}`} title={`${namaSlot(slotBooking.get(h.booking_id) ?? '')}${h.dariSetoran ? ' · tanpa presensi, dianggap hadir karena ada setoran' : ''}${h.catatan ? ` · ${h.catatan}` : ''}`}
                       className={cn('flex flex-col items-center rounded-xl py-2', WARNA_HADIR[h.status])}>
                       <span className="font-heading text-lg leading-none text-foreground">{h.tanggal.slice(8).replace(/^0/, '')}</span>
-                      <span className="text-[10.5px] font-bold">{h.status}</span>
+                      <span className="text-[10.5px] font-bold">{h.dariSetoran ? 'hadir*' : h.status}</span>
                     </li>
                   ))}
                 </ul>

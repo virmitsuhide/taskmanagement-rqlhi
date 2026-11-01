@@ -18,7 +18,7 @@ import {
   canAccessProgramMenu, canEditAbout,
   canViewStudents, canViewHalaqoh, canViewAsrama, canViewTeachers, canViewUnitAnalytics, canViewAnalitikBthcq,
   canManageHomepage, canViewKpi, canCatatSetoranGuru, canManageAllAccounts, canManagePengurus, canManageEmployees, canViewUjian,
-  canAccessKpiPublikasi, canManageRaporTemplate, canManageKalenderQuran, canManageRiyadhoh, canViewRiyadhohAnalitik, canManageTahsinRekomendasi, canViewTahsinRekomendasiAnalitik, canManageEkstra, canManageKaldik, canViewKpiBanding, canViewTasks, canViewRoutineBoard,
+  canAccessKpiPublikasi, canManageRaporTemplate, canManageKalenderQuran, canManageRiyadhoh, canViewRiyadhohAnalitik, canManageTahsinRekomendasi, canViewTahsinRekomendasiAnalitik, canManageEkstra, canViewEkstraAnalitik, canManageKaldik, canViewKpiBanding, canViewTasks, canViewRoutineBoard,
   isAdmin, canViewLaporanKurikulum, canViewPapanRapat, canViewTargetBulanan, canKelolaPanduanGuru, canViewChangelog,
 } from '@/lib/auth/permissions'
 import type { UserRole } from '@/types'
@@ -147,7 +147,7 @@ export function Sidebar({ role, displayName, username, lencanaKpi, ciutAwal = fa
                 active={isActive('/dashboard/analitik') && !pathname.startsWith('/dashboard/analitik/gukar') && !pathname.startsWith('/dashboard/analitik/halaqoh')}
               />
             )}
-            {canManageEkstra(role) && (
+            {canViewEkstraAnalitik(role) && (
               <NavItem href="/ekstra/analitik" icon={<BarChart3 className="h-4 w-4" />} label="Analitik Ekstra" active={isActive('/ekstra/analitik')} />
             )}
             {canViewGukarRecap(role) && (

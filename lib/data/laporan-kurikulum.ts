@@ -1,6 +1,7 @@
 import { createServerClient } from '@/lib/supabase/server'
 import { getCapaianKelas, BELUM_TERCATAT, type CapaianKelompok, type MatriksCapaian } from '@/lib/data/capaian-kelas'
 import { getTargetTahfidz } from '@/lib/data/target-tahfidz'
+import { getAnalitikEkstra } from '@/lib/data/ekstra-analitik'
 import { RENCANA } from '@/lib/rq/target-tahfidz'
 import { UNIT_LABELS } from '@/lib/rq/programs'
 import { unitUjianDariJenjang } from '@/lib/rq/ujian'
@@ -18,7 +19,8 @@ import type { Jenjang } from '@/types'
  *
  * Yang tidak bisa dihitung mundur dan karena itu dibaca "saat dihitung":
  * status aktif siswa, target tahfidz (posisi dari seluruh setoran), dan
- * antrean ujian. Ketiganya ditandai di laporan.
+ * antrean ujian. Ketiganya ditandai di laporan. Begitu pula peserta & kelompok
+ * ekstra (bab Ekstra): yang dihitung adalah yang aktif saat laporan dihitung.
  */
 
 /** SD Juara ikut sejak unit itu punya koordinator sendiri (0099) — sub-bab 2.5 (lihat nomorBab). */
@@ -97,6 +99,39 @@ export interface KelengkapanBaris {
   tahfidz: number
 }
 
+/**
+ * Bab Ekstra — kelompok ekstra tahsin & tahfidz di luar jam sekolah, termasuk
+ * peserta dari luar LHI. Angkanya dari getAnalitikEkstra, jadi sama dengan
+ * halaman Analitik Ekstra untuk bulan yang sama.
+ */
+export interface EkstraLaporan {
+  /** Saat dihitung — booking tidak menyimpan riwayat status per tanggal. */
+  kelompok: number
+  guru: number
+  peserta: number
+  pesertaLhi: number
+  pesertaNon: number
+  perJenis: { nama: string; peserta: number; halaqoh: number }[]
+  /** Sepanjang bulan laporan. */
+  mulai: number
+  berhenti: number
+  pertemuan: number
+  tanpaPresensi: number
+  hadir: number
+  catatanHadir: number
+  setoranTahsin: number
+  setoranTahfidz: number
+  setoranLuarTahsin: number
+  setoranLuarTahfidz: number
+  /**
+   * Posisi jilid & juz peserta ekstra yang siswa LHI (tertaut), per akhir bulan,
+   * dengan aturan Capaian per Kelas — sama dengan bagian Capaian di Analitik
+   * Ekstra. Posisi anak dihitung dari SELURUH setorannya (sekolah + ekstra).
+   * Tidak ada di edisi yang dihitung sebelum capaian ekstra ditambahkan.
+   */
+  capaian?: KelompokLaporan[]
+}
+
 export interface IsiLaporan {
   versi: 1
   /** 'YYYY-MM' */
@@ -117,6 +152,13 @@ export interface IsiLaporan {
   ujian: UjianUnit[]
   target: TargetRencana[]
   kelengkapan: { perUnit: KelengkapanBaris[]; perGuru: KelengkapanBaris[] }
+  /** Tidak ada di edisi sebelum bab Ekstra ditambahkan, atau bila tabel ekstra belum ada. */
+  ekstra?: EkstraLaporan
+  /**
+   * true = keaktifan setoran sudah tanpa setoran halaqoh ekstra. Edisi lama
+   * menghitungnya ikut, jadi catatan di laporan hanya muncul bila ini true.
+   */
+  keaktifanTanpaEkstra?: boolean
 }
 
 export interface KotakAnalisis {
@@ -239,14 +281,17 @@ export async function hitungIsiLaporan(periode: string): Promise<IsiLaporan> {
   const awalPekan = new Date(Date.UTC(ys, ms - 1, ds - 6)).toISOString().slice(0, 10)
 
   const supabase = createServerClient()
-  const [capaian, siswaRows, logTahsin, logTahfidz, halaqohRows, guruRows, uTahfidz, uTahsin, antreTahfidz, antreTahsin, target] = await Promise.all([
+  const [capaian, siswaRows, logTahsin, logTahfidz, halaqohRows, guruRows, uTahfidz, uTahsin, antreTahfidz, antreTahsin, target, eks] = await Promise.all([
     getCapaianKelas(UNIT_LAPORAN, { sampai }),
     ambilSemua<{ id: string; jenjang: Jenjang; kelas: string | null }>(() => supabase.from('students')
       .select('id, jenjang, kelas').eq('is_active', true).in('jenjang', UNIT_LAPORAN).order('id')),
+    // Keaktifan halaqoh SEKOLAH: setoran di halaqoh ekstra tidak ikut — sama dengan
+    // Analitik Halaqoh. Tanpa ini halaqoh sekolah bisa tampak aktif hanya karena
+    // anggotanya setor di ekstra. Setoran ekstra dilaporkan di bab Ekstra.
     ambilSemua<{ student_id: string; halaqoh_id: string | null; setoran_date: string }>(() => supabase.from('tahsin_logs')
-      .select('student_id, halaqoh_id, setoran_date').gte('setoran_date', dari).lte('setoran_date', sampai).order('id')),
+      .select('student_id, halaqoh_id, setoran_date').gte('setoran_date', dari).lte('setoran_date', sampai).is('ekstra_slot_id', null).order('id')),
     ambilSemua<{ student_id: string; halaqoh_id: string | null; setoran_date: string }>(() => supabase.from('tahfidz_logs')
-      .select('student_id, halaqoh_id, setoran_date').gte('setoran_date', dari).lte('setoran_date', sampai).order('id')),
+      .select('student_id, halaqoh_id, setoran_date').gte('setoran_date', dari).lte('setoran_date', sampai).is('ekstra_slot_id', null).order('id')),
     supabase.from('halaqoh').select('id, name, jenjang, wali_teacher_id, term_id').eq('is_active', true).in('jenjang', UNIT_LAPORAN),
     supabase.from('teachers').select('id, full_name'),
     ambilSemua<{ unit: string; tipe: string; predikat: string | null }>(() => supabase.from('ujian_tahfidz')
@@ -258,6 +303,7 @@ export async function hitungIsiLaporan(periode: string): Promise<IsiLaporan> {
     ambilSemua<{ unit: string }>(() => supabase.from('ujian_tahsin')
       .select('unit').eq('status', 'diajukan').lte('created_at', akhirHari).order('id')),
     getTargetTahfidz(UNIT_LAPORAN, sampai).catch(() => null),
+    getAnalitikEkstra(periode).catch(e => { console.error('[laporan-kurikulum] ekstra', e); return null }),
   ])
 
   // ── Capaian per kelompok + kelengkapan (dari rincian sebelum dibuang) ──
@@ -351,6 +397,28 @@ export async function hitungIsiLaporan(periode: string): Promise<IsiLaporan> {
     })),
   })).filter(r => r.perTingkat.length > 0)
 
+  // ── Ekstra ──
+  // Unit mana pun: peserta ekstra bisa siswa TPAIT/SMA yang bukan unit laporan.
+  const capEks = eks?.idSiswaLhi.length
+    ? await getCapaianKelas(['paud', 'sd', 'sd_juara', 'smp', 'sma'], { sampai, hanyaSiswa: eks.idSiswaLhi })
+      .catch(e => { console.error('[laporan-kurikulum] capaian ekstra', e); return null })
+    : null
+  const ekstra: EkstraLaporan | undefined = eks?.tabelAda ? {
+    kelompok: eks.kpi.halaqoh, guru: eks.kpi.guru,
+    peserta: eks.kpi.pesertaAktif, pesertaLhi: eks.kpi.pesertaLhi, pesertaNon: eks.kpi.pesertaNon,
+    perJenis: eks.perJenis.map(j => ({ nama: j.nama, peserta: j.peserta, halaqoh: j.halaqoh })),
+    mulai: eks.tren.at(-1)?.mulai ?? 0, berhenti: eks.kpi.berhentiBulanIni,
+    pertemuan: eks.kpi.pertemuan, tanpaPresensi: eks.kpi.tanpaPresensi,
+    hadir: eks.kpi.hadir, catatanHadir: eks.kpi.catatanHadir,
+    setoranTahsin: eks.kpi.setoranTahsin, setoranTahfidz: eks.kpi.setoranTahfidz,
+    setoranLuarTahsin: eks.kpi.setoranLuarTahsin, setoranLuarTahfidz: eks.kpi.setoranLuarTahfidz,
+    capaian: (capEks?.kelompok ?? []).filter(k => k.siswa > 0).map(k => ({
+      kode: k.kode, jenjang: k.jenjang, jalur: k.jalur, judul: k.judul, siswa: k.siswa, metode: k.metode,
+      tahsin: ringkasMatriks(k.tahsin, labelKolom(k, k.tahsin.kolom)),
+      tahfidz: k.tahfidz.map(m => ringkasMatriks(m, labelKolom(k, m.kolom))),
+    })),
+  } : undefined
+
   const jumlah = (f: (k: KelompokLaporan) => [number, number]) =>
     kelompok.reduce<[number, number]>((a, k) => { const [n, d] = f(k); return [a[0] + n, a[1] + d] }, [0, 0])
 
@@ -375,6 +443,8 @@ export async function hitungIsiLaporan(periode: string): Promise<IsiLaporan> {
       perUnit: [...perUnitLengkap.values()],
       perGuru: [...perGuru.values()].sort((a, b) => a.unit.localeCompare(b.unit) || (a.tahsin / a.siswa) - (b.tahsin / b.siswa) || a.nama.localeCompare(b.nama)),
     },
+    ...(ekstra ? { ekstra } : {}),
+    keaktifanTanpaEkstra: true,
   }
 }
 
@@ -393,12 +463,17 @@ export interface SubBab {
  * bergeser satu bila edisi itu memuat SD Juara. Yang bergeser hanya
  * nomornya: `kunci` narasi tetap, supaya isian edisi lama tidak berpindah
  * ke bagian lain.
+ *
+ * Bab Ekstra (kunci 'eks') disisipkan sesudah Kelengkapan Data, jadi
+ * Identifikasi Masalah bergeser satu lagi bila edisi itu memuat ekstra.
  */
 export function nomorBab(isi: IsiLaporan, kunci: string): string {
+  const sdj = isi.kelompok.some(k => k.jenjang === 'sd_juara') ? 1 : 0
+  if (kunci === 'eks') return `2.${9 + sdj}`
   const m = /^2\.(\d+)$/.exec(kunci)
   if (!m || Number(m[1]) < 5) return kunci
-  const geser = isi.kelompok.some(k => k.jenjang === 'sd_juara') ? 1 : 0
-  return `2.${Number(m[1]) + geser}`
+  const n = Number(m[1])
+  return `2.${n + sdj + (n >= 9 && isi.ekstra ? 1 : 0)}`
 }
 
 export function susunBab(isi: IsiLaporan): { kelompok: Record<string, KelompokLaporan | undefined>; sub: SubBab[] } {
@@ -423,6 +498,7 @@ export function susunBab(isi: IsiLaporan): { kelompok: Record<string, KelompokLa
     { kunci: '2.6', nomor: no('2.6'), judul: 'Ujian Bulan Ini' },
     { kunci: '2.7', nomor: no('2.7'), judul: 'Ketercapaian Target Tahfidz' },
     { kunci: '2.8', nomor: no('2.8'), judul: 'Kelengkapan Data' },
+    ...(isi.ekstra ? [{ kunci: 'eks', nomor: no('eks'), judul: 'Ekstra Tahsin & Tahfidz' }] : []),
   ]
   return { kelompok: kel, sub }
 }
@@ -459,6 +535,21 @@ function kalimatMatriks(m: MatriksLaporan, apa: 'tahsin' | 'tahfidz', judul: str
   return kalimat.join(' ')
 }
 
+function kalimatEkstra(e: EkstraLaporan): string {
+  if (e.peserta === 0 && e.kelompok === 0) return 'Belum ada kelompok ekstra yang berjalan.'
+  const k: string[] = [`${e.peserta} peserta aktif (${e.pesertaLhi} siswa LHI, ${e.pesertaNon} dari luar LHI) di ${e.kelompok} kelompok dengan ${e.guru} guru.`]
+  k.push(`Bulan ini ${e.mulai} peserta mulai dan ${e.berhenti} berhenti.`)
+  k.push(`${e.pertemuan} pertemuan berpresensi${e.catatanHadir ? `, kehadiran ${pct(e.hadir, e.catatanHadir)}% (${e.hadir} dari ${e.catatanHadir} catatan)` : ''}${e.tanpaPresensi ? `; ${e.tanpaPresensi} jadwal belum ada presensinya` : ''}.`)
+  const luar = e.setoranLuarTahsin + e.setoranLuarTahfidz
+  const cap = e.capaian ?? []
+  if (cap.length) {
+    const [maju, bertarget] = cap.reduce((a, x) => [a[0] + x.tahsin.maju, a[1] + x.tahsin.bertarget], [0, 0])
+    k.push(`Capaian peserta LHI: ${cap.map(x => `${x.judul} ${x.siswa} anak`).join(', ')}${bertarget ? `; ${pct(maju, bertarget)}% (${maju} dari ${bertarget}) sudah mencapai target tahsin kelasnya` : ''}.`)
+  }
+  k.push(`${e.setoranTahsin + e.setoranTahfidz} setoran siswa LHI (tahsin ${e.setoranTahsin}, tahfidz ${e.setoranTahfidz})${luar ? ` dan ${luar} setoran peserta luar LHI` : ''}.`)
+  return k.join(' ')
+}
+
 export function drafNarasi(isi: IsiLaporan): NarasiLaporan {
   const { kelompok: kel } = susunBab(isi)
   const analisis: Record<string, KotakAnalisis> = {}
@@ -481,6 +572,7 @@ export function drafNarasi(isi: IsiLaporan): NarasiLaporan {
     const t = r.perTingkat.reduce((a, x) => ({ b: a.b + x.diBawah, s: a.s + x.sesuai + x.diAtas, n: a.n + x.belum }), { b: 0, s: 0, n: 0 })
     return `${r.label}: ${t.s} sesuai/di atas target, ${t.b} di bawah target, ${t.n} belum terukur.`
   }).join(' '))
+  if (isi.ekstra) analisis.eks = kotak(kalimatEkstra(isi.ekstra))
   analisis['2.8'] = kotak(isi.kelengkapan.perUnit.map(u => `${u.nama}: posisi tahsin tercatat ${pct(u.tahsin, u.siswa)}% (${u.tahsin}/${u.siswa}), tahfidz ${pct(u.tahfidz, u.siswa)}% (${u.tahfidz}/${u.siswa}).`).join(' '))
 
   // Sorotan: kelas dengan % target tertinggi; perhatian: terendah & data kosong.
@@ -504,6 +596,7 @@ export function drafNarasi(isi: IsiLaporan): NarasiLaporan {
   for (const u of isi.kelengkapan.perUnit) if (pct(u.tahsin, u.siswa) < 80) {
     masalah.push({ area: `Kelengkapan data ${u.nama}`, masalah: `${u.siswa - u.tahsin} dari ${u.siswa} siswa belum punya setoran tahsin di aplikasi.`, rekomendasi: 'Tagih pencatatan setoran ke guru pengampu (lihat 2.8).', prioritas: 'Tinggi' })
   }
+  if (isi.ekstra?.tanpaPresensi) masalah.push({ area: 'Presensi ekstra', masalah: `${isi.ekstra.tanpaPresensi} jadwal halaqoh ekstra yang sudah lewat belum ada presensinya.`, rekomendasi: 'Ingatkan guru ekstra mengisi presensi.', prioritas: 'Sedang' })
   if (isi.halaqohSepi.length) masalah.push({ area: 'Keaktifan halaqoh', masalah: `${isi.halaqohSepi.length} halaqoh tanpa setoran pada pekan terakhir.`, rekomendasi: '', prioritas: 'Sedang' })
 
   return { sorotan: sorotan.join('\n'), perhatian: perhatian.join('\n'), analisis, masalah, kesimpulan: '' }

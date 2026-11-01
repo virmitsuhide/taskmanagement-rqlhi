@@ -199,7 +199,8 @@ export function susunLaporan(isi: IsiLaporan, narasi: NarasiLaporan, lalu: IsiLa
   // 2.5 Keaktifan (2.6 bila ada SD Juara)
   sub.push({
     kunci: '2.5', nomor: no('2.5'), judul: 'Keaktifan Setoran',
-    pengantar: `Siswa yang tercatat setor di aplikasi selama ${bulan}.`,
+    pengantar: `Siswa yang tercatat setor di aplikasi selama ${bulan}.`
+      + (isi.keaktifanTanpaEkstra ? ' Setoran di halaqoh ekstra tidak dihitung di sini; lihat bagian Ekstra.' : ''),
     tabel: [
       {
         header: ['Unit', 'Siswa aktif', 'Setor tahsin', 'Setor tahfidz', 'Setor (salah satu)', 'Jumlah setoran tahsin', 'Jumlah setoran tahfidz'],
@@ -264,6 +265,59 @@ export function susunLaporan(isi: IsiLaporan, narasi: NarasiLaporan, lalu: IsiLa
     grafik: [],
     analisis: an('2.8'),
   })
+
+  // Ekstra (2.9, atau 2.10 bila ada SD Juara) — hanya edisi yang memuatnya.
+  const e = isi.ekstra
+  if (e) {
+    const eLalu = lalu?.ekstra
+    const d = (n: number, l: number | undefined) => denganDelta(n, l)
+    const luar = e.setoranLuarTahsin + e.setoranLuarTahfidz
+    sub.push({
+      kunci: 'eks', nomor: no('eks'), judul: 'Ekstra Tahsin & Tahfidz',
+      pengantar: 'Kelompok ekstra di luar jam sekolah, termasuk peserta dari luar LHI. Peserta & kelompok dihitung saat laporan dihitung; pertemuan, kehadiran, dan setoran sepanjang bulan.'
+        + (e.capaian?.length ? ` Tabel capaian memuat peserta siswa LHI saja, posisinya per ${isi.sampai.split('-').reverse().join('-')} dari seluruh setoran (sekolah & ekstra).` : '')
+        + (eLalu ? ' Angka dalam kurung = perubahan dari laporan bulan lalu.' : ''),
+      tabel: [
+        {
+          header: ['Uraian', 'Jumlah'],
+          baris: [
+            ['Kelompok (halaqoh) ekstra berjalan', d(e.kelompok, eLalu?.kelompok)],
+            ['Guru pengampu', d(e.guru, eLalu?.guru)],
+            ['Peserta aktif', d(e.peserta, eLalu?.peserta)],
+            ['— siswa LHI', d(e.pesertaLhi, eLalu?.pesertaLhi)],
+            ['— dari luar LHI', d(e.pesertaNon, eLalu?.pesertaNon)],
+            ['Peserta mulai / berhenti bulan ini', `${angka(e.mulai)} / ${angka(e.berhenti)}`],
+            ['Pertemuan berpresensi', d(e.pertemuan, eLalu?.pertemuan)],
+            ['Kehadiran', e.catatanHadir ? `${pct(e.hadir, e.catatanHadir)} (${angka(e.hadir)} dari ${angka(e.catatanHadir)} catatan)` : '—'],
+            ['Jadwal tanpa presensi', angka(e.tanpaPresensi)],
+            ['Setoran tahsin siswa LHI', d(e.setoranTahsin, eLalu?.setoranTahsin)],
+            ['Setoran tahfidz siswa LHI', d(e.setoranTahfidz, eLalu?.setoranTahfidz)],
+            ['Setoran peserta luar LHI (tahsin / tahfidz)', luar ? `${angka(e.setoranLuarTahsin)} / ${angka(e.setoranLuarTahfidz)}` : '0'],
+          ],
+        },
+        ...(e.perJenis.length ? [{
+          judul: 'Per jenis ekstra',
+          header: ['Jenis', 'Kelompok', 'Peserta'],
+          baris: [
+            ...e.perJenis.map(j => [j.nama, angka(j.halaqoh), angka(j.peserta)]),
+            ['Total', angka(e.perJenis.reduce((n, j) => n + j.halaqoh, 0)), angka(e.perJenis.reduce((n, j) => n + j.peserta, 0))],
+          ],
+          adaTotal: true,
+        }] : []),
+        // Capaian peserta LHI per unit — tahsin dengan target kelas, lalu hafalan.
+        ...(e.capaian ?? []).flatMap(x => {
+          const xl = eLalu?.capaian?.find(y => y.kode === x.kode)
+          return [
+            tabelMatriks(x.tahsin, xl?.tahsin, { target: true, judul: `Capaian tahsin peserta ekstra — ${x.judul} (${angka(x.siswa)} anak)` }),
+            ...x.tahfidz.filter(m => m.total > 0).map(m => tabelMatriks(m, xl?.tahfidz.find(y => y.judul === m.judul),
+              { target: false, judul: `Capaian tahfidz peserta ekstra — ${x.judul}${x.tahfidz.length > 1 ? ` · ${m.judul}` : ''}` })),
+          ]
+        }),
+      ],
+      grafik: (e.capaian ?? []).map(x => grafikMatriks(x.tahsin, `Tahsin peserta ekstra ${x.judul} — ${bulan}`)),
+      analisis: an('eks'),
+    })
+  }
 
   const [ct, dt] = isi.kpi.capaiTahsin, [cf, df] = isi.kpi.capaiTahfidz
   return {

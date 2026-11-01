@@ -305,13 +305,85 @@ export async function bolehEkstra(teacherId: string, studentId: string, slotId: 
   return !!s && s.teacher_id === teacherId && (bRes.data ?? []).length > 0
 }
 
-export async function getHadirEkstra(bookingIds: string[], dari: string, sampai: string): Promise<{ booking_id: string; tanggal: string; status: StatusHadirEkstra; catatan: string }[]> {
+export interface HadirEkstra {
+  booking_id: string
+  tanggal: string
+  status: StatusHadirEkstra
+  catatan: string
+  /** true = tidak ada catatan presensi; dianggap hadir karena ada setoran hari itu. */
+  dariSetoran?: boolean
+}
+
+/**
+ * Kehadiran ekstra per peserta per tanggal.
+ *
+ * Aturan: ADA SETORAN = HADIR. Presensi gunanya mencatat yang TIDAK hadir
+ * (izin/sakit/alfa); bila guru lupa mengisi presensi, setoran pada halaqoh
+ * ekstra itu di tanggal itu sudah bukti anak datang. Catatan presensi yang
+ * ada selalu menang — termasuk "alfa" — karena itu keputusan sadar guru.
+ *
+ * Setoran yang dibaca: siswa LHI (tahsin_logs/tahfidz_logs bertanda
+ * ekstra_slot_id) dan peserta luar (ekstra_setoran_luar / _tahfidz_luar).
+ */
+export async function getHadirEkstra(bookingIds: string[], dari: string, sampai: string): Promise<HadirEkstra[]> {
   if (bookingIds.length === 0) return []
-  const { data, error } = await createServerClient()
-    .from('ekstra_hadir').select('booking_id, tanggal, status, catatan')
-    .in('booking_id', bookingIds).gte('tanggal', dari).lte('tanggal', sampai)
-  if (error) return []
-  return (data ?? []) as { booking_id: string; tanggal: string; status: StatusHadirEkstra; catatan: string }[]
+  const supabase = createServerClient()
+  const [hRes, bRes] = await Promise.all([
+    supabase.from('ekstra_hadir').select('booking_id, tanggal, status, catatan')
+      .in('booking_id', bookingIds).gte('tanggal', dari).lte('tanggal', sampai),
+    supabase.from('ekstra_booking').select('id, student_id, slot_id, peserta_luar_id').in('id', bookingIds),
+  ])
+  if (hRes.error) return []
+  const tercatat = (hRes.data ?? []) as HadirEkstra[]
+  // peserta_luar_id belum ada (0122 belum dijalankan) → cukup presensi apa adanya.
+  if (bRes.error) return tercatat
+
+  const booking = (bRes.data ?? []) as { id: string; student_id: string | null; slot_id: string | null; peserta_luar_id: string | null }[]
+  const slotIds = [...new Set(booking.map(b => b.slot_id).filter((x): x is string => !!x))]
+  if (slotIds.length === 0) return tercatat
+
+  // Kunci orang|slot → booking. Satu anak bisa ikut dua ekstra; slot membedakannya.
+  const keBooking = new Map<string, string>()
+  for (const b of booking) {
+    if (!b.slot_id) continue
+    if (b.student_id) keBooking.set(`s:${b.student_id}|${b.slot_id}`, b.id)
+    if (b.peserta_luar_id) keBooking.set(`p:${b.peserta_luar_id}|${b.slot_id}`, b.id)
+  }
+
+  const ambil = async (buat: () => { range: (a: number, b: number) => PromiseLike<{ data: unknown; error: unknown }> }) => {
+    const hasil: Record<string, string | null>[] = []
+    for (let hal = 0; hal < 50; hal++) {
+      const { data, error } = await buat().range(hal * 1000, hal * 1000 + 999)
+      if (error) break
+      const b = (data ?? []) as Record<string, string | null>[]
+      hasil.push(...b)
+      if (b.length < 1000) break
+    }
+    return hasil
+  }
+  const [ts, tf, ls, lf] = await Promise.all([
+    ambil(() => supabase.from('tahsin_logs').select('student_id, ekstra_slot_id, setoran_date')
+      .in('ekstra_slot_id', slotIds).gte('setoran_date', dari).lte('setoran_date', sampai).order('id')),
+    ambil(() => supabase.from('tahfidz_logs').select('student_id, ekstra_slot_id, setoran_date')
+      .in('ekstra_slot_id', slotIds).gte('setoran_date', dari).lte('setoran_date', sampai).order('id')),
+    ambil(() => supabase.from('ekstra_setoran_luar').select('peserta_id, slot_id, tanggal')
+      .in('slot_id', slotIds).gte('tanggal', dari).lte('tanggal', sampai).order('id')),
+    ambil(() => supabase.from('ekstra_setoran_tahfidz_luar').select('peserta_id, slot_id, tanggal')
+      .in('slot_id', slotIds).gte('tanggal', dari).lte('tanggal', sampai).order('id')),
+  ])
+
+  const sudah = new Set(tercatat.map(h => `${h.booking_id}|${h.tanggal}`))
+  const dugaan: HadirEkstra[] = []
+  const tambah = (bookingId: string | undefined, tanggal: string | null) => {
+    if (!bookingId || !tanggal) return
+    const k = `${bookingId}|${tanggal}`
+    if (sudah.has(k)) return
+    sudah.add(k)
+    dugaan.push({ booking_id: bookingId, tanggal, status: 'hadir', catatan: '', dariSetoran: true })
+  }
+  for (const r of [...ts, ...tf]) tambah(keBooking.get(`s:${r.student_id}|${r.ekstra_slot_id}`), r.setoran_date)
+  for (const r of [...ls, ...lf]) tambah(keBooking.get(`p:${r.peserta_id}|${r.slot_id}`), r.tanggal)
+  return [...tercatat, ...dugaan]
 }
 
 export interface SetoranEkstra {
