@@ -61,6 +61,16 @@ export function currentPeriod(): PeriodKey {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
 }
 
+/**
+ * Periode yang dibuka bawaan oleh Isian & Laporan: laporan BPH disusun awal
+ * bulan berikutnya, jadi sebelum tanggal 25 yang dibuka adalah bulan lalu.
+ */
+export function periodeLaporanBawaan(): PeriodKey {
+  const now = new Date(Date.now() + 7 * 3600_000)
+  const kini = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`
+  return now.getUTCDate() < 25 ? shiftPeriod(kini, -1) : kini
+}
+
 /** Validasi bentuk 'YYYY-MM' dengan bulan 01–12. */
 export function isValidPeriod(key: string): boolean {
   if (!/^\d{4}-\d{2}$/.test(key)) return false
@@ -76,6 +86,35 @@ export function periodsYearToDate(key: PeriodKey): PeriodKey[] {
   const year = periodYear(key)
   const last = Number(key.split('-')[1])
   return Array.from({ length: last }, (_, i) => `${year}-${String(i + 1).padStart(2, '0')}`)
+}
+
+/**
+ * Awal tahun buku laporan BPH = Juli (tahun ajaran), keputusan 2026-11.
+ * Juli–Desember milik tahun ajaran yang mulai tahun itu; Januari–Juni milik
+ * tahun ajaran yang mulai tahun sebelumnya.
+ */
+export function awalTahunAjaran(key: PeriodKey): PeriodKey {
+  const [year, month] = key.split('-').map(Number)
+  return `${month >= 7 ? year : year - 1}-07`
+}
+
+/** Juli tahun ajaran berjalan s.d. periode terpilih — kolom tren 1.7 & 1.8. */
+export function periodsTahunAjaran(key: PeriodKey): PeriodKey[] {
+  const hasil: PeriodKey[] = []
+  for (let p = awalTahunAjaran(key); p <= key; p = shiftPeriod(p, 1)) hasil.push(p)
+  return hasil
+}
+
+/** Hari terakhir bulan, 'YYYY-MM-DD' — tanggal bayar baris isian bulanan. */
+export function lastDayOf(key: PeriodKey): string {
+  const [year, month] = key.split('-').map(Number)
+  const days = [31, (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0 ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+  return `${key}-${String(days[month - 1]).padStart(2, '0')}`
+}
+
+/** 'Rp 102,5 Jt' — satu desimal, gaya kartu ringkasan template September. */
+export function formatJuta1(amount: number): string {
+  return `Rp ${(amount / 1_000_000).toLocaleString('id-ID', { maximumFractionDigits: 1 })} Jt`
 }
 
 /** Rp 36.199.033 — format yang dipakai di seluruh tabel laporan. */

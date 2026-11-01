@@ -10,7 +10,7 @@ import { PeriodPicker } from '@/components/keuangan/PeriodPicker'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { currentPeriod, formatJuta, formatPeriod, formatRupiah, isValidPeriod, percentOf } from '@/lib/finance/period'
-import { buildBudgetRows, buildReceivables, buildRows, buildTrustFunds, settledIn } from '@/lib/finance/report'
+import { buildBudgetRows, buildPiutangBulan, buildRows, buildTrustFunds } from '@/lib/finance/report'
 import { cn } from '@/lib/utils'
 
 interface PageProps {
@@ -31,20 +31,18 @@ export default async function KeuanganPage({ searchParams }: PageProps) {
   const budgetIncome = buildBudgetRows(data, period, 'pemasukan')
   const budgetExpense = buildBudgetRows(data, period, 'pengeluaran')
   const trust = buildTrustFunds(data, period)
-  const receivables = buildReceivables(data, period)
+  // Piutang = sisa tagihan yang dicatat di isian bulan ini (snapshot akhir bulan).
+  const receivables = Object.entries(buildPiutangBulan(data, period)).filter(([, v]) => v.amount > 0)
 
   const balance = income.total - expense.total
-  const receivableTotal = receivables.reduce((t, r) => t + r.transaction.amount, 0)
+  const receivableTotal = receivables.reduce((t, [, v]) => t + v.amount, 0)
   const unallocated = budgetExpense.rows.reduce((t, r) => t + r.unallocated, 0)
 
   // Anggaran vs realisasi — dari baris anggaran yang sudah dihitung di atas.
   const posAnggaran = budgetExpense.rows.filter(r => r.budget > 0 || r.actual > 0)
   const melebihi = posAnggaran.filter(r => r.budget > 0 && r.actual > r.budget)
   const realisasiPct = budgetExpense.totalBudget ? percentOf(expense.total, budgetExpense.totalBudget) : null
-  const namaPos = new Map(data.accounts.map(a => [a.id, { name: a.name, kind: a.kind }]))
-  const transaksiTerbaru = settledIn(data.transactions, period)
-    .sort((a, b) => (b.paid_at ?? b.created_at).localeCompare(a.paid_at ?? a.created_at))
-    .slice(0, 6)
+  const pemasukanIsi = income.rows.filter(r => r.amount > 0)
   const totalTitipan = trust.reduce((t, f) => t + f.closing, 0)
 
   return (
@@ -159,33 +157,22 @@ export default async function KeuanganPage({ searchParams }: PageProps) {
           <Card>
             <CardContent className="p-5">
               <div className="flex items-end justify-between gap-2">
-                <h2 className="font-heading text-xl font-medium">Transaksi terbaru</h2>
-                <Link href={`/keuangan/transaksi?periode=${period}`} className="text-xs text-primary hover:underline">
-                  Semua transaksi →
+                <h2 className="font-heading text-xl font-medium">Pemasukan bulan ini</h2>
+                <Link href={`/keuangan/isian?periode=${period}`} className="text-xs text-primary hover:underline">
+                  Ubah isian →
                 </Link>
               </div>
-              {transaksiTerbaru.length === 0 ? (
-                <p className="mt-4 text-sm text-muted-foreground">Belum ada transaksi lunas bulan ini.</p>
+              {pemasukanIsi.length === 0 ? (
+                <p className="mt-4 text-sm text-muted-foreground">Isian bulan ini belum diisi.</p>
               ) : (
                 <ul className="mt-3 divide-y">
-                  {transaksiTerbaru.map(t => {
-                    const pos = namaPos.get(t.account_id)
-                    const masuk = pos?.kind === 'pemasukan'
-                    return (
-                      <li key={t.id} className="flex items-center gap-3 py-2.5">
-                        <span className="w-12 shrink-0 text-[11px] text-muted-foreground tabular-nums">
-                          {t.paid_at ? new Date(`${t.paid_at}T00:00:00+07:00`).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', timeZone: 'Asia/Jakarta' }) : '—'}
-                        </span>
-                        <span className="min-w-0 flex-1">
-                          <span className="block truncate text-sm">{t.description || pos?.name || 'Transaksi'}</span>
-                          <span className="block truncate text-[11px] text-muted-foreground">{pos?.name}</span>
-                        </span>
-                        <span className={cn('shrink-0 text-sm font-semibold tabular-nums', masuk ? 'text-success' : 'text-foreground')}>
-                          {masuk ? '+' : '−'}{formatRupiah(t.amount)}
-                        </span>
-                      </li>
-                    )
-                  })}
+                  {pemasukanIsi.map(r => (
+                    <li key={r.slug} className="flex items-center gap-3 py-2.5">
+                      <span className="min-w-0 flex-1 truncate text-sm">{r.name}</span>
+                      <span className="shrink-0 text-xs tabular-nums text-muted-foreground">{r.percent}%</span>
+                      <span className="w-32 shrink-0 text-right text-sm font-semibold tabular-nums">{formatRupiah(r.amount)}</span>
+                    </li>
+                  ))}
                 </ul>
               )}
             </CardContent>
@@ -203,16 +190,16 @@ export default async function KeuanganPage({ searchParams }: PageProps) {
                     <ClipboardList className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
                     <div className="min-w-0">
                       <p className="text-sm font-medium">
-                        {receivables.length} piutang belum tertunaikan
+                        Piutang {receivables.length} pos belum diterima
                       </p>
                       <p className="text-sm text-muted-foreground">
-                        Total {formatRupiah(receivableTotal)} — s.d. {formatPeriod(period)}.
+                        Total {formatRupiah(receivableTotal)} per akhir {formatPeriod(period)}.
                       </p>
                       <Link
-                        href={`/keuangan/transaksi?periode=${period}&tab=piutang`}
+                        href={`/keuangan/isian?periode=${period}`}
                         className="mt-1 inline-flex items-center gap-1 text-xs text-primary hover:underline"
                       >
-                        Lihat daftar piutang <ArrowRight className="h-3 w-3" />
+                        Lihat isian <ArrowRight className="h-3 w-3" />
                       </Link>
                     </div>
                   </CardContent>
@@ -223,10 +210,10 @@ export default async function KeuanganPage({ searchParams }: PageProps) {
                   <CardContent className="flex items-start gap-3 p-4">
                     <Wallet className="mt-0.5 h-4 w-4 shrink-0 text-info" />
                     <div className="min-w-0">
-                      <p className="text-sm font-medium">Dana sumber belum lengkap</p>
+                      <p className="text-sm font-medium">Pengeluaran belum terdanai</p>
                       <p className="text-sm text-muted-foreground">
-                        {formatRupiah(unallocated)} pengeluaran belum ditandai sumber dananya —
-                        kolom matriks tabel 1.5 akan kosong sebagian.
+                        {formatRupiah(unallocated)} pengeluaran tidak tertutup pemasukan bulan ini —
+                        periksa angka Subsidi Yayasan di isian.
                       </p>
                     </div>
                   </CardContent>
@@ -236,7 +223,7 @@ export default async function KeuanganPage({ searchParams }: PageProps) {
           </section>
         )}
 
-        {/* Ringkas per pos, tanpa detail — detailnya ada di tab Transaksi. */}
+        {/* Ringkas per pos, tanpa detail — isiannya di tab Isian Bulanan. */}
         <section className="grid gap-4 md:grid-cols-2">
           <PostSummary title="Pemasukan" rows={income.rows} total={income.total} />
           <PostSummary title="Pengeluaran" rows={expense.rows} total={expense.total} />

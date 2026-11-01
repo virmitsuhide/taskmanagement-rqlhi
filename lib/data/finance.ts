@@ -1,5 +1,5 @@
 import { createServerClient } from '@/lib/supabase/server'
-import { type PeriodKey, periodYear, toPeriodDate } from '@/lib/finance/period'
+import { type PeriodKey, awalTahunAjaran, periodYear, shiftPeriod, toPeriodDate } from '@/lib/finance/period'
 import type { FinanceData } from '@/lib/finance/report'
 import type {
   FinanceAccount, FinanceBudget, FinanceFunding, FinanceProgramPlan,
@@ -48,8 +48,11 @@ export async function getFinanceData(period: PeriodKey): Promise<FinanceData> {
 
   try {
     const supabase = createServerClient()
+    // Tren laporan mulai Juli tahun ajaran (awalTahunAjaran) — Januari–Juni
+    // butuh Juli tahun sebelumnya; perbandingan "vs bulan lalu" butuh satu
+    // bulan lagi sebelum Juli.
     const year = periodYear(period)
-    const from = `${year}-01-01`
+    const from = `${shiftPeriod(awalTahunAjaran(period), -1)}-01`
     const to = `${year}-12-31`
 
     const [accounts, transactions, funding, budgets, trustFunds, trustEntries, plans] =
@@ -69,7 +72,7 @@ export async function getFinanceData(period: PeriodKey): Promise<FinanceData> {
         // Mutasi titipan diambil sejak awal: saldo awal bulan berjalan
         // dihitung dari akumulasi seluruh mutasi sebelumnya.
         supabase.from('finance_trust_entries').select('*')
-          .order('entry_date', { ascending: true }),
+          .order('entry_date', { ascending: true }).order('created_at', { ascending: true }),
         supabase.from('finance_program_plans').select('*')
           .order('created_at', { ascending: true }),
       ])

@@ -17,11 +17,14 @@ import type {
   FinanceAccount, FinanceBudget, FinanceProgramPlan, FinanceTransaction,
   FinanceTrustEntry, FinanceTrustFund,
 } from '@/types'
-import { type PeriodKey, percentOf, percentOf1, periodsYearToDate, toPeriodKey } from './period'
+import { type PeriodKey, percentOf, percentOf1, periodsTahunAjaran, toPeriodKey } from './period'
+import { hitungSumberDana, type HasilAlokasi } from './alokasi'
 
 /**
  * Pos pemasukan yang uangnya berasal dari Yayasan. Sisanya dihitung sebagai
- * pendapatan mandiri — dasar KPI rasio kemandirian di bab 1.7.
+ * pendapatan mandiri — dasar KPI rasio kemandirian (1.6). SD Quls Takhassus
+ * termasuk MANDIRI (keputusan 2026-11), walau laporan September lama
+ * menghitungnya bersama subsidi di sebagian tabel.
  */
 export const YAYASAN_SLUGS = ['subsidi_yayasan', 'proposal_yayasan'] as const
 
@@ -51,9 +54,9 @@ export interface BudgetRow {
   actual: number
   /** Realisasi terhadap anggaran. 0% saat anggaran belum diisi. */
   percent: number
-  /** Alokasi dana sumber, hanya untuk pengeluaran: slug pos pemasukan → nominal. */
+  /** Sumber dana (1.5.3), hanya untuk pengeluaran: slug pos pemasukan → nominal. Dihitung otomatis. */
   funding: Record<string, number>
-  /** Bagian realisasi yang belum ditandai sumber dananya. */
+  /** Bagian realisasi yang tidak tertutup dana apa pun (laporan tidak balance). */
   unallocated: number
 }
 
@@ -65,6 +68,16 @@ export interface MonthlyTotals {
   mandiri: number
   subsidi: number
   subsidiPercent: number
+  /** Pendapatan mandiri / pemasukan, persen satu desimal. */
+  kemandirian: number
+  gajiYys: number
+  /** Gaji YYS / pengeluaran, persen satu desimal. */
+  porsiGaji: number
+  /** Jumlah per pos, untuk diagram tren 1.8. */
+  pemasukan: Record<string, number>
+  pengeluaran: Record<string, number>
+  /** Ada isian sama sekali di bulan ini? Bulan kosong tidak digambar di tren. */
+  terisi: boolean
 }
 
 export interface Receivable {
@@ -171,6 +184,7 @@ export function buildBudgetRows(
 ): { rows: BudgetRow[]; totalBudget: number; totalActual: number } {
   const posts = accountsOf(data.accounts, kind)
   const settled = settledIn(data.transactions, period)
+  const alokasi = kind === 'pengeluaran' ? buildSumberDana(data, period) : null
 
   const rows = posts.map(account => {
     const items = settled.filter(t => t.account_id === account.id)
@@ -179,18 +193,10 @@ export function buildBudgetRows(
       b => b.account_id === account.id && toPeriodKey(b.period) === period,
     )?.amount ?? 0
 
-    // Kumpulkan alokasi dana sumber seluruh transaksi pos ini jadi satu baris
-    // matriks. Pemasukan tidak punya alokasi — uangnya justru sumbernya.
-    const funding: Record<string, number> = {}
-    let allocated = 0
-    if (kind === 'pengeluaran') {
-      for (const trx of items) {
-        for (const f of trx.funding ?? []) {
-          funding[f.source_slug] = (funding[f.source_slug] ?? 0) + f.amount
-          allocated += f.amount
-        }
-      }
-    }
+    // Sumber dana dihitung (lib/finance/alokasi.ts). Pemasukan tidak punya
+    // sumber dana — uangnya justru sumbernya.
+    const funding: Record<string, number> = alokasi?.matriks[account.slug] ?? {}
+    const allocated = sum(Object.values(funding))
 
     return {
       slug: account.slug,
@@ -220,17 +226,22 @@ export function monthlyTotals(data: FinanceData, period: PeriodKey): MonthlyTota
   let income = 0
   let expense = 0
   let subsidi = 0
+  const pemasukan: Record<string, number> = {}
+  const pengeluaran: Record<string, number> = {}
 
   for (const trx of settled) {
     const account = byId.get(trx.account_id)
     if (!account) continue
     if (account.kind === 'pemasukan') {
       income += trx.amount
+      pemasukan[account.slug] = (pemasukan[account.slug] ?? 0) + trx.amount
       if ((YAYASAN_SLUGS as readonly string[]).includes(account.slug)) subsidi += trx.amount
     } else {
       expense += trx.amount
+      pengeluaran[account.slug] = (pengeluaran[account.slug] ?? 0) + trx.amount
     }
   }
+  const gajiYys = pengeluaran.gaji_yys ?? 0
 
   return {
     period,
@@ -239,12 +250,44 @@ export function monthlyTotals(data: FinanceData, period: PeriodKey): MonthlyTota
     mandiri: income - subsidi,
     subsidi,
     subsidiPercent: percentOf1(subsidi, income),
+    kemandirian: percentOf1(income - subsidi, income),
+    gajiYys,
+    porsiGaji: percentOf1(gajiYys, expense),
+    pemasukan,
+    pengeluaran,
+    terisi: settled.length > 0,
   }
 }
 
-/** Januari s.d. bulan terpilih — satu entri per bulan, urut. */
+/** Sumber dana tiap pos pengeluaran bulan itu (1.5.3) — lihat lib/finance/alokasi.ts. */
+export function buildSumberDana(data: FinanceData, period: PeriodKey): HasilAlokasi {
+  const m = monthlyTotals(data, period)
+  const urutPengeluaran = accountsOf(data.accounts, 'pengeluaran').map(a => [a.slug, m.pengeluaran[a.slug] ?? 0] as [string, number])
+  return hitungSumberDana(m.pemasukan, urutPengeluaran)
+}
+
+/**
+ * Piutang yang dicatat pada isian bulan itu: sisa tagihan pos pemasukan yang
+ * belum diterima per akhir bulan. slug → { jumlah, keterangan }.
+ */
+export function buildPiutangBulan(data: FinanceData, period: PeriodKey): Record<string, { amount: number; description: string }> {
+  const byId = new Map(data.accounts.map(a => [a.id, a]))
+  const hasil: Record<string, { amount: number; description: string }> = {}
+  for (const t of data.transactions) {
+    if (t.status !== 'piutang' || toPeriodKey(t.period) !== period) continue
+    const slug = byId.get(t.account_id)?.slug
+    if (!slug) continue
+    const x = hasil[slug] ?? { amount: 0, description: '' }
+    x.amount += t.amount
+    if (t.description) x.description = t.description
+    hasil[slug] = x
+  }
+  return hasil
+}
+
+/** Juli (awal tahun ajaran) s.d. bulan terpilih — satu entri per bulan, urut. */
 export function buildTrend(data: FinanceData, period: PeriodKey): MonthlyTotals[] {
-  return periodsYearToDate(period).map(p => monthlyTotals(data, p))
+  return periodsTahunAjaran(period).map(p => monthlyTotals(data, p))
 }
 
 /** Satu baris tabel Rekapitulasi (1.6): nominal per bulan + total + porsi. */
@@ -261,7 +304,7 @@ export function buildRecap(
   period: PeriodKey,
   kind: 'pemasukan' | 'pengeluaran',
 ): { periods: PeriodKey[]; rows: RecapRow[]; totals: Record<PeriodKey, number>; grandTotal: number } {
-  const periods = periodsYearToDate(period)
+  const periods = periodsTahunAjaran(period)
   const posts = accountsOf(data.accounts, kind)
 
   // Sekali saring per bulan, lalu dipakai ulang untuk semua pos — menyaring

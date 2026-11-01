@@ -4,14 +4,14 @@ import { revalidatePath } from 'next/cache'
 import { createServerClient } from '@/lib/supabase/server'
 import { getSession } from '@/lib/auth/session'
 import { canManageFinance } from '@/lib/auth/permissions'
-import { isValidPeriod, toPeriodDate } from '@/lib/finance/period'
+import { isValidPeriod, lastDayOf, toPeriodDate } from '@/lib/finance/period'
 
 type Result = { error?: string; success?: boolean }
 
 /** Semua rute modul keuangan menampilkan angka yang sama — segarkan sekaligus. */
 function revalidateFinance() {
   revalidatePath('/keuangan')
-  revalidatePath('/keuangan/transaksi')
+  revalidatePath('/keuangan/isian')
   revalidatePath('/keuangan/anggaran')
   revalidatePath('/keuangan/titipan')
   revalidatePath('/keuangan/laporan')
@@ -36,149 +36,68 @@ function parseRupiah(raw: FormDataEntryValue | null): number {
   return Number.isFinite(value) ? value : 0
 }
 
-/**
- * Baca alokasi dana sumber dari form.
- *
- * Field-nya bernama `funding_<slug>` supaya jumlah kolom matriks bisa
- * berubah mengikuti pos pemasukan yang aktif, tanpa mengubah action ini.
- */
-function readFunding(formData: FormData): { source_slug: string; amount: number }[] {
-  const rows: { source_slug: string; amount: number }[] = []
-  for (const [key, value] of formData.entries()) {
-    if (!key.startsWith('funding_')) continue
-    const amount = parseRupiah(value)
-    if (amount > 0) rows.push({ source_slug: key.slice('funding_'.length), amount })
-  }
-  return rows
-}
-
-// ── Transaksi ────────────────────────────────────────────────────────────────
+// ── Isian bulanan ────────────────────────────────────────────────────────────
 
 /**
- * Simpan satu penerimaan / pengeluaran.
+ * Simpan isian satu bulan: TOTAL per pos pemasukan & pengeluaran, keterangan
+ * tiap pos, dan sisa piutang tiap pos pemasukan.
  *
- * Dua aturan dijaga di sini, bukan cuma di database:
- *   • Transaksi lunas wajib bertanggal bayar. Kalau bendahara lupa mengisinya
- *     kita pakai tanggal terakhir bulan periode — bukan hari ini — supaya
- *     input susulan awal Mei untuk bulan April tidak diam-diam terhitung
- *     sebagai pemasukan Mei.
- *   • Alokasi dana sumber, kalau diisi, harus persis sama dengan nominalnya.
- *     Selisih sekecil apa pun membuat baris TOTAL tabel 1.5 tidak seimbang,
- *     dan kesalahan seperti itu sangat sulit dilacak setelah laporan tercetak.
+ * Penyimpanan memakai tabel yang sudah ada supaya mesin laporan tidak berubah:
+ *   • jumlah   → satu baris finance_transactions 'lunas' per pos, paid_at =
+ *                hari terakhir bulan (basis kas: diterima/dibayar bulan itu);
+ *   • piutang  → satu baris 'piutang' per pos pemasukan, period = bulan itu;
+ *   • keterangan → finance_report_notes, section 'ket_<kind>_<slug>' (pos
+ *                bernilai 0 pun tetap berketerangan, mis. "Tidak ada proposal").
+ * Isian lama bulan itu diganti utuh — menyimpan ulang tidak menggandakan.
  */
-export async function saveTransactionAction(_: unknown, formData: FormData): Promise<Result> {
+export async function saveIsianBulananAction(_: unknown, formData: FormData): Promise<Result> {
   const auth = await guard()
   if ('error' in auth) return auth
 
-  const id = (formData.get('id') as string) || null
-  const accountId = formData.get('account_id') as string
-  const periodKey = formData.get('period') as string
-  const amount = parseRupiah(formData.get('amount'))
-  const description = ((formData.get('description') as string) ?? '').trim()
-  const status = formData.get('status') === 'piutang' ? 'piutang' : 'lunas'
-  const rawPaidAt = ((formData.get('paid_at') as string) ?? '').trim()
-
-  if (!accountId) return { error: 'Pos keuangan wajib dipilih.' }
+  const periodKey = String(formData.get('period') ?? '')
   if (!isValidPeriod(periodKey)) return { error: 'Periode tidak valid.' }
-  if (amount <= 0) return { error: 'Nominal harus lebih dari nol.' }
-
-  const paidAt = status === 'lunas' ? rawPaidAt || endOfMonth(periodKey) : null
-
-  const funding = readFunding(formData)
-  if (funding.length) {
-    const allocated = funding.reduce((total, f) => total + f.amount, 0)
-    if (allocated !== amount) {
-      return {
-        error: `Alokasi dana sumber ${allocated.toLocaleString('id-ID')} tidak sama dengan nominal ${amount.toLocaleString('id-ID')}.`,
-      }
-    }
-  }
+  const periodDate = toPeriodDate(periodKey)
+  const paidAt = lastDayOf(periodKey)
 
   const supabase = createServerClient()
-  const payload = {
-    account_id: accountId,
-    period: toPeriodDate(periodKey),
-    amount,
-    description,
-    status,
-    paid_at: paidAt,
-    updated_at: new Date().toISOString(),
+  const { data: akun, error: eAkun } = await supabase.from('finance_accounts').select('id, kind, slug').eq('is_active', true)
+  if (eAkun || !akun) return { error: 'Gagal membaca daftar pos.' }
+
+  const lunas: { account_id: string; period: string; amount: number; description: string; status: 'lunas'; paid_at: string; created_by: string }[] = []
+  const piutang: { account_id: string; period: string; amount: number; description: string; status: 'piutang'; paid_at: null; created_by: string }[] = []
+  const catatan: { period: string; section: string; content: string; updated_by: string; updated_at: string }[] = []
+  const kini = new Date().toISOString()
+
+  for (const a of akun as { id: string; kind: 'pemasukan' | 'pengeluaran'; slug: string }[]) {
+    const kunci = `${a.kind}_${a.slug}`
+    const jumlah = parseRupiah(formData.get(`jumlah_${kunci}`))
+    const sisa = parseRupiah(formData.get(`piutang_${kunci}`))
+    const ket = String(formData.get(`ket_${kunci}`) ?? '').trim()
+    if (jumlah < 0 || sisa < 0) return { error: 'Jumlah tidak boleh negatif.' }
+    if (jumlah > 0) lunas.push({ account_id: a.id, period: periodDate, amount: jumlah, description: ket, status: 'lunas', paid_at: paidAt, created_by: auth.userId })
+    if (sisa > 0 && a.kind === 'pemasukan') piutang.push({ account_id: a.id, period: periodDate, amount: sisa, description: ket, status: 'piutang', paid_at: null, created_by: auth.userId })
+    catatan.push({ period: periodDate, section: `ket_${kunci}`, content: ket, updated_by: auth.userId, updated_at: kini })
   }
 
-  let transactionId = id
-  if (id) {
-    const { error } = await supabase.from('finance_transactions').update(payload).eq('id', id)
-    if (error) return { error: error.message || 'Gagal menyimpan transaksi.' }
-  } else {
-    const { data, error } = await supabase
-      .from('finance_transactions')
-      .insert({ ...payload, created_by: auth.userId })
-      .select('id')
-      .single()
-    if (error || !data) return { error: error?.message || 'Gagal menyimpan transaksi.' }
-    transactionId = data.id as string
-  }
+  const ids = (akun as { id: string }[]).map(a => a.id)
+  const [hapusLunas, hapusPiutang] = await Promise.all([
+    supabase.from('finance_transactions').delete().in('account_id', ids).eq('status', 'lunas').gte('paid_at', periodDate).lte('paid_at', paidAt),
+    supabase.from('finance_transactions').delete().in('account_id', ids).eq('status', 'piutang').eq('period', periodDate),
+  ])
+  if (hapusLunas.error || hapusPiutang.error) return { error: 'Gagal mengganti isian lama.' }
 
-  // Alokasi ditulis ulang seluruhnya, bukan ditambal per baris: menghapus
-  // satu sumber dana sama saja dengan tidak mengirimkannya lagi dari form.
-  if (transactionId) {
-    await supabase.from('finance_funding').delete().eq('transaction_id', transactionId)
-    if (funding.length) {
-      await supabase
-        .from('finance_funding')
-        .insert(funding.map(f => ({ ...f, transaction_id: transactionId })))
-    }
+  const baris = [...lunas, ...piutang]
+  if (baris.length) {
+    const { error } = await supabase.from('finance_transactions').insert(baris)
+    if (error) return { error: error.message || 'Gagal menyimpan isian.' }
   }
+  const { error: eCat } = await supabase.from('finance_report_notes').upsert(catatan, { onConflict: 'period,section' })
+  if (eCat) return { error: eCat.message || 'Gagal menyimpan keterangan.' }
 
   revalidateFinance()
   return { success: true }
 }
 
-/** Tanggal terakhir bulan periode, mis. '2026-04' → '2026-04-30'. */
-function endOfMonth(periodKey: string): string {
-  const [year, month] = periodKey.split('-').map(Number)
-  // Hari ke-0 bulan berikutnya = hari terakhir bulan ini; Date.UTC dipakai
-  // supaya hasilnya tidak bergeser oleh zona waktu server.
-  const last = new Date(Date.UTC(year, month, 0)).getUTCDate()
-  return `${periodKey}-${String(last).padStart(2, '0')}`
-}
-
-export async function deleteTransactionAction(id: string): Promise<Result> {
-  const auth = await guard()
-  if ('error' in auth) return auth
-
-  const supabase = createServerClient()
-  const { error } = await supabase.from('finance_transactions').delete().eq('id', id)
-  if (error) return { error: error.message || 'Gagal menghapus transaksi.' }
-
-  revalidateFinance()
-  return { success: true }
-}
-
-/**
- * Tandai piutang sebagai tertunaikan.
- *
- * `period` transaksi sengaja tidak diubah: tagihannya tetap milik bulan asal,
- * sementara pemasukannya diakui di bulan pembayaran. Perbedaan itulah yang
- * membuat catatan "MoU Maret baru diterima April" bisa dibaca dari data.
- */
-export async function settleReceivableAction(id: string, paidAt: string): Promise<Result> {
-  const auth = await guard()
-  if ('error' in auth) return auth
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(paidAt)) return { error: 'Tanggal pembayaran tidak valid.' }
-
-  const supabase = createServerClient()
-  const { error } = await supabase
-    .from('finance_transactions')
-    .update({ status: 'lunas', paid_at: paidAt, updated_at: new Date().toISOString() })
-    .eq('id', id)
-    .eq('status', 'piutang')
-
-  if (error) return { error: error.message || 'Gagal menandai lunas.' }
-
-  revalidateFinance()
-  return { success: true }
-}
 
 // ── Anggaran ─────────────────────────────────────────────────────────────────
 
