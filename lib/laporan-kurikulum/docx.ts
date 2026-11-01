@@ -2,7 +2,7 @@ import {
   AlignmentType, BorderStyle, Document, HeadingLevel, ImageRun, LevelFormat, Packer, Paragraph, ShadingType,
   Table, TableCell, TableRow, TextRun, WidthType,
 } from 'docx'
-import sharp from 'sharp'
+import { svgKePng } from './raster'
 import type { LaporanModel, TabelModel } from './susun'
 
 /**
@@ -68,10 +68,9 @@ function tabel(t: TabelModel): (Paragraph | Table)[] {
 }
 
 async function gambar(svg: string, keterangan: string): Promise<Paragraph[]> {
-  const png = await sharp(Buffer.from(svg.replaceAll('currentColor', '#1f2a28')), { density: 200 }).png().toBuffer()
-  const meta = await sharp(png).metadata()
+  const { png, lebar, tinggi } = svgKePng(svg.replaceAll('currentColor', '#1f2a28'))
   const w = 600
-  const h = Math.round(((meta.height ?? 300) / (meta.width ?? 600)) * w)
+  const h = Math.round((tinggi / lebar) * w)
   return [
     new Paragraph({ alignment: AlignmentType.CENTER, children: [new ImageRun({ type: 'png', data: png, transformation: { width: w, height: h } })] }),
     new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 200 }, children: [teks(keterangan, { italics: true, size: 18 })] }),

@@ -1,5 +1,12 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Font grafik .docx Laporan Kurikulum dibaca dari disk saat runtime
+  // (lib/laporan-kurikulum/raster.ts) — tanpa ini tidak ikut terbundel ke server.
+  // Modul native (.node) — dimuat Node apa adanya, bukan dibundel Turbopack.
+  serverExternalPackages: ['@resvg/resvg-js'],
+  outputFileTracingIncludes: {
+    '/laporan-kurikulum/[periode]/docx': ['./lib/laporan-kurikulum/font/*.ttf'],
+  },
   experimental: {
     serverActions: {
       // Bawaan Next.js 1 MB. Foto profil diperkecil di peramban sebelum dikirim
