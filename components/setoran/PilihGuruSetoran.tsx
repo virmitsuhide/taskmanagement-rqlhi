@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 /**
  * Pilih guru di halaman /setoran. Bulan dan jenis yang sedang dilihat ikut
  * terbawa; sesi sengaja dilepas, karena tiap guru punya halaqohnya sendiri.
- * "Semua guru" membuka rekap kelengkapan Capaian Bulanan seluruh halaqoh.
+ * "Semua guru" membuka tabel setoran seluruh halaqoh pada satu sesi.
  */
 export function PilihGuruSetoran({ daftar, terpilih, query }: {
   daftar: { id: string; nama: string; jumlahSesi: number }[]
@@ -21,7 +21,7 @@ export function PilihGuruSetoran({ daftar, terpilih, query }: {
       aria-label="Pilih guru"
       className="h-9 w-full max-w-sm rounded-md border bg-background px-3 text-sm"
     >
-      <option value="semua">Semua guru — rekap capaian awal &amp; akhir bulan</option>
+      <option value="semua">Semua guru</option>
       {daftar.map(g => (
         <option key={g.id} value={g.id}>
           {g.nama}{g.jumlahSesi > 1 ? ` (${g.jumlahSesi} sesi)` : ''}

@@ -154,6 +154,8 @@ export interface SuntingSetoran {
 
 export interface BarisProgres {
   id: string
+  /** Halaqoh anak — dipakai untuk mengelompokkan baris saat banyak halaqoh sekaligus. */
+  halaqohId: string
   nama: string
   kelas: string | null
   /** Level anak boarding (0110); null = bukan anak asrama. */
@@ -495,6 +497,7 @@ export async function getProgresSesi(
 
     return {
       id: s.id,
+      halaqohId: s.halaqoh_id,
       nama: s.full_name,
       kelas: s.kelas,
       level: level.get(s.id) ?? null,

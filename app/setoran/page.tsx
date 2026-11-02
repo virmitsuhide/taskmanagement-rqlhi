@@ -4,11 +4,10 @@ import { getSession } from '@/lib/auth/session'
 import { canViewHalaqoh, JENJANG_LABELS } from '@/lib/auth/permissions'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { getProgresSesi, type JenisRekap } from '@/lib/data/rekap-sesi'
-import { getGuruSetoranKoor, getRekapIsianBulanan } from '@/lib/data/setoran-koor'
-import { currentPeriod, formatPeriod, isValidPeriod, shiftPeriod } from '@/lib/finance/period'
+import { getGuruSetoranKoor, type HalaqohGuru } from '@/lib/data/setoran-koor'
+import type { HalaqohSesi } from '@/lib/data/setoran-sesi'
+import { currentPeriod, isValidPeriod } from '@/lib/finance/period'
 import { UNIT_ORDER } from '@/lib/rq/programs'
-import { MonthStepper } from '@/components/dashboard/kit'
-import { RekapIsianSemua } from '@/components/setoran/RekapIsianSemua'
 import { FilterSesiBulan, hrefRekap } from '@/components/setoran/FilterSesiBulan'
 import { TabelProgres } from '@/components/setoran/TabelProgres'
 import { PilihGuruSetoran } from '@/components/setoran/PilihGuruSetoran'
@@ -27,8 +26,9 @@ interface PageProps {
  * untuk halaqoh yang masuk canManageSetoran (koor SD melihat QULS tanpa
  * tombol), dan server memeriksanya lagi per siswa.
  *
- * ?guru=semua: rekap siapa yang belum mengisi Capaian Bulanan (awal & akhir
- * bulan) di semua halaqoh yang boleh dilihat — untuk koor & Kumik lintas unit.
+ * ?guru=semua: tabel yang sama untuk SEMUA halaqoh pada satu sesi (per unit
+ * bila role melihat lebih dari satu unit), dikelompokkan per halaqoh — supaya
+ * koor & Kumik bisa menyisir setoran seluruh guru sekaligus.
  */
 export default async function SetoranKoorPage({ searchParams }: PageProps) {
   const session = await getSession()
@@ -40,14 +40,33 @@ export default async function SetoranKoorPage({ searchParams }: PageProps) {
   const jenis: JenisRekap = q.jenis === 'tahfidz' ? 'tahfidz' : 'tahsin'
 
   const semua = q.guru === 'semua'
-  const unit = UNIT_ORDER.find(u => u === q.unit) ?? null
-  const [daftarGuru, rekap] = await Promise.all([
-    getGuruSetoranKoor(session.role),
-    semua ? getRekapIsianBulanan(session.role, periode) : Promise.resolve(null),
-  ])
+  const daftarGuru = await getGuruSetoranKoor(session.role)
   const guru = semua ? null : daftarGuru.find(g => g.id === q.guru) ?? daftarGuru[0] ?? null
   const halaqoh = guru ? guru.halaqoh.find(h => h.id === q.halaqoh) ?? guru.halaqoh[0] ?? null : null
-  const data = halaqoh ? await getProgresSesi(halaqoh.id, periode, jenis) : null
+
+  // ── Semua guru: halaqoh unik beserta pengampunya, disaring unit & sesi ──
+  const semuaHalaqoh = new Map<string, { h: HalaqohGuru; pengampu: string[] }>()
+  if (semua) for (const g of daftarGuru) for (const h of g.halaqoh) {
+    const x = semuaHalaqoh.get(h.id) ?? { h, pengampu: [] }
+    x.pengampu.push(g.nama)
+    semuaHalaqoh.set(h.id, x)
+  }
+  const unitAda = UNIT_ORDER.filter(u => [...semuaHalaqoh.values()].some(x => x.h.jenjang === u))
+  // Satu unit per tampilan: seluruh unit sekaligus terlalu panjang (dan terlalu berat) untuk satu tabel.
+  const unit = unitAda.find(u => u === q.unit) ?? unitAda[0] ?? null
+  const diUnit = [...semuaHalaqoh.values()].filter(x => x.h.jenjang === unit)
+  const sesiAda = [...new Set(diUnit.map(x => x.h.sesi ?? 0))].sort((a, b) => a - b)
+  const daftarSesi = sesiAda.map(n => ({ id: `sesi-${n}`, name: n ? `Sesi ${n}` : 'Tanpa sesi', sesi: n || null, jenjang: unit! }) as HalaqohSesi)
+  const sesiTerpilih = daftarSesi.find(x => x.id === q.halaqoh) ?? daftarSesi[0] ?? null
+  const halaqohSesi = sesiTerpilih
+    ? diUnit.filter(x => (x.h.sesi ?? 0) === (sesiTerpilih.sesi ?? 0))
+        .sort((a, b) => a.h.name.localeCompare(b.h.name, 'id', { numeric: true }))
+    : []
+
+  const data = semua
+    ? halaqohSesi.length ? await getProgresSesi({ halaqoh: halaqohSesi.map(x => x.h.id) }, periode, jenis) : null
+    : halaqoh ? await getProgresSesi(halaqoh.id, periode, jenis) : null
+  const bisaSuntingSemua = halaqohSesi.length > 0 && halaqohSesi.every(x => x.h.bisaSunting)
   const hariIni = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' })
 
   return (
@@ -63,30 +82,82 @@ export default async function SetoranKoorPage({ searchParams }: PageProps) {
           <h1 className="text-3xl leading-tight">Setoran Siswa</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
             Setoran tiap anak sepanjang bulan, per guru.
-            {halaqoh?.bisaSunting ? ' Klik angka di sel untuk mengoreksi atau menghapus setoran.' : ''}
+            {(semua ? bisaSuntingSemua : halaqoh?.bisaSunting) ? ' Klik angka di sel untuk mengoreksi atau menghapus setoran.' : ''}
           </p>
         </div>
 
-        {semua && rekap ? (
+        {semua ? (
           <>
             <div className="flex flex-wrap items-center gap-2">
               <PilihGuruSetoran
                 daftar={daftarGuru.map(g => ({ id: g.id, nama: g.nama, jumlahSesi: g.halaqoh.length }))}
                 terpilih="semua"
-                query={`periode=${periode}&jenis=${jenis}`}
+                query={`periode=${periode}&jenis=${jenis}${unit ? `&unit=${unit}` : ''}`}
               />
-              <MonthStepper
-                label="Bulan"
-                current={formatPeriod(periode)}
-                prevHref={`/setoran?guru=semua&periode=${shiftPeriod(periode, -1)}${unit ? `&unit=${unit}` : ''}`}
-                nextHref={periode < currentPeriod() ? `/setoran?guru=semua&periode=${shiftPeriod(periode, 1)}${unit ? `&unit=${unit}` : ''}` : null}
-              />
+              {(['tahsin', 'tahfidz'] as const).map(j => (
+                <Link
+                  key={j}
+                  href={hrefRekap('/setoran', { guru: 'semua', unit: unit ?? undefined, halaqoh: sesiTerpilih?.id, periode, jenis: j })}
+                  aria-current={j === jenis ? 'page' : undefined}
+                  className={cn(
+                    'rounded-lg border px-3 py-1.5 text-sm transition-colors',
+                    j === jenis ? 'border-primary bg-primary-wash font-semibold text-primary' : 'bg-card hover:bg-accent',
+                  )}
+                >
+                  {j === 'tahsin' ? 'Tahsin' : 'Tahfidz'}
+                </Link>
+              ))}
             </div>
-            <p className="text-sm text-muted-foreground">
-              Isian <b>Capaian Bulanan</b> guru (portal guru → Capaian) per halaqoh. Terisi = kolom tahsin atau tahfidz
-              diisi. Klik baris untuk melihat nama siswa yang belum; klik nama guru untuk membuka setorannya.
-            </p>
-            <RekapIsianSemua rekap={rekap} periode={periode} unit={unit} namaBulan={formatPeriod(periode)} />
+
+            {unitAda.length > 1 && (
+              <nav aria-label="Pilih unit" className="flex flex-wrap gap-1.5">
+                {unitAda.map(u => (
+                  <Link
+                    key={u}
+                    href={hrefRekap('/setoran', { guru: 'semua', unit: u, periode, jenis })}
+                    aria-current={u === unit ? 'page' : undefined}
+                    className={cn('rounded-full border px-3 py-1 text-sm', u === unit ? 'border-primary bg-primary-wash font-semibold text-primary' : 'bg-card hover:bg-accent')}
+                  >
+                    {JENJANG_LABELS[u]}
+                  </Link>
+                ))}
+              </nav>
+            )}
+
+            {sesiTerpilih && (
+              <FilterSesiBulan
+                basePath="/setoran"
+                daftar={daftarSesi}
+                halaqoh={sesiTerpilih.id}
+                periode={periode}
+                params={{ guru: 'semua', unit: unit ?? undefined, jenis }}
+              />
+            )}
+
+            {halaqohSesi.length > 0 && (
+              <p className="text-sm text-muted-foreground">
+                {unit ? JENJANG_LABELS[unit] : ''} · {sesiTerpilih?.name} · {halaqohSesi.length} halaqoh
+              </p>
+            )}
+
+            {!data || data.baris.length === 0 ? (
+              <div className="rounded-2xl border border-dashed bg-muted/30 py-10 text-center text-sm text-muted-foreground">
+                Belum ada siswa aktif di sesi ini.
+              </div>
+            ) : (
+              <TabelProgres
+                data={data}
+                jenis={jenis}
+                hariIni={hariIni}
+                tautanSiswa="/siswa/"
+                bisaSunting={bisaSuntingSemua}
+                kelompok={halaqohSesi.map(x => ({
+                  id: x.h.id,
+                  judul: x.h.name,
+                  keterangan: x.pengampu.join(', '),
+                }))}
+              />
+            )}
           </>
         ) : !guru ? (
           <div className="rounded-2xl border border-dashed bg-muted/30 py-10 text-center text-sm text-muted-foreground">

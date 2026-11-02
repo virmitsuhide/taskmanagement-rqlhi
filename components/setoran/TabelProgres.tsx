@@ -105,8 +105,13 @@ function Sel({ isi, absen, hadirTanpaSetor, onSunting }: {
  * soal menampilkan tombolnya.
  */
 export function TabelProgres({
-  data, jenis, hariIni, tautanSiswa, bisaSunting = false,
+  data, jenis, hariIni, tautanSiswa, bisaSunting = false, kelompok,
 }: {
+  /**
+   * Banyak halaqoh sekaligus ("Semua guru" di /setoran): baris dikelompokkan
+   * per halaqoh, urut daftar ini, masing-masing diawali baris judul.
+   */
+  kelompok?: { id: string; judul: string; keterangan?: string }[]
   data: ProgresSesi
   jenis: JenisRekap
   /** 'YYYY-MM-DD' WIB, dihitung di server supaya tidak berbeda saat hidrasi. */
@@ -154,7 +159,16 @@ export function TabelProgres({
             </tr>
           </thead>
           <tbody>
-            {data.baris.map(b => (
+            {urutBaris(data.baris, kelompok).map(item => 'judul' in item ? (
+              <tr key={`k-${item.id}`} className="border-b bg-muted/60">
+                <td colSpan={data.tanggal.length + 1} className="px-3 py-2">
+                  <span className="sticky left-3 inline-block">
+                    <span className="text-[13px] font-semibold text-foreground">{item.judul}</span>
+                    {item.keterangan && <span className="ml-2 text-[11px] text-muted-foreground">{item.keterangan}</span>}
+                  </span>
+                </td>
+              </tr>
+            ) : (() => { const b = item; return (
               <tr key={b.id} className="border-b last:border-0">
                 <td className="sticky left-0 z-10 bg-card px-3 py-2 align-top">
                   <span className="flex flex-wrap items-center gap-1.5">
@@ -205,7 +219,7 @@ export function TabelProgres({
                   </td>
                 ))}
               </tr>
-            ))}
+            ) })())}
           </tbody>
         </table>
       </div>
@@ -429,4 +443,15 @@ function DialogKoreksi({ s, nama, jalur, onTutup }: { s: SuntingSetoran; nama: s
       </DialogContent>
     </Dialog>
   )
+}
+
+type Kelompok = { id: string; judul: string; keterangan?: string }
+
+/** Baris apa adanya, atau — bila ada kelompok — judul halaqoh lalu anak-anaknya. */
+function urutBaris(baris: ProgresSesi['baris'], kelompok?: Kelompok[]): (ProgresSesi['baris'][number] | Kelompok)[] {
+  if (!kelompok) return baris
+  return kelompok.flatMap(k => {
+    const anak = baris.filter(b => b.halaqohId === k.id)
+    return anak.length ? [k, ...anak] : []
+  })
 }

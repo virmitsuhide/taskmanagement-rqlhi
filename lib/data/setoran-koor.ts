@@ -1,5 +1,4 @@
 import { createServerClient } from '@/lib/supabase/server'
-import { ambilPerPotong } from '@/lib/data/capaian-kelas'
 import { canManageSetoran, canViewHalaqoh } from '@/lib/auth/permissions'
 import type { Jenjang, UserRole } from '@/types'
 
@@ -35,71 +34,6 @@ interface HalaqohRow {
   program: string | null
   wali_teacher_id: string | null
   halaqoh_teachers: { teacher_id: string }[] | null
-}
-
-/** Satu baris rekap "Semua guru": kelengkapan capaian awal & akhir bulan satu halaqoh. */
-export interface RekapIsianHalaqoh {
-  halaqoh: HalaqohGuru
-  /** Pengampu halaqoh (wali + anggota), untuk tautan ke rincian per guru. */
-  pengampu: { id: string; nama: string }[]
-  siswa: number
-  awal: number
-  akhir: number
-  /** Awal DAN akhir terisi. */
-  lengkap: number
-  belumAwal: string[]
-  belumAkhir: string[]
-}
-
-/**
- * Rekap pengisian Capaian Bulanan (student_monthly) semua halaqoh yang boleh
- * dilihat role ini, untuk pilihan "Semua guru" di /setoran.
- *
- * Terisi = kolom tahsin ATAU tahfidz-nya terisi (anak yang sudah lulus tahsin
- * hanya punya tahfidz) — sama dengan Analitik Halaqoh.
- */
-export async function getRekapIsianBulanan(role: UserRole, periode: string): Promise<RekapIsianHalaqoh[]> {
-  const daftarGuru = await getGuruSetoranKoor(role)
-  const halaqoh = new Map<string, { h: HalaqohGuru; pengampu: { id: string; nama: string }[] }>()
-  for (const g of daftarGuru) for (const h of g.halaqoh) {
-    const x = halaqoh.get(h.id) ?? { h, pengampu: [] }
-    x.pengampu.push({ id: g.id, nama: g.nama })
-    halaqoh.set(h.id, x)
-  }
-  if (halaqoh.size === 0) return []
-
-  const supabase = createServerClient()
-  const ids = [...halaqoh.keys()]
-  const siswa = await ambilPerPotong<{ id: string; full_name: string; halaqoh_id: string }>(ids, p => supabase.from('students')
-    .select('id, full_name, halaqoh_id').in('halaqoh_id', p).eq('is_active', true).order('full_name'))
-  const isian = await ambilPerPotong<{ student_id: string; halaman_awal_tahsin: string | null; tahfidz_awal: string | null; halaman_akhir_tahsin: string | null; tahfidz_akhir: string | null }>(
-    siswa.map(s => s.id),
-    p => supabase.from('student_monthly')
-      .select('student_id, halaman_awal_tahsin, tahfidz_awal, halaman_akhir_tahsin, tahfidz_akhir')
-      .in('student_id', p).eq('period', `${periode}-01`).order('student_id'),
-  )
-  const terisi = (...xs: (string | null)[]) => xs.some(x => !!x?.trim())
-  const perSiswa = new Map(isian.map(r => [r.student_id, {
-    awal: terisi(r.halaman_awal_tahsin, r.tahfidz_awal),
-    akhir: terisi(r.halaman_akhir_tahsin, r.tahfidz_akhir),
-  }]))
-
-  const hasil: RekapIsianHalaqoh[] = []
-  for (const [id, { h, pengampu }] of halaqoh) {
-    const anak = siswa.filter(s => s.halaqoh_id === id)
-    // Halaqoh semester lalu yang masih aktif tapi sudah tanpa anggota tidak ditampilkan.
-    if (anak.length === 0) continue
-    const st = anak.map(s => ({ nama: s.full_name, ...(perSiswa.get(s.id) ?? { awal: false, akhir: false }) }))
-    hasil.push({
-      halaqoh: h, pengampu, siswa: anak.length,
-      awal: st.filter(s => s.awal).length,
-      akhir: st.filter(s => s.akhir).length,
-      lengkap: st.filter(s => s.awal && s.akhir).length,
-      belumAwal: st.filter(s => !s.awal).map(s => s.nama),
-      belumAkhir: st.filter(s => !s.akhir).map(s => s.nama),
-    })
-  }
-  return hasil
 }
 
 export async function getGuruSetoranKoor(role: UserRole): Promise<GuruSetoran[]> {
