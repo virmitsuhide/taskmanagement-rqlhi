@@ -10,7 +10,26 @@
  * Jalankan: npx tsx --env-file=.env.local scripts/seed-keuangan-jul-sep-2026.ts
  */
 import { createClient } from '@supabase/supabase-js'
-import { AGUSTUS, JULI, SALDO_AWAL_TITIPAN as SA, SEPTEMBER } from './data/keuangan-jul-sep-2026'
+
+type Bulan = {
+  periode: string
+  akhir: string
+  pemasukan: Record<string, [number, string]>
+  pengeluaran: Record<string, [number, string]>
+  piutang: Record<string, number>
+  anggaranMasuk: Record<string, number>
+  anggaranKeluar: Record<string, number>
+  titipan: Record<string, [string, number][]>
+}
+
+// Dimuat saat dijalankan, bukan `import` statis: berkasnya tidak ada di git
+// (dan di build Vercel), jadi pemeriksaan TypeScript build tidak boleh
+// mencarinya. Jalur lewat variabel supaya tsc tidak menelusurinya.
+const berkasData = './data/keuangan-jul-sep-2026'
+const { AGUSTUS, JULI, SALDO_AWAL_TITIPAN: SA, SEPTEMBER } = (await import(berkasData)) as {
+  JULI: Bulan; AGUSTUS: Bulan; SEPTEMBER: Bulan
+  SALDO_AWAL_TITIPAN: { tanggal: string; lain_lain: number; program_liburan: number; sd: number }
+}
 
 const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
 
