@@ -8,6 +8,7 @@ import { EkstraSubNav, MigrasiEkstra } from '@/components/ekstra/EkstraSubNav'
 import { rentangBulan } from '@/components/ekstra/LaporanEkstra'
 import { PindahTanggalEkstra, type PertemuanEkstra } from '@/components/ekstra/PindahTanggalEkstra'
 import { TabelProgres } from '@/components/setoran/TabelProgres'
+import { PilihGuruSetoran } from '@/components/setoran/PilihGuruSetoran'
 import { getDataEkstra, getHadirEkstra, getSetoranEkstraSunting, hariIniWIB, labelSlot } from '@/lib/data/ekstra'
 import { getProgresSesi, type JenisRekap } from '@/lib/data/rekap-sesi'
 import { currentPeriod, isValidPeriod, shiftPeriod } from '@/lib/finance/period'
@@ -26,6 +27,9 @@ interface PageProps {
  * jadi setoran sekolah anak tidak pernah tampil di sini; server menolaknya
  * juga (guard di app/actions/setoran-koreksi.ts). Pertemuan yang salah
  * tanggal dipindah sekaligus satu halaqoh lewat PindahTanggalEkstra.
+ *
+ * ?guru=semua: semua halaqoh ekstra yang punya peserta/setoran bulan itu
+ * dalam satu tabel, dikelompokkan per halaqoh ekstra.
  */
 export default async function SetoranEkstraKoorPage({ searchParams }: PageProps) {
   const session = await getSession()
@@ -44,13 +48,50 @@ export default async function SetoranEkstraKoorPage({ searchParams }: PageProps)
   const semuaSlot = data.slot.filter(s => s.jenis?.bidang !== 'materi')
   const guruList = [...new Map(semuaSlot.map(s => [s.teacher_id, s.guru ?? '—'])).entries()]
     .sort((a, b) => a[1].localeCompare(b[1], 'id'))
-  const guru = guruList.find(([id]) => id === sp.guru)?.[0] ?? guruList[0]?.[0] ?? null
+  const semua = sp.guru === 'semua'
+  const guru = semua ? 'semua' : guruList.find(([id]) => id === sp.guru)?.[0] ?? guruList[0]?.[0] ?? null
   const slotGuru = semuaSlot.filter(s => s.teacher_id === guru)
     .sort((a, b) => Number(b.aktif) - Number(a.aktif))
   const slot = slotGuru.find(s => s.id === sp.slot) ?? slotGuru[0] ?? null
 
   let isi: { progres: Awaited<ReturnType<typeof getProgresSesi>>; pertemuan: PertemuanEkstra[] } | null = null
-  if (slot) {
+  // ── Semua guru: tiap halaqoh ekstra dihitung sendiri lalu disambung ──
+  let semuaIsi: { progres: Awaited<ReturnType<typeof getProgresSesi>>; kelompok: { id: string; judul: string; keterangan: string }[] } | null = null
+  if (semua && semuaSlot.length) {
+    const ids = semuaSlot.map(s => s.id)
+    const [{ data: bRows }, setoran] = await Promise.all([
+      createServerClient().from('ekstra_booking').select('student_id, slot_id, status').in('slot_id', ids),
+      getSetoranEkstraSunting(ids, dari, sampai),
+    ])
+    const booking = (bRows ?? []) as { student_id: string | null; slot_id: string; status: string }[]
+    const anggota = new Map<string, Set<string>>()
+    const tambah = (slotId: string, siswa: string | null) => { if (siswa) (anggota.get(slotId) ?? anggota.set(slotId, new Set()).get(slotId)!).add(siswa) }
+    // Peserta aktif, ditambah siapa pun yang punya setoran di halaqoh itu bulan ini.
+    for (const b of booking) if (b.status === 'aktif') tambah(b.slot_id, b.student_id)
+    for (const x of setoran) tambah(x.slotId, x.studentId)
+    const dipakai = semuaSlot.filter(s => anggota.get(s.id)?.size)
+      .sort((a, b) => (a.guru ?? '').localeCompare(b.guru ?? '', 'id') || labelSlot(a).localeCompare(labelSlot(b)))
+    // Bertahap 10 sekaligus: puluhan halaqoh × beberapa kueri tidak dilepas serentak.
+    const hasil: Awaited<ReturnType<typeof getProgresSesi>>[] = []
+    for (let i = 0; i < dipakai.length; i += 10) {
+      hasil.push(...await Promise.all(dipakai.slice(i, i + 10).map(s =>
+        getProgresSesi({ siswa: [...anggota.get(s.id)!] }, bulan, jenis, { ekstraSlot: [s.id] }))))
+    }
+    semuaIsi = {
+      progres: {
+        tanggal: [...new Set(hasil.flatMap(h => h.tanggal))].sort(),
+        // halaqohId diganti id halaqoh ekstra supaya baris terkelompok per halaqoh ekstra.
+        baris: hasil.flatMap((h, i) => h.baris.map(b => ({ ...b, halaqohId: dipakai[i].id }))),
+      },
+      kelompok: dipakai.map((s, i) => ({
+        id: s.id,
+        judul: `${s.guru ?? '—'} · ${s.jenis?.nama ?? 'Ekstra'}`,
+        keterangan: `${labelSlot(s)}${!s.aktif ? ' (ditutup)' : ''} · ${hasil[i].baris.length} peserta LHI`,
+      })),
+    }
+  }
+
+  if (slot && !semua) {
     const [{ data: bRows }, setoran] = await Promise.all([
       createServerClient().from('ekstra_booking').select('id, student_id').eq('slot_id', slot.id),
       getSetoranEkstraSunting(slot.id, dari, sampai),
@@ -110,13 +151,15 @@ export default async function SetoranEkstraKoorPage({ searchParams }: PageProps)
           <>
             <div>
               <p className="mb-1.5 text-[11px] font-bold uppercase tracking-[0.08em] text-muted-foreground">Pengampu</p>
-              <div className="flex flex-wrap gap-1.5">
-                {guruList.map(([id, nama]) => (
-                  <Link key={id} href={href({ guru: id, slot: null })} className={chip(guru === id)}>{nama}</Link>
-                ))}
-              </div>
+              <PilihGuruSetoran
+                basePath="/ekstra/setoran"
+                satuan="halaqoh"
+                daftar={guruList.map(([id, nama]) => ({ id, nama, jumlahSesi: semuaSlot.filter(s => s.teacher_id === id).length }))}
+                terpilih={guru}
+                query={[bulan !== kini ? `bulan=${bulan}` : '', jenis !== 'tahsin' ? `jenis=${jenis}` : ''].filter(Boolean).join('&')}
+              />
             </div>
-            <div>
+            {!semua && <div>
               <p className="mb-1.5 text-[11px] font-bold uppercase tracking-[0.08em] text-muted-foreground">Halaqoh ekstra</p>
               <div className="flex flex-wrap gap-1.5">
                 {slotGuru.map(s => (
@@ -125,7 +168,7 @@ export default async function SetoranEkstraKoorPage({ searchParams }: PageProps)
                   </Link>
                 ))}
               </div>
-            </div>
+            </div>}
             <div className="flex gap-1.5">
               {(['tahsin', 'tahfidz'] as const).map(j => (
                 <Link key={j} href={href({ jenis: j })} aria-current={j === jenis ? 'page' : undefined}
@@ -136,7 +179,20 @@ export default async function SetoranEkstraKoorPage({ searchParams }: PageProps)
               ))}
             </div>
 
-            {slot && isi && (
+            {semua && (
+              !semuaIsi || semuaIsi.progres.baris.length === 0 ? (
+                <p className="rounded-2xl border border-dashed bg-muted/30 py-10 text-center text-sm text-muted-foreground">
+                  Belum ada peserta LHI tertaut atau setoran ekstra pada {label}.
+                </p>
+              ) : (
+                <>
+                  <p className="text-sm text-muted-foreground">{semuaIsi.kelompok.length} halaqoh ekstra · {label}. Pilih satu pengampu untuk mengubah tanggal pertemuan.</p>
+                  <TabelProgres data={semuaIsi.progres} jenis={jenis} hariIni={hariIni} bisaSunting kelompok={semuaIsi.kelompok} />
+                </>
+              )
+            )}
+
+            {slot && isi && !semua && (
               <>
                 {isi.progres.baris.length === 0 ? (
                   <p className="rounded-2xl border border-dashed bg-muted/30 py-10 text-center text-sm text-muted-foreground">

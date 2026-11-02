@@ -169,7 +169,7 @@ export function TabelProgres({
                 </td>
               </tr>
             ) : (() => { const b = item; return (
-              <tr key={b.id} className="border-b last:border-0">
+              <tr key={kelompok ? `${b.halaqohId}-${b.id}` : b.id} className="border-b last:border-0">
                 <td className="sticky left-0 z-10 bg-card px-3 py-2 align-top">
                   <span className="flex flex-wrap items-center gap-1.5">
                     {tautanSiswa ? (
