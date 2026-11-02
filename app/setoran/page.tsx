@@ -4,15 +4,18 @@ import { getSession } from '@/lib/auth/session'
 import { canViewHalaqoh, JENJANG_LABELS } from '@/lib/auth/permissions'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { getProgresSesi, type JenisRekap } from '@/lib/data/rekap-sesi'
-import { getGuruSetoranKoor } from '@/lib/data/setoran-koor'
-import { currentPeriod, isValidPeriod } from '@/lib/finance/period'
+import { getGuruSetoranKoor, getRekapIsianBulanan } from '@/lib/data/setoran-koor'
+import { currentPeriod, formatPeriod, isValidPeriod, shiftPeriod } from '@/lib/finance/period'
+import { UNIT_ORDER } from '@/lib/rq/programs'
+import { MonthStepper } from '@/components/dashboard/kit'
+import { RekapIsianSemua } from '@/components/setoran/RekapIsianSemua'
 import { FilterSesiBulan, hrefRekap } from '@/components/setoran/FilterSesiBulan'
 import { TabelProgres } from '@/components/setoran/TabelProgres'
 import { PilihGuruSetoran } from '@/components/setoran/PilihGuruSetoran'
 import { cn } from '@/lib/utils'
 
 interface PageProps {
-  searchParams: Promise<{ guru?: string; halaqoh?: string; periode?: string; jenis?: string }>
+  searchParams: Promise<{ guru?: string; halaqoh?: string; periode?: string; jenis?: string; unit?: string }>
 }
 
 /**
@@ -23,6 +26,9 @@ interface PageProps {
  * menghapus setoran. Cakupan mengikuti canViewHalaqoh; tombol koreksi hanya
  * untuk halaqoh yang masuk canManageSetoran (koor SD melihat QULS tanpa
  * tombol), dan server memeriksanya lagi per siswa.
+ *
+ * ?guru=semua: rekap siapa yang belum mengisi Capaian Bulanan (awal & akhir
+ * bulan) di semua halaqoh yang boleh dilihat — untuk koor & Kumik lintas unit.
  */
 export default async function SetoranKoorPage({ searchParams }: PageProps) {
   const session = await getSession()
@@ -33,8 +39,13 @@ export default async function SetoranKoorPage({ searchParams }: PageProps) {
   const periode = isValidPeriod(q.periode ?? '') ? q.periode! : currentPeriod()
   const jenis: JenisRekap = q.jenis === 'tahfidz' ? 'tahfidz' : 'tahsin'
 
-  const daftarGuru = await getGuruSetoranKoor(session.role)
-  const guru = daftarGuru.find(g => g.id === q.guru) ?? daftarGuru[0] ?? null
+  const semua = q.guru === 'semua'
+  const unit = UNIT_ORDER.find(u => u === q.unit) ?? null
+  const [daftarGuru, rekap] = await Promise.all([
+    getGuruSetoranKoor(session.role),
+    semua ? getRekapIsianBulanan(session.role, periode) : Promise.resolve(null),
+  ])
+  const guru = semua ? null : daftarGuru.find(g => g.id === q.guru) ?? daftarGuru[0] ?? null
   const halaqoh = guru ? guru.halaqoh.find(h => h.id === q.halaqoh) ?? guru.halaqoh[0] ?? null : null
   const data = halaqoh ? await getProgresSesi(halaqoh.id, periode, jenis) : null
   const hariIni = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' })
@@ -56,7 +67,28 @@ export default async function SetoranKoorPage({ searchParams }: PageProps) {
           </p>
         </div>
 
-        {!guru ? (
+        {semua && rekap ? (
+          <>
+            <div className="flex flex-wrap items-center gap-2">
+              <PilihGuruSetoran
+                daftar={daftarGuru.map(g => ({ id: g.id, nama: g.nama, jumlahSesi: g.halaqoh.length }))}
+                terpilih="semua"
+                query={`periode=${periode}&jenis=${jenis}`}
+              />
+              <MonthStepper
+                label="Bulan"
+                current={formatPeriod(periode)}
+                prevHref={`/setoran?guru=semua&periode=${shiftPeriod(periode, -1)}${unit ? `&unit=${unit}` : ''}`}
+                nextHref={periode < currentPeriod() ? `/setoran?guru=semua&periode=${shiftPeriod(periode, 1)}${unit ? `&unit=${unit}` : ''}` : null}
+              />
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Isian <b>Capaian Bulanan</b> guru (portal guru → Capaian) per halaqoh. Terisi = kolom tahsin atau tahfidz
+              diisi. Klik baris untuk melihat nama siswa yang belum; klik nama guru untuk membuka setorannya.
+            </p>
+            <RekapIsianSemua rekap={rekap} periode={periode} unit={unit} namaBulan={formatPeriod(periode)} />
+          </>
+        ) : !guru ? (
           <div className="rounded-2xl border border-dashed bg-muted/30 py-10 text-center text-sm text-muted-foreground">
             Belum ada guru yang mengampu halaqoh aktif di unit Anda.
           </div>
