@@ -16,6 +16,8 @@ export interface HalaqohGuru {
   name: string
   sesi: number | null
   jenjang: Jenjang
+  /** Program halaqoh, mis. 'quls' — pengelompokan "Semua guru" per sesi. */
+  program: string | null
   /** Tombol koreksi tampil; server tetap memeriksa ulang per siswa. */
   bisaSunting: boolean
 }
@@ -53,6 +55,7 @@ export async function getGuruSetoranKoor(role: UserRole): Promise<GuruSetoran[]>
       name: h.name,
       sesi: h.sesi,
       jenjang: h.jenjang,
+      program: h.program,
       bisaSunting: canManageSetoran(role, h.jenjang, h.program),
     }
     const pengampu = new Set<string>()

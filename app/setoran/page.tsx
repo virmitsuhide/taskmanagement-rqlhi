@@ -56,7 +56,10 @@ export default async function SetoranKoorPage({ searchParams }: PageProps) {
   const unit = unitAda.find(u => u === q.unit) ?? unitAda[0] ?? null
   const diUnit = [...semuaHalaqoh.values()].filter(x => x.h.jenjang === unit)
   const sesiAda = [...new Set(diUnit.map(x => x.h.sesi ?? 0))].sort((a, b) => a - b)
-  const daftarSesi = sesiAda.map(n => ({ id: `sesi-${n}`, name: n ? `Sesi ${n}` : 'Tanpa sesi', sesi: n || null, jenjang: unit! }) as HalaqohSesi)
+  // Halaqoh tanpa nomor sesi: di SDIT semuanya kelas QULS (1D–3D) — dinamai "QULS"
+  // bila memang semuanya QULS; unit lain (PAUD, SMA, SD Juara) tetap "Tanpa sesi".
+  const tanpaSesiQuls = diUnit.some(x => !x.h.sesi) && diUnit.filter(x => !x.h.sesi).every(x => x.h.program === 'quls')
+  const daftarSesi = sesiAda.map(n => ({ id: `sesi-${n}`, name: n ? `Sesi ${n}` : tanpaSesiQuls ? 'QULS' : 'Tanpa sesi', sesi: n || null, jenjang: unit! }) as HalaqohSesi)
   const sesiTerpilih = daftarSesi.find(x => x.id === q.halaqoh) ?? daftarSesi[0] ?? null
   const halaqohSesi = sesiTerpilih
     ? diUnit.filter(x => (x.h.sesi ?? 0) === (sesiTerpilih.sesi ?? 0))
