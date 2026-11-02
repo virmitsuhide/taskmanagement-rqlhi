@@ -24,6 +24,25 @@ const persenTeks = (n: number) => `${n.toLocaleString('id-ID', { maximumFraction
 
 export interface Seri { label: string; warna: string; nilai: number[] }
 
+/**
+ * Nama bulan pada sumbu: utuh bila SEMUA muat, tiga huruf untuk semuanya bila
+ * ada satu saja yang tidak ("Agu", "Sep") — supaya sumbunya seragam. Tiga huruf
+ * pertama nama bulan Indonesia tidak ada yang kembar.
+ */
+function labelSumbu(bulan: string[], lebarSlot: number): string[] {
+  const muat = bulan.every(b => b.length * 5.6 <= lebarSlot - 4)
+  return muat ? bulan : bulan.map(b => b.slice(0, 3))
+}
+
+/** n gradasi biru dari pucat (bulan terlama) ke navy (bulan terbaru). */
+function gradasi(n: number): string[] {
+  const dari = [0xc9, 0xd6, 0xea], ke = [0x1f, 0x38, 0x64]
+  return Array.from({ length: n }, (_, i) => {
+    const t = n === 1 ? 1 : i / (n - 1)
+    return '#' + dari.map((v, k) => Math.round(v + (ke[k] - v) * t).toString(16).padStart(2, '0')).join('')
+  })
+}
+
 /** Skala sumbu Y yang "bulat" (juta): kelipatan 2, 5, 10, atau 20. */
 function skala(maks: number): { atas: number; langkah: number } {
   const jt = Math.max(maks / 1_000_000, 1)
@@ -93,6 +112,7 @@ export function BatangBertumpuk({ judul, bulan, seri, persenDalam, total: labelT
   const slot = lebar / bulan.length, bw = Math.min(120, slot * 0.55)
   const y = (v: number) => atasP + tinggi - (v / atas) * tinggi
   const garis = Array.from({ length: Math.round(atas / langkah) + 1 }, (_, i) => i * langkah)
+  const sumbu = labelSumbu(bulan, slot)
   return (
     <svg width="100%" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={judul} style={{ maxWidth: W, display: 'block', margin: '0 auto' }}>
       <text x={W / 2} y={14} textAnchor="middle" style={{ fontSize: 11.5, fontWeight: 700, fill: '#111', fontFamily: 'Georgia, serif' }}>{judul}</text>
@@ -114,15 +134,32 @@ export function BatangBertumpuk({ judul, bulan, seri, persenDalam, total: labelT
               const y0 = y(dasar + v), h = y(dasar) - y0
               dasar += v
               const teks = persenDalam && total[i] ? `${jtTeks(v)} (${persenTeks((v / total[i]) * 100)})` : jtTeks(v)
+              // Batang sempit (banyak bulan): cukup persen bulat, atau angka juta saja.
+              const ringkas = (nilai: number, tot: number) => (persenDalam && tot ? `${Math.round((nilai / tot) * 100)}%` : jtTeks(nilai))
               return (
                 <g key={s.label}>
                   <rect x={x} y={y0} width={bw} height={Math.max(h - 0.8, 0.5)} fill={s.warna}><title>{`${b} · ${s.label}: Rp ${v.toLocaleString('id-ID')}`}</title></rect>
-                  {h >= 12 && <text x={x + bw / 2} y={y0 + h / 2 + 3} textAnchor="middle" style={{ fontSize: 8.5, fontWeight: 700, fill: '#fff' }}>{teks}</text>}
+                  {h >= 12 && (teks.length * 4.9 <= bw - 2 ? (
+                    <text x={x + bw / 2} y={y0 + h / 2 + 3} textAnchor="middle" style={{ fontSize: 8.5, fontWeight: 700, fill: '#fff' }}>{teks}</text>
+                  ) : persenDalam && total[i] && h >= 26 && jtTeks(v).length * 4.9 <= bw - 2 ? (
+                    // Tidak muat satu baris: angka di atas, persen di bawah.
+                    <text x={x + bw / 2} y={y0 + h / 2 - 2} textAnchor="middle" style={{ fontSize: 8.5, fontWeight: 700, fill: '#fff' }}>
+                      <tspan x={x + bw / 2}>{jtTeks(v)}</tspan>
+                      <tspan x={x + bw / 2} dy={10}>
+                        {/* Persen berdesimal tidak muat di batang sempit → dibulatkan. */}
+                        ({`(${persenTeks((v / total[i]) * 100)})`.length * 4.9 <= bw - 2 ? persenTeks((v / total[i]) * 100) : `${Math.round((v / total[i]) * 100)}%`})
+                      </tspan>
+                    </text>
+                  ) : (
+                    <text x={x + bw / 2} y={y0 + h / 2 + 3} textAnchor="middle" style={{ fontSize: 8.5, fontWeight: 700, fill: '#fff' }}>{ringkas(v, total[i])}</text>
+                  ))}
                 </g>
               )
             })}
-            <text x={x + bw / 2} y={y(total[i]) - 5} textAnchor="middle" style={{ fontSize: 9.5, fontWeight: 700, fill: NAVY }}>{labelTotal(total[i])}</text>
-            <text x={x + bw / 2} y={atasP + tinggi + 13} textAnchor="middle" style={{ fontSize: 9.5, fill: '#222' }}>{b}</text>
+            <text x={x + bw / 2} y={y(total[i]) - 5} textAnchor="middle" style={{ fontSize: slot < 62 ? 8.5 : 9.5, fontWeight: 700, fill: NAVY }}>
+              {labelTotal(total[i]).length * 5.4 > slot - 6 ? jtTeks(total[i]) : labelTotal(total[i])}
+            </text>
+            <text x={x + bw / 2} y={atasP + tinggi + 13} textAnchor="middle" style={{ fontSize: 9.5, fill: '#222' }}>{sumbu[i]}</text>
           </g>
         )
       })}
@@ -140,16 +177,20 @@ export function BatangBerkelompok({ judul, kategori, bulan }: {
 }) {
   const kat = kategori.filter(k => k.nilai.some(v => v > 0))
   if (kat.length === 0 || bulan.length === 0) return null
-  const W = 620, H = 300, kiri = 44, kanan = 12, atasP = 42, bawah = 40
+  const W = 620, kiri = 44, kanan = 12, bawah = 40
+  // Legenda bulan di atas grafik, dibungkus beberapa baris bila banyak bulan.
+  const lebarLeg = 74, perBaris = Math.max(1, Math.floor((W - kiri - kanan) / lebarLeg))
+  const barisLeg = Math.ceil(bulan.length / perBaris)
+  const atasP = 30 + barisLeg * 12, H = 260 + atasP
   const { atas, langkah } = skala(Math.max(...kat.flatMap(k => k.nilai)))
   const tinggi = H - atasP - bawah, lebar = W - kiri - kanan
   const slot = lebar / kat.length, bw = Math.min(30, (slot * 0.82) / bulan.length)
   const y = (v: number) => atasP + tinggi - (v / atas) * tinggi
-  // Bulan lama pucat, bulan terbaru paling gelap.
-  const nada = ['#c9d6ea', '#a8bbdb', '#7d9bd0', '#2e5d8f', NAVY]
-  const warna = bulan.map((_, i) => nada[Math.max(0, nada.length - bulan.length + i)])
+  // Bulan lama pucat, bulan terbaru paling gelap — gradasi sebanyak bulannya.
+  const warna = gradasi(bulan.length)
   const garis = Array.from({ length: Math.round(atas / langkah) + 1 }, (_, i) => i * langkah)
-  const lebarLeg = 74
+  // Angka di atas batang hanya bila batangnya cukup lebar; selain itu hanya bulan terakhir.
+  const angkaSemua = bw >= 16
   return (
     <svg width="100%" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={judul} style={{ maxWidth: W, display: 'block', margin: '0 auto' }}>
       <text x={W / 2} y={14} textAnchor="middle" style={{ fontSize: 11.5, fontWeight: 700, fill: '#111', fontFamily: 'Georgia, serif' }}>{judul}</text>
@@ -167,7 +208,9 @@ export function BatangBerkelompok({ judul, kategori, bulan }: {
             {k.nilai.map((v, j) => v > 0 && (
               <g key={j}>
                 <rect x={x0 + j * bw} y={y(v)} width={bw - 1} height={y(0) - y(v)} fill={warna[j]}><title>{`${k.label} · ${bulan[j]}: Rp ${v.toLocaleString('id-ID')}`}</title></rect>
-                <text x={x0 + j * bw + bw / 2} y={y(v) - 3} textAnchor="middle" style={{ fontSize: 7.5, fill: '#333' }}>{jtTeks(v)}</text>
+                {(angkaSemua || j === bulan.length - 1) && (
+                  <text x={x0 + j * bw + bw / 2} y={y(v) - 3} textAnchor="middle" style={{ fontSize: 7.5, fill: '#333' }}>{jtTeks(v)}</text>
+                )}
               </g>
             ))}
             {k.label.split('\n').map((t, n) => (
@@ -177,9 +220,9 @@ export function BatangBerkelompok({ judul, kategori, bulan }: {
         )
       })}
       <line x1={kiri} x2={W - kanan} y1={atasP + tinggi} y2={atasP + tinggi} stroke="#333" />
-      <g transform={`translate(${W - kanan - bulan.length * lebarLeg}, 30)`}>
+      <g transform={`translate(${W - kanan - Math.min(bulan.length, perBaris) * lebarLeg}, 30)`}>
         {bulan.map((b, j) => (
-          <g key={b} transform={`translate(${j * lebarLeg}, 0)`}>
+          <g key={b} transform={`translate(${(j % perBaris) * lebarLeg}, ${Math.floor(j / perBaris) * 12})`}>
             <rect width={16} height={8} y={-7} fill={warna[j]} />
             <text x={20} y={0} style={{ fontSize: 8.5, fill: '#222' }}>{b}</text>
           </g>
@@ -204,6 +247,9 @@ export function GarisKpi({ bulan, kemandirian, porsiGaji, targetMandiri, targetG
     const hi = Math.min(100, Math.ceil((Math.max(...nilai, target) + 8) / 10) * 10)
     const ty = (v: number) => atasP + (h - atasP - bawah) * (1 - (v - lo) / Math.max(hi - lo, 1))
     const tx = (i: number) => x0 + kiri + 16 + (bulan.length === 1 ? (w - kiri - 32) / 2 : (i * (w - kiri - 32)) / (bulan.length - 1))
+    const jarak = bulan.length > 1 ? (w - kiri - 32) / (bulan.length - 1) : w
+    const rapat = jarak < 30
+    const sumbu = labelSumbu(bulan, jarak)
     return (
       <g key={judul}>
         <text x={x0 + w / 2} y={12} textAnchor="middle" style={{ fontSize: 10, fontWeight: 700, fill: '#111', fontFamily: 'Georgia, serif' }}>{judul}</text>
@@ -221,8 +267,8 @@ export function GarisKpi({ bulan, kemandirian, porsiGaji, targetMandiri, targetG
           return (
             <g key={i}>
               <circle cx={tx(i)} cy={ty(v)} r={3.5} fill={warna} />
-              <text x={tx(i)} y={ty(v) + (atasLabel ? -7 : 13)} textAnchor="middle" style={{ fontSize: 8.5, fontWeight: 700, fill: warna }}>{persenTeks(v)}</text>
-              <text x={tx(i)} y={h - bawah + 12} textAnchor="middle" style={{ fontSize: 8, fill: '#222' }}>{bulan[i]}</text>
+              <text x={tx(i)} y={ty(v) + (atasLabel ? -7 : 13)} textAnchor="middle" style={{ fontSize: rapat ? 7 : 8.5, fontWeight: 700, fill: warna }}>{rapat ? `${Math.round(v)}%` : persenTeks(v)}</text>
+              <text x={tx(i)} y={h - bawah + 12} textAnchor="middle" style={{ fontSize: 8, fill: '#222' }}>{sumbu[i]}</text>
             </g>
           )
         })}
