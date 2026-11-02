@@ -6,8 +6,9 @@
  * langsung) dan berkas .docx (dirasterkan jadi PNG oleh sharp). Karena itu
  * warnanya literal, bukan token CSS — Word tidak mengenal var(--primary).
  *
- * Tingkat jilid/juz itu ordinal, jadi warnanya satu hue teal dari terang ke
- * gelap (bukan warna kategori yang saling bersaing); "Belum" abu-abu netral.
+ * Tingkat jilid/juz itu ordinal, jadi warnanya satu hue dari terang ke gelap
+ * (bukan warna kategori yang saling bersaing); "Belum" abu-abu netral. Hue-nya
+ * biru → navy, mengikuti diagram Bab 02 laporan BPH Agustus 2026.
  */
 
 export interface SeriGrafik {
@@ -23,14 +24,19 @@ export interface GrafikBatang {
   seri: SeriGrafik[]
 }
 
-const TERANG = [0xd3, 0xe8, 0xe2]
-const GELAP = [0x0e, 0x3f, 0x37]
+/**
+ * Titik warna biru → navy dari diagram Bab 02 Agustus. Interpolasi lurus
+ * antara biru muda dan navy saja melewati abu-abu kusam di tengah, jadi
+ * gradasinya diambil per ruas antar titik yang tetap jenuh.
+ */
+const TITIK = [[0xdc, 0xeb, 0xfb], [0x8d, 0xbb, 0xf0], [0x3f, 0x8b, 0xd9], [0x1e, 0x52, 0x99], [0x06, 0x1a, 0x38]]
 const ABU = '#d6d3cc'
 
 function ramp(n: number): string[] {
   return Array.from({ length: n }, (_, i) => {
-    const t = n === 1 ? 1 : i / (n - 1)
-    return '#' + TERANG.map((v, k) => Math.round(v + (GELAP[k] - v) * t).toString(16).padStart(2, '0')).join('')
+    const t = (n === 1 ? 1 : i / (n - 1)) * (TITIK.length - 1)
+    const k = Math.min(Math.floor(t), TITIK.length - 2), f = t - k
+    return '#' + TITIK[k].map((v, c) => Math.round(v + (TITIK[k + 1][c] - v) * f).toString(16).padStart(2, '0')).join('')
   })
 }
 
