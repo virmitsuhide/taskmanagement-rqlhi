@@ -79,7 +79,10 @@ export function KelolaUjian({
   const [unit, setUnit] = useState<UjianUnit | 'semua'>('semua')
   const [tipe, setTipe] = useState<(typeof TIPE_TABS)[number]['value']>('semua')
   const [level, setLevel] = useState('semua')
-  const [terbuka, setTerbuka] = useState<Set<string>>(new Set())
+  // Anggota kelompok tahsin TAMPIL secara bawaan — yang dicatat adalah kartu
+  // yang sengaja dilipat koordinator. Judul kartunya nama ustadz, jadi tanpa
+  // daftar ini koordinator tidak tahu anak siapa saja yang menunggu.
+  const [terlipat, setTerlipat] = useState<Set<string>>(new Set())
   // Papan tiga kolom (Diajukan → Terjadwal → Selesai) sebagai tampilan awal;
   // daftar lama tetap tersedia untuk penyaringan status yang rinci.
   const [tampilan, setTampilan] = useState<'papan' | 'daftar'>('papan')
@@ -110,7 +113,7 @@ export function KelolaUjian({
   }
 
   function toggle(id: string) {
-    setTerbuka(prev => {
+    setTerlipat(prev => {
       const next = new Set(prev)
       if (next.has(id)) next.delete(id)
       else next.add(id)
@@ -300,7 +303,7 @@ export function KelolaUjian({
           ) : tsTampil.length === 0 ? <Kosong /> : (
             <ul className="space-y-2">
               {tsTampil.map((item, i) => {
-                const dibuka = terbuka.has(item.id)
+                const dibuka = !terlipat.has(item.id)
                 const lulus = item.siswa.filter(s => s.predikat === 'lulus').length
                 const kunci = kunciPengaju(item)
                 return (

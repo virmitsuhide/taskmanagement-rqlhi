@@ -9,6 +9,7 @@ import {
   getTahfidzLabel, tanggalWIB,
   UJIAN_UNIT_LABEL,
 } from '@/lib/rq/ujian'
+import { AnggotaTahsin } from './AnggotaTahsin'
 import type { UjianStatus, UjianTahfidz, UjianTahsin, UjianUnit } from '@/types'
 
 /**
@@ -119,6 +120,7 @@ export function PapanUjian({ kartu, namaPengaju, onKelola, onLihatSemua }: Props
                 <div className="min-w-0 flex-1">
                   <p className="break-words text-sm font-semibold">{judul(k)}</p>
                   <p className="mt-0.5 break-words text-xs text-muted-foreground">{keterangan(k)}</p>
+                  {k.jenis === 'tahsin' && <AnggotaTahsin item={k.item} className="mt-1.5" />}
                 </div>
                 <JenisBadge k={k} />
               </div>
@@ -158,6 +160,7 @@ export function PapanUjian({ kartu, namaPengaju, onKelola, onLihatSemua }: Props
                   <div className="min-w-0 flex-1">
                     <p className="break-words text-sm font-semibold">{judul(k)}</p>
                     <p className="mt-0.5 break-words text-xs text-muted-foreground">{keterangan(k)}</p>
+                    {k.jenis === 'tahsin' && <AnggotaTahsin item={k.item} className="mt-1.5" />}
                     <p className="mt-1 break-words text-xs">
                       <span className="text-muted-foreground">Penguji </span>
                       <span className={k.item.penguji ? 'font-medium' : 'text-warning'}>
@@ -187,6 +190,7 @@ export function PapanUjian({ kartu, namaPengaju, onKelola, onLihatSemua }: Props
               <div className="min-w-0">
                 <p className="break-words text-sm font-semibold">{judul(k)}</p>
                 <p className="mt-0.5 break-words text-xs text-muted-foreground">{keterangan(k)}</p>
+                {k.jenis === 'tahsin' && <AnggotaTahsin item={k.item} className="mt-1.5" />}
               </div>
               <Hasil k={k} />
             </button>

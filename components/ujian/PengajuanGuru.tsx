@@ -14,6 +14,7 @@ import {
   getPredikatClass, getPredikatLabel, getStatusLabel, getStatusVariant, getTahfidzLabel,
 } from '@/lib/rq/ujian'
 import { deleteTahfidzUjianAction, deleteTahsinUjianAction } from '@/app/actions/ujian'
+import { AnggotaTahsin } from './AnggotaTahsin'
 import type { TahfidzTipe, UjianStatus, UjianTahfidz, UjianTahsin } from '@/types'
 
 interface Props {
@@ -301,6 +302,7 @@ export function PengajuanGuru({ teacherId, tahfidz, tahsin }: Props) {
               key={item.id}
               judul={item.nama_kelompok}
               rincian={`${formatTahsinLevels(item)} · ${item.siswa.length} siswa · Sesi ${item.sesi}`}
+              anggota={<AnggotaTahsin item={item} />}
               status={item.status}
               jadwal={item.jadwal}
               penguji={item.penguji}
@@ -368,10 +370,12 @@ function Chip({ aktif, n, onClick, children }: {
 }
 
 function Kartu({
-  judul, rincian, status, jadwal, penguji, dibuat, olehLain, hasil, hasilKelas, onTarik,
+  judul, rincian, anggota, status, jadwal, penguji, dibuat, olehLain, hasil, hasilKelas, onTarik,
 }: {
   judul: string
   rincian: string
+  /** Nama anak pengajuan tahsin — judul kartunya nama ustadz, bukan nama anak. */
+  anggota?: React.ReactNode
   status: UjianTahfidz['status']
   jadwal: string | null
   penguji: string | null
@@ -392,6 +396,8 @@ function Kartu({
           {getStatusLabel(status)}
         </Badge>
       </div>
+
+      {anggota && <div className="mt-2.5 border-t pt-2.5">{anggota}</div>}
 
       <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 border-t pt-2.5 text-xs text-muted-foreground">
         <span className={jadwal ? 'text-foreground' : undefined}>
