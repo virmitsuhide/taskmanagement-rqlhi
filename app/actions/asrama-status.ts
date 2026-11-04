@@ -50,7 +50,7 @@ async function anggota(studentId: string) {
 
 async function gerbangKelola(studentId: string) {
   const session = await getSession()
-  if (!session) return { error: 'Sesi tidak valid.' } as const
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' } as const
   const a = await anggota(studentId)
   if (!a) return { error: 'Anak ini bukan anggota kelompok asrama.' } as const
   if (!canManageAsrama(session.role, a.gender)) {
@@ -136,7 +136,7 @@ export async function ajukanNonaktifAction(input: {
 /** Pengaju (atau pengelola asrama yang sama) membatalkan pengajuan yang masih menunggu. */
 export async function batalkanPengajuanAction(id: string): Promise<Hasil> {
   const session = await getSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
   const supabase = createServerClient()
   const { data } = await supabase.from('asrama_pengajuan_nonaktif').select('gender, status').eq('id', id).maybeSingle()
   const p = data as { gender: 'L' | 'P'; status: string } | null
@@ -163,7 +163,7 @@ export async function putuskanPengajuanAction(input: {
   programBaru?: string | null
 }): Promise<Hasil> {
   const session = await getSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
   if (!canVerifikasiAsrama(session.role)) return { error: 'Hanya Koor SMP yang memverifikasi pengajuan ini.' }
 
   const supabase = createServerClient()

@@ -42,7 +42,7 @@ export async function simpanVerifikasiAction(input: {
   catatan: string
 }): Promise<Hasil> {
   const session = await getSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
   if (input.keputusan.length === 0) return { error: 'Belum ada ujian yang dipilih.' }
   if (input.bulan && !/^\d{4}-\d{2}$/.test(input.bulan)) return { error: 'Bulan tidak valid.' }
   const kiniBulan = new Date(Date.now() + 7 * 3600_000).toISOString().slice(0, 7)

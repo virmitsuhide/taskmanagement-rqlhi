@@ -26,7 +26,7 @@ const pesanGalat = (message: string | undefined): string =>
 /** Disunting karyawan sendiri lewat portalnya. */
 export async function updateOwnEmployeeProfileAction(_: unknown, formData: FormData) {
   const session = await getEmployeeSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
 
   const supabase = createServerClient()
 
@@ -52,7 +52,7 @@ export async function updateOwnEmployeeProfileAction(_: unknown, formData: FormD
 /** Disunting admin — termasuk kolom kepegawaian. */
 export async function updateEmployeeBySdmAction(_: unknown, formData: FormData) {
   const session = await getSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
   if (!canManageEmployees(session.role)) return { error: 'Tidak memiliki izin.' }
 
   const employeeId = formData.get('employee_id') as string

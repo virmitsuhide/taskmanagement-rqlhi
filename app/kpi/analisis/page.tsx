@@ -1,3 +1,4 @@
+import { tolakAkses } from '@/lib/auth/tolak-akses'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { ChevronRight, ClipboardCheck, Gauge, LineChart, Scale, TrendingUp } from 'lucide-react'
@@ -52,7 +53,7 @@ const LEGENDA: { kelas: string; label: string }[] = [
 export default async function AnalisisKpiPage({ searchParams }: PageProps) {
   const session = await getSession()
   if (!session) redirect('/login')
-  if (!canViewKpi(session.role)) redirect('/dashboard')
+  if (!canViewKpi(session.role)) await tolakAkses()
 
   const p = await searchParams
   const now = new Date()

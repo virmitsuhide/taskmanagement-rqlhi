@@ -1,3 +1,4 @@
+import { tolakAkses } from '@/lib/auth/tolak-akses'
 import { redirect } from 'next/navigation'
 import { CalendarRange } from 'lucide-react'
 import { getSession } from '@/lib/auth/session'
@@ -10,7 +11,7 @@ import { KenaikanKelas } from '@/components/tahun-ajaran/KenaikanKelas'
 export default async function TahunAjaranPage() {
   const session = await getSession()
   if (!session) redirect('/login')
-  if (!canViewTerms(session.role)) redirect('/dashboard')
+  if (!canViewTerms(session.role)) await tolakAkses()
 
   const [terms, stats] = await Promise.all([getTerms(), getTermStats()])
 

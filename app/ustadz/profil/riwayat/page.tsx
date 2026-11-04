@@ -1,3 +1,4 @@
+import { tolakAkses } from '@/lib/auth/tolak-akses'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import {
@@ -38,7 +39,7 @@ const TABS: { key: Tab; label: string; icon: React.ReactNode }[] = [
 export default async function RiwayatGuruPage({ searchParams }: PageProps) {
   const session = await getSession()
   if (!session) redirect('/login')
-  if (!canManageTeacherProfiles(session.role)) redirect('/dashboard')
+  if (!canManageTeacherProfiles(session.role)) await tolakAkses()
 
   const p = await searchParams
   if (!p.guru) redirect('/ustadz/profil')

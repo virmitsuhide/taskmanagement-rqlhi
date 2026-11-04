@@ -29,7 +29,7 @@ function periodeSah(periode: string): boolean {
  */
 async function bukaSprint(periode: string, jabatan: UserRole): Promise<{ session: SessionData; sprintId: string } | { error: string }> {
   const session = await getSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
   if (!periodeSah(periode)) return { error: 'Periode sprint tidak dikenali.' }
   if (!getSprintJabatan(session.role).includes(jabatan) || !canEditSprintJabatan(session.role, jabatan)) {
     return { error: `Hanya ${ROLE_LABELS[jabatan]} dan Kepala RQ yang bisa mengubah sprint jabatan ini.` }

@@ -22,7 +22,7 @@ const PESAN_BELUM_AKTIF = 'Fitur template belum aktif — migrasi 0124 belum dij
 
 export async function simpanTemplateWaAction(slot: number, nama: string, isi: string): Promise<Hasil> {
   const session = await getTeacherSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
   if (!slotSah(slot)) return { error: `Template hanya bisa ${MAKS_TEMPLATE_WA}.` }
   const n = nama.trim()
   const t = isi.trim()
@@ -44,7 +44,7 @@ export async function simpanTemplateWaAction(slot: number, nama: string, isi: st
 
 export async function hapusTemplateWaAction(slot: number): Promise<Hasil> {
   const session = await getTeacherSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
   if (!slotSah(slot)) return { error: 'Template tidak ditemukan.' }
 
   const supabase = createServerClient()

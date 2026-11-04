@@ -1,6 +1,8 @@
 'use client'
 
-import { useActionState, useMemo, useState } from 'react'
+import { useActionState, useCallback, useMemo, useState } from 'react'
+import { TawaranDraf, useDraf } from '@/components/formulir/useDraf'
+import { PesanGalat } from '@/components/formulir/PesanGalat'
 import { useRouter } from 'next/navigation'
 import { createTahsinLogAction } from '@/app/actions/setoran'
 import { PerbandinganSetoranDialog } from '@/components/setoran/PerbandinganSetoranDialog'
@@ -73,6 +75,11 @@ interface Props {
  * ini, dan mengisinya di muka hanya mengundang guru menekan simpan tanpa
  * membacanya.
  */
+interface DrafTahsin {
+  methodId: string; jilidId: string; status: TahsinStatus; bacaan: IsianBacaan
+  materi: PilihanMateri; halaman: string; catatan: string; tanggal: string
+}
+
 function bacaanAwal(s: StudentOption | null): IsianBacaan {
   if (!s) return BACAAN_KOSONG
   return {
@@ -88,7 +95,6 @@ export function TahsinSetoranForm({
 }: Props) {
   const router = useRouter()
   const [state, formAction, isPending] = useActionState(createTahsinLogAction, null)
-  const kirim = useSetoranTimpa(formAction, state?.ganda)
 
   const initialStudent = students.find(s => s.id === defaultStudentId) ?? null
   const [studentId, setStudentId] = useState(defaultStudentId ?? '')
@@ -152,6 +158,30 @@ export function TahsinSetoranForm({
   const [halamanIsi, setHalamanIsi] = useState(String(initialStudent?.current_jilid_page ?? ''))
 
   const today = tanggalWIB(new Date())
+  const [catatan, setCatatan] = useState('')
+  const [tanggal, setTanggal] = useState(today)
+
+  // Draf per anak. Isian yang terisi sendiri dari posisi anak (metode, jilid,
+  // halaman, awal bacaan) bukan ketikan guru — selama hanya itu, tidak ada
+  // yang perlu ditawarkan untuk dipulihkan.
+  const halamanAwal = String(selectedStudent?.current_jilid_page ?? '')
+  const drafKosong = useCallback((d: DrafTahsin) =>
+    !d.catatan.trim() && !d.bacaan.ayat_ke && Object.keys(d.materi).length === 0
+      && d.status === 'lulus' && d.halaman === halamanAwal, [halamanAwal])
+  const draf = useDraf<DrafTahsin>(
+    studentId ? `setoran-tahsin:${studentId}` : null,
+    { methodId, jilidId, status, bacaan, materi: materiDipilih, halaman: halamanIsi, catatan, tanggal },
+    { kosong: drafKosong, galat: state?.error },
+  )
+  const kirim = useSetoranTimpa(formAction, state?.ganda, draf.tandaiTerkirim)
+  function pulihkanDraf() {
+    const d = draf.pulihkan()
+    if (!d) return
+    if (d.methodId) setMethodId(d.methodId)
+    setJilidId(d.jilidId); setStatus(d.status); setBacaan(d.bacaan); setMateriDipilih(d.materi)
+    setHalamanIsi(d.halaman); setCatatan(d.catatan)
+    if (!tanggalTetap && d.tanggal) setTanggal(d.tanggal)
+  }
 
   // Melanjutkan halaman yang belum tuntas: baris awal sesudah setoran Lanjut
   // terakhir — hanya bila halaman yang diisi masih halaman itu.
@@ -164,6 +194,7 @@ export function TahsinSetoranForm({
   return (
     <form onSubmit={kirim.onSubmit} className="space-y-4 max-w-2xl">
       {kembali && <input type="hidden" name="kembali" value={kembali} />}
+      {draf.draf && <TawaranDraf waktu={draf.draf.waktu} onPulihkan={pulihkanDraf} onBuang={draf.buang} />}
       {/* Siswa */}
       <div className="space-y-1.5">
         <Label htmlFor="student_id">Siswa *</Label>
@@ -258,7 +289,7 @@ export function TahsinSetoranForm({
               key={studentId}
               id="halaman" name="halaman" type="number" min={1}
               max={maksHalaman ?? undefined}
-              defaultValue={selectedStudent?.current_jilid_page ?? ''}
+              value={halamanIsi}
               onChange={e => setHalamanIsi(e.target.value)}
               disabled={isPending}
             />
@@ -436,11 +467,12 @@ export function TahsinSetoranForm({
       <div className="grid grid-cols-1 sm:grid-cols-[1fr_180px] gap-3 rounded-2xl border bg-card p-4 md:p-5">
         <div className="space-y-1.5">
           <Label htmlFor="catatan">Catatan Guru</Label>
-          <Textarea id="catatan" name="catatan" rows={2} placeholder="contoh: perhatikan madd, latih sukun..." disabled={isPending} />
+          <Textarea id="catatan" name="catatan" rows={2} placeholder="contoh: perhatikan madd, latih sukun..." disabled={isPending}
+            value={catatan} onChange={e => setCatatan(e.target.value)} />
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="setoran_date">Tanggal Setor</Label>
-          <Input id="setoran_date" name="setoran_date" type="date" defaultValue={tanggalTetap ?? today} readOnly={!!tanggalTetap} disabled={isPending} />
+          <Input id="setoran_date" name="setoran_date" type="date" value={tanggalTetap ?? tanggal} onChange={e => setTanggal(e.target.value)} readOnly={!!tanggalTetap} disabled={isPending} />
         </div>
       </div>
 
@@ -459,9 +491,7 @@ export function TahsinSetoranForm({
         onBatal={kirim.batal}
       />
 
-      {state?.error && (
-        <p className="text-sm font-medium text-destructive bg-destructive-wash px-4 py-3 rounded-xl">{state.error}</p>
-      )}
+      <PesanGalat pesan={state?.error} />
 
       <div className="flex flex-wrap gap-2 pt-1">
         <Button type="submit" size="lg" className="min-w-40" disabled={isPending || !studentId}>

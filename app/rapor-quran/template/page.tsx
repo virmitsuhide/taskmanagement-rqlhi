@@ -1,3 +1,4 @@
+import { tolakAkses } from '@/lib/auth/tolak-akses'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { AlertTriangle, ChevronRight, FileText, LayoutTemplate } from 'lucide-react'
@@ -23,7 +24,7 @@ export default async function TemplateRaporPage() {
   if (!session) redirect('/login')
 
   const jenjang = getManageableJenjang(session.role).filter(j => canManageRaporTemplate(session.role, j))
-  if (jenjang.length === 0) redirect('/dashboard')
+  if (jenjang.length === 0) await tolakAkses()
 
   const { tabelAda, daftar } = await getRaporTemplates(jenjang)
 

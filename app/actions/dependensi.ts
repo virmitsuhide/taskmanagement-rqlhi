@@ -50,7 +50,7 @@ function segarkan(...taskIds: string[]) {
  */
 export async function tambahDependensiAction(taskId: string, dependsOnId: string): Promise<Result> {
   const session = await getSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
   if (!taskId || !dependsOnId) return { error: 'Tugas tidak dikenali.' }
   if (taskId === dependsOnId) return { error: 'Tugas tidak bisa menunggu dirinya sendiri.' }
 
@@ -95,7 +95,7 @@ export async function tambahDependensiAction(taskId: string, dependsOnId: string
 
 export async function hapusDependensiAction(dependensiId: string): Promise<Result> {
   const session = await getSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
 
   const supabase = createServerClient()
   const { data: dep } = await supabase
@@ -171,7 +171,7 @@ export async function cariTugasDitungguAction(taskId: string, kueri: string): Pr
  */
 export async function geserJadwalSetelahDitungguAction(dependensiId: string): Promise<Result> {
   const session = await getSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
 
   const supabase = createServerClient()
   const { data: dep } = await supabase

@@ -73,7 +73,7 @@ function bacaAgenda(formData: FormData) {
 
 export async function createMeetingAction(_: unknown, formData: FormData) {
   const session = await getSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
 
   const type = formData.get('type') as MeetingType
   if (!canCreateMeeting(session.role, type)) {
@@ -126,7 +126,7 @@ export async function createMeetingAction(_: unknown, formData: FormData) {
 
 export async function updateMeetingAction(_: unknown, formData: FormData) {
   const session = await getSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
 
   const meetingId = formData.get('meeting_id') as string
   const supabase = createServerClient()
@@ -321,7 +321,7 @@ async function trashMeeting(
  */
 async function siapDibuang(meetingId: string) {
   const session = await getSession()
-  if (!session) return { error: 'Sesi tidak valid.' as const }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' as const }
 
   const supabase = createServerClient()
   const { data: meeting } = await supabase

@@ -15,7 +15,7 @@ function bacaProgram(formData: FormData): string | null {
 
 export async function createHalaqohAction(_: unknown, formData: FormData) {
   const session = await getSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
 
   const name = (formData.get('name') as string)?.trim()
   const jenjang = formData.get('jenjang') as Jenjang
@@ -63,7 +63,7 @@ export async function createHalaqohAction(_: unknown, formData: FormData) {
 
 export async function updateHalaqohAction(_: unknown, formData: FormData) {
   const session = await getSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
 
   const id = formData.get('id') as string
   const name = (formData.get('name') as string)?.trim()
@@ -115,7 +115,7 @@ export async function updateHalaqohAction(_: unknown, formData: FormData) {
 
 export async function deleteHalaqohAction(id: string) {
   const session = await getSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
 
   const supabase = createServerClient()
   const { data: existing } = await supabase

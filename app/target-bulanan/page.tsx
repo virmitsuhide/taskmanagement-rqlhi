@@ -1,3 +1,4 @@
+import { tolakAkses } from '@/lib/auth/tolak-akses'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/auth/session'
@@ -60,11 +61,11 @@ const Pil = ({ href, aktif, children }: { href: string; aktif: boolean; children
 export default async function TargetBulananPage({ searchParams }: PageProps) {
   const session = await getSession()
   if (!session) redirect('/login')
-  if (!canViewTargetBulanan(session.role)) redirect('/dashboard')
+  if (!canViewTargetBulanan(session.role)) await tolakAkses()
 
   const bolehUbah = canKelolaTargetBulanan(session.role)
   const unitBoleh: Jenjang[] = bolehUbah ? UNIT_ORDER : getManageableJenjang(session.role)
-  if (unitBoleh.length === 0) redirect('/dashboard')
+  if (unitBoleh.length === 0) await tolakAkses()
 
   const sp = await searchParams
   const unit = (unitBoleh.includes(sp.unit as Jenjang) ? sp.unit : unitBoleh[0]) as Jenjang

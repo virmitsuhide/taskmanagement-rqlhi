@@ -5,6 +5,7 @@ import { loginTeacherAction } from '@/app/actions/teacher-auth'
 import {
   LoginShell, LoginFields, LoginError, LoginSubmit, LoginHelp, LoginLinks,
 } from '@/components/auth/LoginShell'
+import { LoginTujuan } from '@/components/auth/LoginTujuan'
 
 export default function TeacherLoginPage() {
   const [state, action, isPending] = useActionState(loginTeacherAction, null)
@@ -26,6 +27,7 @@ export default function TeacherLoginPage() {
       }
     >
       <form action={action} className="space-y-4">
+        <LoginTujuan />
         <LoginFields disabled={isPending} usernamePlaceholder="contoh: ust_ahmad" />
         <LoginError message={state?.error} />
         <LoginSubmit pending={isPending} />

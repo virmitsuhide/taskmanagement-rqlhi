@@ -1,3 +1,4 @@
+import { tolakAkses } from '@/lib/auth/tolak-akses'
 import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 import { ArrowLeft, CalendarDays, Settings2 } from 'lucide-react'
@@ -80,7 +81,7 @@ const angka = (v: number, d = 1) => v.toLocaleString('id-ID', { maximumFractionD
 export default async function AnalitikHalaqohDetailPage({ params, searchParams }: PageProps) {
   const session = await getSession()
   if (!session) redirect('/login')
-  if (!canViewUnitAnalytics(session.role)) redirect('/dashboard')
+  if (!canViewUnitAnalytics(session.role)) await tolakAkses()
 
   const { id } = await params
   const sp = await searchParams

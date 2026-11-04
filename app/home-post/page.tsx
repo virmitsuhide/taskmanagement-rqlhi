@@ -1,3 +1,4 @@
+import { tolakAkses } from '@/lib/auth/tolak-akses'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -25,7 +26,7 @@ const TYPE_LABELS: Record<string, string> = {
 export default async function HomePostPage() {
   const session = await getSession()
   if (!session) redirect('/login')
-  if (!canPostToHome(session.role)) redirect('/dashboard')
+  if (!canPostToHome(session.role)) await tolakAkses()
 
   const supabase = createServerClient()
   const { data } = await supabase

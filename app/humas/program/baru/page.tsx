@@ -1,3 +1,4 @@
+import { tolakAkses } from '@/lib/auth/tolak-akses'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
@@ -11,7 +12,7 @@ import { ProgramForm } from '../ProgramForm'
 export default async function TambahProgramPage() {
   const session = await getSession()
   if (!session) redirect('/login')
-  if (!canEditProgram(session.role)) redirect('/dashboard')
+  if (!canEditProgram(session.role)) await tolakAkses()
 
   return (
     <div>

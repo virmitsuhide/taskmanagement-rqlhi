@@ -6,6 +6,7 @@ import { ThemeProvider } from '@/components/theme-provider'
 import { ConfirmProvider } from '@/components/ui/confirm-dialog'
 import { cn } from '@/lib/utils'
 import { SKRIP_SUASANA } from '@/lib/tampilan/suasana'
+import { StatusKoneksi } from '@/components/formulir/StatusKoneksi'
 
 // Huruf "Teduh": Plus Jakarta Sans untuk teks & data, Newsreader untuk judul
 // (dipakai lewat token --font-heading / kelas font-heading).
@@ -42,6 +43,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ThemeProvider>
           <ConfirmProvider>{children}</ConfirmProvider>
           <Toaster position="top-right" richColors closeButton />
+          <StatusKoneksi />
         </ThemeProvider>
       </body>
     </html>

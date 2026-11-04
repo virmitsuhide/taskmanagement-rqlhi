@@ -1,3 +1,4 @@
+import { tolakAkses } from '@/lib/auth/tolak-akses'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/auth/session'
@@ -40,7 +41,7 @@ const EYEBROW: Record<string, string> = {
 export default async function AsramaPage({ searchParams }: PageProps) {
   const session = await getSession()
   if (!session) redirect('/login')
-  if (!canViewAsrama(session.role)) redirect('/dashboard')
+  if (!canViewAsrama(session.role)) await tolakAkses()
 
   const q = await searchParams
   // Pengelola dibuka langsung di asramanya sendiri.

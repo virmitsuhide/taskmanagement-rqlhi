@@ -1,6 +1,7 @@
 'use client'
 
 import { useRef, useState, useTransition, type FormEvent } from 'react'
+import { toast } from 'sonner'
 import type { SetoranGanda } from '@/lib/data/setoran-ganda'
 
 /**
@@ -14,7 +15,12 @@ import type { SetoranGanda } from '@/lib/data/setoran-ganda'
  * tanggal yang diam-diam kembali ke hari ini. FormData disimpan pada saat
  * pertama dikirim dan itulah yang dikirim ulang, persis sama, plus `timpa=1`.
  */
-export function useSetoranTimpa(formAction: (fd: FormData) => void, ganda: SetoranGanda | undefined) {
+export function useSetoranTimpa(
+  formAction: (fd: FormData) => void,
+  ganda: SetoranGanda | undefined,
+  /** Dipanggil tepat sebelum terkirim — mis. useDraf().tandaiTerkirim. */
+  sebelumKirim?: () => void,
+) {
   const tertunda = useRef<FormData | null>(null)
   const [, startTransition] = useTransition()
   // Perbandingan yang sudah dibatalkan guru tidak dimunculkan lagi sampai
@@ -23,6 +29,16 @@ export function useSetoranTimpa(formAction: (fd: FormData) => void, ganda: Setor
 
   function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
+    // Tanpa koneksi, action akan melempar galat dan halaman berganti ke layar
+    // error — isian ikut hilang dari layar. Ditahan di sini dengan penjelasan;
+    // isiannya tetap, dan draf di perangkat ikut menjaganya.
+    if (!navigator.onLine) {
+      toast.error('Tidak ada koneksi internet', {
+        description: 'Setoran belum terkirim. Isian tetap di layar ini — tekan Simpan lagi begitu koneksi kembali.',
+      })
+      return
+    }
+    sebelumKirim?.()
     const fd = new FormData(e.currentTarget)
     // Tombol pengirim (mis. "Simpan & berikutnya") ikut terkirim bila bernama.
     const pengirim = (e.nativeEvent as SubmitEvent).submitter as HTMLButtonElement | null
@@ -34,6 +50,10 @@ export function useSetoranTimpa(formAction: (fd: FormData) => void, ganda: Setor
   function timpa() {
     const fd = tertunda.current
     if (!fd) return
+    if (!navigator.onLine) {
+      toast.error('Tidak ada koneksi internet', { description: 'Coba timpa lagi begitu koneksi kembali.' })
+      return
+    }
     fd.set('timpa', '1')
     startTransition(() => formAction(fd))
   }

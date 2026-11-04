@@ -22,7 +22,7 @@ export interface IsianKelompokKlasikal {
  */
 export async function simpanKelompokKlasikalAction(sesiId: string, daftar: IsianKelompokKlasikal[]): Promise<Hasil> {
   const session = await getTeacherSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
   // Id sesi bisa sesi gabungan guru tahsin: kelompoknya boleh mencampur anak
   // beberapa halaqoh, dan disimpan atas halaqoh pertama sesi itu.
   const halaqohIds = await halaqohSesiGuru(session.teacherId, sesiId)

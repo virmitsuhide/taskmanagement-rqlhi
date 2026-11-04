@@ -62,7 +62,7 @@ function isMissingColumnError(error: { code?: string; message?: string } | null)
 
 export async function createNewsAction(_: unknown, formData: FormData) {
   const session = await getSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
   if (!canCreateNews(session.role)) return { error: 'Tidak memiliki izin.' }
 
   const title   = (formData.get('title') as string)?.trim()
@@ -131,7 +131,7 @@ export async function createNewsAction(_: unknown, formData: FormData) {
 
 export async function updateNewsAction(newsId: string, _: unknown, formData: FormData) {
   const session = await getSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
   if (!canCreateNews(session.role)) return { error: 'Tidak memiliki izin.' }
 
   const title   = (formData.get('title') as string)?.trim()
@@ -223,7 +223,7 @@ export async function updateNewsAction(newsId: string, _: unknown, formData: For
 
 export async function toggleNewsAction(newsId: string, isActive: boolean) {
   const session = await getSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
   if (!canCreateNews(session.role)) return { error: 'Tidak memiliki izin.' }
 
   const supabase = createServerClient()
@@ -241,7 +241,7 @@ export async function toggleNewsAction(newsId: string, isActive: boolean) {
 
 export async function deleteNewsAction(newsId: string) {
   const session = await getSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
   if (!canCreateNews(session.role)) return { error: 'Tidak memiliki izin.' }
 
   const supabase = createServerClient()

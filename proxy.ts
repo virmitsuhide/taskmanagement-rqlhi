@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest, ProxyConfig } from 'next/server'
-import { jwtVerify } from 'jose'
+import { jwtVerify, SignJWT } from 'jose'
 
 // Route admin (pakai cookie rqlhi-session, role-based)
 const ADMIN_PREFIXES = [
@@ -61,6 +61,59 @@ async function verifyToken(token: string | undefined) {
   }
 }
 
+// ── Sesi bergeser ────────────────────────────────────────────────
+//
+// Token berumur 7 hari sejak DITERBITKAN. Dulu umur itu dihitung dari login
+// saja, jadi guru yang membuka aplikasi setiap hari tetap terlempar ke halaman
+// login tepat seminggu sesudahnya — sering di tengah mengisi setoran. Kini
+// token diterbitkan ulang (paling sering sehari sekali) selama akunnya
+// dipakai; sesi baru berakhir sesudah 7 hari TIDAK dibuka sama sekali.
+const UMUR_SESI = 60 * 60 * 24 * 7
+const PERBARUI_SESUDAH = 60 * 60 * 24
+
+async function perpanjang(response: NextResponse, cookie: string, payload: Record<string, unknown>) {
+  const iat = typeof payload.iat === 'number' ? payload.iat : 0
+  if (Date.now() / 1000 - iat < PERBARUI_SESUDAH) return response
+  const { iat: _i, exp: _e, ...isi } = payload
+  void _i; void _e
+  const token = await new SignJWT(isi)
+    .setProtectedHeader({ alg: 'HS256' })
+    .setIssuedAt()
+    .setExpirationTime('7d')
+    .sign(getSecret())
+  response.cookies.set(cookie, token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    maxAge: UMUR_SESI,
+    path: '/',
+  })
+  return response
+}
+
+/** Diteruskan ke halaman supaya /akses-ditolak bisa menyebut halaman asalnya. */
+function lanjut(request: NextRequest) {
+  const headers = new Headers(request.headers)
+  headers.set('x-pathname', request.nextUrl.pathname)
+  return NextResponse.next({ request: { headers } })
+}
+
+/**
+ * Sesi tidak berlaku. Pemanggilan server action TIDAK dialihkan: dialihkan,
+ * browser pindah ke halaman login dan isian formulir hilang. Diteruskan, action
+ * itu sendiri menjawab "Sesi Anda sudah berakhir" — formulir tetap di layar
+ * dan bisa dikirim ulang sesudah masuk lagi (lib/auth/pesan.ts).
+ */
+function tolakSesi(request: NextRequest, login: string, cookie: string, adaToken: boolean) {
+  if (request.headers.has('next-action')) return NextResponse.next()
+  const url = new URL(login, request.url)
+  if (adaToken) url.searchParams.set('sesi', 'habis')
+  url.searchParams.set('next', request.nextUrl.pathname + request.nextUrl.search)
+  const response = NextResponse.redirect(url)
+  response.cookies.delete(cookie)
+  return response
+}
+
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
 
@@ -72,11 +125,9 @@ export async function proxy(request: NextRequest) {
     const token = request.cookies.get('rqlhi-teacher-session')?.value
     const payload = await verifyToken(token)
     if (!payload || payload.type !== 'teacher') {
-      const response = NextResponse.redirect(new URL('/guru/login', request.url))
-      response.cookies.delete('rqlhi-teacher-session')
-      return response
+      return tolakSesi(request, '/guru/login', 'rqlhi-teacher-session', Boolean(token))
     }
-    return NextResponse.next()
+    return perpanjang(lanjut(request), 'rqlhi-teacher-session', payload)
   }
 
   // ── Admin routes ───────────────────────────────────────────────
@@ -88,11 +139,7 @@ export async function proxy(request: NextRequest) {
 
   const token = request.cookies.get('rqlhi-session')?.value
   const payload = await verifyToken(token)
-  if (!payload) {
-    const response = NextResponse.redirect(new URL('/login', request.url))
-    response.cookies.delete('rqlhi-session')
-    return response
-  }
+  if (!payload) return tolakSesi(request, '/login', 'rqlhi-session', Boolean(token))
 
   // Akun admin bukan pengurus: di wilayah pengurus ia hanya boleh ke
   // berandanya sendiri dan profil. Pengurus, Akun, Karyawan berada di luar
@@ -100,7 +147,7 @@ export async function proxy(request: NextRequest) {
   if (payload.role === 'admin' && !BOLEH_ADMIN.some(p => pathname === p || pathname.startsWith(`${p}/`))) {
     return NextResponse.redirect(new URL('/dashboard/admin', request.url))
   }
-  return NextResponse.next()
+  return perpanjang(lanjut(request), 'rqlhi-session', payload)
 }
 
 const BOLEH_ADMIN = ['/dashboard/admin', '/profil']

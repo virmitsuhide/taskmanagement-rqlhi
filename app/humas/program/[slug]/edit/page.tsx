@@ -1,3 +1,4 @@
+import { tolakAkses } from '@/lib/auth/tolak-akses'
 import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
@@ -17,7 +18,7 @@ export default async function EditProgramPage({ params }: PageProps) {
   const { slug } = await params
   const session = await getSession()
   if (!session) redirect('/login')
-  if (!canEditProgram(session.role)) redirect('/dashboard')
+  if (!canEditProgram(session.role)) await tolakAkses()
 
   const program = await getProgramBySlug(slug)
   if (!program) notFound()

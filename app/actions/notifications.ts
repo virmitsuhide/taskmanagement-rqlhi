@@ -12,7 +12,7 @@ import { getSession } from '@/lib/auth/session'
  */
 export async function markNotificationsSeenAction() {
   const session = await getSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
 
   const supabase = createServerClient()
   const { error } = await supabase
@@ -27,7 +27,7 @@ export async function markNotificationsSeenAction() {
 /** Satu item diklik → titik birunya hilang secara permanen. */
 export async function markNotificationReadAction(historyId: string) {
   const session = await getSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
 
   const supabase = createServerClient()
   const { error } = await supabase
@@ -44,7 +44,7 @@ export async function markNotificationReadAction(historyId: string) {
 /** Tandai semua yang tampil sebagai terbaca sekaligus. */
 export async function markAllNotificationsReadAction(historyIds: string[]) {
   const session = await getSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
   if (historyIds.length === 0) return { success: true }
 
   const supabase = createServerClient()

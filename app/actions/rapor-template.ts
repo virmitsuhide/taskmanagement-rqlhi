@@ -72,7 +72,7 @@ function pathLatar(blok: unknown): string[] {
  */
 export async function unggahTemplateAction(formData: FormData): Promise<Hasil> {
   const session = await getSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
 
   const jenjang = String(formData.get('jenjang') ?? '') as Jenjang
   if (!JENJANG.includes(jenjang)) return { error: 'Unit tidak dikenal.' }
@@ -141,7 +141,7 @@ export async function simpanPemetaanAction(
   awalIsian: Record<string, string> = {},
 ): Promise<Hasil> {
   const session = await getSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
 
   const supabase = createServerClient()
   const { data: tpl } = await supabase.from('rapor_templates').select('jenjang').eq('id', id).maybeSingle()
@@ -186,7 +186,7 @@ export async function ubahTemplateAction(
   ubahan: { nama?: string; tingkat_min?: number; tingkat_max?: number; aktif?: boolean; jenis?: string },
 ): Promise<Hasil> {
   const session = await getSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
 
   const supabase = createServerClient()
   const { data: tpl } = await supabase.from('rapor_templates').select('jenjang').eq('id', id).maybeSingle()
@@ -216,7 +216,7 @@ export async function ubahTemplateAction(
  */
 export async function hapusTemplateAction(id: string): Promise<Hasil> {
   const session = await getSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
 
   const supabase = createServerClient()
   const { data: tpl } = await supabase.from('rapor_templates').select('jenjang, file_path, blok').eq('id', id).maybeSingle()
@@ -242,7 +242,7 @@ export async function hapusTemplateAction(id: string): Promise<Hasil> {
  */
 export async function unggahTtdKoordinatorAction(id: string, formData: FormData): Promise<Hasil> {
   const session = await getSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
 
   const supabase = createServerClient()
   const { data: tpl } = await supabase.from('rapor_templates').select('jenjang').eq('id', id).maybeSingle()
@@ -271,7 +271,7 @@ export async function unggahTtdKoordinatorAction(id: string, formData: FormData)
 /** Lepas tanda tangan koordinator — ruangnya kembali kosong untuk ttd basah. */
 export async function hapusTtdKoordinatorAction(id: string): Promise<Hasil> {
   const session = await getSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
 
   const supabase = createServerClient()
   const { data: tpl } = await supabase.from('rapor_templates').select('jenjang').eq('id', id).maybeSingle()
@@ -304,7 +304,7 @@ export async function hapusTtdKoordinatorAction(id: string): Promise<Hasil> {
  */
 export async function bacaUlangTemplateAction(id: string): Promise<Hasil> {
   const session = await getSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
 
   const supabase = createServerClient()
   // select('*'): awal_isian baru ada sesudah 0086.

@@ -1,3 +1,4 @@
+import { tolakAkses } from '@/lib/auth/tolak-akses'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { BarChart3 } from 'lucide-react'
@@ -20,7 +21,7 @@ import { KelolaRiyadhoh } from '@/components/riyadhoh/KelolaRiyadhoh'
 export default async function RiyadhohPage({ searchParams }: { searchParams: Promise<{ bulan?: string }> }) {
   const session = await getSession()
   if (!session) redirect('/login')
-  if (!canManageRiyadhoh(session.role)) redirect('/dashboard')
+  if (!canManageRiyadhoh(session.role)) await tolakAkses()
 
   const { bulan: diminta } = await searchParams
   const bulan = isValidPeriod(diminta ?? '') ? diminta! : currentPeriod()

@@ -100,7 +100,7 @@ export async function pratinjauKenaikanAction(): Promise<
   { error: string } | { rencana: RencanaKenaikan }
 > {
   const session = await getSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
   if (!canManageStudents(session.role) || !bolehMenjalankan(session.role)) {
     return { error: 'Anda tidak memiliki izin.' }
   }
@@ -163,7 +163,7 @@ export async function naikkanKelasAction(
   keputusan: KeputusanKelasAkhir,
 ): Promise<{ error: string } | ({ success: true } & HasilKenaikan)> {
   const session = await getSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
   if (!canManageStudents(session.role) || !bolehMenjalankan(session.role)) {
     return { error: 'Hanya Kepala RQ dan Kumik yang bisa menjalankan kenaikan kelas.' }
   }

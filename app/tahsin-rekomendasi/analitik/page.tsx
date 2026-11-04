@@ -1,3 +1,4 @@
+import { tolakAkses } from '@/lib/auth/tolak-akses'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { AlertCircle, BarChart3, BookOpen, Settings2, TrendingUp, UsersRound } from 'lucide-react'
@@ -36,7 +37,7 @@ const W_SETOR = [
 export default async function AnalitikTRPage({ searchParams }: { searchParams: Promise<{ rentang?: string; kelompok?: string }> }) {
   const session = await getSession()
   if (!session) redirect('/login')
-  if (!canViewTahsinRekomendasiAnalitik(session.role)) redirect('/dashboard')
+  if (!canViewTahsinRekomendasiAnalitik(session.role)) await tolakAkses()
 
   const sp = await searchParams
   const rentang: RentangTR = RENTANG.some(r => r.k === sp.rentang) ? (sp.rentang as RentangTR) : 'semester'

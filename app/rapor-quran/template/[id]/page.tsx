@@ -1,3 +1,4 @@
+import { tolakAkses } from '@/lib/auth/tolak-akses'
 import { notFound, redirect } from 'next/navigation'
 import { getSession } from '@/lib/auth/session'
 import { canManageRaporTemplate, JENJANG_LABELS } from '@/lib/auth/permissions'
@@ -21,7 +22,7 @@ export default async function PemetaanTemplatePage({ params }: PageProps) {
   const { id } = await params
   const template = await getRaporTemplate(id)
   if (!template) notFound()
-  if (!canManageRaporTemplate(session.role, template.jenjang)) redirect('/dashboard')
+  if (!canManageRaporTemplate(session.role, template.jenjang)) await tolakAkses()
 
   const [ttdKoordinator, latar] = await Promise.all([ttdSrc(template.ttd_koordinator_path), urlLatar(template.blok)])
 

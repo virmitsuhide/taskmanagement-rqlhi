@@ -66,7 +66,7 @@ function totalOpsional(fd: FormData, key: string): number | null {
 
 export async function simpanKpiAction(_: unknown, formData: FormData) {
   const session = await getSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
   if (!canInputKpi(session.role)) return { error: 'Tidak memiliki izin mengisi KPI.' }
 
   const teacherId = formData.get('teacher_id') as string
@@ -201,7 +201,7 @@ export async function simpanIsiCepatKpiAction(
   year: number, month: number, baris: BarisIsiCepat[],
 ): Promise<{ error?: string; success?: boolean; disimpan?: number; terkunci?: number }> {
   const session = await getSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
   if (!canInputKpi(session.role)) return { error: 'Tidak memiliki izin mengisi KPI.' }
   if (!Number.isInteger(year) || !Number.isInteger(month) || month < 1 || month > 12) return { error: 'Periode tidak sah.' }
   if (!Array.isArray(baris) || baris.length === 0) return { error: 'Tidak ada perubahan untuk disimpan.' }

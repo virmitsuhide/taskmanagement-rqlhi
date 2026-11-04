@@ -1,3 +1,4 @@
+import { tolakAkses } from '@/lib/auth/tolak-akses'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { BookOpenCheck, Layers, Users, AlertTriangle } from 'lucide-react'
@@ -37,7 +38,7 @@ const tasmi = (b: ButirUjian, jenis: Jenis) => b.tipe !== '1_juz' && (jenis === 
 export default async function RekapTasmiPage({ searchParams }: PageProps) {
   const session = await getSession()
   if (!session) redirect('/login')
-  if (!canViewUjian(session.role)) redirect('/dashboard')
+  if (!canViewUjian(session.role)) await tolakAkses()
 
   const sp = await searchParams
   const { siswa: semua } = await getStatusHafalan(getUjianUnits(session.role), getUjianProgramScope(session.role))

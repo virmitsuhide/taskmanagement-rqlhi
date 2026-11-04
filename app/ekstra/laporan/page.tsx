@@ -1,3 +1,4 @@
+import { tolakAkses } from '@/lib/auth/tolak-akses'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/auth/session'
@@ -11,7 +12,7 @@ import { currentPeriod, isValidPeriod } from '@/lib/finance/period'
 export default async function LaporanEkstraPage({ searchParams }: { searchParams: Promise<{ bulan?: string }> }) {
   const session = await getSession()
   if (!session) redirect('/login')
-  if (!canManageEkstra(session.role)) redirect('/dashboard')
+  if (!canManageEkstra(session.role)) await tolakAkses()
 
   const { bulan: diminta } = await searchParams
   const bulan = isValidPeriod(diminta ?? '') ? diminta! : currentPeriod()

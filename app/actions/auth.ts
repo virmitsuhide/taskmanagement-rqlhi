@@ -7,6 +7,7 @@ import { isContractExpired } from '@/lib/auth/contract'
 import { createSession, destroySession } from '@/lib/auth/session'
 import { createTeacherSession } from '@/lib/auth/teacher-session'
 import { DEFAULT_DASHBOARD } from '@/lib/auth/permissions'
+import { tujuanLogin } from '@/lib/auth/tujuan-login'
 import { POLA_USERNAME_TR } from '@/lib/rq/tahsin-rekomendasi'
 import { muatSuasanaSaatLogin } from '@/lib/tampilan/suasana-akun'
 import type { UserRole } from '@/types'
@@ -43,7 +44,7 @@ export async function loginAction(_: unknown, formData: FormData) {
     // Suasana tampilan tersimpan di akun ikut ke perangkat ini. Tidak pernah
     // melempar galat — login tidak boleh gagal karenanya.
     await muatSuasanaSaatLogin('users', user.id).catch(() => {})
-    redirect(`/dashboard/${DEFAULT_DASHBOARD[user.role as UserRole]}`)
+    redirect(tujuanLogin(formData.get('next'), 'pengurus') ?? `/dashboard/${DEFAULT_DASHBOARD[user.role as UserRole]}`)
   }
 
   // 2. Coba sebagai guru (teachers). Akun bersama Tahsin Rekomendasi bernama
@@ -71,7 +72,7 @@ export async function loginAction(_: unknown, formData: FormData) {
     // Suasana tampilan tersimpan di akun ikut ke perangkat ini. Tidak pernah
     // melempar galat — login tidak boleh gagal karenanya.
     await muatSuasanaSaatLogin('teachers', teacher.id).catch(() => {})
-    redirect('/guru')
+    redirect(tujuanLogin(formData.get('next'), 'guru') ?? '/guru')
   }
 
   // 3. Tidak cocok di keduanya

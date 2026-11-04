@@ -1,3 +1,4 @@
+import { tolakAkses } from '@/lib/auth/tolak-akses'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { getSession } from '@/lib/auth/session'
@@ -14,7 +15,7 @@ import type { ContentRequest } from '@/types'
 export default async function HumasRequestPage() {
   const session = await getSession()
   if (!session) redirect('/login')
-  if (!canViewHumasRequests(session.role)) redirect('/dashboard')
+  if (!canViewHumasRequests(session.role)) await tolakAkses()
 
   const supabase = createServerClient()
   const query = supabase

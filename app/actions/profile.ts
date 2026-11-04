@@ -10,7 +10,7 @@ import { bacaDataDiri, unggahFotoProfil } from '@/lib/profil/data-diri'
 
 export async function updateEmailAction(_: unknown, formData: FormData) {
   const session = await getSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
 
   const email = (formData.get('email') as string)?.trim()
   const supabase = createServerClient()
@@ -28,7 +28,7 @@ export async function updateEmailAction(_: unknown, formData: FormData) {
 
 export async function changePasswordAction(_: unknown, formData: FormData) {
   const session = await getSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
 
   const supabase = createServerClient()
   const { data: user } = await supabase
@@ -77,7 +77,7 @@ export async function changePasswordAction(_: unknown, formData: FormData) {
  */
 export async function updatePengurusOwnProfileAction(_: unknown, formData: FormData) {
   const session = await getSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
   if (!canHavePengurusProfile(session.role)) return { error: 'Tidak memiliki izin.' }
 
   const pemegang = await getProfilAmanah(session.userId)

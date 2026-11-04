@@ -1,3 +1,4 @@
+import { tolakAkses } from '@/lib/auth/tolak-akses'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/auth/session'
@@ -30,7 +31,7 @@ const ALUR = [
 export default async function PengajuanAsramaPage({ searchParams }: PageProps) {
   const session = await getSession()
   if (!session) redirect('/login')
-  if (!canViewAsrama(session.role)) redirect('/dashboard')
+  if (!canViewAsrama(session.role)) await tolakAkses()
   const bisaVerifikasi = canVerifikasiAsrama(session.role)
 
   const q = await searchParams

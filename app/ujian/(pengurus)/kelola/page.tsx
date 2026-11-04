@@ -1,3 +1,4 @@
+import { tolakAkses } from '@/lib/auth/tolak-akses'
 import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/auth/session'
 import { canViewUjian, getUjianUnits, getUnitBebanPenguji, ujianHanyaQuls } from '@/lib/auth/permissions'
@@ -24,7 +25,7 @@ export default async function KelolaUjianPage({ searchParams }: PageProps) {
 
   const session = await getSession()
   if (!session) redirect('/login')
-  if (!canViewUjian(session.role)) redirect('/dashboard')
+  if (!canViewUjian(session.role)) await tolakAkses()
 
   const units = getUjianUnits(session.role)
   const hanyaQuls = ujianHanyaQuls(session.role)

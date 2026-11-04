@@ -48,7 +48,7 @@ export async function pindahSiswaAction(
   targetHalaqohId: string,
 ): Promise<HasilPindah> {
   const session = await getSession()
-  if (!session) return { dipindah: 0, dilewati: [], error: 'Sesi tidak valid.' }
+  if (!session) return { dipindah: 0, dilewati: [], error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
 
   const ids = [...new Set((studentIds ?? []).filter(Boolean))]
   if (ids.length === 0) return { dipindah: 0, dilewati: [], error: 'Tidak ada santri yang dipilih.' }
@@ -140,7 +140,7 @@ export async function importKelompokAction(
   rows: BarisKelompokMentah[],
 ): Promise<HasilImporKelompok> {
   const session = await getSession()
-  if (!session) return { dipindah: 0, tetap: 0, gagal: [], error: 'Sesi tidak valid.' }
+  if (!session) return { dipindah: 0, tetap: 0, gagal: [], error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
 
   if (!Array.isArray(rows) || rows.length === 0) {
     return { dipindah: 0, tetap: 0, gagal: [], error: 'Tidak ada baris untuk diimpor.' }

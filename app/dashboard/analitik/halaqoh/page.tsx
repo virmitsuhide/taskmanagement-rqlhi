@@ -1,3 +1,4 @@
+import { tolakAkses } from '@/lib/auth/tolak-akses'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { LayoutGrid, Table2 } from 'lucide-react'
@@ -63,14 +64,14 @@ interface Penanda {
 export default async function AnalitikHalaqohPage({ searchParams }: PageProps) {
   const session = await getSession()
   if (!session) redirect('/login')
-  if (!canViewUnitAnalytics(session.role)) redirect('/dashboard')
+  if (!canViewUnitAnalytics(session.role)) await tolakAkses()
 
   const sp = await searchParams
   const penuh = canViewAnalytics(session.role)
   const bisaRangkum = session.role === 'kumik' || session.role === 'kepala_rq'
   const unitBoleh = penuh ? UNIT_ORDER : UNIT_ORDER.filter(j => getAnalyticsJenjang(session.role).includes(j))
   const jenjang: Jenjang | undefined = unitBoleh.includes(sp.unit as Jenjang) ? (sp.unit as Jenjang) : unitBoleh[0]
-  if (!jenjang) redirect('/dashboard')
+  if (!jenjang) await tolakAkses()
   const program = getAnalyticsProgramScope(session.role)
 
   const hariIni = tanggalWIB(new Date())

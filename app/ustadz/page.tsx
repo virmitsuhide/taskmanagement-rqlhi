@@ -1,3 +1,4 @@
+import { tolakAkses } from '@/lib/auth/tolak-akses'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { getSession } from '@/lib/auth/session'
@@ -59,7 +60,7 @@ type BarisGuru = Pick<
 export default async function UstadzListPage({ searchParams }: PageProps) {
   const session = await getSession()
   if (!session) redirect('/login')
-  if (!canViewTeachers(session.role)) redirect('/dashboard')
+  if (!canViewTeachers(session.role)) await tolakAkses()
 
   const params = await searchParams
   const query = (params.q ?? '').trim()

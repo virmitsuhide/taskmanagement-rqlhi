@@ -1,3 +1,4 @@
+import { tolakAkses } from '@/lib/auth/tolak-akses'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { DatabaseBackup, Download, RotateCcw, ShieldCheck } from 'lucide-react'
@@ -14,7 +15,7 @@ export default async function BackupPage() {
   const session = await getSession()
   if (!session) redirect('/login')
   const domain = domainBackupUntuk(session.role)
-  if (domain.length === 0) redirect('/dashboard')
+  if (domain.length === 0) await tolakAkses()
 
   return (
     <div>

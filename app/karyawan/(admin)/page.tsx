@@ -1,3 +1,4 @@
+import { tolakAkses } from '@/lib/auth/tolak-akses'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { Plus, UserRound } from 'lucide-react'
@@ -20,7 +21,7 @@ import type { Employee } from '@/types'
 export default async function KaryawanPage() {
   const session = await getSession()
   if (!session) redirect('/login')
-  if (!canManageEmployees(session.role)) redirect('/dashboard')
+  if (!canManageEmployees(session.role)) await tolakAkses()
 
   const supabase = createServerClient()
   const { data, error } = await supabase

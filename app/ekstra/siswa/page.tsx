@@ -1,3 +1,4 @@
+import { tolakAkses } from '@/lib/auth/tolak-akses'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { ChevronRight, Search } from 'lucide-react'
@@ -23,7 +24,7 @@ export default async function SiswaEkstraPage({ searchParams }: {
 }) {
   const session = await getSession()
   if (!session) redirect('/login')
-  if (!canManageEkstra(session.role)) redirect('/dashboard')
+  if (!canManageEkstra(session.role)) await tolakAkses()
 
   const sp = await searchParams
   const tampilBerhenti = sp.status === 'semua'

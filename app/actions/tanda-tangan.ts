@@ -25,7 +25,7 @@ type Hasil = { error: string } | { success: true }
 /** Pengurus: koordinator, SDM, Kepala RQ. */
 export async function simpanTtdPengurusAction(_: unknown, formData: FormData): Promise<Hasil> {
   const session = await getSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
 
   const supabase = createServerClient()
   const patch: Record<string, unknown> = {
@@ -56,7 +56,7 @@ export async function simpanTtdPengurusAction(_: unknown, formData: FormData): P
 /** Guru: dipakai untuk menandatangani rapor KPI-nya sendiri. */
 export async function simpanTtdGuruAction(_: unknown, formData: FormData): Promise<Hasil> {
   const guru = await getTeacherSession()
-  if (!guru) return { error: 'Sesi tidak valid.' }
+  if (!guru) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
 
   const supabase = createServerClient()
   const patch: Record<string, unknown> = {

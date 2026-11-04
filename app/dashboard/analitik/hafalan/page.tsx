@@ -1,3 +1,4 @@
+import { tolakAkses } from '@/lib/auth/tolak-akses'
 import { redirect } from 'next/navigation'
 import { Trophy } from 'lucide-react'
 import { getSession } from '@/lib/auth/session'
@@ -30,7 +31,7 @@ const PER_HALAMAN = 30
 export default async function PeringkatHafalanPage({ searchParams }: PageProps) {
   const session = await getSession()
   if (!session) redirect('/login')
-  if (!canViewAnalitikBthcq(session.role)) redirect('/dashboard')
+  if (!canViewAnalitikBthcq(session.role)) await tolakAkses()
 
   const sp = await searchParams
   const penuh = canViewAnalytics(session.role)
@@ -38,7 +39,7 @@ export default async function PeringkatHafalanPage({ searchParams }: PageProps) 
   const unitBoleh = penuh ? UNIT_ORDER : UNIT_ORDER.filter(j => getAnalyticsJenjang(session.role).includes(j))
   const unitDiminta = unitBoleh.includes(sp.unit as Jenjang) ? (sp.unit as Jenjang) : null
   const jenjang: Jenjang | null = penuh ? unitDiminta : (unitDiminta ?? unitBoleh[0] ?? null)
-  if (!penuh && !jenjang) redirect('/dashboard')
+  if (!penuh && !jenjang) await tolakAkses()
 
   const semua = (await getUnitHafalanBoards(program)).filter(b => unitBoleh.includes(b.jenjang))
   const boards = jenjang ? semua.filter(b => b.jenjang === jenjang) : semua

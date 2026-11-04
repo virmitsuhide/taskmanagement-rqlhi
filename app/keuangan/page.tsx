@@ -1,3 +1,4 @@
+import { tolakAkses } from '@/lib/auth/tolak-akses'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { AlertTriangle, ArrowRight, ClipboardList, FileText, PiggyBank, Wallet } from 'lucide-react'
@@ -20,7 +21,7 @@ interface PageProps {
 export default async function KeuanganPage({ searchParams }: PageProps) {
   const session = await getSession()
   if (!session) redirect('/login')
-  if (!canViewFinance(session.role)) redirect('/dashboard')
+  if (!canViewFinance(session.role)) await tolakAkses()
 
   const params = await searchParams
   const period = isValidPeriod(params.periode ?? '') ? params.periode! : currentPeriod()

@@ -16,7 +16,7 @@ export async function simpanWaliPhoneAction(
   raw: string,
 ): Promise<{ error?: string; success?: boolean; phone?: string | null }> {
   const session = await getTeacherSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
   if (!studentId) return { error: 'Siswa tidak dikenali.' }
 
   const supabase = createServerClient()

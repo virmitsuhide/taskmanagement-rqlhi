@@ -1,3 +1,4 @@
+import { tolakAkses } from '@/lib/auth/tolak-akses'
 import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/auth/session'
 import { canManageEkstra } from '@/lib/auth/permissions'
@@ -14,7 +15,7 @@ import { getDataEkstra, rupiah } from '@/lib/data/ekstra'
 export default async function AturEkstraPage() {
   const session = await getSession()
   if (!session) redirect('/login')
-  if (!canManageEkstra(session.role)) redirect('/dashboard')
+  if (!canManageEkstra(session.role)) await tolakAkses()
 
   const data = await getDataEkstra()
 

@@ -1,3 +1,4 @@
+import { tolakAkses } from '@/lib/auth/tolak-akses'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/auth/session'
@@ -34,7 +35,7 @@ interface PageProps {
 export default async function SetoranEkstraKoorPage({ searchParams }: PageProps) {
   const session = await getSession()
   if (!session) redirect('/login')
-  if (!canManageEkstra(session.role)) redirect('/dashboard')
+  if (!canManageEkstra(session.role)) await tolakAkses()
 
   const sp = await searchParams
   const kini = currentPeriod()

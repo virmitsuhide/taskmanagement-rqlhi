@@ -75,7 +75,7 @@ export async function simpanPanduanAction(i: InputPanduan): Promise<Hasil> {
  */
 export async function hapusPanduanAction(id: string): Promise<Hasil> {
   const session = await getSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
   const p = await getPanduan(id)
   if (!p) return { error: 'Dokumen tidak ditemukan.' }
   const boleh = session.role === 'kepala_rq' || p.diunggah_oleh === session.userId || sasaranUnggahPanduan(session.role) === p.sasaran

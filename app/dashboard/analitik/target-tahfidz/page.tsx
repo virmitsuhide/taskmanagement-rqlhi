@@ -1,3 +1,4 @@
+import { tolakAkses } from '@/lib/auth/tolak-akses'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { AlertTriangle, Target, UserCheck, Users } from 'lucide-react'
@@ -40,7 +41,7 @@ const STATUS: { kunci: StatusSiswa; label: string; warna: string; wash: string }
 export default async function TargetTahfidzPage({ searchParams }: PageProps) {
   const session = await getSession()
   if (!session) redirect('/login')
-  if (!canViewAnalitikBthcq(session.role)) redirect('/dashboard')
+  if (!canViewAnalitikBthcq(session.role)) await tolakAkses()
 
   const scope = getAnalyticsJenjang(session.role)
   const params = await searchParams

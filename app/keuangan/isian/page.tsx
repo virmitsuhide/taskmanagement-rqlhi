@@ -1,3 +1,4 @@
+import { tolakAkses } from '@/lib/auth/tolak-akses'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/auth/session'
@@ -22,7 +23,7 @@ interface PageProps {
 export default async function IsianPage({ searchParams }: PageProps) {
   const session = await getSession()
   if (!session) redirect('/login')
-  if (!canViewFinance(session.role)) redirect('/dashboard')
+  if (!canViewFinance(session.role)) await tolakAkses()
 
   const params = await searchParams
   const period = isValidPeriod(params.periode ?? '') ? params.periode! : periodeLaporanBawaan()

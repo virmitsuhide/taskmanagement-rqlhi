@@ -1,3 +1,4 @@
+import { tolakAkses } from '@/lib/auth/tolak-akses'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { BarChart3, BookOpen, CalendarClock, ClipboardCheck, Clock, Inbox, UserCheck, UsersRound, Wallet } from 'lucide-react'
@@ -38,7 +39,7 @@ const pct = (n: number, d: number) => (d > 0 ? Math.round((n / d) * 100) : 0)
 export default async function AnalitikEkstraPage({ searchParams }: { searchParams: Promise<{ bulan?: string }> }) {
   const session = await getSession()
   if (!session) redirect('/login')
-  if (!canViewEkstraAnalitik(session.role)) redirect('/dashboard')
+  if (!canViewEkstraAnalitik(session.role)) await tolakAkses()
   const kelola = canManageEkstra(session.role)
   /** Tautan ke halaman kelola ekstra — hanya untuk yang boleh membukanya. */
   const ke = (href: string) => (kelola ? href : undefined)

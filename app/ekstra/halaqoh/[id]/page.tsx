@@ -1,3 +1,4 @@
+import { tolakAkses } from '@/lib/auth/tolak-akses'
 import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 import { CalendarDays, ChevronLeft, Clock, MessageCircle, Pencil, UsersRound } from 'lucide-react'
@@ -29,7 +30,7 @@ const tglPendek = (d: string) => new Date(`${d}T00:00:00+07:00`).toLocaleDateStr
 export default async function DetailHalaqohEkstraPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await getSession()
   if (!session) redirect('/login')
-  if (!canManageEkstra(session.role)) redirect('/dashboard')
+  if (!canManageEkstra(session.role)) await tolakAkses()
 
   const { id } = await params
   const [detail, data, guruRes, { ids: guruEkstra }] = await Promise.all([

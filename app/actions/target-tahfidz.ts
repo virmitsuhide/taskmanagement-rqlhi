@@ -20,7 +20,7 @@ const JALUR = '/dashboard/analitik/target-tahfidz'
  */
 export async function simpanKalenderTahfidzAction(_: unknown, formData: FormData): Promise<Result> {
   const session = await getSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
   if (!canEditKalenderTahfidz(session.role)) return { error: 'Tidak memiliki izin mengubah kalender.' }
 
   const tahunAjaran = String(formData.get('tahun_ajaran') ?? '')
@@ -63,7 +63,7 @@ export async function simpanKalenderTahfidzAction(_: unknown, formData: FormData
  */
 export async function simpanAsalSdLhiAction(_: unknown, formData: FormData): Promise<Result> {
   const session = await getSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
   if (!canTandaiAsalSdLhi(session.role)) return { error: 'Tidak memiliki izin menandai siswa SMP.' }
 
   const tampil = formData.getAll('siswa').map(String).filter(Boolean)

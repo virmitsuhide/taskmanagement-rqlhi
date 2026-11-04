@@ -19,7 +19,7 @@ const tabelHilang = (e: { code?: string }) => e.code === '42P01' || e.code === '
 
 async function koordinator() {
   const session = await getSession()
-  if (!session) return { error: 'Sesi tidak valid.' as const }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' as const }
   if (!canManageRiyadhoh(session.role)) return { error: 'Tidak memiliki izin.' as const }
   return { session }
 }
@@ -140,7 +140,7 @@ const STATUS: StatusHadir[] = ['hadir', 'izin', 'sakit', 'alfa']
  */
 export async function simpanHadirRiyadhohAction(tanggal: string, hadir: Record<string, StatusHadir | null>): Promise<Hasil & { tersimpan?: number }> {
   const session = await getTeacherSession()
-  if (!session) return { error: 'Sesi guru tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
   if (!TANGGAL.test(tanggal)) return { error: 'Tanggal tidak sah.' }
 
   const supabase = createServerClient()

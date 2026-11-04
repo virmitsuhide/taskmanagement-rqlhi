@@ -19,7 +19,7 @@ import type {
 
 export async function createTaskAction(_: unknown, formData: FormData) {
   const session = await getSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
 
   const supabase = createServerClient()
 
@@ -102,7 +102,7 @@ export async function updateTaskStatusAction(
   notes?: string
 ) {
   const session = await getSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
 
   const supabase = createServerClient()
   const { data: task } = await supabase
@@ -186,7 +186,7 @@ export async function updateTaskProblemAction(
   notes?: string
 ) {
   const session = await getSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
 
   const supabase = createServerClient()
   const { data: task } = await supabase
@@ -259,7 +259,7 @@ const FIELD_LABELS: Record<string, string> = {
  */
 export async function updateTaskAction(_: unknown, formData: FormData) {
   const session = await getSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
 
   const taskId = formData.get('task_id') as string
   if (!taskId) return { error: 'Task tidak dikenali.' }
@@ -339,7 +339,7 @@ export async function updateTaskAction(_: unknown, formData: FormData) {
  */
 async function softDeleteTask(taskId: string): Promise<{ error?: string }> {
   const session = await getSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
 
   const supabase = createServerClient()
   const { data: task } = await supabase

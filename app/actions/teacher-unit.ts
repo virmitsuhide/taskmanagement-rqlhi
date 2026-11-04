@@ -27,7 +27,7 @@ export async function pindahUnitGuruAction(
   notes: string,
 ): Promise<{ error?: string; success?: boolean }> {
   const session = await getSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
   if (!canManageTeachers(session.role)) return { error: 'Tidak memiliki izin memindahkan guru.' }
 
   if (!UNIT_SAH.includes(toUnit as Jenjang)) return { error: 'Unit tujuan tidak sah.' }

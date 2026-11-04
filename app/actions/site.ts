@@ -17,7 +17,7 @@ function revalidatePublicPages() {
 
 async function guard() {
   const session = await getSession()
-  if (!session) return { error: 'Sesi tidak valid.' as const }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' as const }
   if (!canManageHomepage(session.role)) return { error: 'Tidak memiliki izin.' as const }
   return { session }
 }

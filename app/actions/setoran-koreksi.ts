@@ -62,7 +62,7 @@ async function guard(
   const session = await getSession()
   if (!session) {
     const guru = await getTeacherSession()
-    return guru ? guardGuruEkstra(table, logId, guru.teacherId) : { error: 'Sesi tidak valid.' }
+    return guru ? guardGuruEkstra(table, logId, guru.teacherId) : { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
   }
 
   const supabase = createServerClient()

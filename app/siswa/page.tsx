@@ -1,3 +1,4 @@
+import { tolakAkses } from '@/lib/auth/tolak-akses'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { getSession } from '@/lib/auth/session'
@@ -76,7 +77,7 @@ function urutKelas(a: string, b: string): number {
 export default async function SiswaListPage({ searchParams }: PageProps) {
   const session = await getSession()
   if (!session) redirect('/login')
-  if (!canViewStudents(session.role)) redirect('/dashboard')
+  if (!canViewStudents(session.role)) await tolakAkses()
 
   const params = await searchParams
   const query = (params.q ?? '').trim()
@@ -88,7 +89,7 @@ export default async function SiswaListPage({ searchParams }: PageProps) {
     ? UNITS
     : allowed.filter(j => UNITS.includes(j))
 
-  if (viewableJenjang.length === 0) redirect('/dashboard')
+  if (viewableJenjang.length === 0) await tolakAkses()
 
   const supabase = createServerClient()
   const programScope = getListProgramScope(session.role, viewableJenjang)

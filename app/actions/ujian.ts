@@ -136,7 +136,7 @@ async function guardPengelola(
   if (!id) return { error: 'Pengajuan tidak dikenali.' }
 
   const pengurus = await getSession()
-  if (!pengurus) return { error: 'Sesi tidak valid.' }
+  if (!pengurus) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
 
   const supabase = createServerClient()
   const { data } = await supabase.from(table).select('unit, is_quls').eq('id', id).maybeSingle()

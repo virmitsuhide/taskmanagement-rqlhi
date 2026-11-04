@@ -1,3 +1,4 @@
+import { tolakAkses } from '@/lib/auth/tolak-akses'
 import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
 import { getSession } from '@/lib/auth/session'
@@ -21,7 +22,7 @@ interface PageProps {
 export default async function TeacherDetailPage({ params, searchParams }: PageProps) {
   const session = await getSession()
   if (!session) redirect('/login')
-  if (!canViewTeachers(session.role)) redirect('/dashboard')
+  if (!canViewTeachers(session.role)) await tolakAkses()
 
   const { id } = await params
   const { new_password } = await searchParams

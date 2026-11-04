@@ -1,3 +1,4 @@
+import { tolakAkses } from '@/lib/auth/tolak-akses'
 import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
@@ -11,7 +12,7 @@ import { PembacaPdf } from '@/components/panduan/DaftarPanduan'
 export default async function BacaPanduanPengurusPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await getSession()
   if (!session) redirect('/login')
-  if (!canKelolaPanduanGuru(session.role)) redirect('/dashboard')
+  if (!canKelolaPanduanGuru(session.role)) await tolakAkses()
 
   const { id } = await params
   const p = await getPanduan(id)

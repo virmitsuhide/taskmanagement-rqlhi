@@ -1,3 +1,4 @@
+import { tolakAkses } from '@/lib/auth/tolak-akses'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { getSession } from '@/lib/auth/session'
@@ -44,7 +45,7 @@ const COLS = 'grid-cols-[34px_1.7fr_1.1fr_0.5fr_1.1fr_1fr_88px]'
 export default async function HalaqohListPage({ searchParams }: PageProps) {
   const session = await getSession()
   if (!session) redirect('/login')
-  if (!canViewHalaqoh(session.role)) redirect('/dashboard')
+  if (!canViewHalaqoh(session.role)) await tolakAkses()
 
   const params = await searchParams
   const jenjangFilter = params.jenjang as Jenjang | undefined

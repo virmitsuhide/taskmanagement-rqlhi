@@ -1,3 +1,4 @@
+import { tolakAkses } from '@/lib/auth/tolak-akses'
 import { redirect } from 'next/navigation'
 
 import { getSession } from '@/lib/auth/session'
@@ -19,7 +20,7 @@ import { PemetaanUjian, type BarisPemetaan } from '@/components/ujian/PemetaanUj
 export default async function PemetaanUjianPage() {
   const session = await getSession()
   if (!session) redirect('/login')
-  if (!canViewUjian(session.role)) redirect('/dashboard')
+  if (!canViewUjian(session.role)) await tolakAkses()
 
   const units = getUjianUnits(session.role)
   const supabase = createServerClient()

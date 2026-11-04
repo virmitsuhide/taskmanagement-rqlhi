@@ -1,3 +1,4 @@
+import { tolakAkses } from '@/lib/auth/tolak-akses'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { AlertTriangle, GraduationCap, ShieldCheck, Users } from 'lucide-react'
@@ -30,7 +31,7 @@ interface PageProps {
 export default async function GukarStandarPage({ searchParams }: PageProps) {
   const session = await getSession()
   if (!session) redirect('/login')
-  if (!canViewGukarRecap(session.role)) redirect('/dashboard')
+  if (!canViewGukarRecap(session.role)) await tolakAkses()
 
   const params = await searchParams
   const period = isValidPeriod(params.periode ?? '') ? params.periode! : currentPeriod()

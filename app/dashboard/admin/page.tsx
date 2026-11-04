@@ -1,3 +1,4 @@
+import { tolakAkses } from '@/lib/auth/tolak-akses'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { Briefcase, KeyRound, UsersRound, ChevronRight, Lock } from 'lucide-react'
@@ -16,7 +17,7 @@ import { DashTop } from '@/components/dashboard/kit'
 export default async function DashboardAdminPage() {
   const session = await getSession()
   if (!session) redirect('/login')
-  if (!canViewDashboard(session.role, 'admin')) redirect('/dashboard')
+  if (!canViewDashboard(session.role, 'admin')) await tolakAkses()
 
   const supabase = createServerClient()
   const [jabatan, akun, guru, karyawan] = await Promise.all([

@@ -1,3 +1,4 @@
+import { tolakAkses } from '@/lib/auth/tolak-akses'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { Plus, ExternalLink, ImageOff, LayoutGrid, Eye, EyeOff } from 'lucide-react'
@@ -13,7 +14,7 @@ import { ProgramRowActions } from './ProgramRowActions'
 export default async function KelolaProgramPage() {
   const session = await getSession()
   if (!session) redirect('/login')
-  if (!canEditProgram(session.role)) redirect('/dashboard')
+  if (!canEditProgram(session.role)) await tolakAkses()
 
   const programs = await getAllPrograms()
   const aktif = programs.filter(p => p.is_active).length

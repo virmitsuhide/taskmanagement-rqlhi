@@ -17,7 +17,7 @@ function revalidateTermPaths() {
 
 async function guardTerms(): Promise<{ userId: string } | { error: string }> {
   const session = await getSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
   if (!canManageTerms(session.role)) return { error: 'Tidak memiliki izin.' }
   return { userId: session.userId }
 }
@@ -112,7 +112,7 @@ export async function deleteTermAction(id: string): Promise<Result> {
 /** Sesi mengikuti halaqoh, jadi izinnya pun mengikuti izin halaqoh. */
 async function guardHalaqoh(halaqohId: string): Promise<{ ok: true } | { error: string }> {
   const session = await getSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
 
   const supabase = createServerClient()
   const { data: halaqoh } = await supabase

@@ -75,7 +75,7 @@ async function attachTaskToRequest(
 
 export async function createContentRequestAction(_: unknown, formData: FormData) {
   const session = await getSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
   if (!canRequestToHumas(session.role)) return { error: 'Tidak memiliki izin.' }
 
   const supabase = createServerClient()

@@ -33,7 +33,7 @@ function periksa(isi: IsianAgenda): string | null {
 
 export async function simpanAgendaAction(id: string | null, isi: IsianAgenda): Promise<Hasil> {
   const session = await getSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
   if (!canManageKaldik(session.role, isi.unit)) {
     return { error: `Tidak berwenang atas agenda unit ${isi.unit}.` }
   }
@@ -78,7 +78,7 @@ export async function simpanAgendaAction(id: string | null, isi: IsianAgenda): P
 
 export async function hapusAgendaAction(id: string): Promise<Hasil> {
   const session = await getSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
 
   const supabase = createServerClient()
   const { data: agenda } = await supabase.from('kaldik_events').select('unit').eq('id', id).maybeSingle()

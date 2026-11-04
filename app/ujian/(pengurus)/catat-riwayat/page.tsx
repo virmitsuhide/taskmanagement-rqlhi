@@ -1,3 +1,4 @@
+import { tolakAkses } from '@/lib/auth/tolak-akses'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { GraduationCap } from 'lucide-react'
@@ -10,7 +11,7 @@ import { UjianSubNav } from '@/components/ujian/UjianSubNav'
 export default async function CatatRiwayatUjianPage() {
   const session = await getSession()
   if (!session) redirect('/login')
-  if (!canSubmitUjian(session.role)) redirect('/dashboard')
+  if (!canSubmitUjian(session.role)) await tolakAkses()
 
   const units = getUjianUnits(session.role)
 

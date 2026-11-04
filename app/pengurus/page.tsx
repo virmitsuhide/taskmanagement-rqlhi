@@ -1,3 +1,4 @@
+import { tolakAkses } from '@/lib/auth/tolak-akses'
 import { redirect } from 'next/navigation'
 import { UsersRound } from 'lucide-react'
 import { getSession } from '@/lib/auth/session'
@@ -17,7 +18,7 @@ import { JabatanRow } from './JabatanRow'
 export default async function PengurusPage() {
   const session = await getSession()
   if (!session) redirect('/login')
-  if (!canManagePengurus(session.role)) redirect('/dashboard')
+  if (!canManagePengurus(session.role)) await tolakAkses()
 
   const [jabatan, calon] = await Promise.all([getDaftarJabatan(), getCalonPengurus()])
 

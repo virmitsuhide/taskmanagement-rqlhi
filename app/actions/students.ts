@@ -55,7 +55,7 @@ function galatKelas(jenjang: Jenjang, kelas: string | null): string | null {
 
 export async function createStudentAction(_: unknown, formData: FormData) {
   const session = await getSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
 
   const fields = pickStudentFields(formData)
   if (!fields.full_name || !fields.jenjang) {
@@ -92,7 +92,7 @@ export async function createStudentAction(_: unknown, formData: FormData) {
 
 export async function updateStudentAction(_: unknown, formData: FormData) {
   const session = await getSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
 
   const id = formData.get('id') as string
   if (!id) return { error: 'ID siswa hilang.' }
@@ -274,7 +274,7 @@ export type BarisMentah = Record<string, string | number | boolean | null>
 
 export async function importStudentsAction(rows: BarisMentah[]): Promise<HasilImpor> {
   const session = await getSession()
-  if (!session) return { masuk: 0, gagal: [], error: 'Sesi tidak valid.' }
+  if (!session) return { masuk: 0, gagal: [], error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
 
   const allowed = getManageableJenjang(session.role).filter(j => canManageStudents(session.role, j))
   if (allowed.length === 0) {
@@ -376,7 +376,7 @@ export async function importStudentsAction(rows: BarisMentah[]): Promise<HasilIm
 
 export async function deleteStudentAction(id: string) {
   const session = await getSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
 
   const supabase = createServerClient()
   const { data: existing } = await supabase
@@ -415,7 +415,7 @@ export async function deleteStudentAction(id: string) {
  */
 export async function pindahkanKelasAction(ids: string[], kelas: string) {
   const session = await getSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
 
   const tujuan = kelas.trim()
   if (!tujuan) return { error: 'Kelas tujuan wajib diisi.' }

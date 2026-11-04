@@ -1,3 +1,4 @@
+import { tolakAkses } from '@/lib/auth/tolak-akses'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { ChevronLeft, FileText, Search } from 'lucide-react'
@@ -32,7 +33,7 @@ const hariSejak = (iso: string) => Math.max(0, Math.floor((Date.now() - new Date
 export default async function EkstraPage({ searchParams }: { searchParams: Promise<{ status?: string; id?: string; q?: string }> }) {
   const session = await getSession()
   if (!session) redirect('/login')
-  if (!canManageEkstra(session.role)) redirect('/dashboard')
+  if (!canManageEkstra(session.role)) await tolakAkses()
 
   const sp = await searchParams
   const status: StatusBooking = TAB.includes(sp.status as StatusBooking) ? (sp.status as StatusBooking) : 'baru'

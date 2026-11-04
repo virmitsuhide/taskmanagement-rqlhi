@@ -50,7 +50,7 @@ function pesanGalat(message: string | undefined): string {
 /** Disunting SDM — termasuk kolom kepegawaian. */
 export async function updateGuruProfileBySdmAction(_: unknown, formData: FormData) {
   const session = await getSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
   if (!canManageTeacherProfiles(session.role)) return { error: 'Tidak memiliki izin.' }
 
   const teacherId = formData.get('teacher_id') as string
@@ -137,7 +137,7 @@ export async function updateGuruProfileBySdmAction(_: unknown, formData: FormDat
  */
 export async function updateOwnGuruProfileAction(_: unknown, formData: FormData) {
   const session = await getTeacherSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
 
   const supabase = createServerClient()
 

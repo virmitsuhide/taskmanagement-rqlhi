@@ -1,3 +1,4 @@
+import { tolakAkses } from '@/lib/auth/tolak-akses'
 import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/auth/session'
 import { canViewDashboard } from '@/lib/auth/permissions'
@@ -11,7 +12,7 @@ interface PageProps {
 export default async function DashboardKumikPage({ searchParams }: PageProps) {
   const session = await getSession()
   if (!session) redirect('/login')
-  if (!canViewDashboard(session.role, 'kumik')) redirect('/dashboard')
+  if (!canViewDashboard(session.role, 'kumik')) await tolakAkses()
 
   return <DashboardPengurus halaman="kumik" session={session} searchParams={await searchParams} />
 }

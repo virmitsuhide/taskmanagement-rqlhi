@@ -1,3 +1,4 @@
+import { tolakAkses } from '@/lib/auth/tolak-akses'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import {
@@ -29,7 +30,7 @@ const UNITS: UnitProfil[] = ['sd', 'sd_juara', 'smp', 'paud', 'sma', 'lain', 'pe
 export default async function ProfilGuruPage({ searchParams }: PageProps) {
   const session = await getSession()
   if (!session) redirect('/login')
-  if (!canManageTeacherProfiles(session.role)) redirect('/dashboard')
+  if (!canManageTeacherProfiles(session.role)) await tolakAkses()
 
   const p = await searchParams
   const unit = (UNITS.includes(p.unit as UnitProfil) ? p.unit : 'sd') as UnitProfil

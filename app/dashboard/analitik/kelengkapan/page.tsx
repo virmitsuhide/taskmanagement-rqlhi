@@ -1,3 +1,4 @@
+import { tolakAkses } from '@/lib/auth/tolak-akses'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { Check, X, AlertTriangle } from 'lucide-react'
@@ -27,7 +28,7 @@ interface PageProps {
 export default async function KelengkapanPage({ searchParams }: PageProps) {
   const session = await getSession()
   if (!session) redirect('/login')
-  if (!canViewUnitAnalytics(session.role)) redirect('/dashboard')
+  if (!canViewUnitAnalytics(session.role)) await tolakAkses()
 
   const params = await searchParams
   const period = isValidPeriod(params.periode ?? '') ? params.periode! : currentPeriod()

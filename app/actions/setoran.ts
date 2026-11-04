@@ -555,7 +555,7 @@ export interface HasilSetoranSatu {
 
 export async function createTahsinLogAction(_: unknown, formData: FormData): Promise<HasilSetoranSatu> {
   const session = await getTeacherSession()
-  if (!session) return { error: 'Sesi guru tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
 
   const studentId = formData.get('student_id') as string
   if (!studentId) return { error: 'Siswa belum dipilih.' }
@@ -627,7 +627,7 @@ export interface HasilSetoranSesi {
  */
 export async function createTahsinLogSesiAction(baris: InputSetoranTahsin[]): Promise<HasilSetoranSesi> {
   const session = await getTeacherSession()
-  if (!session) return { tersimpan: 0, gagal: [], error: 'Sesi guru tidak valid.' }
+  if (!session) return { tersimpan: 0, gagal: [], error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
   if (baris.length === 0) return { tersimpan: 0, gagal: [], error: 'Belum ada anak yang diisi.' }
 
   const gagal: HasilSetoranSesi['gagal'] = []
@@ -822,7 +822,7 @@ async function periksaZiyadahUlang(
 
 export async function createTahfidzLogAction(_: unknown, formData: FormData): Promise<HasilSetoranSatu> {
   const session = await getTeacherSession()
-  if (!session) return { error: 'Sesi guru tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
 
   const studentId = formData.get('student_id') as string
   if (!studentId) return { error: 'Siswa belum dipilih.' }
@@ -852,7 +852,7 @@ export async function createTahfidzLogAction(_: unknown, formData: FormData): Pr
 /** Setoran tahfidz satu sesi sekaligus — pola yang sama dengan tahsin. */
 export async function createTahfidzLogSesiAction(baris: InputSetoranTahfidz[]): Promise<HasilSetoranSesi> {
   const session = await getTeacherSession()
-  if (!session) return { tersimpan: 0, gagal: [], error: 'Sesi guru tidak valid.' }
+  if (!session) return { tersimpan: 0, gagal: [], error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
   if (baris.length === 0) return { tersimpan: 0, gagal: [], error: 'Belum ada anak yang diisi.' }
 
   const gagal: HasilSetoranSesi['gagal'] = []

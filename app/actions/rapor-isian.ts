@@ -27,7 +27,7 @@ export async function simpanRaporIsianAction(
   isian: Record<string, string> = {},
 ): Promise<Hasil> {
   const session = await getTeacherSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
   const jenis = bacaJenisRapor(jenisMentah)
 
   const supabase = createServerClient()

@@ -72,7 +72,7 @@ async function rekanDariDeskripsi(description: string, pemilikId: string): Promi
 
 export async function createRoutineTaskAction(_: unknown, formData: FormData) {
   const session = await getSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
 
   const isi = bacaForm(formData)
   if ('error' in isi) return { error: isi.error }
@@ -130,7 +130,7 @@ export async function createRoutineTaskAction(_: unknown, formData: FormData) {
 
 export async function updateRoutineTaskAction(_: unknown, formData: FormData) {
   const session = await getSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
 
   const id = formData.get('task_id') as string
   if (!id) return { error: 'Tugas rutin tidak dikenali.' }
@@ -189,7 +189,7 @@ export async function updateRoutineTaskAction(_: unknown, formData: FormData) {
 
 export async function deleteRoutineTaskAction(id: string) {
   const session = await getSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
 
   const supabase = createServerClient()
   const { error } = await supabase
@@ -287,7 +287,7 @@ export async function setRoutineOutcomeAction(
   reason?: string,
 ) {
   const session = await getSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
   if (outcome !== null && !isOutcome(outcome)) return { error: 'Status tidak dikenali.' }
 
   // Alasan divalidasi sebelum menyentuh database supaya pengurus mendapat
@@ -383,7 +383,7 @@ export async function setRoutineOutcomeAction(
  */
 export async function konfirmasiSelesaiRutinAction(id: string, setuju: boolean) {
   const session = await getSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
 
   const akses = await aksesTugas(id, session.userId)
   if (!akses) return { error: 'Tugas rutin tidak ditemukan.' }
@@ -413,7 +413,7 @@ export async function konfirmasiSelesaiRutinAction(id: string, setuju: boolean) 
 /** Jawab ajakan tugas rutin bersama. */
 export async function jawabAjakanRutinAction(id: string, terima: boolean) {
   const session = await getSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
 
   const status: StatusAnggotaRutin = terima ? 'diterima' : 'ditolak'
   const { data, error } = await createServerClient()
@@ -436,7 +436,7 @@ export async function jawabAjakanRutinAction(id: string, terima: boolean) {
 /** Keluar dari tugas rutin bersama yang pernah diterima. Pemilik tidak bisa keluar — ia menghapus. */
 export async function keluarTugasRutinBersamaAction(id: string) {
   const session = await getSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
 
   const { data, error } = await createServerClient()
     .from('routine_task_members')
@@ -460,7 +460,7 @@ export async function keluarTugasRutinBersamaAction(id: string) {
  */
 export async function moveRoutineTaskAction(id: string, direction: 'up' | 'down') {
   const session = await getSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
 
   const supabase = createServerClient()
   const { data: task } = await supabase

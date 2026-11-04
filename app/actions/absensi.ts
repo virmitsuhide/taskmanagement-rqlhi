@@ -28,7 +28,7 @@ export async function simpanAbsensiAction(
   isian: IsianAbsensi[],
 ): Promise<Hasil> {
   const session = await getTeacherSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
   // Id sesi bisa sesi gabungan guru tahsin (beberapa halaqoh sekaligus).
   const halaqohIds = await halaqohSesiGuru(session.teacherId, sesiId)
   if (!halaqohIds) return { error: 'Anda bukan pengampu sesi ini.' }

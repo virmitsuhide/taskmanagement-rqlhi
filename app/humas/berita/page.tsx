@@ -1,3 +1,4 @@
+import { tolakAkses } from '@/lib/auth/tolak-akses'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -109,7 +110,7 @@ interface PageProps {
 export default async function KelolaBeritaPage({ searchParams }: PageProps) {
   const session = await getSession()
   if (!session) redirect('/login')
-  if (!canCreateNews(session.role)) redirect('/dashboard')
+  if (!canCreateNews(session.role)) await tolakAkses()
 
   const params = await searchParams
   const status: StatusFilter = VALID_STATUS.includes(params.status as StatusFilter)

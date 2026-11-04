@@ -77,7 +77,7 @@ function segarkan() {
 /** Simpan setoran beberapa guru sekaligus (satu sesi simak). */
 export async function simpanSetoranGuruAction(baris: InputSetoranGuru[]): Promise<Hasil> {
   const session = await getSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
   if (!canCatatSetoranGuru(session.role)) return { error: 'Hanya SDM yang mencatat setoran guru.' }
   if (!Array.isArray(baris) || baris.length === 0) return { error: 'Tidak ada setoran yang dikirim.' }
   if (baris.length > 200) return { error: 'Terlalu banyak baris sekaligus.' }
@@ -125,7 +125,7 @@ export async function simpanSetoranGuruAction(baris: InputSetoranGuru[]): Promis
 
 export async function hapusSetoranGuruAction(id: string): Promise<Hasil> {
   const session = await getSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
   if (!canCatatSetoranGuru(session.role)) return { error: 'Hanya SDM yang mencatat setoran guru.' }
   const supabase = createServerClient()
   const { data } = await supabase.from('setoran_guru').delete().eq('id', id).select('teacher_id, tanggal').maybeSingle()

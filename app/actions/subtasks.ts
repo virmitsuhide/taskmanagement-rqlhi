@@ -24,7 +24,7 @@ interface Guard {
 /** Pastikan pemanggil berhak mengubah rincian tugas ini. */
 async function guardTask(taskId: string): Promise<Guard> {
   const session = await getSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
 
   const supabase = createServerClient()
   const { data: task } = await supabase

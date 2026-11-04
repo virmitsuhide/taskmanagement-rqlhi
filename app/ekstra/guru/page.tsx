@@ -1,3 +1,4 @@
+import { tolakAkses } from '@/lib/auth/tolak-akses'
 import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/auth/session'
 import { canManageEkstra, JENJANG_LABELS } from '@/lib/auth/permissions'
@@ -16,7 +17,7 @@ import type { Jenjang } from '@/types'
 export default async function GuruEkstraPage() {
   const session = await getSession()
   if (!session) redirect('/login')
-  if (!canManageEkstra(session.role)) redirect('/dashboard')
+  if (!canManageEkstra(session.role)) await tolakAkses()
 
   const [{ ids, daftar }, data, guruRes] = await Promise.all([
     getGuruEkstra(),

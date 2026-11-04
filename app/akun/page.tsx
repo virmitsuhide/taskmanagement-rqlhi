@@ -1,3 +1,4 @@
+import { tolakAkses } from '@/lib/auth/tolak-akses'
 import { redirect } from 'next/navigation'
 import { ShieldAlert } from 'lucide-react'
 import { getSession } from '@/lib/auth/session'
@@ -10,7 +11,7 @@ import type { Jenjang, UserRole } from '@/types'
 export default async function AkunPage() {
   const session = await getSession()
   if (!session) redirect('/login')
-  if (!canManageAllAccounts(session.role)) redirect('/dashboard')
+  if (!canManageAllAccounts(session.role)) await tolakAkses()
 
   const supabase = createServerClient()
 

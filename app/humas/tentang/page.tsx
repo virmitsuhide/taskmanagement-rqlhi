@@ -1,3 +1,4 @@
+import { tolakAkses } from '@/lib/auth/tolak-akses'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { ExternalLink } from 'lucide-react'
@@ -11,7 +12,7 @@ import type { AboutRq } from '@/types'
 export default async function KelolaTentangPage() {
   const session = await getSession()
   if (!session) redirect('/login')
-  if (!canEditAbout(session.role)) redirect('/dashboard')
+  if (!canEditAbout(session.role)) await tolakAkses()
 
   const supabase = createServerClient()
   const { data } = await supabase

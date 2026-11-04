@@ -11,7 +11,7 @@ export async function updateAboutRqAction(
   formData: FormData,
 ) {
   const session = await getSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
   if (!canEditAbout(session.role)) return { error: 'Tidak memiliki izin.' }
 
   const vision  = ((formData.get('vision')  as string) ?? '').trim()

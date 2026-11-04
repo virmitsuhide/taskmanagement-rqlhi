@@ -100,7 +100,7 @@ function segarkan(unit: Jenjang | null, year: number, month: number) {
  */
 export async function ajukanRaporAction(kpiIds: string[]): Promise<Hasil> {
   const session = await getSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
   if (!canInputKpi(session.role)) return { error: 'Hanya SDM yang mengajukan rapor KPI.' }
   if (kpiIds.length === 0) return { error: 'Belum ada rapor yang dipilih.' }
 
@@ -151,7 +151,7 @@ export async function ajukanRaporAction(kpiIds: string[]): Promise<Hasil> {
  */
 export async function terbitkanRaporAction(kpiIds: string[]): Promise<Hasil> {
   const session = await getSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
   if (kpiIds.length === 0) return { error: 'Belum ada rapor yang dipilih.' }
 
   const supabase = createServerClient()
@@ -217,7 +217,7 @@ export async function terbitkanRaporAction(kpiIds: string[]): Promise<Hasil> {
  */
 export async function kembalikanRaporAction(kpiId: string, alasan: string): Promise<Hasil> {
   const session = await getSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
 
   const teks = alasan.trim()
   if (teks.length < 10) return { error: 'Tuliskan alasan pengembalian, minimal 10 karakter.' }
@@ -270,7 +270,7 @@ export async function kembalikanRaporAction(kpiId: string, alasan: string): Prom
  */
 export async function ttdGuruAction(kpiId: string): Promise<Hasil> {
   const guru = await getTeacherSession()
-  if (!guru) return { error: 'Sesi tidak valid.' }
+  if (!guru) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
 
   const supabase = createServerClient()
   const { data } = await supabase.from('kpi_monthly').select(KOLOM).eq('id', kpiId).maybeSingle()
@@ -347,7 +347,7 @@ export async function ttdGuruAction(kpiId: string): Promise<Hasil> {
  */
 export async function resetRaporAction(kpiId: string, alasan: string): Promise<Hasil> {
   const session = await getSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
   if (!canResetKpiRapor(session.role)) {
     return { error: 'Hanya Kepala RQ yang bisa menghapus penilaian KPI.' }
   }

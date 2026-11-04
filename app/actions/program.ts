@@ -58,7 +58,7 @@ function readFields(formData: FormData) {
 
 export async function createProgramAction(_: unknown, formData: FormData) {
   const session = await getSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
   if (!canEditProgram(session.role)) return { error: 'Tidak memiliki izin.' }
 
   const fields = readFields(formData)
@@ -104,7 +104,7 @@ export async function createProgramAction(_: unknown, formData: FormData) {
 
 export async function updateProgramAction(slug: string, _: unknown, formData: FormData) {
   const session = await getSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
   if (!canEditProgram(session.role)) return { error: 'Tidak memiliki izin.' }
 
   const fields = readFields(formData)
@@ -137,7 +137,7 @@ export async function updateProgramAction(slug: string, _: unknown, formData: Fo
 
 export async function toggleProgramAction(slug: string, isActive: boolean) {
   const session = await getSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
   if (!canEditProgram(session.role)) return { error: 'Tidak memiliki izin.' }
 
   const supabase = createServerClient()
@@ -153,7 +153,7 @@ export async function toggleProgramAction(slug: string, isActive: boolean) {
 
 export async function deleteProgramAction(slug: string) {
   const session = await getSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
   if (!canEditProgram(session.role)) return { error: 'Tidak memiliki izin.' }
 
   const supabase = createServerClient()
@@ -172,7 +172,7 @@ export async function deleteProgramAction(slug: string) {
  */
 export async function moveProgramAction(slug: string, direction: 'up' | 'down') {
   const session = await getSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
   if (!canEditProgram(session.role)) return { error: 'Tidak memiliki izin.' }
 
   const supabase = createServerClient()

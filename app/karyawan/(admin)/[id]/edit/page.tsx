@@ -1,3 +1,4 @@
+import { tolakAkses } from '@/lib/auth/tolak-akses'
 import { redirect } from 'next/navigation'
 import { KeyRound } from 'lucide-react'
 import { getSession } from '@/lib/auth/session'
@@ -30,7 +31,7 @@ interface PageProps {
 export default async function SuntingKaryawanPage({ params, searchParams }: PageProps) {
   const session = await getSession()
   if (!session) redirect('/login')
-  if (!canManageEmployees(session.role)) redirect('/dashboard')
+  if (!canManageEmployees(session.role)) await tolakAkses()
 
   const { id } = await params
   const { new_password } = await searchParams

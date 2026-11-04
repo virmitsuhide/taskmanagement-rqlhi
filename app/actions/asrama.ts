@@ -19,7 +19,7 @@ type Hasil = { error?: string; success?: boolean }
 
 async function gerbang(gender: 'L' | 'P' | null | undefined): Promise<{ userId: string } | { error: string }> {
   const session = await getSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
   if (!gender || !canManageAsrama(session.role, gender)) {
     return { error: gender === 'L' ? 'Hanya pengelola asrama putra yang boleh mengubah ini.' : gender === 'P' ? 'Hanya pengelola asrama putri yang boleh mengubah ini.' : 'Anda tidak berwenang.' }
   }

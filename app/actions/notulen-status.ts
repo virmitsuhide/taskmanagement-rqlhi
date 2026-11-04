@@ -25,7 +25,7 @@ function kolomBelumAda(error: { code?: string; message?: string } | null): boole
 
 async function ubahStatus(meetingId: string, status: 'draf' | 'terbit'): Promise<Hasil> {
   const session = await getSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
 
   const supabase = createServerClient()
   const { data: meeting } = await supabase

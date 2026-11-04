@@ -38,7 +38,7 @@ function passwordAcak(panjang = 10): string {
 
 async function terapkan(target: Target, id: string, password: string) {
   const session = await getSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
   if (!canManageAllAccounts(session.role)) return { error: 'Tidak memiliki izin.' }
 
   if (password.length < 8) {

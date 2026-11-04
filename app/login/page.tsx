@@ -5,6 +5,7 @@ import { loginAction } from '@/app/actions/auth'
 import {
   LoginShell, LoginFields, LoginError, LoginSubmit, LoginHelp, LoginLinks,
 } from '@/components/auth/LoginShell'
+import { LoginTujuan } from '@/components/auth/LoginTujuan'
 
 export default function LoginPage() {
   const [state, action, isPending] = useActionState(loginAction, null)
@@ -26,6 +27,7 @@ export default function LoginPage() {
       }
     >
       <form action={action} className="space-y-4">
+        <LoginTujuan />
         <LoginFields disabled={isPending} usernamePlaceholder="contoh: kumikrqlhi" />
         <LoginError message={state?.error} />
         <LoginSubmit pending={isPending} />

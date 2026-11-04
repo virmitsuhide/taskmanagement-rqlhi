@@ -1,3 +1,4 @@
+import { tolakAkses } from '@/lib/auth/tolak-akses'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { LayoutTemplate, Type, Users, ExternalLink } from 'lucide-react'
@@ -45,7 +46,7 @@ interface PageProps {
 export default async function KelolaBerandaPage({ searchParams }: PageProps) {
   const session = await getSession()
   if (!session) redirect('/login')
-  if (!canManageHomepage(session.role)) redirect('/dashboard')
+  if (!canManageHomepage(session.role)) await tolakAkses()
 
   const params = await searchParams
   const activeTab: Tab = VALID_TABS.includes(params.tab as Tab) ? (params.tab as Tab) : 'seksi'

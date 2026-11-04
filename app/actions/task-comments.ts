@@ -25,7 +25,7 @@ async function canAccessTask(taskId: string, userId: string, role: string): Prom
 
 export async function createTaskCommentAction(_: unknown, formData: FormData) {
   const session = await getSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
 
   const taskId = formData.get('task_id') as string
   const body = ((formData.get('body') as string) || '').trim()
@@ -51,7 +51,7 @@ export async function createTaskCommentAction(_: unknown, formData: FormData) {
 
 export async function deleteTaskCommentAction(commentId: string) {
   const session = await getSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
 
   const supabase = createServerClient()
   const { data: comment } = await supabase

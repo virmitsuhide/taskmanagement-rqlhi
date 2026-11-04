@@ -1,3 +1,4 @@
+import { tolakAkses } from '@/lib/auth/tolak-akses'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/auth/session'
@@ -33,7 +34,7 @@ interface PageProps {
 export default async function SetoranKoorPage({ searchParams }: PageProps) {
   const session = await getSession()
   if (!session) redirect('/login')
-  if (!canViewHalaqoh(session.role)) redirect('/dashboard')
+  if (!canViewHalaqoh(session.role)) await tolakAkses()
 
   const q = await searchParams
   const periode = isValidPeriod(q.periode ?? '') ? q.periode! : currentPeriod()

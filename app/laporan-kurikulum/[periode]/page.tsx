@@ -1,3 +1,4 @@
+import { tolakAkses } from '@/lib/auth/tolak-akses'
 import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 import { getSession } from '@/lib/auth/session'
@@ -18,7 +19,7 @@ export default async function EdisiLaporanPage({ params, searchParams }: {
 }) {
   const session = await getSession()
   if (!session) redirect('/login')
-  if (!canViewLaporanKurikulum(session.role)) redirect('/dashboard')
+  if (!canViewLaporanKurikulum(session.role)) await tolakAkses()
 
   const { periode } = await params
   if (!periodeSah(periode)) notFound()

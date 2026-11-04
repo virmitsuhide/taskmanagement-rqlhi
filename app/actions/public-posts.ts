@@ -104,7 +104,7 @@ const PESAN_MIGRASI_GAMBAR = 'Kolom gambar belum ada. Minta admin menjalankan mi
 
 export async function createPublicPostAction(_: unknown, formData: FormData) {
   const session = await getSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
   if (!canPostToHome(session.role)) return { error: 'Tidak memiliki izin.' }
 
   const isian = bacaIsian(formData, session.role)
@@ -154,7 +154,7 @@ export async function createPublicPostAction(_: unknown, formData: FormData) {
  */
 export async function updatePublicPostAction(postId: string, _: unknown, formData: FormData) {
   const session = await getSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
   if (!canPostToHome(session.role)) return { error: 'Tidak memiliki izin.' }
 
   const supabase = createServerClient()
@@ -192,7 +192,7 @@ export async function updatePublicPostAction(postId: string, _: unknown, formDat
 
 export async function togglePublicPostAction(postId: string, isActive: boolean) {
   const session = await getSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
 
   const supabase = createServerClient()
   const { data: post } = await supabase
@@ -219,7 +219,7 @@ export async function togglePublicPostAction(postId: string, isActive: boolean) 
 
 export async function deletePublicPostAction(postId: string) {
   const session = await getSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
 
   const supabase = createServerClient()
   const { data: post } = await supabase

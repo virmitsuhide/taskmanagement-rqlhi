@@ -1,3 +1,4 @@
+import { tolakAkses } from '@/lib/auth/tolak-akses'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { AlertCircle, BarChart3, BookOpen, CalendarDays, Gauge, UsersRound } from 'lucide-react'
@@ -48,7 +49,7 @@ export default async function AnalitikRiyadhohPage({ searchParams }: {
 }) {
   const session = await getSession()
   if (!session) redirect('/login')
-  if (!canViewRiyadhohAnalitik(session.role)) redirect('/dashboard')
+  if (!canViewRiyadhohAnalitik(session.role)) await tolakAkses()
 
   const sp = await searchParams
   const rentang: RentangRiyadhoh = RENTANG.some(r => r.k === sp.rentang) ? (sp.rentang as RentangRiyadhoh) : 'semester'

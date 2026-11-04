@@ -1,3 +1,4 @@
+import { tolakAkses } from '@/lib/auth/tolak-akses'
 import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/auth/session'
 import { canKelolaChangelog, canViewChangelog } from '@/lib/auth/permissions'
@@ -22,7 +23,7 @@ interface PageProps {
 export default async function PembaruanPage({ searchParams }: PageProps) {
   const session = await getSession()
   if (!session) redirect('/login')
-  if (!canViewChangelog(session.role)) redirect('/dashboard')
+  if (!canViewChangelog(session.role)) await tolakAkses()
   const kelola = canKelolaChangelog(session.role)
 
   if (!kelola) {

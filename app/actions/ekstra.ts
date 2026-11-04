@@ -29,7 +29,7 @@ async function idGuruEkstra(): Promise<Set<string> | null> {
 
 async function koordinator() {
   const session = await getSession()
-  if (!session) return { error: 'Sesi tidak valid.' as const }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' as const }
   if (!canManageEkstra(session.role)) return { error: 'Tidak memiliki izin.' as const }
   return { session }
 }
@@ -438,7 +438,7 @@ export async function simpanHadirEkstraAction(
   baris: { booking_id: string; status: StatusHadirEkstra; catatan: string }[],
 ): Promise<Hasil> {
   const session = await getTeacherSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
   if (!TANGGAL.test(tanggal) || tanggal > hariIniWIB()) return { error: 'Tanggal tidak valid.' }
 
   const supabase = createServerClient()
@@ -496,7 +496,7 @@ export interface IsiSetoranLuar {
  */
 export async function simpanSetoranLuarAction(slotId: string, bookingId: string, tanggal: string, isi: IsiSetoranLuar): Promise<Hasil> {
   const session = await getTeacherSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
   if (!TANGGAL.test(tanggal) || tanggal > hariIniWIB()) return { error: 'Tanggal tidak valid.' }
 
   const supabase = createServerClient()
@@ -543,7 +543,7 @@ export async function simpanSetoranTahfidzLuarAction(slotId: string, bookingId: 
   jenis: string; surat_id: number; ayat_dari: number; ayat_ke: number; catatan: string
 }): Promise<Hasil> {
   const session = await getTeacherSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
   if (!TANGGAL.test(tanggal) || tanggal > hariIniWIB()) return { error: 'Tanggal tidak valid.' }
 
   const supabase = createServerClient()
@@ -599,7 +599,7 @@ export async function hapusSetoranLuarAction(id: string, jenis: 'tahsin' | 'tahf
 export async function simpanMateriEkstraAction(slotId: string, tanggal: string, deskripsi: string): Promise<Hasil> {
   const [guru, pengurus] = await Promise.all([getTeacherSession(), getSession()])
   const koor = !!pengurus && canManageEkstra(pengurus.role)
-  if (!guru && !koor) return { error: 'Sesi tidak valid.' }
+  if (!guru && !koor) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
   if (!TANGGAL.test(tanggal) || tanggal > hariIniWIB()) return { error: 'Tanggal tidak valid.' }
   const isi = deskripsi.trim().slice(0, 2000)
 
@@ -749,7 +749,7 @@ export async function ubahGuruEkstraAction(teacherId: string, aktif: boolean, ca
  */
 export async function ubahJadwalEkstraGuruAction(slotId: string, waktu: WaktuEkstra[]): Promise<Hasil> {
   const session = await getTeacherSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
   const jadwal = periksaJadwalEkstra(waktu)
   if ('error' in jadwal) return { error: jadwal.error }
 

@@ -1,3 +1,4 @@
+import { tolakAkses } from '@/lib/auth/tolak-akses'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { BarChart3 } from 'lucide-react'
@@ -15,7 +16,7 @@ import { KelolaTR } from '@/components/tahsin-rekomendasi/KelolaTR'
 export default async function TahsinRekomendasiPage() {
   const session = await getSession()
   if (!session) redirect('/login')
-  if (!canManageTahsinRekomendasi(session.role)) redirect('/dashboard')
+  if (!canManageTahsinRekomendasi(session.role)) await tolakAkses()
 
   const [kelompok, peserta, kandidat] = await Promise.all([getKelompokTR(), getPesertaTR(), getKandidatTR()])
 

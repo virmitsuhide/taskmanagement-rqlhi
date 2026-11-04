@@ -45,7 +45,7 @@ export async function simpanSuasanaAction(input: {
     const s = await getEmployeeSession()
     if (s) akun = { tabel: 'employees', id: s.employeeId }
   }
-  if (!akun) return { ok: false, error: 'Sesi tidak valid. Silakan masuk ulang.' }
+  if (!akun) return { ok: false, error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
 
   await pasangCookieSuasana(pref)
 

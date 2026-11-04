@@ -98,7 +98,7 @@ function bacaButir(fd: FormData, entry: KpiMonthly): KpiBandingItem[] {
  */
 export async function ajukanBandingAction(_: unknown, formData: FormData): Promise<Hasil> {
   const guru = await getTeacherSession()
-  if (!guru) return { error: 'Sesi tidak valid.' }
+  if (!guru) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
 
   const kpiId = String(formData.get('kpi_id') ?? '')
   if (!kpiId) return { error: 'Rapor tidak dikenali.' }
@@ -186,7 +186,7 @@ const PUTUSAN_SAH: KpiBandingStatus[] = ['diterima', 'diterima_sebagian', 'ditol
  */
 export async function putusBandingAction(_: unknown, formData: FormData): Promise<Hasil> {
   const session = await getSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
 
   const bandingId = String(formData.get('banding_id') ?? '')
   const putusan = String(formData.get('putusan') ?? '') as KpiBandingStatus
@@ -322,7 +322,7 @@ async function terapkanPutusan(opts: {
  */
 export async function eskalasiBandingAction(_: unknown, formData: FormData): Promise<Hasil> {
   const guru = await getTeacherSession()
-  if (!guru) return { error: 'Sesi tidak valid.' }
+  if (!guru) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
 
   const bandingId = String(formData.get('banding_id') ?? '')
   const alasan = String(formData.get('alasan') ?? '').trim()

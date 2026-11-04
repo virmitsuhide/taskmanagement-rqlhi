@@ -18,7 +18,7 @@ type Result = { error?: string; success?: boolean }
  */
 export async function saveStudentMonthlyAction(_: unknown, formData: FormData): Promise<Result> {
   const session = await getTeacherSession()
-  if (!session) return { error: 'Sesi tidak valid. Silakan masuk ulang.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
 
   const studentId = (formData.get('student_id') as string) ?? ''
   const periodKey = (formData.get('period') as string) ?? ''
@@ -66,7 +66,7 @@ export async function saveStudentMonthlyAction(_: unknown, formData: FormData): 
  */
 export async function carryOverMonthlyAction(halaqohId: string, periodKey: string, previousKey: string): Promise<Result> {
   const session = await getTeacherSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
   if (!isValidPeriod(periodKey) || !isValidPeriod(previousKey)) return { error: 'Periode tidak valid.' }
 
   const supabase = createServerClient()
@@ -139,7 +139,7 @@ export async function rangkumBulanAction(
   periodKey: string,
 ): Promise<Result & { dirangkum?: number; dilewati?: number }> {
   const session = await getTeacherSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
   if (!isValidPeriod(periodKey)) return { error: 'Periode tidak valid.' }
 
   const supabase = createServerClient()

@@ -1,3 +1,4 @@
+import { tolakAkses } from '@/lib/auth/tolak-akses'
 import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 import { BookOpen, CalendarCheck, MessageCircle, NotebookPen, UsersRound } from 'lucide-react'
@@ -34,7 +35,7 @@ type SiswaRow = {
 export default async function DetailSiswaEkstraPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await getSession()
   if (!session) redirect('/login')
-  if (!canManageEkstra(session.role)) redirect('/dashboard')
+  if (!canManageEkstra(session.role)) await tolakAkses()
 
   const { id } = await params
   const [semua, data] = await Promise.all([getBookingEkstra(), getDataEkstra()])

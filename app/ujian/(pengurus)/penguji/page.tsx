@@ -1,3 +1,4 @@
+import { tolakAkses } from '@/lib/auth/tolak-akses'
 import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/auth/session'
 import { canViewUjian } from '@/lib/auth/permissions'
@@ -9,7 +10,7 @@ import { getCalonPenguji, getPengujis } from '@/lib/data/ujian'
 export default async function PengujiPage() {
   const session = await getSession()
   if (!session) redirect('/login')
-  if (!canViewUjian(session.role)) redirect('/dashboard')
+  if (!canViewUjian(session.role)) await tolakAkses()
 
   const [pengujis, calon] = await Promise.all([getPengujis(), getCalonPenguji()])
 

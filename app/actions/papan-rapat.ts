@@ -25,7 +25,7 @@ interface Poin {
 /** Ambil poin beserta rapatnya, dan pastikan penggunanya boleh membaca rapat itu. */
 async function siapkan(agendaId: string) {
   const session = await getSession()
-  if (!session) return { error: 'Sesi tidak valid.' } as const
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' } as const
   const supabase = createServerClient()
   const { data } = await supabase
     .from('agenda_items')

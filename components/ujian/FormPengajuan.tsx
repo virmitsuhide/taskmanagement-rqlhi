@@ -10,6 +10,8 @@ import { Segmen } from './Segmen'
 import { TAHSIN_LEVELS, UJIAN_UNIT_SEKOLAH, getTahfidzLabel } from '@/lib/rq/ujian'
 import { juzTersedia, juzTersediaBebas } from '@/lib/rq/hafalan'
 import { PilihSiswa } from './PilihSiswa'
+import { TawaranDraf, useDraf } from '@/components/formulir/useDraf'
+import { PesanGalat } from '@/components/formulir/PesanGalat'
 import type { SaranSiswa, SiswaHalaqoh, UstadzHalaqoh } from '@/app/actions/ujian'
 import {
   createTahfidzUjianAction,
@@ -32,6 +34,12 @@ interface Props {
    */
   hanyaTahfidz?: boolean
 }
+
+const GALAT_OFFLINE = 'Tidak ada koneksi internet. Pengajuan belum terkirim — isian tetap di layar ini, tekan tombol ajukan lagi begitu koneksi kembali.'
+const GALAT_JARINGAN = 'Pengajuan gagal terkirim karena koneksi terputus atau lambat. Isian tetap di layar ini — coba tekan tombol ajukan sekali lagi.'
+
+interface DrafUjianTahfidz { tipe: TahfidzTipe; siswa: SaranSiswa | null; namaFlyer: string; isQuls: boolean; juz: string }
+const drafUjianKosong = (d: DrafUjianTahfidz) => !d.siswa
 
 const SELECT_CLASS =
   'h-9 w-full rounded-md border bg-transparent px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50'
@@ -127,10 +135,23 @@ function FormTahfidz({ unit, redirectTo }: { unit: UjianUnit; redirectTo: string
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
+  // Draf per unit: anak yang dipilih + isian yang sudah diubah pengaju.
+  const draf = useDraf<DrafUjianTahfidz>(`ujian-tahfidz:${unit}`, { tipe, siswa, namaFlyer, isQuls, juz }, { kosong: drafUjianKosong, galat: error })
+  function pulihkanDraf() {
+    const d = draf.pulihkan()
+    if (!d) return
+    setSiswa(d.siswa); setTipe(d.tipe); setNamaFlyer(d.namaFlyer); setIsQuls(d.isQuls); setJuz(d.juz)
+  }
+
   async function submit(e: React.FormEvent) {
     e.preventDefault()
     setError('')
+    if (!navigator.onLine) {
+      setError(GALAT_OFFLINE)
+      return
+    }
     setLoading(true)
+    draf.tandaiTerkirim()
     try {
       const hasil = await createTahfidzUjianAction({
         tipe,
@@ -148,6 +169,8 @@ function FormTahfidz({ unit, redirectTo }: { unit: UjianUnit; redirectTo: string
       }
       router.push(redirectTo)
       router.refresh()
+    } catch {
+      setError(GALAT_JARINGAN)
     } finally {
       setLoading(false)
     }
@@ -155,6 +178,7 @@ function FormTahfidz({ unit, redirectTo }: { unit: UjianUnit; redirectTo: string
 
   return (
     <form onSubmit={submit} className="space-y-4">
+      {draf.draf && <TawaranDraf waktu={draf.draf.waktu} onPulihkan={pulihkanDraf} onBuang={draf.buang} />}
       {/* Siswa lebih dulu, dan bukan sekadar urutan yang enak dibaca: daftar
           juz di bawah disaring oleh capaian anaknya, jadi memilih juz sebelum
           memilih siswa berarti daftarnya berubah setelah pengaju memilih. */}
@@ -247,7 +271,7 @@ function FormTahfidz({ unit, redirectTo }: { unit: UjianUnit; redirectTo: string
         </>
       )}
 
-      {error && <PesanError>{error}</PesanError>}
+      <PesanGalat pesan={error} portal={redirectTo.startsWith('/guru') ? 'guru' : 'pengurus'} className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive" />
 
       <Button type="submit" size="lg" className="w-full" disabled={loading || !siswa}>
         {loading ? 'Menyimpan…' : siswa ? 'Ajukan ujian tahfidz' : 'Pilih siswa lebih dulu'}
@@ -286,18 +310,23 @@ function FormTahsin({ unit, redirectTo }: { unit: UjianUnit; redirectTo: string 
   const [halaqohId, setHalaqohId] = useState('')
   const [kelompok, setKelompok] = useState<KelompokLevel[]>([kelompokKosong()])
   const [error, setError] = useState('')
+  /** Galat per capaian, ditampilkan di kotak capaiannya sendiri — bukan di bawah formulir. */
+  const [galatKelompok, setGalatKelompok] = useState<Record<number, string>>({})
   const [loading, setLoading] = useState(false)
+  const [gagalMuat, setGagalMuat] = useState(false)
+  const [muatUlang, setMuatUlang] = useState(0)
 
   useEffect(() => {
     let batal = false
     daftarHalaqohUjianTahsinAction(unit).then(data => {
       if (batal) return
+      setGagalMuat(false)
       setDaftar(data)
       // Guru hanya menerima dirinya sendiri — tidak ada yang perlu dipilih.
       if (data.length === 1) setTeacherId(data[0].teacherId)
-    })
+    }).catch(() => { if (!batal) setGagalMuat(true) })
     return () => { batal = true }
-  }, [unit])
+  }, [unit, muatUlang])
 
   const ustadz = daftar?.find(u => u.teacherId === teacherId) ?? null
   const halaqoh = ustadz?.halaqoh.find(h => h.id === halaqohId) ?? null
@@ -343,6 +372,7 @@ function FormTahsin({ unit, redirectTo }: { unit: UjianUnit; redirectTo: string 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
     setError('')
+    setGalatKelompok({})
 
     // Rakit daftar datar — tiap siswa membawa levelnya sendiri, sebab satu
     // kelompok bisa menguji beberapa level dalam satu sesi.
@@ -353,17 +383,20 @@ function FormTahsin({ unit, redirectTo }: { unit: UjianUnit; redirectTo: string 
       return
     }
 
-    for (const g of kelompok) {
+    // Semua capaian diperiksa sekaligus, supaya pengaju tidak membetulkan
+    // satu, menekan kirim, lalu baru diberi tahu capaian berikutnya.
+    const galat: Record<number, string> = {}
+    for (const [gi, g] of kelompok.entries()) {
       const level = g.level.trim()
       const dipilih = g.siswa.map(s => s.pilihan).filter((s): s is SiswaHalaqoh => Boolean(s))
       if (!level && dipilih.length === 0) continue
       if (!level) {
-        setError('Pilih level untuk setiap capaian.')
-        return
+        galat[gi] = 'Pilih levelnya di kotak atas capaian ini.'
+        continue
       }
       if (dipilih.length === 0) {
-        setError(`Level "${level}" belum punya siswa. Pilih minimal satu nama dari halaqoh Anda.`)
-        return
+        galat[gi] = `Belum ada siswa untuk level ${level}. Pilih minimal satu nama, atau hapus capaian ini.`
+        continue
       }
       if (!levelDipakai.includes(level)) levelDipakai.push(level)
       for (const s of dipilih) {
@@ -377,8 +410,18 @@ function FormTahsin({ unit, redirectTo }: { unit: UjianUnit; redirectTo: string 
       }
     }
 
+    if (Object.keys(galat).length > 0) {
+      setGalatKelompok(galat)
+      setError(`Periksa ${Object.keys(galat).length === 1 ? 'capaian' : 'capaian-capaian'} yang ditandai merah di atas.`)
+      return
+    }
     if (siswa.length === 0) {
+      setGalatKelompok({ 0: 'Pilih level dan minimal satu siswa.' })
       setError('Tambahkan minimal satu level dengan satu siswa.')
+      return
+    }
+    if (!navigator.onLine) {
+      setError(GALAT_OFFLINE)
       return
     }
 
@@ -397,6 +440,8 @@ function FormTahsin({ unit, redirectTo }: { unit: UjianUnit; redirectTo: string 
       }
       router.push(redirectTo)
       router.refresh()
+    } catch {
+      setError(GALAT_JARINGAN)
     } finally {
       setLoading(false)
     }
@@ -404,8 +449,15 @@ function FormTahsin({ unit, redirectTo }: { unit: UjianUnit; redirectTo: string 
 
   return (
     <form onSubmit={submit} className="space-y-4">
-      {daftar === null && (
+      {daftar === null && !gagalMuat && (
         <p className="px-1 text-sm text-muted-foreground">Memuat daftar halaqoh…</p>
+      )}
+
+      {gagalMuat && (
+        <div role="alert" className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          <span>Daftar halaqoh gagal dimuat — biasanya karena koneksi terputus.</span>
+          <Button type="button" size="sm" variant="outline" onClick={() => setMuatUlang(n => n + 1)}>Coba lagi</Button>
+        </div>
       )}
 
       {daftar !== null && daftar.length === 0 && (
@@ -450,7 +502,7 @@ function FormTahsin({ unit, redirectTo }: { unit: UjianUnit; redirectTo: string 
         <Label>Level &amp; siswa</Label>
 
         {kelompok.map((group, gi) => (
-          <div key={gi} className="space-y-3 rounded-lg border bg-muted/40 p-3">
+          <div key={gi} className={`space-y-3 rounded-lg border bg-muted/40 p-3 ${galatKelompok[gi] ? 'border-destructive' : ''}`}>
             <div className="flex items-center gap-2">
               <span className="shrink-0 text-xs font-medium text-muted-foreground">
                 Capaian {gi + 1}
@@ -531,6 +583,10 @@ function FormTahsin({ unit, redirectTo }: { unit: UjianUnit; redirectTo: string 
               )
             })()}
 
+            {galatKelompok[gi] && (
+              <p role="alert" className="text-xs font-medium text-destructive">{galatKelompok[gi]}</p>
+            )}
+
             <Button
               type="button" variant="ghost" size="sm"
               onClick={() => setKelompok(prev => prev.map((g, i) =>
@@ -550,7 +606,7 @@ function FormTahsin({ unit, redirectTo }: { unit: UjianUnit; redirectTo: string 
       </div>
       )}
 
-      {error && <PesanError>{error}</PesanError>}
+      <PesanGalat pesan={error} portal={redirectTo.startsWith('/guru') ? 'guru' : 'pengurus'} className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive" />
 
       <Button type="submit" size="lg" className="w-full" disabled={loading || !halaqoh}>
         {loading ? 'Menyimpan…' : halaqoh ? 'Ajukan ujian tahsin' : 'Pilih ustadz & sesi lebih dulu'}

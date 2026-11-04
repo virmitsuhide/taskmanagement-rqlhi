@@ -1,3 +1,4 @@
+import { tolakAkses } from '@/lib/auth/tolak-akses'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { getSession } from '@/lib/auth/session'
@@ -14,7 +15,7 @@ import { BookOpen, ClipboardList, Layers, Target } from 'lucide-react'
 export default async function AnalitikUnitPage() {
   const session = await getSession()
   if (!session) redirect('/login')
-  if (!canViewUnitAnalytics(session.role)) redirect('/dashboard')
+  if (!canViewUnitAnalytics(session.role)) await tolakAkses()
 
   // Manajemen melihat semua unit; koor SD/SMP hanya unitnya sendiri.
   const allowedJenjang = getAnalyticsJenjang(session.role)

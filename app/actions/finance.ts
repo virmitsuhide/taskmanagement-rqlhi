@@ -20,7 +20,7 @@ function revalidateFinance() {
 /** Pintu masuk tiap action: sesi valid + role bendahara. */
 async function guard(): Promise<{ userId: string } | { error: string }> {
   const session = await getSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
   if (!canManageFinance(session.role)) return { error: 'Tidak memiliki izin.' }
   return { userId: session.userId }
 }

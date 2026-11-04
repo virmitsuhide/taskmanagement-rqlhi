@@ -18,6 +18,8 @@ import type { TahfidzKind } from '@/types'
 import { tanggalWIB } from '@/lib/rq/ujian'
 import { PilihSurat } from '@/components/setoran/PilihSurat'
 import { saranMurojaah, suratTercatatHafal, type HafalanSaran } from '@/lib/rq/saran-surat'
+import { TawaranDraf, useDraf } from '@/components/formulir/useDraf'
+import { PesanGalat } from '@/components/formulir/PesanGalat'
 
 interface StudentOption {
   id: string
@@ -44,6 +46,9 @@ interface Props {
 }
 
 const today = () => tanggalWIB(new Date())
+
+interface DrafTahfidz { suratId: string; ayatDari: string; suratKe: string; ayatKe: string; catatan: string; tanggal: string }
+const drafTahfidzKosong = (d: DrafTahfidz) => !d.suratId && !d.ayatDari && !d.ayatKe && !d.catatan.trim()
 
 export function TahfidzSetoranForm({ students, surat, completedJuzByStudent = {}, hafalanByStudent = {}, defaultStudentId, antrian }: Props) {
   const router = useRouter()
@@ -143,12 +148,28 @@ function DailySubForm({
   onCancel: () => void
 }) {
   const [state, formAction, isPending] = useActionState(createTahfidzLogAction, null)
-  const kirim = useSetoranTimpa(formAction, state?.ganda)
   const [suratId, setSuratId] = useState('')
   const [ayatDari, setAyatDari] = useState('')
   // 'sama' = berakhir di surat yang sama. Radix Select tidak menerima nilai kosong.
   const [suratKe, setSuratKe] = useState('sama')
   const [ayatKe, setAyatKe] = useState('')
+  const [catatan, setCatatan] = useState('')
+  const [tanggal, setTanggal] = useState(today)
+
+  // Draf per anak & jenis setoran — isian yang tertinggal tidak menyeberang
+  // ke anak lain. Nilai bintang tidak ikut: dua ketukan, bukan ketikan.
+  const draf = useDraf<DrafTahfidz>(
+    studentId ? `setoran-tahfidz:${studentId}:${kind}` : null,
+    { suratId, ayatDari, suratKe, ayatKe, catatan, tanggal },
+    { kosong: drafTahfidzKosong, galat: state?.error },
+  )
+  const kirim = useSetoranTimpa(formAction, state?.ganda, draf.tandaiTerkirim)
+  function pulihkanDraf() {
+    const d = draf.pulihkan()
+    if (!d) return
+    setSuratId(d.suratId); setAyatDari(d.ayatDari); setSuratKe(d.suratKe || 'sama')
+    setAyatKe(d.ayatKe); setCatatan(d.catatan); setTanggal(d.tanggal || today())
+  }
   const meta = TAHFIDZ_KIND_META[kind]
   const lintas = bolehLintasSurat(kind)
 
@@ -178,6 +199,8 @@ function DailySubForm({
       <input type="hidden" name="student_id" value={studentId} />
       <input type="hidden" name="kind" value={kind} />
 
+      {draf.draf && <TawaranDraf waktu={draf.draf.waktu} onPulihkan={pulihkanDraf} onBuang={draf.buang} />}
+
       {kind === 'murojaah_lama' && (
         <div className="text-xs rounded-lg px-3 py-2 border" style={{ background: meta.bg, color: meta.fg, borderColor: meta.fg }}>
           {completedJuz.length > 0
@@ -204,7 +227,7 @@ function DailySubForm({
                 <Input
                   id="ayat_dari" name="ayat_dari" type="number" min={1}
                   max={selectedSurat?.total_ayat}
-                  value={ayatDari} onChange={e => setAyatDari(e.target.value)}
+                  value={ayatDari} onChange={e => setAyatDari(e.target.value)} aria-invalid={Boolean(galatRentang)} aria-describedby={galatRentang ? "galat-rentang" : undefined}
                   required disabled={isPending}
                 />
               </div>
@@ -221,7 +244,7 @@ function DailySubForm({
                 <Input
                   id="ayat_ke" name="ayat_ke" type="number" min={1}
                   max={suratAkhir?.total_ayat}
-                  value={ayatKe} onChange={e => setAyatKe(e.target.value)}
+                  value={ayatKe} onChange={e => setAyatKe(e.target.value)} aria-invalid={Boolean(galatRentang)} aria-describedby={galatRentang ? "galat-rentang" : undefined}
                   required disabled={isPending}
                 />
               </div>
@@ -252,7 +275,7 @@ function DailySubForm({
                 <Input
                   id="ayat_dari" name="ayat_dari" type="number" min={1}
                   max={selectedSurat?.total_ayat}
-                  value={ayatDari} onChange={e => setAyatDari(e.target.value)}
+                  value={ayatDari} onChange={e => setAyatDari(e.target.value)} aria-invalid={Boolean(galatRentang)} aria-describedby={galatRentang ? "galat-rentang" : undefined}
                   required disabled={isPending}
                 />
               </div>
@@ -261,7 +284,7 @@ function DailySubForm({
                 <Input
                   id="ayat_ke" name="ayat_ke" type="number" min={1}
                   max={selectedSurat?.total_ayat}
-                  value={ayatKe} onChange={e => setAyatKe(e.target.value)}
+                  value={ayatKe} onChange={e => setAyatKe(e.target.value)} aria-invalid={Boolean(galatRentang)} aria-describedby={galatRentang ? "galat-rentang" : undefined}
                   required disabled={isPending}
                 />
               </div>
@@ -269,7 +292,7 @@ function DailySubForm({
           </>
         )}
 
-        {galatRentang && <p className="text-xs text-destructive">{galatRentang}</p>}
+        {galatRentang && <p id="galat-rentang" role="alert" className="text-xs font-medium text-destructive">{galatRentang} Perbaiki angka ayat yang ditandai merah.</p>}
         {ayatCount > 0 && !ayatOutOfRange && (
           <div className="text-xs rounded-lg px-3 py-2" style={{ background: meta.bg, color: meta.fg }}>
             {ayatCount} ayat disetor
@@ -286,11 +309,12 @@ function DailySubForm({
       <div className="grid grid-cols-1 sm:grid-cols-[1fr_180px] gap-3 rounded-2xl border bg-card p-4 md:p-5">
         <div className="space-y-1.5">
           <Label htmlFor="catatan">Catatan Guru</Label>
-          <Textarea id="catatan" name="catatan" rows={2} placeholder="contoh: lancar, perlu perbaikan waqaf..." disabled={isPending} />
+          <Textarea id="catatan" name="catatan" rows={2} placeholder="contoh: lancar, perlu perbaikan waqaf..." disabled={isPending}
+            value={catatan} onChange={e => setCatatan(e.target.value)} />
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="setoran_date">Tanggal Setor</Label>
-          <Input id="setoran_date" name="setoran_date" type="date" defaultValue={today()} disabled={isPending} />
+          <Input id="setoran_date" name="setoran_date" type="date" value={tanggal} onChange={e => setTanggal(e.target.value)} disabled={isPending} />
         </div>
       </div>
 
@@ -301,9 +325,7 @@ function DailySubForm({
         onBatal={kirim.batal}
       />
 
-      {state?.error && (
-        <p className="text-sm font-medium text-destructive bg-destructive-wash px-4 py-3 rounded-xl">{state.error}</p>
-      )}
+      <PesanGalat pesan={state?.error} />
 
       <div className="flex flex-wrap gap-2 pt-2">
         <Button type="submit" disabled={isPending || !studentId || ayatOutOfRange} style={{ background: 'var(--primary)', borderColor: 'var(--primary)' }}>

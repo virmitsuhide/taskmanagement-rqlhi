@@ -1,3 +1,4 @@
+import { tolakAkses } from '@/lib/auth/tolak-akses'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
@@ -23,7 +24,7 @@ export default async function IsiCepatKpiPage({ searchParams }: {
 }) {
   const session = await getSession()
   if (!session) redirect('/login')
-  if (!canViewKpi(session.role)) redirect('/dashboard')
+  if (!canViewKpi(session.role)) await tolakAkses()
 
   const p = await searchParams
   const now = new Date()

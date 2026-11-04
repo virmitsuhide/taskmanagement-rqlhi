@@ -1,3 +1,4 @@
+import { tolakAkses } from '@/lib/auth/tolak-akses'
 import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/auth/session'
 import { canViewDashboard } from '@/lib/auth/permissions'
@@ -11,7 +12,7 @@ interface PageProps {
 export default async function DashboardKoorSdPage({ searchParams }: PageProps) {
   const session = await getSession()
   if (!session) redirect('/login')
-  if (!canViewDashboard(session.role, 'koor-sd')) redirect('/dashboard')
+  if (!canViewDashboard(session.role, 'koor-sd')) await tolakAkses()
 
   return <DashboardPengurus halaman="koor-sd" session={session} searchParams={await searchParams} />
 }

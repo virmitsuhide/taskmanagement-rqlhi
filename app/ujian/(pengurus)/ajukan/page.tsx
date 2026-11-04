@@ -1,3 +1,4 @@
+import { tolakAkses } from '@/lib/auth/tolak-akses'
 import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/auth/session'
 import { canSubmitUjian, getUjianUnits } from '@/lib/auth/permissions'
@@ -8,7 +9,7 @@ import { UjianSubNav } from '@/components/ujian/UjianSubNav'
 export default async function AjukanUjianPage() {
   const session = await getSession()
   if (!session) redirect('/login')
-  if (!canSubmitUjian(session.role)) redirect('/dashboard')
+  if (!canSubmitUjian(session.role)) await tolakAkses()
 
   const units = getUjianUnits(session.role)
 

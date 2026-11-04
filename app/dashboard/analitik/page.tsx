@@ -1,3 +1,4 @@
+import { tolakAkses } from '@/lib/auth/tolak-akses'
 import { Suspense } from 'react'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
@@ -74,7 +75,7 @@ const S = {
 export default async function AnalitikPage({ searchParams }: PageProps) {
   const session = await getSession()
   if (!session) redirect('/login')
-  if (!canViewAnalitikBthcq(session.role)) redirect('/dashboard')
+  if (!canViewAnalitikBthcq(session.role)) await tolakAkses()
   // Div Qur'an BPA/BPI: halaman yang sama, hanya anak boarding SMP (program reguler_bd & boarding_quls).
   const boarding = isAnalitikBoarding(session.role)
 
@@ -90,7 +91,7 @@ export default async function AnalitikPage({ searchParams }: PageProps) {
   const unitBoleh = penuh ? UNIT_ORDER : UNIT_ORDER.filter(j => getAnalyticsJenjang(session.role).includes(j))
   const unitDiminta = unitBoleh.includes(sp.unit as Jenjang) ? (sp.unit as Jenjang) : null
   const jenjang: Jenjang | null = penuh ? unitDiminta : (unitDiminta ?? unitBoleh[0] ?? null)
-  if (!penuh && !jenjang) redirect('/dashboard')
+  if (!penuh && !jenjang) await tolakAkses()
   const fokus: Fokus = sp.fokus === 'tahsin' || sp.fokus === 'tahfidz' ? sp.fokus : 'semua'
   const bulanDiminta = /^\d{4}-\d{2}$/.test(sp.bulan ?? '') ? sp.bulan! : null
   const lihatGukar = canViewGukarRecap(session.role)

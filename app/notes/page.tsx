@@ -1,3 +1,4 @@
+import { tolakAkses } from '@/lib/auth/tolak-akses'
 import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/auth/session'
 import { canViewFinanceNotes, canManageFinanceNotes } from '@/lib/auth/permissions'
@@ -9,7 +10,7 @@ import type { PrivateNote } from '@/types'
 export default async function NotesPage() {
   const session = await getSession()
   if (!session) redirect('/login')
-  if (!canViewFinanceNotes(session.role)) redirect('/dashboard')
+  if (!canViewFinanceNotes(session.role)) await tolakAkses()
 
   const canManage = canManageFinanceNotes(session.role)
 

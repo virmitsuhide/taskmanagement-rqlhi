@@ -1,3 +1,4 @@
+import { tolakAkses } from '@/lib/auth/tolak-akses'
 import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/auth/session'
 import { canKelolaPanduanGuru, sasaranUnggahPanduan } from '@/lib/auth/permissions'
@@ -19,7 +20,7 @@ interface PageProps {
 export default async function KelolaPanduanGuruPage({ searchParams }: PageProps) {
   const session = await getSession()
   if (!session) redirect('/login')
-  if (!canKelolaPanduanGuru(session.role)) redirect('/dashboard')
+  if (!canKelolaPanduanGuru(session.role)) await tolakAkses()
   const sasaran = sasaranUnggahPanduan(session.role)!
 
   const sp = await searchParams

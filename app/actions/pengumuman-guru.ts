@@ -13,7 +13,7 @@ import { getTeacherSession } from '@/lib/auth/teacher-session'
  */
 export async function tandaiPengumumanTerbacaAction() {
   const session = await getTeacherSession()
-  if (!session) return { error: 'Sesi tidak valid.' }
+  if (!session) return { error: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' }
 
   const supabase = createServerClient()
   const { error } = await supabase

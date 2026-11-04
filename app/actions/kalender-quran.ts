@@ -20,7 +20,7 @@ const PATH = '/kalender-quran'
  */
 async function izin(jenjang: Jenjang) {
   const session = await getSession()
-  if (!session) return { galat: 'Sesi tidak valid.' as const, session: null }
+  if (!session) return { galat: 'Sesi Anda sudah berakhir. Silakan masuk lagi.' as const, session: null }
   if (!canManageKalenderQuran(session.role, jenjang)) return { galat: 'Tidak memiliki izin.' as const, session: null }
   return { galat: null, session }
 }
