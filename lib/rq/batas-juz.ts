@@ -163,6 +163,34 @@ export function ayatPerJuz(surat: number, dari: number, ke: number): Map<number,
   return hasil
 }
 
+/**
+ * Jumlah ayat BERBEDA per juz dari sekumpulan setoran — cermin trigger
+ * upsert_juz_progress sejak 0126.
+ *
+ * Guru kerap menulis setoran kumulatif (3:1–15, besok 3:1–22, lusa 3:1–41).
+ * Menjumlahkan rentangnya menghitung ayat yang sama berkali-kali — juz 3
+ * seorang anak SMA pernah tercatat 331 ayat padahal isinya ±126. Yang
+ * dihitung di sini gabungan rentangnya: tiap ayat sekali.
+ */
+export function ayatUnikPerJuz(
+  log: { surat_id: number; ayat_dari: number | null; ayat_ke: number | null }[],
+): Map<number, number> {
+  const ayat = new Map<number, Set<number>>()
+  for (const l of log) {
+    if (l.ayat_dari === null || l.ayat_ke === null) continue
+    for (const [juz, n] of ayatPerJuz(l.surat_id, l.ayat_dari, l.ayat_ke)) {
+      // Bagian rentang yang jatuh di juz ini: dari awal juz (atau ayat_dari)
+      // sepanjang n ayat. Kunci = surat * 1000 + ayat — surat terpanjang 286 ayat.
+      const b = BATAS_JUZ.find(x => x.juz === juz)!
+      const mulai = Math.max(l.ayat_dari, b.mulai.surat === l.surat_id ? b.mulai.ayat : 1)
+      const set = ayat.get(juz) ?? new Set<number>()
+      for (let a = mulai; a < mulai + n; a++) set.add(l.surat_id * 1000 + a)
+      ayat.set(juz, set)
+    }
+  }
+  return new Map([...ayat].map(([juz, s]) => [juz, s.size]))
+}
+
 /** "Juz 2" atau "Juz 1–2" untuk sebuah rentang ayat — label setoran. */
 export function labelJuzRentang(surat: number, dari: number, ke?: number | null): string | null {
   const juz = [...ayatPerJuz(surat, dari, ke ?? dari).keys()]

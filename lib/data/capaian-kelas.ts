@@ -1,7 +1,7 @@
 import { createServerClient } from '@/lib/supabase/server'
 import { getJuzUjianPerSiswa, getSiswaUrutanBebas, juzBerjalanPerSiswa, juzGabunganPerSiswa, type BarisJuzProgress } from '@/lib/data/hafalan'
 import { getTargetTahfidz, getTargetTahfidzSemua } from '@/lib/data/target-tahfidz'
-import { ayatPerJuz } from '@/lib/rq/batas-juz'
+import { ayatUnikPerJuz, labelJuzRentang } from '@/lib/rq/batas-juz'
 import { getInfoSurat } from '@/lib/data/nama-surat'
 import { hitungJuzHafalan, posisiJuz, URUTAN_JUZ, urutanBebas } from '@/lib/rq/hafalan'
 import { posisiJuz30, UNIT_PER_SURAT, URUTAN_SURAT_JUZ30 } from '@/lib/rq/hafalan-juz30'
@@ -350,8 +350,15 @@ function kolomJumlahBlok(blok: number): string[] {
   return Array.from({ length: PER_BLOK }, (_, i) => `${blok * PER_BLOK + i + 1} juz`)
 }
 
-function letakJumlahJuz(tuntas: number): { blok: number; kolom: string } | null {
-  if (tuntas <= 0) return null
+/**
+ * Kolom SMA untuk anak yang AKTIF menyetor ziyadah tapi belum lulus ujian juz
+ * mana pun. Tanpanya mereka bercampur dengan anak yang belum tercatat sama
+ * sekali — Nov 2026: 6 dari 13 anak SMA setor rutin, semuanya "Belum tercatat".
+ */
+export const SMA_BELUM_UJIAN = 'Belum ujian'
+
+function letakJumlahJuz(tuntas: number, adaSetoran = false): { blok: number; kolom: string } | null {
+  if (tuntas <= 0) return adaSetoran ? { blok: 0, kolom: SMA_BELUM_UJIAN } : null
   const n = Math.min(tuntas, URUTAN_JUZ.length)
   return { blok: Math.floor((n - 1) / PER_BLOK), kolom: `${n} juz` }
 }
@@ -586,9 +593,14 @@ export async function getCapaianKelas(jenjangBoleh: Jenjang[], opsi: {
   const entriTahfidz = (s: Siswa): Entri & { blok: number } => {
     const baca = bacaTahfidz(s.id)
     const { tuntas } = baca
-    const letak = urutanBebas(s.jenjang) ? letakJumlahJuz(tuntas) : baca.letak
     const log = ziyadahTerakhir.get(s.id)
+    const bebas = urutanBebas(s.jenjang)
+    const letak = bebas ? letakJumlahJuz(tuntas, Boolean(log)) : baca.letak
     const status = statusTahfidz.get(s.id)
+    // SMA: kolomnya jumlah juz LULUS UJIAN, jadi juz yang sedang dihafal
+    // disebut di posisi — anak yang lulus 1 juz dan sedang di juz 3 tidak
+    // terbaca sama dengan yang lulus 1 juz lalu berhenti.
+    const sedang = bebas && log ? labelJuzRentang(log.surat_id, log.ayat_dari ?? 1, log.ayat_ke) : null
 
     return {
       tingkat: tingkatOf(s.kelas, s.jenjang),
@@ -599,7 +611,7 @@ export async function getCapaianKelas(jenjangBoleh: Jenjang[], opsi: {
         kelas: s.kelas,
         pengampu: pengampu(s, log?.teacher_id),
         posisi: log
-          ? `${namaSurat(log.surat_id)}${ayat(log.ayat_dari, log.ayat_ke)}`
+          ? `${sedang ? `Sedang ${sedang} · ` : ''}${namaSurat(log.surat_id)}${ayat(log.ayat_dari, log.ayat_ke)}`
           : tuntas > 0 ? `${tuntas} juz tuntas (ujian)` : null,
         tanggal: formatTanggal(log?.setoran_date ?? null),
         capai: !status || status === 'tanpa_target' ? null : status === 'sesuai' || status === 'di_atas',
@@ -683,7 +695,8 @@ export async function getCapaianKelas(jenjangBoleh: Jenjang[], opsi: {
       blokTerisi.add(0)
       const tahfidz = UNIT_PER_SURAT.has(jenjang) ? tabelPerSurat(siswa) : [...blokTerisi].sort((a, b) => a - b).map(blok => {
         if (urutanBebas(jenjang)) {
-          const kolom = kolomJumlahBlok(blok)
+          // "Belum ujian" mendahului "1 juz" — tangga yang sama dengan getPosisiUnit.
+          const kolom = blok === 0 ? [SMA_BELUM_UJIAN, ...kolomJumlahBlok(blok)] : kolomJumlahBlok(blok)
           return susunMatriks(
             tahfidzEntri.filter(e => e.blok === blok),
             [...kolom, BELUM_TERCATAT],
@@ -800,13 +813,12 @@ async function riwayatSampai(supabase: ReturnType<typeof createServerClient>, sa
  * mutqin dari kenaikan juz.
  */
 export function progresDariZiyadah(log: Pick<LogZiyadah, 'student_id' | 'surat_id' | 'ayat_dari' | 'ayat_ke'>[], juzNaik: Map<string, Set<number>>): BarisJuzProgress[] {
+  // Ayat berbeda per juz (0126), per siswa — setoran kumulatif tidak berlipat.
+  const perSiswa = new Map<string, typeof log>()
+  for (const l of log) perSiswa.set(l.student_id, [...(perSiswa.get(l.student_id) ?? []), l])
   const ayat = new Map<string, number>()
-  for (const l of log) {
-    if (l.ayat_dari === null || l.ayat_ke === null) continue
-    for (const [juz, n] of ayatPerJuz(l.surat_id, l.ayat_dari, l.ayat_ke)) {
-      const k = `${l.student_id}|${juz}`
-      ayat.set(k, (ayat.get(k) ?? 0) + n)
-    }
+  for (const [id, daftar] of perSiswa) {
+    for (const [juz, n] of ayatUnikPerJuz(daftar)) ayat.set(`${id}|${juz}`, n)
   }
   const baris = new Map<string, BarisJuzProgress>()
   for (const [k, n] of ayat) {
@@ -920,6 +932,8 @@ export async function getPosisiUnit(jenjang: Jenjang): Promise<PosisiUnit> {
   for (const l of logTahsin) if (!jilidLog.get(l.student_id)) jilidLog.set(l.student_id, l.jilid_id)
   const bacaTahfidz = pembacaTahfidz(juzProgress, juzUjian, await getSiswaUrutanBebas())
   const bebasUnit = urutanBebas(jenjang)
+  // SMA: anak yang sudah menyetor ziyadah tapi belum lulus ujian → "Belum ujian".
+  const adaZiyadah = new Set(juzProgress.filter(r => (r.ayat_hafal ?? 0) > 0).map(r => r.student_id))
 
   const siswa: PosisiSiswaUnit[] = siswaRows.map(s => {
     const lvSiswa = s.current_jilid_id ? levelById.get(s.current_jilid_id) : undefined
@@ -935,7 +949,7 @@ export async function getPosisiUnit(jenjang: Jenjang): Promise<PosisiUnit> {
       : lvSiswa?.is_terminal ? lvSiswa : undefined
     const baca = bacaTahfidz(s.id)
     // SMA (urutan bebas): jumlah juz lulus ujian, bukan nama juz.
-    const letak = bebasUnit ? letakJumlahJuz(baca.tuntas) : baca.letak
+    const letak = bebasUnit ? letakJumlahJuz(baca.tuntas, adaZiyadah.has(s.id)) : baca.letak
     return {
       id: s.id,
       halaqoh_id: s.halaqoh_id,
@@ -964,6 +978,6 @@ export async function getPosisiUnit(jenjang: Jenjang): Promise<PosisiUnit> {
     metode,
     tangga,
     urutanTahsin: [...URUTAN_TAHSIN],
-    urutanTahfidz: bebasUnit ? URUTAN_JUZ.map((_, i) => `${i + 1} juz`) : URUTAN_TAHFIDZ_LEPAS,
+    urutanTahfidz: bebasUnit ? [SMA_BELUM_UJIAN, ...URUTAN_JUZ.map((_, i) => `${i + 1} juz`)] : URUTAN_TAHFIDZ_LEPAS,
   }
 }

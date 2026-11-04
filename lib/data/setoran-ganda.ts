@@ -1,5 +1,5 @@
 import type { createServerClient } from '@/lib/supabase/server'
-import { recalcPosisi, recalcMutqin, kurangiJuzProgress } from '@/lib/rq/hitung-ulang-setoran'
+import { recalcPosisi, recalcMutqin, recalcJuzProgress } from '@/lib/rq/hitung-ulang-setoran'
 import { teksRentang } from '@/lib/rq/rentang-surat'
 import { teksBaris } from '@/lib/rq/status-tahsin'
 import type { TahsinStatus } from '@/types'
@@ -395,11 +395,9 @@ export async function arsipkanTahfidzSamaHari(
   })), 'tahfidz_logs')
   if ('galat' in hasil) return hasil
 
-  if (kind === 'ziyadah' || kind === 'hafalan_baru') {
-    for (const l of logs) {
-      await kurangiJuzProgress(supabase, { student_id: studentId, surat_id: l.surat_id, ayat_dari: l.ayat_dari, ayat_ke: l.ayat_ke })
-    }
-  }
+  // Hitung ulang, bukan dikurangi: sejak 0126 ayat_hafal adalah gabungan
+  // rentang, jadi ayat setoran yang dihapus bisa saja masih tercakup setoran lain.
+  if (kind === 'ziyadah' || kind === 'hafalan_baru') await recalcJuzProgress(supabase, studentId)
   await recalcMutqin(supabase, studentId)
   return hasil
 }

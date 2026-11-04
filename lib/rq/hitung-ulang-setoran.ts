@@ -1,6 +1,6 @@
 import type { createServerClient } from '@/lib/supabase/server'
 import { posisiLanjut, type BacaanQuran } from '@/lib/rq/bacaan-quran'
-import { ayatPerJuz } from '@/lib/rq/batas-juz'
+import { ayatUnikPerJuz } from '@/lib/rq/batas-juz'
 import { getMateriPerJilid, getHasilMateriPerSiswa, ringkasProgres, type HasilMateri } from '@/lib/data/materi-tahsin'
 
 /**
@@ -242,7 +242,7 @@ export async function recalcMutqin(supabase: Supabase, studentId: string): Promi
  * saja tidak cukup di sana: sunting mengubah rentang ayat, dan setoran yang
  * dihapus dulu tanpa pengurangan sudah meninggalkan sisa yang tidak bisa
  * dilacak lagi — juz 1 uji coba kelas 8 (Okt 2026) bertahan berminggu-minggu
- * setelah setorannya hilang. Rumus sama dengan migrasi 0079: baris yang kini
+ * setelah setorannya hilang. Rumus sama dengan migrasi 0126 (ayat berbeda per juz): baris yang kini
  * nol dihapus, kecuali yang bertanda mutqin (penandanya dijaga).
  */
 export async function recalcJuzProgress(supabase: Supabase, studentId: string): Promise<void> {
@@ -255,11 +255,8 @@ export async function recalcJuzProgress(supabase: Supabase, studentId: string): 
     supabase.from('juz_progress').select('juz_number, ayat_hafal, mutqin').eq('student_id', studentId),
   ])
 
-  const benar = new Map<number, number>()
-  for (const l of (logRows ?? []) as { surat_id: number; ayat_dari: number | null; ayat_ke: number | null }[]) {
-    if (l.ayat_dari === null || l.ayat_ke === null) continue
-    for (const [juz, n] of ayatPerJuz(l.surat_id, l.ayat_dari, l.ayat_ke)) benar.set(juz, (benar.get(juz) ?? 0) + n)
-  }
+  // Ayat berbeda, bukan jumlah rentang (0126) — setoran kumulatif tidak berlipat.
+  const benar = ayatUnikPerJuz((logRows ?? []) as { surat_id: number; ayat_dari: number | null; ayat_ke: number | null }[])
 
   const sekarang = new Date().toISOString()
   const ada = (progRows ?? []) as { juz_number: number; ayat_hafal: number; mutqin: boolean }[]
@@ -281,35 +278,3 @@ export async function recalcJuzProgress(supabase: Supabase, studentId: string): 
   }
 }
 
-/**
- * Kurangi ayat_hafal juz_progress sebanyak ziyadah yang dihapus.
- *
- * Trigger upsert_juz_progress hanya MENAMBAH saat setoran masuk; tidak ada
- * padanannya saat setoran keluar. Ziyadah yang ditimpa tanpa pengurangan ini
- * terhitung dua kali di bilah progres juz — sekali dari setoran lama, sekali
- * dari penggantinya. Rumusnya cermin persis trigger itu sejak 0079: setoran
- * dibagi menurut batas juz mushaf (ayatPerJuz), bukan dimasukkan seluruhnya
- * ke juz awal surat — dan tidak pernah turun di bawah 0.
- */
-export async function kurangiJuzProgress(
-  supabase: Supabase,
-  log: { student_id: string; surat_id: number; ayat_dari: number | null; ayat_ke: number | null },
-): Promise<void> {
-  if (log.ayat_dari === null || log.ayat_ke === null) return
-  for (const [juz, jumlah] of ayatPerJuz(log.surat_id, log.ayat_dari, log.ayat_ke)) {
-    const { data: prog } = await supabase
-      .from('juz_progress')
-      .select('ayat_hafal')
-      .eq('student_id', log.student_id)
-      .eq('juz_number', juz)
-      .maybeSingle()
-    if (!prog) continue
-
-    const sisa = Math.max(0, (prog as { ayat_hafal: number }).ayat_hafal - jumlah)
-    await supabase
-      .from('juz_progress')
-      .update({ ayat_hafal: sisa, updated_at: new Date().toISOString() })
-      .eq('student_id', log.student_id)
-      .eq('juz_number', juz)
-  }
-}
