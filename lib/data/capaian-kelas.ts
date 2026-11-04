@@ -7,6 +7,7 @@ import { hitungJuzHafalan, posisiJuz, URUTAN_JUZ, urutanBebas } from '@/lib/rq/h
 import { posisiJuz30, UNIT_PER_SURAT, URUTAN_SURAT_JUZ30 } from '@/lib/rq/hafalan-juz30'
 import { KELAS_TETAP } from '@/lib/rq/kelas'
 import { mencapaiTarget } from '@/lib/rq/level'
+import { tanggalWIB } from '@/lib/rq/ujian'
 import { UNIT_LABELS, UNIT_ORDER } from '@/lib/rq/programs'
 import { JENJANG_METHODS, methodsForProgram, tahapBerlaku } from '@/lib/tahsin'
 import type { Jenjang } from '@/types'
@@ -461,6 +462,12 @@ export async function getCapaianKelas(jenjangBoleh: Jenjang[], opsi: {
     sampai ? riwayatSampai(supabase, sampai) : Promise.resolve(null),
   ])
 
+  // Ujian tahsin yang sudah dinilai juga bukti posisi jilid. Ada anak yang
+  // langsung diujikan tanpa pernah disetorkan di aplikasi; hasil ujiannya
+  // sudah menggerakkan current_jilid_id (lulus → naik, mengulang → tetap),
+  // jadi menahannya di "Belum tercatat" justru menyembunyikan data yang ada.
+  const terujiTahsin = await ujianTahsinTerakhir(supabase, sampai)
+
   // Posisi per `sampai`: juz_progress disusun ulang dari ayat ziyadah, tanda
   // tuntas (mutqin) dari kenaikan juz, ujian dari yang selesai s.d. tanggal itu.
   const juzProgress = riwayat ? progresDariZiyadah(logZiyadah, riwayat.juzNaik) : juzProgressKini
@@ -540,14 +547,20 @@ export async function getCapaianKelas(jenjangBoleh: Jenjang[], opsi: {
     // Kecuali Lulus Tahsin: anak yang sudah lulus tidak lagi setor tahsin
     // (ia sudah di tahfidz), jadi menuntut setoran berarti ia terkunci di
     // kolom "Belum" selamanya.
+    //
+    // Begitu pula anak yang belum pernah setor tapi sudah diuji: ujiannya
+    // adalah catatan, dan jilidnya sudah diteruskan ke current_jilid_id.
     const jilidKini = jilidSiswa(s)
     const lvKini = jilidKini ? levelById.get(jilidKini) : undefined
+    const ujian = log ? undefined : terujiTahsin.get(s.id)
     const lv = log ? lvKini ?? (log.jilid_id ? levelById.get(log.jilid_id) : undefined)
-      : lvKini?.is_terminal ? lvKini : undefined
+      : lvKini?.is_terminal || ujian ? lvKini : undefined
     const kolom = lv ? kolomTahsin(lv) : BELUM_TERCATAT
 
     let posisi: string | null = null
-    if (log) {
+    if (ujian) {
+      posisi = `Ujian ${ujian.level}${ujian.predikat === 'lulus' ? ' — lulus' : ujian.predikat === 'mengulang' ? ' — mengulang' : ''} · belum ada setoran`
+    } else if (log) {
       const bagian: string[] = []
       const lvLog = log.jilid_id ? levelById.get(log.jilid_id) : undefined
       if (lvLog) bagian.push(log.halaman ? `${lvLog.label} hal. ${log.halaman}` : lvLog.label)
@@ -564,7 +577,7 @@ export async function getCapaianKelas(jenjangBoleh: Jenjang[], opsi: {
         kelas: s.kelas,
         pengampu: pengampu(s, log?.teacher_id),
         posisi,
-        tanggal: formatTanggal(log?.setoran_date ?? null),
+        tanggal: formatTanggal(log?.setoran_date ?? ujian?.tanggal ?? null),
         capai: target ? mencapaiTarget(kolom === 'Lulus' ? 'Tahfidz' : kolom, target) : null,
       },
     }
@@ -722,6 +735,34 @@ interface RiwayatSampai {
 }
 
 /** Kenaikan jilid & juz dan ujian tahfidz lulus yang terjadi s.d. `sampai`. */
+/**
+ * Ujian tahsin terakhir yang sudah dinilai per siswa (s.d. `sampai` bila ada).
+ * Tanggalnya tanggal WIB saat ujian dinilai — atau jadwalnya, untuk data lama.
+ */
+async function ujianTahsinTerakhir(
+  supabase: ReturnType<typeof createServerClient>,
+  sampai: string | undefined,
+): Promise<Map<string, { level: string; predikat: string | null; tanggal: string }>> {
+  const baris = await ambilSemua<{
+    level: string; jadwal: string | null; selesai_at: string | null; created_at: string
+    siswa: { student_id?: string | null; level?: string | null; predikat?: string | null }[] | null
+  }>(() => supabase.from('ujian_tahsin').select('level, jadwal, selesai_at, created_at, siswa')
+    .eq('status', 'selesai').order('id'))
+
+  const hasil = new Map<string, { level: string; predikat: string | null; tanggal: string }>()
+  for (const u of baris) {
+    const tanggal = tanggalWIB(u.selesai_at ?? u.jadwal ?? u.created_at)
+    if (sampai && tanggal > sampai) continue
+    for (const s of u.siswa ?? []) {
+      if (!s.student_id) continue
+      const lama = hasil.get(s.student_id)
+      if (lama && lama.tanggal >= tanggal) continue
+      hasil.set(s.student_id, { level: s.level?.trim() || u.level, predikat: s.predikat ?? null, tanggal })
+    }
+  }
+  return hasil
+}
+
 async function riwayatSampai(supabase: ReturnType<typeof createServerClient>, sampai: string): Promise<RiwayatSampai> {
   const akhirHari = `${sampai}T23:59:59+07:00`
   const [jilid, juz, ujian, logSesudah, naikSesudah] = await Promise.all([
@@ -856,13 +897,14 @@ export async function ambilPerPotongSejajar<T>(
 
 export async function getPosisiUnit(jenjang: Jenjang): Promise<PosisiUnit> {
   const supabase = createServerClient()
-  const [siswaRows, levelRes, methodRes, juzUjian] = await Promise.all([
+  const [siswaRows, levelRes, methodRes, juzUjian, terujiTahsin] = await Promise.all([
     ambilSemua<BarisSiswa & { halaqoh_id: string | null }>(() => supabase.from('students')
       .select('id, jenjang, kelas, program, current_jilid_id, halaqoh_id')
       .eq('is_active', true).eq('jenjang', jenjang).order('id')),
     supabase.from('jilid_levels').select('id, method_id, label, order_num, is_quran, is_terminal'),
     supabase.from('tahsin_methods').select('id, name'),
     getJuzUjianPerSiswa(),
+    ujianTahsinTerakhir(supabase, undefined),
   ])
   const ids = siswaRows.map(s => s.id)
   const [juzProgress, logTahsin] = await Promise.all([
@@ -886,7 +928,8 @@ export async function getPosisiUnit(jenjang: Jenjang): Promise<PosisiUnit> {
     // sama seperti entriTahsin di atas: anak yang sudah lulus tidak lagi setor
     // tahsin, dan tanpa pengecualian ini halaqoh yang seluruhnya sudah lulus
     // (mis. QULS Takhassus) terbaca "Belum tercatat" dengan median kosong.
-    const adaSetoran = jilidLog.has(s.id)
+    // Ujian tahsin yang sudah dinilai dihitung setara setoran (lihat entriTahsin).
+    const adaSetoran = jilidLog.has(s.id) || terujiTahsin.has(s.id)
     const logJilid = jilidLog.get(s.id)
     const lv = adaSetoran ? lvSiswa ?? (logJilid ? levelById.get(logJilid) : undefined)
       : lvSiswa?.is_terminal ? lvSiswa : undefined
