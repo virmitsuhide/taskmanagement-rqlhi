@@ -1,5 +1,6 @@
 import { createServerClient } from '@/lib/supabase/server'
 import { getKelompokTR, getPesertaTR, hariIniTR, type StatusHadirTR } from '@/lib/data/tahsin-rekomendasi'
+import { labelKelompokTR } from '@/lib/rq/tahsin-rekomendasi'
 import { jumatDalamRentang, tambahHari } from '@/lib/rq/tahsin-rekomendasi'
 
 /**
@@ -150,7 +151,7 @@ export async function getAnalitikTR(opsi: { rentang: RentangTR; kelompok?: strin
     anakPernahSetor: new Set(ts.map(r => r.student_id)).size,
   }
 
-  const labelKelompok = new Map(kelompokList.map(k => [k.teacher_id, `${k.username} · ${k.full_name}`]))
+  const labelKelompok = new Map(kelompokList.map(k => [k.teacher_id, labelKelompokTR(k)]))
 
   // ── Per kelompok ──
   const perKelompok = kelompok.map(k => {

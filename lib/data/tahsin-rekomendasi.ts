@@ -1,6 +1,6 @@
 import { createServerClient } from '@/lib/supabase/server'
 import { tanggalWIB } from '@/lib/rq/ujian'
-import { BATAS_MUNDUR_HARI, hariJumat, tambahHari } from '@/lib/rq/tahsin-rekomendasi'
+import { BATAS_MUNDUR_HARI, POLA_USERNAME_TR, hariJumat, tambahHari } from '@/lib/rq/tahsin-rekomendasi'
 
 /**
  * Tahsin Rekomendasi SDIT LHI (0115) — kelompok, peserta, kehadiran Jum'at.
@@ -26,6 +26,8 @@ export interface KelompokTR {
   tempat: string
   urutan: number
   aktif: boolean
+  /** Masih akun bersama TR1, TR2, … — belum dialihkan ke guru asli. */
+  akun_bersama: boolean
 }
 
 const urutUsername = (a: string, b: string) => a.localeCompare(b, 'id', { numeric: true })
@@ -46,6 +48,7 @@ export async function getKelompokTR(): Promise<KelompokTR[] | null> {
       return {
         teacher_id: r.teacher_id, username: t?.username ?? '—', full_name: t?.full_name ?? '—', gender: t?.gender ?? null,
         tempat: r.tempat, urutan: r.urutan, aktif: t?.is_active !== false,
+        akun_bersama: POLA_USERNAME_TR.test(t?.username ?? ''),
       }
     })
     .sort((a, b) => a.urutan - b.urutan || urutUsername(a.username, b.username))
@@ -114,6 +117,22 @@ export async function getPesertaTR(teacherId?: string): Promise<PesertaTR[]> {
       }]
     })
     .sort((a, b) => (a.kelas ?? '').localeCompare(b.kelas ?? '', 'id', { numeric: true }) || a.full_name.localeCompare(b.full_name, 'id'))
+}
+
+/**
+ * Guru yang bisa ditunjuk sebagai pengampu TR: akun guru aktif, bukan akun
+ * bersama TR, dan belum memegang kelompok TR (satu guru satu kelompok).
+ */
+export async function getKandidatPengampuTR(): Promise<{ id: string; full_name: string; unit: string | null }[]> {
+  const supabase = createServerClient()
+  const [guruRes, sudahRes] = await Promise.all([
+    supabase.from('teachers').select('id, full_name, unit, username').eq('is_active', true).order('full_name'),
+    supabase.from('tr_pengampu').select('teacher_id'),
+  ])
+  const sudah = new Set(((sudahRes.data ?? []) as { teacher_id: string }[]).map(r => r.teacher_id))
+  return ((guruRes.data ?? []) as { id: string; full_name: string; unit: string | null; username: string }[])
+    .filter(g => !sudah.has(g.id) && !POLA_USERNAME_TR.test(g.username))
+    .map(({ id, full_name, unit }) => ({ id, full_name, unit }))
 }
 
 /** Siswa SDIT aktif yang belum masuk kelompok mana pun — pilihan tambah peserta. */

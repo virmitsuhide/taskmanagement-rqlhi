@@ -7,7 +7,7 @@ import { getSession } from '@/lib/auth/session'
 import { getTeacherSession } from '@/lib/auth/teacher-session'
 import { canManageTahsinRekomendasi } from '@/lib/auth/permissions'
 import { bolehTR, type StatusHadirTR } from '@/lib/data/tahsin-rekomendasi'
-import { PASSWORD_AWAL_TR, POLA_USERNAME_TR, usernameTrBerikutnya } from '@/lib/rq/tahsin-rekomendasi'
+import { PASSWORD_AWAL_TR, POLA_USERNAME_TR } from '@/lib/rq/tahsin-rekomendasi'
 
 type Hasil = { error?: string; success?: true }
 
@@ -39,60 +39,108 @@ async function akunTR(teacherId: string): Promise<boolean> {
 
 // ─── Kelompok / akun pengampu ────────────────────────────────────────────────
 
-/**
- * Buat kelompok baru beserta akun bersamanya: username TR berikutnya,
- * password `bismillah`, tanpa unit (bukan guru Qur'an — tidak masuk KPI).
- * Sandi dikunci (can_change_password = false): akunnya dipakai bergantian,
- * dan satu pengampu yang menggantinya akan mengunci pengampu berikutnya.
- */
-export async function tambahKelompokTRAction(input: { nama: string; gender: string | null; tempat: string }): Promise<Hasil & { username?: string }> {
-  const k = await koordinator()
-  if ('error' in k) return { error: k.error }
-  const nama = potong(input.nama, 120)
-  if (!nama) return { error: 'Nama pengampu wajib diisi.' }
-
+/** Guru aktif yang sah dijadikan pengampu: bukan akun bersama TR, belum memegang kelompok. */
+async function guruSah(teacherId: string): Promise<string | null> {
   const supabase = createServerClient()
-  const cek = await supabase.from('tr_pengampu').select('teacher_id', { head: true, count: 'exact' })
-  if (cek.error) return { error: tabelHilang(cek.error) ? PESAN_MIGRASI : 'Gagal membaca kelompok.' }
-
-  // Username diambil dari SEMUA akun TR, termasuk yang terhapus — username
-  // akun terhapus tetap terpakai di tabel teachers.
-  const { data: ada } = await supabase.from('teachers').select('username').like('username', 'TR%')
-  const username = usernameTrBerikutnya(((ada ?? []) as { username: string }[]).map(r => r.username).filter(u => POLA_USERNAME_TR.test(u)))
-
-  const { data: guru, error } = await supabase.from('teachers').insert({
-    username,
-    password_hash: await bcrypt.hash(PASSWORD_AWAL_TR, 10),
-    full_name: nama,
-    gender: genderSah(input.gender),
-    can_change_password: false,
-  }).select('id').single()
-  if (error || !guru) return { error: `Gagal membuat akun ${username}: ${error?.message ?? 'sebab tidak diketahui'}` }
-
-  const { error: e2 } = await supabase.from('tr_pengampu').insert({
-    teacher_id: (guru as { id: string }).id,
-    tempat: potong(input.tempat, 120),
-    urutan: Number(POLA_USERNAME_TR.exec(username)?.[1] ?? 0),
-  })
-  if (e2) {
-    await supabase.from('teachers').delete().eq('id', (guru as { id: string }).id)
-    return { error: 'Gagal menyimpan kelompok.' }
-  }
-  segarkan()
-  return { success: true, username }
+  const [{ data: g }, { data: sudah }] = await Promise.all([
+    supabase.from('teachers').select('username, is_active').eq('id', teacherId).maybeSingle(),
+    supabase.from('tr_pengampu').select('teacher_id').eq('teacher_id', teacherId).maybeSingle(),
+  ])
+  const guru = g as { username: string; is_active: boolean | null } | null
+  if (!guru || guru.is_active === false) return 'Guru tidak ditemukan atau tidak aktif.'
+  if (POLA_USERNAME_TR.test(guru.username)) return 'Pilih akun guru, bukan akun bersama TR.'
+  if (sudah) return 'Guru ini sudah memegang kelompok TR lain.'
+  return null
 }
 
-/** Ganti nama pengampu (pergantian wali kelas), jenis kelamin, dan tempat. */
-export async function ubahKelompokTRAction(teacherId: string, input: { nama: string; gender: string | null; tempat: string }): Promise<Hasil> {
+/**
+ * Buat kelompok baru dengan memilih guru yang sudah punya akun. Guru itu
+ * mendapat menu Tahsin Rekomendasi di Portal Guru-nya dan mencatat setoran
+ * peserta kelompoknya tiap Jum'at — tanpa akun tambahan.
+ */
+export async function tambahKelompokTRAction(input: { teacherId: string; tempat: string }): Promise<Hasil> {
+  const k = await koordinator()
+  if ('error' in k) return { error: k.error }
+
+  const supabase = createServerClient()
+  const cek = await supabase.from('tr_pengampu').select('urutan')
+  if (cek.error) return { error: tabelHilang(cek.error) ? PESAN_MIGRASI : 'Gagal membaca kelompok.' }
+  const galat = await guruSah(input.teacherId)
+  if (galat) return { error: galat }
+
+  const urutan = Math.max(0, ...((cek.data ?? []) as { urutan: number }[]).map(r => r.urutan)) + 1
+  const { error } = await supabase.from('tr_pengampu').insert({
+    teacher_id: input.teacherId, tempat: potong(input.tempat, 120), urutan,
+  })
+  if (error) return { error: 'Gagal menyimpan kelompok.' }
+  segarkan()
+  return { success: true }
+}
+
+/**
+ * Alihkan kelompok ke guru lain — dipakai memindahkan kelompok akun bersama
+ * (TR1, TR2, …) ke akun guru asli, atau saat pengampunya berganti.
+ *
+ * Peserta, tempat, dan urutan ikut pindah. Riwayat setoran & kehadiran tidak
+ * disentuh: tetap tercatat atas nama yang dulu mencatatnya. Akun bersama yang
+ * ditinggalkan dinonaktifkan supaya tidak bisa lagi dipakai masuk.
+ */
+export async function alihkanKelompokTRAction(dariId: string, keId: string): Promise<Hasil> {
+  const k = await koordinator()
+  if ('error' in k) return { error: k.error }
+  if (dariId === keId) return { error: 'Pilih guru yang berbeda.' }
+
+  const supabase = createServerClient()
+  const { data: lama } = await supabase.from('tr_pengampu').select('tempat, urutan').eq('teacher_id', dariId).maybeSingle()
+  if (!lama) return { error: 'Kelompok tidak ditemukan.' }
+  const galat = await guruSah(keId)
+  if (galat) return { error: galat }
+
+  const { tempat, urutan } = lama as { tempat: string; urutan: number }
+  const { error: e1 } = await supabase.from('tr_pengampu').insert({ teacher_id: keId, tempat, urutan })
+  if (e1) return { error: 'Gagal mengalihkan kelompok.' }
+  // tr_peserta menunjuk tr_pengampu (tanpa ON UPDATE CASCADE): baris baru dulu,
+  // pesertanya dipindah, baru baris lama dihapus.
+  const { error: e2 } = await supabase.from('tr_peserta')
+    .update({ teacher_id: keId, diubah_oleh: k.session.userId, updated_at: new Date().toISOString() })
+    .eq('teacher_id', dariId)
+  if (e2) {
+    await supabase.from('tr_pengampu').delete().eq('teacher_id', keId)
+    return { error: 'Gagal memindahkan peserta.' }
+  }
+  await supabase.from('tr_pengampu').delete().eq('teacher_id', dariId)
+
+  const { data: akun } = await supabase.from('teachers').select('username').eq('id', dariId).maybeSingle()
+  if (POLA_USERNAME_TR.test((akun as { username: string } | null)?.username ?? '')) {
+    await supabase.from('teachers').update({ is_active: false, updated_at: new Date().toISOString() }).eq('id', dariId)
+  }
+  segarkan()
+  return { success: true }
+}
+
+/** Akun bersama TR (TR1, TR2, …) — hanya akun ini yang nama/sandinya diatur dari sini. */
+async function akunBersama(teacherId: string): Promise<boolean> {
+  const { data } = await createServerClient().from('teachers').select('username').eq('id', teacherId).maybeSingle()
+  return POLA_USERNAME_TR.test((data as { username: string } | null)?.username ?? '')
+}
+
+/**
+ * Ubah tempat kelompok. Nama & jenis kelamin hanya bisa diubah untuk akun
+ * bersama — profil guru asli bukan wewenang koordinator TR.
+ */
+export async function ubahKelompokTRAction(teacherId: string, input: { nama?: string; gender?: string | null; tempat: string }): Promise<Hasil> {
   const k = await koordinator()
   if ('error' in k) return { error: k.error }
   if (!(await akunTR(teacherId))) return { error: 'Kelompok tidak ditemukan.' }
+  const bersama = await akunBersama(teacherId)
   const nama = potong(input.nama, 120)
-  if (!nama) return { error: 'Nama pengampu wajib diisi.' }
+  if (bersama && !nama) return { error: 'Nama pengampu wajib diisi.' }
 
   const supabase = createServerClient()
   const [g, t] = await Promise.all([
-    supabase.from('teachers').update({ full_name: nama, gender: genderSah(input.gender), updated_at: new Date().toISOString() }).eq('id', teacherId),
+    bersama
+      ? supabase.from('teachers').update({ full_name: nama, gender: genderSah(input.gender), updated_at: new Date().toISOString() }).eq('id', teacherId)
+      : Promise.resolve({ error: null }),
     supabase.from('tr_pengampu').update({ tempat: potong(input.tempat, 120), updated_at: new Date().toISOString() }).eq('teacher_id', teacherId),
   ])
   if (g.error || t.error) return { error: 'Gagal menyimpan kelompok.' }
@@ -104,7 +152,7 @@ export async function ubahKelompokTRAction(teacherId: string, input: { nama: str
 export async function resetSandiTRAction(teacherId: string): Promise<Hasil> {
   const k = await koordinator()
   if ('error' in k) return { error: k.error }
-  if (!(await akunTR(teacherId))) return { error: 'Kelompok tidak ditemukan.' }
+  if (!(await akunTR(teacherId)) || !(await akunBersama(teacherId))) return { error: 'Hanya sandi akun bersama TR yang bisa diatur ulang di sini.' }
   const { error } = await createServerClient().from('teachers')
     .update({ password_hash: await bcrypt.hash(PASSWORD_AWAL_TR, 10), updated_at: new Date().toISOString() }).eq('id', teacherId)
   if (error) return { error: 'Gagal mengatur ulang sandi.' }
@@ -112,8 +160,9 @@ export async function resetSandiTRAction(teacherId: string): Promise<Hasil> {
 }
 
 /**
- * Bubarkan kelompok: hanya bila tidak ada pesertanya lagi. Akunnya
- * dinonaktifkan, bukan dihapus — setoran lama tetap menunjuk ke sana.
+ * Bubarkan kelompok: hanya bila tidak ada pesertanya lagi. Akun bersama
+ * dinonaktifkan, bukan dihapus — setoran lama tetap menunjuk ke sana. Akun
+ * guru asli tetap aktif; ia hanya kehilangan menu TR.
  */
 export async function hapusKelompokTRAction(teacherId: string): Promise<Hasil> {
   const k = await koordinator()
@@ -124,7 +173,9 @@ export async function hapusKelompokTRAction(teacherId: string): Promise<Hasil> {
   if ((count ?? 0) > 0) return { error: `Masih ada ${count} peserta. Pindahkan atau keluarkan dulu.` }
   const { error } = await supabase.from('tr_pengampu').delete().eq('teacher_id', teacherId)
   if (error) return { error: 'Gagal membubarkan kelompok.' }
-  await supabase.from('teachers').update({ is_active: false, updated_at: new Date().toISOString() }).eq('id', teacherId)
+  if (await akunBersama(teacherId)) {
+    await supabase.from('teachers').update({ is_active: false, updated_at: new Date().toISOString() }).eq('id', teacherId)
+  }
   segarkan()
   return { success: true }
 }

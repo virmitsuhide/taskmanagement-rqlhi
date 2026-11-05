@@ -4,13 +4,13 @@ import Link from 'next/link'
 import { BarChart3 } from 'lucide-react'
 import { getSession } from '@/lib/auth/session'
 import { canManageTahsinRekomendasi } from '@/lib/auth/permissions'
-import { getKandidatTR, getKelompokTR, getPesertaTR } from '@/lib/data/tahsin-rekomendasi'
+import { getKandidatPengampuTR, getKandidatTR, getKelompokTR, getPesertaTR } from '@/lib/data/tahsin-rekomendasi'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { KelolaTR } from '@/components/tahsin-rekomendasi/KelolaTR'
 
 /**
  * Tahsin Rekomendasi SDIT LHI — kelompok tahsin tambahan Jum'at sore, milik
- * koordinator SD. Di sini kelompok (akun TR bersama) dan pesertanya diatur;
+ * koordinator SD. Di sini kelompok (guru pengampunya) dan pesertanya diatur;
  * kehadiran dan setorannya dicatat pengampu di Portal Guru.
  */
 export default async function TahsinRekomendasiPage() {
@@ -18,7 +18,7 @@ export default async function TahsinRekomendasiPage() {
   if (!session) redirect('/login')
   if (!canManageTahsinRekomendasi(session.role)) await tolakAkses()
 
-  const [kelompok, peserta, kandidat] = await Promise.all([getKelompokTR(), getPesertaTR(), getKandidatTR()])
+  const [kelompok, peserta, kandidat, guru] = await Promise.all([getKelompokTR(), getPesertaTR(), getKandidatTR(), getKandidatPengampuTR()])
 
   return (
     <div>
@@ -35,8 +35,8 @@ export default async function TahsinRekomendasiPage() {
               <em>{kelompok ? `${kelompok.length} kelompok, ${peserta.length} siswa.` : 'belum aktif.'}</em>
             </h1>
             <p className="mt-2 text-sm text-muted-foreground">
-              Tahsin tambahan tiap Jum&apos;at sore untuk siswa yang direkomendasikan. Pengampunya bisa wali kelas — mereka masuk
-              dengan akun kelompok (TR1, TR2, …), mencatat kehadiran dan setoran tahsin. Setorannya ikut menjadi capaian tahsin
+              Tahsin tambahan tiap Jum&apos;at sore untuk siswa yang direkomendasikan. Pengampunya guru yang dipilih di sini — wali kelas pun
+              bisa — dan mereka mencatat kehadiran serta setoran tahsin dari Portal Guru masing-masing. Setorannya ikut menjadi capaian tahsin
               sekolah anak, jadi guru halaqohnya melanjutkan dari situ.
             </p>
           </div>
@@ -52,7 +52,7 @@ export default async function TahsinRekomendasiPage() {
             di Supabase SQL Editor lebih dulu.
           </div>
         ) : (
-          <KelolaTR kelompok={kelompok} peserta={peserta} kandidat={kandidat} />
+          <KelolaTR kelompok={kelompok} peserta={peserta} kandidat={kandidat} guru={guru} />
         )}
       </div>
     </div>

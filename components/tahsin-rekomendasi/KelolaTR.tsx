@@ -3,49 +3,69 @@
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { KeyRound, Plus, Search, Trash2, X } from 'lucide-react'
+import { ArrowRightLeft, KeyRound, Plus, Search, Trash2, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { SELECT_NATIF } from '@/components/rapor/kontrol'
 import {
   aturPesertaTRAction, hapusKelompokTRAction, resetSandiTRAction, tambahKelompokTRAction,
-  ubahCapaianAwalTRAction, ubahKelompokTRAction,
+  ubahCapaianAwalTRAction, ubahKelompokTRAction, alihkanKelompokTRAction,
 } from '@/app/actions/tahsin-rekomendasi'
 import type { KelompokTR, PesertaTR } from '@/lib/data/tahsin-rekomendasi'
-import { PASSWORD_AWAL_TR } from '@/lib/rq/tahsin-rekomendasi'
+import { PASSWORD_AWAL_TR, kodeKelompokTR, labelKelompokTR } from '@/lib/rq/tahsin-rekomendasi'
 import { cn } from '@/lib/utils'
 
 interface Props {
   kelompok: KelompokTR[]
   peserta: PesertaTR[]
   kandidat: { id: string; full_name: string; kelas: string | null }[]
+  /** Guru yang bisa ditunjuk sebagai pengampu (belum memegang kelompok). */
+  guru: { id: string; full_name: string; unit: string | null }[]
 }
 
 const INPUT = 'h-9 w-full rounded-xl border bg-card px-3 text-sm outline-none focus:border-primary'
 
-export function KelolaTR({ kelompok, peserta, kandidat }: Props) {
+export function KelolaTR({ kelompok, peserta, kandidat, guru }: Props) {
   return (
     <div className="space-y-5">
-      <Kelompok kelompok={kelompok} peserta={peserta} />
+      <Kelompok kelompok={kelompok} peserta={peserta} guru={guru} />
       <Peserta kelompok={kelompok} peserta={peserta} kandidat={kandidat} />
     </div>
   )
 }
 
-// ─── Kelompok & akun ─────────────────────────────────────────────────────────
+// ─── Kelompok & pengampu ─────────────────────────────────────────────────────
 
-function Kelompok({ kelompok, peserta }: { kelompok: KelompokTR[]; peserta: PesertaTR[] }) {
+type Guru = Props['guru'][number]
+
+/** Pilihan guru, dikelompokkan per unit supaya daftar panjang tetap mudah dicari. */
+function PilihGuru({ guru, value, onChange, label }: { guru: Guru[]; value: string; onChange: (v: string) => void; label: string }) {
+  const unit = [...new Set(guru.map(g => g.unit ?? 'Tanpa unit'))].sort((a, b) => a.localeCompare(b, 'id'))
+  return (
+    <select value={value} onChange={e => onChange(e.target.value)} aria-label={label} className={cn(SELECT_NATIF, 'h-9')}>
+      <option value="">Pilih guru…</option>
+      {unit.map(u => (
+        <optgroup key={u} label={u.toUpperCase()}>
+          {guru.filter(g => (g.unit ?? 'Tanpa unit') === u).map(g => <option key={g.id} value={g.id}>{g.full_name}</option>)}
+        </optgroup>
+      ))}
+    </select>
+  )
+}
+
+function Kelompok({ kelompok, peserta, guru }: { kelompok: KelompokTR[]; peserta: PesertaTR[]; guru: Guru[] }) {
   const router = useRouter()
   const [pending, mulai] = useTransition()
   const [tambahBuka, setTambahBuka] = useState(kelompok.length === 0)
-  const [baru, setBaru] = useState({ nama: '', gender: '', tempat: '' })
+  const [baru, setBaru] = useState({ teacherId: '', tempat: '' })
+  const sisaBersama = kelompok.filter(k => k.akun_bersama).length
 
   function tambah() {
     mulai(async () => {
-      const hasil = await tambahKelompokTRAction({ nama: baru.nama, gender: baru.gender || null, tempat: baru.tempat })
+      const hasil = await tambahKelompokTRAction(baru)
       if (hasil.error) toast.error(hasil.error)
       else {
-        toast.success(`Akun ${hasil.username} dibuat — password ${PASSWORD_AWAL_TR}.`)
-        setBaru({ nama: '', gender: '', tempat: '' })
+        toast.success(`Kelompok ${guru.find(g => g.id === baru.teacherId)?.full_name ?? ''} dibuat — menu TR muncul di Portal Guru-nya.`)
+        setBaru({ teacherId: '', tempat: '' })
         router.refresh()
       }
     })
@@ -54,30 +74,29 @@ function Kelompok({ kelompok, peserta }: { kelompok: KelompokTR[]; peserta: Pese
   return (
     <section className="rounded-2xl border bg-card p-5">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b pb-2">
-        <h2 className="font-heading text-2xl leading-tight">Kelompok &amp; akun pengampu</h2>
+        <h2 className="font-heading text-2xl leading-tight">Kelompok &amp; pengampu</h2>
         <button type="button" onClick={() => setTambahBuka(b => !b)} aria-expanded={tambahBuka}
           className="inline-flex items-center gap-1 text-[13px] font-bold text-primary hover:underline">
           <Plus className="size-3.5" /> Tambah kelompok
         </button>
       </div>
       <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-        Satu kelompok = satu akun bersama (TR1, TR2, …) dengan password <b>{PASSWORD_AWAL_TR}</b>. Pengampunya bisa wali kelas SD.
-        Bila pengampu berganti, cukup ganti namanya di sini — akun, peserta, dan riwayat setorannya tetap.
-        Pengampu masuk lewat halaman login biasa dengan username akunnya.
+        Satu kelompok dipegang satu guru. Guru yang dipilih mendapat menu <b>Tahsin Rekomendasi</b> di Portal Guru-nya
+        — masuk dengan akunnya sendiri — lalu mencatat kehadiran dan setoran tahsin pesertanya tiap Jum&apos;at.
       </p>
+      {sisaBersama > 0 && (
+        <p className="mt-2 rounded-lg border border-warning/40 bg-warning-wash px-3 py-2 text-xs text-warning">
+          {sisaBersama} kelompok masih memakai akun bersama (TR1, TR2, …). Tekan <b>Alihkan ke guru</b> di kartunya: peserta
+          ikut pindah, riwayat setoran tetap, dan akun bersamanya dinonaktifkan.
+        </p>
+      )}
 
       {tambahBuka && (
-        <div className="mt-3 grid grid-cols-1 gap-2 rounded-xl border border-dashed p-3 sm:grid-cols-[1fr_8rem_1fr_auto]">
-          <input value={baru.nama} onChange={e => setBaru(v => ({ ...v, nama: e.target.value }))} placeholder="Nama pengampu, mis. Ustadzah Rizky"
-            aria-label="Nama pengampu" className={INPUT} />
-          <select value={baru.gender} onChange={e => setBaru(v => ({ ...v, gender: e.target.value }))} aria-label="Jenis kelamin pengampu" className={cn(SELECT_NATIF, 'h-9')}>
-            <option value="">L / P</option>
-            <option value="L">Ustadz</option>
-            <option value="P">Ustadzah</option>
-          </select>
+        <div className="mt-3 grid grid-cols-1 gap-2 rounded-xl border border-dashed p-3 sm:grid-cols-[1fr_1fr_auto]">
+          <PilihGuru guru={guru} value={baru.teacherId} onChange={v => setBaru(b => ({ ...b, teacherId: v }))} label="Guru pengampu" />
           <input value={baru.tempat} onChange={e => setBaru(v => ({ ...v, tempat: e.target.value }))} placeholder="Tempat, mis. Ruang Kelas 2C"
             aria-label="Tempat" className={INPUT} />
-          <Button size="sm" className="h-9 rounded-xl" disabled={pending || !baru.nama.trim()} onClick={tambah}>Buat akun</Button>
+          <Button size="sm" className="h-9 rounded-xl" disabled={pending || !baru.teacherId} onClick={tambah}>Buat kelompok</Button>
         </div>
       )}
 
@@ -85,57 +104,86 @@ function Kelompok({ kelompok, peserta }: { kelompok: KelompokTR[]; peserta: Pese
         <p className="mt-3 text-sm text-muted-foreground">Belum ada kelompok.</p>
       ) : (
         <ul className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-          {kelompok.map(k => <KartuKelompok key={k.teacher_id} k={k} jumlah={peserta.filter(p => p.teacher_id === k.teacher_id).length} />)}
+          {kelompok.map(k => <KartuKelompok key={k.teacher_id} k={k} guru={guru} jumlah={peserta.filter(p => p.teacher_id === k.teacher_id).length} />)}
         </ul>
       )}
     </section>
   )
 }
 
-function KartuKelompok({ k, jumlah }: { k: KelompokTR; jumlah: number }) {
+function KartuKelompok({ k, jumlah, guru }: { k: KelompokTR; jumlah: number; guru: Guru[] }) {
   const router = useRouter()
   const [pending, mulai] = useTransition()
   const [isi, setIsi] = useState({ nama: k.full_name, gender: k.gender ?? '', tempat: k.tempat })
-  const berubah = isi.nama !== k.full_name || isi.gender !== (k.gender ?? '') || isi.tempat !== k.tempat
+  const [alih, setAlih] = useState<string | null>(null)
+  const berubah = isi.tempat !== k.tempat || (k.akun_bersama && (isi.nama !== k.full_name || isi.gender !== (k.gender ?? '')))
+  const label = labelKelompokTR(k)
 
   const jalankan = (aksi: () => Promise<{ error?: string }>, pesan: string) => mulai(async () => {
     const hasil = await aksi()
     if (hasil.error) toast.error(hasil.error)
-    else { toast.success(pesan); router.refresh() }
+    else { toast.success(pesan); setAlih(null); router.refresh() }
   })
 
   return (
-    <li className="rounded-xl border p-3.5">
+    <li className={cn('rounded-xl border p-3.5', k.akun_bersama && 'border-warning/40')}>
       <div className="flex items-center gap-2">
-        <span className="rounded-lg bg-primary px-2 py-1 font-mono text-xs font-bold text-primary-foreground">{k.username}</span>
-        <span className="text-xs text-muted-foreground">{jumlah} siswa</span>
+        {k.akun_bersama
+          ? <span className="rounded-lg bg-warning-wash px-2 py-1 font-mono text-xs font-bold text-warning">{k.username}</span>
+          : <span className="min-w-0 truncate text-sm font-bold">{k.full_name}</span>}
+        <span className="shrink-0 text-xs text-muted-foreground">{jumlah} siswa</span>
         <span className="ml-auto flex gap-0.5">
-          <Button size="sm" variant="ghost" className="size-8 p-0" title={`Kembalikan password ke ${PASSWORD_AWAL_TR}`} aria-label={`Atur ulang password ${k.username}`}
-            disabled={pending} onClick={() => jalankan(() => resetSandiTRAction(k.teacher_id), `Password ${k.username} kembali ke ${PASSWORD_AWAL_TR}.`)}>
-            <KeyRound className="size-3.5" />
+          {k.akun_bersama && (
+            <Button size="sm" variant="ghost" className="size-8 p-0" title={`Kembalikan password ke ${PASSWORD_AWAL_TR}`} aria-label={`Atur ulang password ${k.username}`}
+              disabled={pending} onClick={() => jalankan(() => resetSandiTRAction(k.teacher_id), `Password ${k.username} kembali ke ${PASSWORD_AWAL_TR}.`)}>
+              <KeyRound className="size-3.5" />
+            </Button>
+          )}
+          <Button size="sm" variant="ghost" className="size-8 p-0" title="Alihkan ke guru lain" aria-label={`Alihkan ${label}`}
+            disabled={pending} onClick={() => setAlih(a => (a === null ? '' : null))}>
+            <ArrowRightLeft className="size-3.5" />
           </Button>
           <Button size="sm" variant="ghost" className="size-8 p-0 text-destructive" title={jumlah ? 'Pindahkan / keluarkan pesertanya dulu' : 'Bubarkan kelompok'}
-            aria-label={`Bubarkan ${k.username}`} disabled={pending || jumlah > 0}
-            onClick={() => { if (confirm(`Bubarkan kelompok ${k.username}? Akunnya dinonaktifkan.`)) jalankan(() => hapusKelompokTRAction(k.teacher_id), `${k.username} dibubarkan.`) }}>
+            aria-label={`Bubarkan ${label}`} disabled={pending || jumlah > 0}
+            onClick={() => { if (confirm(`Bubarkan kelompok ${label}?${k.akun_bersama ? ' Akunnya dinonaktifkan.' : ''}`)) jalankan(() => hapusKelompokTRAction(k.teacher_id), `${label} dibubarkan.`) }}>
             <Trash2 className="size-3.5" />
           </Button>
         </span>
       </div>
+
+      {alih !== null && (
+        <div className="mt-2.5 space-y-2 rounded-lg bg-muted/50 p-2.5">
+          <p className="text-xs font-bold">Alihkan {jumlah} peserta ke guru:</p>
+          <PilihGuru guru={guru} value={alih} onChange={setAlih} label={`Guru baru untuk ${label}`} />
+          <div className="flex justify-end gap-2">
+            <Button size="sm" variant="ghost" className="rounded-lg" disabled={pending} onClick={() => setAlih(null)}>Batal</Button>
+            <Button size="sm" className="rounded-lg" disabled={pending || !alih}
+              onClick={() => jalankan(() => alihkanKelompokTRAction(k.teacher_id, alih), `Kelompok dialihkan ke ${guru.find(g => g.id === alih)?.full_name ?? 'guru baru'}.`)}>
+              Alihkan
+            </Button>
+          </div>
+        </div>
+      )}
+
       <div className="mt-2.5 grid grid-cols-[1fr_6.5rem] gap-2">
-        <input value={isi.nama} onChange={e => setIsi(v => ({ ...v, nama: e.target.value }))} aria-label={`Nama pengampu ${k.username}`} className={INPUT} />
-        <select value={isi.gender} onChange={e => setIsi(v => ({ ...v, gender: e.target.value }))} aria-label={`Jenis kelamin pengampu ${k.username}`} className={cn(SELECT_NATIF, 'h-9')}>
-          <option value="">—</option>
-          <option value="L">Ustadz</option>
-          <option value="P">Ustadzah</option>
-        </select>
-        <input value={isi.tempat} onChange={e => setIsi(v => ({ ...v, tempat: e.target.value }))} placeholder="Tempat" aria-label={`Tempat ${k.username}`}
+        {k.akun_bersama && (
+          <>
+            <input value={isi.nama} onChange={e => setIsi(v => ({ ...v, nama: e.target.value }))} aria-label={`Nama pengampu ${k.username}`} className={INPUT} />
+            <select value={isi.gender} onChange={e => setIsi(v => ({ ...v, gender: e.target.value }))} aria-label={`Jenis kelamin pengampu ${k.username}`} className={cn(SELECT_NATIF, 'h-9')}>
+              <option value="">—</option>
+              <option value="L">Ustadz</option>
+              <option value="P">Ustadzah</option>
+            </select>
+          </>
+        )}
+        <input value={isi.tempat} onChange={e => setIsi(v => ({ ...v, tempat: e.target.value }))} placeholder="Tempat" aria-label={`Tempat ${label}`}
           className={cn(INPUT, 'col-span-2')} />
       </div>
       {berubah && (
         <div className="mt-2 flex justify-end gap-2">
           <Button size="sm" variant="ghost" className="rounded-lg" disabled={pending} onClick={() => setIsi({ nama: k.full_name, gender: k.gender ?? '', tempat: k.tempat })}>Batal</Button>
-          <Button size="sm" className="rounded-lg" disabled={pending || !isi.nama.trim()}
-            onClick={() => jalankan(() => ubahKelompokTRAction(k.teacher_id, { nama: isi.nama, gender: isi.gender || null, tempat: isi.tempat }), `${k.username} diperbarui.`)}>
+          <Button size="sm" className="rounded-lg" disabled={pending || (k.akun_bersama && !isi.nama.trim())}
+            onClick={() => jalankan(() => ubahKelompokTRAction(k.teacher_id, { nama: isi.nama, gender: isi.gender || null, tempat: isi.tempat }), `${label} diperbarui.`)}>
             Simpan
           </Button>
         </div>
@@ -148,13 +196,13 @@ function KartuKelompok({ k, jumlah }: { k: KelompokTR; jumlah: number }) {
 
 const BATAS = 60
 
-function Peserta({ kelompok, peserta, kandidat }: Props) {
+function Peserta({ kelompok, peserta, kandidat }: Omit<Props, 'guru'>) {
   const router = useRouter()
   const [pending, mulai] = useTransition()
   const [saring, setSaring] = useState('')
   const [cari, setCari] = useState('')
   const [batas, setBatas] = useState(BATAS)
-  const nama = new Map(kelompok.map(k => [k.teacher_id, `${k.username} · ${k.full_name}`]))
+  const nama = new Map(kelompok.map(k => [k.teacher_id, labelKelompokTR(k)]))
 
   const jalankan = (aksi: () => Promise<{ error?: string }>, pesan?: string) => mulai(async () => {
     const hasil = await aksi()
@@ -172,7 +220,7 @@ function Peserta({ kelompok, peserta, kandidat }: Props) {
       <div className="space-y-3 p-5 pb-3">
         <div className="flex flex-wrap items-center gap-2">
           <h2 className="mr-auto font-heading text-2xl leading-tight">Peserta</h2>
-          {[{ id: '', label: 'Semua', n: peserta.length }, ...kelompok.map(k => ({ id: k.teacher_id, label: k.username, n: peserta.filter(p => p.teacher_id === k.teacher_id).length }))].map(c => (
+          {[{ id: '', label: 'Semua', n: peserta.length }, ...kelompok.map(k => ({ id: k.teacher_id, label: kodeKelompokTR(k), n: peserta.filter(p => p.teacher_id === k.teacher_id).length }))].map(c => (
             <button key={c.id || 'semua'} type="button" onClick={() => { setSaring(c.id); setBatas(BATAS) }}
               title={c.id ? nama.get(c.id) : undefined}
               className={cn('inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-[12.5px] font-bold transition-colors',
@@ -231,7 +279,7 @@ function Peserta({ kelompok, peserta, kandidat }: Props) {
                     <select value={p.teacher_id} disabled={pending} aria-label={`Kelompok ${p.full_name}`}
                       onChange={e => jalankan(() => aturPesertaTRAction(p.id, e.target.value), `${p.full_name} dipindahkan.`)}
                       className={cn(SELECT_NATIF, 'h-8 min-w-[11rem] rounded-xl text-[13px] font-semibold')}>
-                      {kelompok.map(k => <option key={k.teacher_id} value={k.teacher_id}>{k.username} · {k.full_name}</option>)}
+                      {kelompok.map(k => <option key={k.teacher_id} value={k.teacher_id}>{labelKelompokTR(k)}</option>)}
                     </select>
                   </td>
                   <td className="px-5 py-2.5 text-right">
@@ -275,7 +323,7 @@ function TambahPeserta({ kelompok, kandidat, awal }: { kelompok: KelompokTR[]; k
       const hasil = await aturPesertaTRAction(pilih.id, ke, capaian)
       if (hasil.error) toast.error(hasil.error)
       else {
-        toast.success(`${pilih.full_name} masuk ${kelompok.find(k => k.teacher_id === ke)?.username ?? 'kelompok'}.`)
+        toast.success(`${pilih.full_name} masuk ${(() => { const k = kelompok.find(x => x.teacher_id === ke); return k ? labelKelompokTR(k) : 'kelompok' })()}.`)
         setPilih(null); setCari(''); setCapaian('')
         router.refresh()
       }
@@ -293,7 +341,7 @@ function TambahPeserta({ kelompok, kandidat, awal }: { kelompok: KelompokTR[]; k
             <button type="button" aria-label="Batal pilih" onClick={() => setPilih(null)} className="ml-auto text-muted-foreground hover:text-foreground"><X className="size-3.5" /></button>
           </span>
           <select value={ke} onChange={e => setKe(e.target.value)} aria-label="Kelompok tujuan" className={cn(SELECT_NATIF, 'h-9')}>
-            {kelompok.map(k => <option key={k.teacher_id} value={k.teacher_id}>{k.username} · {k.full_name}</option>)}
+            {kelompok.map(k => <option key={k.teacher_id} value={k.teacher_id}>{labelKelompokTR(k)}</option>)}
           </select>
           <input value={capaian} onChange={e => setCapaian(e.target.value)} placeholder="Capaian awal (opsional)" aria-label="Capaian awal" className={INPUT} />
           <Button size="sm" className="h-9 rounded-xl" disabled={pending} onClick={simpan}>Masukkan</Button>

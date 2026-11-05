@@ -12,6 +12,13 @@ import { getHadirEkstra, getMateriEkstra, getSlotGuru, labelSlot } from '@/lib/d
 import { rentangBulan } from '@/components/ekstra/LaporanEkstra'
 import { TabelMateriEkstra } from '@/components/ekstra/TabelMateriEkstra'
 import { cn } from '@/lib/utils'
+import { getTabTambahanGuru, type TabTambahanGuru } from '@/lib/data/tab-progres-guru'
+import { getPesertaTR } from '@/lib/data/tahsin-rekomendasi'
+import { getSiswaRiyadhoh } from '@/lib/data/riyadhoh'
+import { getCurrentTerm } from '@/lib/data/terms'
+import { getDaftarSurat, getGukarGroupsFor, getGukarMonthly, getGukarParticipants, getTahapanGukar } from '@/lib/data/gukar'
+import { statusSetoranBulan } from '@/lib/rq/gukar-siklus'
+import { RekapGukarBulan } from '@/components/gukar/RekapGukarBulan'
 
 interface PageProps {
   searchParams: Promise<{ halaqoh?: string; periode?: string; jenis?: string; tab?: string }>
@@ -37,14 +44,21 @@ export default async function ProgresSesiPage({ searchParams }: PageProps) {
     berkunci "asrama-<id>" — progresnya dihitung dari daftar anggotanya,
     bukan dari halaqoh.
   */
-  const [sekolah, asrama, ekstra] = await Promise.all([
+  const [sekolah, asrama, ekstra, tambahan] = await Promise.all([
     getHalaqohSesiGuru(session.teacherId),
     getKelompokAsrama({ pengampuId: session.teacherId }),
     getSlotGuru(session.teacherId),
+    getTabTambahanGuru(session.teacherId),
   ])
   const punyaEkstra = ekstra.slot.length > 0
   if (params.tab === 'ekstra' && punyaEkstra) {
-    return <ProgresEkstra ekstra={ekstra} periode={periode} jenisDiminta={params.jenis} pilih={params.halaqoh} />
+    return <ProgresEkstra ekstra={ekstra} tambahan={tambahan} periode={periode} jenisDiminta={params.jenis} pilih={params.halaqoh} />
+  }
+  if ((params.tab === 'tr' && tambahan.tr) || (params.tab === 'riyadhoh' && tambahan.riyadhoh)) {
+    return <ProgresJalur jalur={params.tab} teacherId={session.teacherId} ekstra={punyaEkstra} tambahan={tambahan} periode={periode} jenisDiminta={params.jenis} />
+  }
+  if (params.tab === 'gukar' && tambahan.gukar) {
+    return <ProgresGukar teacherId={session.teacherId} ekstra={punyaEkstra} tambahan={tambahan} periode={periode} />
   }
   const daftar: HalaqohSesi[] = [
     ...sekolah,
@@ -76,7 +90,7 @@ export default async function ProgresSesiPage({ searchParams }: PageProps) {
           </p>
         </div>
 
-        <TabProgresSesi aktif={jenis} halaqoh={halaqoh?.id} periode={periode} ekstra={punyaEkstra} />
+        <TabProgresSesi aktif={jenis} halaqoh={halaqoh?.id} periode={periode} ekstra={punyaEkstra} tambahan={tambahan} />
 
         {!halaqoh || !data ? (
           <div className="rounded-2xl border border-dashed bg-muted/30 py-10 text-center text-sm text-muted-foreground">
@@ -113,8 +127,9 @@ export default async function ProgresSesiPage({ searchParams }: PageProps) {
  * tetap di kolom kiri; tanpa tautan, karena halaman siswa hanya terbuka
  * untuk pengampu sekolahnya.
  */
-async function ProgresEkstra({ ekstra, periode, jenisDiminta, pilih }: {
+async function ProgresEkstra({ ekstra, tambahan, periode, jenisDiminta, pilih }: {
   ekstra: Awaited<ReturnType<typeof getSlotGuru>>
+  tambahan: TabTambahanGuru
   periode: string
   jenisDiminta: string | undefined
   pilih: string | undefined
@@ -190,7 +205,7 @@ async function ProgresEkstra({ ekstra, periode, jenisDiminta, pilih }: {
           </p>
         </div>
 
-        <TabProgresSesi aktif="ekstra" periode={periode} ekstra />
+        <TabProgresSesi aktif="ekstra" periode={periode} ekstra tambahan={tambahan} />
 
         <FilterSesiBulan basePath="/guru/progres" daftar={daftar} halaqoh={terpilih.id} periode={periode} params={{ tab: 'ekstra', jenis }} />
 
@@ -205,6 +220,150 @@ async function ProgresEkstra({ ekstra, periode, jenisDiminta, pilih }: {
         </div>
 
         {isi}
+      </div>
+    </div>
+  )
+}
+
+/** Kepala halaman tab jalur tambahan — sama untuk TR, Riyadhoh, dan Gukar. */
+function KepalaJalur({ judul, keterangan, aktif, ekstra, tambahan, periode }: {
+  judul: string
+  keterangan: string
+  aktif: 'tr' | 'riyadhoh' | 'gukar'
+  ekstra: boolean
+  tambahan: TabTambahanGuru
+  periode: string
+}) {
+  return (
+    <>
+      <div>
+        <p className="text-xs font-bold uppercase tracking-[0.1em] text-warning">Rekap Setoran</p>
+        <h1 className="text-3xl tracking-tight" style={{ fontFamily: 'var(--font-playfair), Georgia, serif' }}>{judul}</h1>
+        <p className="text-sm text-muted-foreground mt-0.5">{keterangan}</p>
+      </div>
+      <TabProgresSesi aktif={aktif} periode={periode} ekstra={ekstra} tambahan={tambahan} />
+    </>
+  )
+}
+
+/**
+ * Tab TR / Riyadhoh: setoran jalur itu saja untuk anak-anak yang diampu guru
+ * ini di jalurnya. Kolomnya hanya Jum'at (TR) atau Sabtu (Riyadhoh) — hari
+ * jalur itu berjalan. TR hanya tahsin; Riyadhoh tahsin & tahfidz.
+ */
+async function ProgresJalur({ jalur, teacherId, ekstra, tambahan, periode, jenisDiminta }: {
+  jalur: 'tr' | 'riyadhoh'
+  teacherId: string
+  ekstra: boolean
+  tambahan: TabTambahanGuru
+  periode: string
+  jenisDiminta: string | undefined
+}) {
+  const pilihanJenis = jalur === 'tr' ? (['tahsin'] as const) : (['tahsin', 'tahfidz'] as const)
+  const jenis: JenisRekap = pilihanJenis.find(j => j === jenisDiminta) ?? 'tahsin'
+  const ids = jalur === 'tr'
+    ? (await getPesertaTR(teacherId)).map(p => p.id)
+    : (await getSiswaRiyadhoh()).filter(s => s.ikut && s.pengampu_id === teacherId).map(s => s.id)
+  const data = ids.length ? await getProgresSesi({ siswa: ids }, periode, jenis, { jalur }) : null
+  const hariIni = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' })
+  const nama = jalur === 'tr' ? 'Tahsin Rekomendasi' : 'Riyadhoh'
+
+  return (
+    <div className="min-h-screen" style={{ background: 'var(--secondary)' }}>
+      <div className="max-w-6xl mx-auto px-4 md:px-6 py-6 space-y-4">
+        <KepalaJalur
+          judul={`Progres ${nama}`}
+          keterangan={`Setoran ${nama} anak-anak yang Anda ampu sepanjang bulan — hanya yang dicatat di ${jalur === 'tr' ? 'Jum’at sore' : 'Sabtu Riyadhoh'}.`}
+          aktif={jalur} ekstra={ekstra} tambahan={tambahan} periode={periode}
+        />
+
+        <FilterSesiBulan
+          basePath="/guru/progres"
+          daftar={[{ id: jalur, name: nama, sesi: null, jenjang: jalur === 'tr' ? 'sd' : 'smp' }]}
+          halaqoh={jalur}
+          periode={periode}
+          params={{ tab: jalur, jenis }}
+        />
+
+        {pilihanJenis.length > 1 && (
+          <div className="flex gap-2" role="group" aria-label="Jenis setoran">
+            {pilihanJenis.map(j => (
+              <a key={j} href={hrefRekap('/guru/progres', { tab: jalur, periode, jenis: j })}
+                aria-current={jenis === j ? 'true' : undefined}
+                className={cn('rounded-full border px-3 py-1 text-sm', jenis === j ? 'border-primary bg-primary text-primary-foreground font-semibold' : 'bg-card hover:bg-accent')}>
+                {j === 'tahsin' ? 'Tahsin' : 'Tahfidz'}
+              </a>
+            ))}
+          </div>
+        )}
+
+        {!data || data.baris.length === 0 ? (
+          <div className="rounded-2xl border border-dashed bg-muted/30 py-10 text-center text-sm text-muted-foreground">
+            {jalur === 'tr'
+              ? 'Belum ada peserta di kelompok Tahsin Rekomendasi Anda.'
+              : 'Belum ada siswa yang ditetapkan koordinator ke kelompok Riyadhoh Anda.'}
+          </div>
+        ) : (
+          <TabelProgres data={data} jenis={jenis} hariIni={hariIni} />
+        )}
+      </div>
+    </div>
+  )
+}
+
+/**
+ * Tab Gukar: rekap bulanan tiap kelompok mentoring guru & karyawan yang
+ * diampu. Gukar dicatat per bulan, bukan per tanggal — lihat RekapGukarBulan.
+ */
+async function ProgresGukar({ teacherId, ekstra, tambahan, periode }: {
+  teacherId: string
+  ekstra: boolean
+  tambahan: TabTambahanGuru
+  periode: string
+}) {
+  const term = await getCurrentTerm()
+  const groups = term ? await getGukarGroupsFor(teacherId, term.id) : []
+  const [pesertaPer, tahapan, surat] = await Promise.all([
+    Promise.all(groups.map(g => getGukarParticipants(g.id))),
+    getTahapanGukar(),
+    getDaftarSurat(),
+  ])
+  const bulanan = await getGukarMonthly(pesertaPer.flat().map(p => p.id), periode)
+  const tahap = Object.values(tahapan).flat()
+  const namaSurat = new Map(surat.map(s => [s.id, s.nama]))
+  const hariIni = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' })
+  const berjalan = statusSetoranBulan(periode, hariIni, null) === 'berjalan'
+
+  return (
+    <div className="min-h-screen" style={{ background: 'var(--secondary)' }}>
+      <div className="max-w-6xl mx-auto px-4 md:px-6 py-6 space-y-4">
+        <KepalaJalur
+          judul="Progres Mentoring Gukar"
+          keterangan="Rekap bulanan peserta pembinaan guru & karyawan yang Anda ampu. Isian dan koreksinya tetap di halaman kelompok."
+          aktif="gukar" ekstra={ekstra} tambahan={tambahan} periode={periode}
+        />
+
+        <FilterSesiBulan
+          basePath="/guru/progres"
+          daftar={[{ id: 'gukar', name: 'Mentoring Gukar', sesi: null, jenjang: 'sd' }]}
+          halaqoh="gukar"
+          periode={periode}
+          params={{ tab: 'gukar' }}
+        />
+
+        {groups.map((g, i) => (
+          <RekapGukarBulan
+            key={g.id}
+            judul={g.name}
+            groupId={g.id}
+            periode={periode}
+            peserta={pesertaPer[i]}
+            bulanan={bulanan}
+            tahap={tahap}
+            namaSurat={namaSurat}
+            berjalan={berjalan}
+          />
+        ))}
       </div>
     </div>
   )

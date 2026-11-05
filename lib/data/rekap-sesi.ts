@@ -12,6 +12,7 @@ import { getJalurSiswa } from '@/lib/data/jalur-siswa'
 import { getPetaHalaman } from '@/lib/data/target-tahfidz'
 import { halamanRentang } from '@/lib/rq/murojaah'
 import { jalurSetoran, type CapaianJalur, type JalurSetoran, type JalurTambahan } from '@/lib/rq/jalur'
+import { HARI_JALUR, type JalurBerhari } from '@/lib/rq/hari-jalur'
 
 /**
  * Rekap bulanan per sesi untuk guru — dua halaman, satu sumber:
@@ -106,6 +107,17 @@ function hariSekolah(periode: string): string[] {
   for (let d = 1; d <= jumlahHari; d++) {
     const hari = new Date(Date.UTC(tahun, bulan - 1, d)).getUTCDay()
     if (hari !== 0 && hari !== 6) hasil.push(`${periode}-${String(d).padStart(2, '0')}`)
+  }
+  return hasil
+}
+
+/** Semua tanggal pada `hari` (0 = Ahad … 6 = Sabtu) di bulan itu — kolom rekap jalur TR / Riyadhoh. */
+function hariJalurDalamBulan(periode: string, hari: number): string[] {
+  const [tahun, bulan] = periode.split('-').map(Number)
+  const jumlahHari = new Date(Date.UTC(tahun, bulan, 0)).getUTCDate()
+  const hasil: string[] = []
+  for (let d = 1; d <= jumlahHari; d++) {
+    if (new Date(Date.UTC(tahun, bulan - 1, d)).getUTCDay() === hari) hasil.push(`${periode}-${String(d).padStart(2, '0')}`)
   }
   return hasil
 }
@@ -347,13 +359,25 @@ export async function getProgresSesi(
    * ekstraSlot: hanya setoran bertanda slot-slot ekstra ini (tab Ekstra guru).
    * Kehadiran & "hadir tanpa setor" milik halaqoh sekolah, jadi tidak dihitung.
    */
-  opsi: { ekstraSlot?: string[] } = {},
+  opsi: {
+    ekstraSlot?: string[]
+    /**
+     * Hanya setoran jalur berhari tetap ini (tab TR / Riyadhoh guru). Kolomnya
+     * hanya Jum'at / Sabtu bulan itu; kehadiran sekolah tidak dihitung.
+     */
+    jalur?: JalurBerhari
+  } = {},
 ): Promise<ProgresSesi> {
   const slotEkstra = opsi.ekstraSlot ? new Set(opsi.ekstraSlot) : null
-  const lolos = (l: { ekstra_slot_id?: string | null }) => !slotEkstra || (!!l.ekstra_slot_id && slotEkstra.has(l.ekstra_slot_id))
+  // Rekap jalur tambahan: absensi & pekan kurang milik halaqoh sekolah, bukan jalur ini.
+  const tanpaSekolah = Boolean(slotEkstra || opsi.jalur)
+  const lolos = (l: { ekstra_slot_id?: string | null; tahsin_rekomendasi?: boolean | null; riyadhoh?: boolean | null }) =>
+    (!slotEkstra || (!!l.ekstra_slot_id && slotEkstra.has(l.ekstra_slot_id)))
+    && (!opsi.jalur || jalurSetoran(l) === opsi.jalur)
+  const kolomHari = (periode: string) => opsi.jalur ? hariJalurDalamBulan(periode, HARI_JALUR[opsi.jalur]) : hariSekolah(periode)
   const supabase = createServerClient()
   const siswa = await siswaSasaran(supabase, sasaran)
-  if (siswa.length === 0) return { tanggal: hariSekolah(periode), baris: [] }
+  if (siswa.length === 0) return { tanggal: kolomHari(periode), baris: [] }
   const ids = siswa.map(s => s.id)
   const levelPromise = getLevelPerSiswa(ids)
   const jalurPromise = getJalurSiswa(ids)
@@ -387,7 +411,7 @@ export async function getProgresSesi(
     const { data: materiRows } = await supabase.from('tahsin_materi').select('jilid_id')
     const jilidMateri = new Set(((materiRows ?? []) as { jilid_id: string }[]).map(m => m.jilid_id))
     for (const l of logs) {
-      if (!lolos(l as { ekstra_slot_id?: string | null })) continue
+      if (!lolos(l as Parameters<typeof lolos>[0])) continue
       // Halaman yang lulus dua kali sebulan di jalur yang sama dihitung sekali;
       // drill = mengulang yang sudah lewat, bukan capaian.
       const kunci = l.halaman !== null ? `${l.jilid_id}|${l.halaman}` : l.quran_halaman !== null ? `Q|${l.quran_halaman}` : null
@@ -416,7 +440,7 @@ export async function getProgresSesi(
       .order('created_at')
       .range(dari, sampai))
     for (const l of logs) {
-      if (!lolos(l as { ekstra_slot_id?: string | null })) continue
+      if (!lolos(l as Parameters<typeof lolos>[0])) continue
       if (peta && (l.kind === 'ziyadah' || l.kind === 'hafalan_baru')) {
         tambah(l.student_id, jalurSetoran(l), halamanRentang(peta, {
           surat_id: l.surat_id, ayat_dari: l.ayat_dari, surat_ke_id: l.surat_ke_id ?? null, ayat_ke: l.ayat_ke,
@@ -448,14 +472,14 @@ export async function getProgresSesi(
       .in('student_id', ids).gte('setoran_date', awal).lt('setoran_date', akhir).order('setoran_date').range(dari, sampai)),
   ])
   const statusHari = new Map<string, string>()
-  if (!slotEkstra) for (const a of absensiRows) statusHari.set(`${a.student_id}|${a.tanggal}`, a.status)
+  if (!tanpaSekolah) for (const a of absensiRows) statusHari.set(`${a.student_id}|${a.tanggal}`, a.status)
   const hariSetor = new Set([...hariTahsin, ...hariTahfidz].map(l => `${l.student_id}|${l.setoran_date}`))
   // Hari sesi benar-benar berjalan: ada setoran atau absensi siapa pun. Pekan
   // sebelum halaqoh mulai mencatat, dan hari libur di tengah pekan, tidak
   // boleh menuduh anak "tidak setor".
   const hariAktif = new Set([...hariTahsin, ...hariTahfidz].map(l => l.setoran_date).concat(absensiRows.map(a => a.tanggal)))
   const hariIni = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta' }).format(new Date())
-  const sekolah = hariSekolah(periode)
+  const sekolah = kolomHari(periode)
   // Pekan (kunci: Senin) → hari sekolah di bulan ini yang sudah lewat.
   const pekan = new Map<string, string[]>()
   for (const t of sekolah) {
@@ -492,7 +516,7 @@ export async function getProgresSesi(
       if (hari[hari.length - 1] >= hariIni) continue
       const bisaHadir = hari.filter(t => hariAktif.has(t) && !absen[t]).length
       const setor = hari.filter(t => hariSetor.has(`${s.id}|${t}`)).length
-      if (!slotEkstra && bisaHadir >= 3 && setor <= BATAS_SETOR_PEKANAN) pekanKurang.push({ senin, setor, hadir: bisaHadir })
+      if (!tanpaSekolah && bisaHadir >= 3 && setor <= BATAS_SETOR_PEKANAN) pekanKurang.push({ senin, setor, hadir: bisaHadir })
     }
 
     return {

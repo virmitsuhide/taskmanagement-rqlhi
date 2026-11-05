@@ -56,3 +56,17 @@ export function usernameTrBerikutnya(ada: string[]): string {
   const nomor = ada.map(u => Number(POLA_USERNAME_TR.exec(u)?.[1] ?? 0))
   return `TR${Math.max(0, ...nomor) + 1}`
 }
+
+/**
+ * Label kelompok TR. Kelompok yang masih memakai akun bersama ditulis
+ * "TR3 · Ustadzah Rizky"; yang sudah dipegang guru asli cukup nama gurunya —
+ * username pribadi guru tidak bermakna bagi koordinator.
+ */
+export function labelKelompokTR(k: { username: string; full_name: string }): string {
+  return POLA_USERNAME_TR.test(k.username) ? `${k.username} · ${k.full_name}` : k.full_name
+}
+
+/** Label pendek untuk chip saring: "TR3", atau nama guru. */
+export function kodeKelompokTR(k: { username: string; full_name: string }): string {
+  return POLA_USERNAME_TR.test(k.username) ? k.username : k.full_name
+}

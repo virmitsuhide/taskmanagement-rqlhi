@@ -8,6 +8,7 @@ import { BINTANG_ADAB_RENDAH } from '@/lib/rq/bintang'
 import { FilterSesiBulan } from '@/components/setoran/FilterSesiBulan'
 import { TabProgresSesi } from '@/components/setoran/TabProgresSesi'
 import { punyaSlotEkstra } from '@/lib/data/ekstra'
+import { getTabTambahanGuru } from '@/lib/data/tab-progres-guru'
 
 interface PageProps {
   searchParams: Promise<{ halaqoh?: string; periode?: string }>
@@ -31,9 +32,10 @@ export default async function CatatanAdabPage({ searchParams }: PageProps) {
   const params = await searchParams
   const periode = isValidPeriod(params.periode ?? '') ? params.periode! : currentPeriod()
 
-  const [daftar, punyaEkstra] = await Promise.all([
+  const [daftar, punyaEkstra, tambahan] = await Promise.all([
     getHalaqohSesiGuru(session.teacherId),
     punyaSlotEkstra(session.teacherId).catch(() => false),
+    getTabTambahanGuru(session.teacherId),
   ])
   // Bawaan "Semua sesi": pertanyaan pertama guru biasanya "anak mana saja",
   // bukan "anak mana di sesi 2".
@@ -60,7 +62,7 @@ export default async function CatatanAdabPage({ searchParams }: PageProps) {
             Anak dengan nilai adab ≤ {BINTANG_ADAB_RENDAH.toLocaleString('id-ID')}★ saat setor tahsin atau tahfidz.
             Nilai adab tidak memengaruhi kenaikan halaman.
           </p>
-          <div className="mt-3"><TabProgresSesi aktif="adab" halaqoh={halaqoh} periode={periode} ekstra={punyaEkstra} /></div>
+          <div className="mt-3"><TabProgresSesi aktif="adab" halaqoh={halaqoh} periode={periode} ekstra={punyaEkstra} tambahan={tambahan} /></div>
         </div>
 
         {!data ? (

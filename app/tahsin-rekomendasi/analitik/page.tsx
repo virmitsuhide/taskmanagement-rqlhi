@@ -6,6 +6,7 @@ import { getSession } from '@/lib/auth/session'
 import { canManageTahsinRekomendasi, canViewTahsinRekomendasiAnalitik } from '@/lib/auth/permissions'
 import { getAnalitikTR, type JumatAnalitik, type RentangTR } from '@/lib/data/tahsin-rekomendasi-analitik'
 import { getKelompokTR } from '@/lib/data/tahsin-rekomendasi'
+import { kodeKelompokTR, labelKelompokTR } from '@/lib/rq/tahsin-rekomendasi'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { Panel } from '@/components/dashboard/kit'
 import { cn } from '@/lib/utils'
@@ -64,7 +65,7 @@ export default async function AnalitikTRPage({ searchParams }: { searchParams: P
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-accent-warm">Tahsin Rekomendasi SDIT · analitik</p>
           <h1 className="mt-1 max-w-3xl font-heading text-3xl leading-tight md:text-[38px]">
-            {kelompokTerpilih ? `Kelompok ${kelompokTerpilih.username}` : 'Tahsin Rekomendasi'} {RENTANG.find(x => x.k === rentang)?.l.toLowerCase()}
+            {kelompokTerpilih ? `Kelompok ${kodeKelompokTR(kelompokTerpilih)}` : 'Tahsin Rekomendasi'} {RENTANG.find(x => x.k === rentang)?.l.toLowerCase()}
             {r.hadirPersen !== null && <> — <i>kehadiran {r.hadirPersen}%, {r.setoran.toLocaleString('id-ID')} setoran.</i></>}
           </h1>
           <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
@@ -80,7 +81,7 @@ export default async function AnalitikTRPage({ searchParams }: { searchParams: P
             Kelompok
             <select name="kelompok" defaultValue={kelompokId ?? ''} className="bg-transparent text-sm font-semibold text-foreground outline-none">
               <option value="">Semua</option>
-              {daftar.map(k => <option key={k.teacher_id} value={k.teacher_id}>{k.username} · {k.full_name}</option>)}
+              {daftar.map(k => <option key={k.teacher_id} value={k.teacher_id}>{labelKelompokTR(k)}</option>)}
             </select>
             <button type="submit" className="font-semibold text-primary">Terapkan</button>
           </form>
@@ -171,7 +172,7 @@ export default async function AnalitikTRPage({ searchParams }: { searchParams: P
                       {a.kelompok.map(k => (
                         <tr key={k.id} className="border-t">
                           <td className="py-2.5 pr-3">
-                            <Link href={href({ kelompok: k.id })} className="font-bold hover:underline">{k.username} · {k.nama}</Link>
+                            <Link href={href({ kelompok: k.id })} className="font-bold hover:underline">{labelKelompokTR({ username: k.username, full_name: k.nama })}</Link>
                             {k.tempat && <span className="block text-xs text-muted-foreground">{k.tempat}</span>}
                           </td>
                           <td className="py-2.5 pr-3 text-muted-foreground">{k.anak}</td>

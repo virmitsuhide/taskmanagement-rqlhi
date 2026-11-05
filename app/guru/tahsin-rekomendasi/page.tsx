@@ -33,7 +33,7 @@ export default async function TahsinRekomendasiGuruPage({ searchParams }: { sear
           <h1 className="font-heading text-2xl leading-tight md:text-3xl">{kelompok ? `Kelompok ${kelompok.full_name}` : 'Tahsin Rekomendasi'}</h1>
           {kelompok && (
             <p className="text-xs text-muted-foreground">
-              Akun {kelompok.username}{kelompok.tempat ? ` · ${kelompok.tempat}` : ''} · tiap Jum&apos;at sore
+              {kelompok.akun_bersama ? `Akun ${kelompok.username} · ` : ''}{kelompok.tempat ? `${kelompok.tempat} · ` : ''}tiap Jum&apos;at sore
             </p>
           )}
         </header>
