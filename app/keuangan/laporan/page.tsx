@@ -9,13 +9,14 @@ import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { FinanceNav } from '@/components/keuangan/FinanceNav'
 import { PeriodPicker } from '@/components/keuangan/PeriodPicker'
 import { PrintButton } from '@/components/keuangan/PrintButton'
+import { DocxButton } from '@/components/keuangan/DocxButton'
 import { periodeLaporanBawaan, formatPeriod, formatRupiah, isValidPeriod, shiftPeriod } from '@/lib/finance/period'
 import {
   buildBudgetRows, buildProgramPlans, buildRows, buildTrend, buildTrustFunds, monthlyTotals,
 } from '@/lib/finance/report'
 import { buildKpi } from '@/lib/finance/kpi'
 import { drafNarasi } from '@/lib/finance/narasi'
-import { ReportSheet } from './ReportSheet'
+import { ReportSheet, type ReportSheetProps } from './ReportSheet'
 
 interface PageProps {
   searchParams: Promise<{ periode?: string }>
@@ -46,6 +47,24 @@ export default async function LaporanPage({ searchParams }: PageProps) {
   const balance = income.total - expense.total
   const aktif = <T extends { is_active: boolean; display_order: number }>(xs: T[]) => xs.filter(a => a.is_active).sort((a, b) => a.display_order - b.display_order)
 
+  const sheet: ReportSheetProps = {
+    period,
+    nextPeriod,
+    notes,
+    draf: drafNarasi(data, period),
+    canManage,
+    income,
+    expense,
+    budgetIncome,
+    budgetExpense,
+    trust: buildTrustFunds(data, period),
+    trend: buildTrend(data, period).filter(t => t.terisi),
+    kpi: buildKpi(data, period),
+    plans: buildProgramPlans(data, nextPeriod),
+    incomeAccounts: aktif(data.accounts.filter(a => a.kind === 'pemasukan')),
+    expenseAccounts: aktif(data.accounts.filter(a => a.kind === 'pengeluaran')),
+  }
+
   return (
     <div>
       <DashboardHeader
@@ -63,11 +82,12 @@ export default async function LaporanPage({ searchParams }: PageProps) {
             <h1 className="mt-1 font-heading text-3xl leading-tight md:text-[38px]">Laporan keuangan <em>{formatPeriod(period)}</em></h1>
             <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
               Disusun otomatis dari Isian Bulanan. Teks berlabel <b>draf otomatis</b> bisa diubah langsung; tombol Cetak
-              menghasilkan PDF (pilih &ldquo;Simpan sebagai PDF&rdquo;).
+              menghasilkan PDF (pilih &ldquo;Simpan sebagai PDF&rdquo;), tombol Unduh .docx menghasilkan berkas Word.
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <PeriodPicker period={period} />
+            <DocxButton {...sheet} />
             <PrintButton />
           </div>
         </div>
@@ -92,23 +112,7 @@ export default async function LaporanPage({ searchParams }: PageProps) {
           </p>
         )}
 
-        <ReportSheet
-          period={period}
-          nextPeriod={nextPeriod}
-          notes={notes}
-          draf={drafNarasi(data, period)}
-          canManage={canManage}
-          income={income}
-          expense={expense}
-          budgetIncome={budgetIncome}
-          budgetExpense={budgetExpense}
-          trust={buildTrustFunds(data, period)}
-          trend={buildTrend(data, period).filter(t => t.terisi)}
-          kpi={buildKpi(data, period)}
-          plans={buildProgramPlans(data, nextPeriod)}
-          incomeAccounts={aktif(data.accounts.filter(a => a.kind === 'pemasukan'))}
-          expenseAccounts={aktif(data.accounts.filter(a => a.kind === 'pengeluaran'))}
-        />
+        <ReportSheet {...sheet} />
       </div>
     </div>
   )

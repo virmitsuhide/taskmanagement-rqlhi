@@ -115,10 +115,12 @@ export function ReportSheet(props: ReportSheetProps) {
         <H no="1.2.1" title="Tabel Pemasukan" />
         <TabelArus rows={income.rows} total={income.total} head="Sumber Pemasukan" totalLabel="TOTAL PEMASUKAN" ket={s => ket('pemasukan', s)} />
         <H no="1.2.2" title="Diagram Pemasukan" />
-        <DonatKomposisi
-          judul={`Komposisi Pemasukan ${bulan}`}
-          potongan={income.rows.map(r => ({ label: r.name, nilai: r.amount, warna: warnaPos(r.slug, 'pemasukan') }))}
-        />
+        <div data-docx-grafik="1.2.2">
+          <DonatKomposisi
+            judul={`Komposisi Pemasukan ${bulan}`}
+            potongan={income.rows.map(r => ({ label: r.name, nilai: r.amount, warna: warnaPos(r.slug, 'pemasukan') }))}
+          />
+        </div>
         <NarrativeEditor {...narasi('catatan_pemasukan')} title="Analisis diagram pemasukan" varian="polos" prosa />
 
         {/* ── 1.3 ── */}
@@ -126,10 +128,12 @@ export function ReportSheet(props: ReportSheetProps) {
         <H no="1.3.1" title="Tabel Pengeluaran" />
         <TabelArus rows={expense.rows} total={expense.total} head="Sumber Pengeluaran" totalLabel="TOTAL PENGELUARAN" ket={s => ket('pengeluaran', s)} />
         <H no="1.3.2" title="Diagram Pengeluaran" />
-        <DonatKomposisi
-          judul={`Komposisi Pengeluaran ${bulan}`}
-          potongan={expense.rows.map(r => ({ label: r.name, nilai: r.amount, warna: warnaPos(r.slug, 'pengeluaran') }))}
-        />
+        <div data-docx-grafik="1.3.2">
+          <DonatKomposisi
+            judul={`Komposisi Pengeluaran ${bulan}`}
+            potongan={expense.rows.map(r => ({ label: r.name, nilai: r.amount, warna: warnaPos(r.slug, 'pengeluaran') }))}
+          />
+        </div>
         <NarrativeEditor {...narasi('catatan_pengeluaran')} title="Analisis diagram pengeluaran" varian="polos" prosa />
 
         {/* ── 1.4 ── */}
@@ -252,53 +256,63 @@ export function ReportSheet(props: ReportSheetProps) {
         {/* ── 1.8 ── */}
         <H no="1.8" title={`Diagram Tren ${rentang}`} besar />
         <H no="1.8.1" title="Komposisi Pemasukan per Bulan" />
-        <BatangBertumpuk
-          judul={`Komposisi Pemasukan per Bulan (${rentangPendek})`}
-          bulan={nBulan}
-          seri={[...incomeAccounts.filter(a => a.slug !== 'subsidi_yayasan'), ...incomeAccounts.filter(a => a.slug === 'subsidi_yayasan')]
-            .map(a => ({ label: a.name, warna: warnaPos(a.slug, 'pemasukan'), nilai: trend.map(t => t.pemasukan[a.slug] ?? 0) }))}
-        />
+        <div data-docx-grafik="1.8.1">
+          <BatangBertumpuk
+            judul={`Komposisi Pemasukan per Bulan (${rentangPendek})`}
+            bulan={nBulan}
+            seri={[...incomeAccounts.filter(a => a.slug !== 'subsidi_yayasan'), ...incomeAccounts.filter(a => a.slug === 'subsidi_yayasan')]
+              .map(a => ({ label: a.name, warna: warnaPos(a.slug, 'pemasukan'), nilai: trend.map(t => t.pemasukan[a.slug] ?? 0) }))}
+          />
+        </div>
         <NarrativeEditor {...narasi('analisis_komposisi')} title="Analisis komposisi pemasukan" varian="polos" prosa awalan="Analisis:" />
 
         <H no="1.8.2" title="Mandiri vs Subsidi" />
-        <BatangBertumpuk
-          judul="Mandiri vs Subsidi: Komposisi Cashflow per Bulan"
-          bulan={nBulan}
-          persenDalam
-          total={t => `Total ${(t / 1_000_000).toLocaleString('id-ID', { maximumFractionDigits: 1 })}`}
-          seri={[
-            { label: 'Pendapatan Mandiri', warna: '#2a7d65', nilai: trend.map(t => t.mandiri) },
-            { label: 'Subsidi Yayasan', warna: '#c9a227', nilai: trend.map(t => t.subsidi) },
-          ]}
-        />
+        <div data-docx-grafik="1.8.2">
+          <BatangBertumpuk
+            judul="Mandiri vs Subsidi: Komposisi Cashflow per Bulan"
+            bulan={nBulan}
+            persenDalam
+            total={t => `Total ${(t / 1_000_000).toLocaleString('id-ID', { maximumFractionDigits: 1 })}`}
+            seri={[
+              { label: 'Pendapatan Mandiri', warna: '#2a7d65', nilai: trend.map(t => t.mandiri) },
+              { label: 'Subsidi Yayasan', warna: '#c9a227', nilai: trend.map(t => t.subsidi) },
+            ]}
+          />
+        </div>
         <NarrativeEditor {...narasi('analisis_mandiri')} title="Analisis mandiri vs subsidi" varian="polos" prosa awalan="Analisis:" />
 
         <H no="1.8.3" title="Tren Pemasukan per Sumber" />
-        <BatangBerkelompok
-          judul={`Tren Pemasukan per Sumber (${rentangPendek})`}
-          bulan={nBulan}
-          kategori={[...incomeAccounts.filter(a => a.slug === 'subsidi_yayasan'), ...incomeAccounts.filter(a => a.slug !== 'subsidi_yayasan')]
-            .map(a => ({ label: a.name.replace(/ (Yayasan|Takhassus)$/, '\n$1').replace('SD Quls\n', 'SD Quls\n'), nilai: trend.map(t => t.pemasukan[a.slug] ?? 0) }))}
-        />
+        <div data-docx-grafik="1.8.3">
+          <BatangBerkelompok
+            judul={`Tren Pemasukan per Sumber (${rentangPendek})`}
+            bulan={nBulan}
+            kategori={[...incomeAccounts.filter(a => a.slug === 'subsidi_yayasan'), ...incomeAccounts.filter(a => a.slug !== 'subsidi_yayasan')]
+              .map(a => ({ label: a.name.replace(/ (Yayasan|Takhassus)$/, '\n$1').replace('SD Quls\n', 'SD Quls\n'), nilai: trend.map(t => t.pemasukan[a.slug] ?? 0) }))}
+          />
+        </div>
         <NarrativeEditor {...narasi('analisis_sumber')} title="Analisis tren per sumber" varian="polos" prosa awalan="Analisis:" />
 
         <H no="1.8.4" title="Komposisi Pengeluaran per Bulan" />
-        <BatangBertumpuk
-          judul={`Komposisi Pengeluaran per Bulan (${rentangPendek})`}
-          bulan={nBulan}
-          seri={expenseAccounts.map(a => ({ label: a.name, warna: warnaPos(a.slug, 'pengeluaran'), nilai: trend.map(t => t.pengeluaran[a.slug] ?? 0) }))}
-        />
+        <div data-docx-grafik="1.8.4">
+          <BatangBertumpuk
+            judul={`Komposisi Pengeluaran per Bulan (${rentangPendek})`}
+            bulan={nBulan}
+            seri={expenseAccounts.map(a => ({ label: a.name, warna: warnaPos(a.slug, 'pengeluaran'), nilai: trend.map(t => t.pengeluaran[a.slug] ?? 0) }))}
+          />
+        </div>
         <NarrativeEditor {...narasi('analisis_pengeluaran_tren')} title="Analisis komposisi pengeluaran" varian="polos" prosa awalan="Analisis:" />
 
         <H no="1.8.5" title="Tren KPI Kemandirian" />
         <p className="report-judul-grafik">Tren KPI Kemandirian ({rentangPendek})</p>
-        <GarisKpi
-          bulan={nBulan}
-          kemandirian={trend.map(t => t.kemandirian)}
-          porsiGaji={trend.map(t => t.porsiGaji)}
-          targetMandiri={KPI_TARGETS.rasioMandiri.value}
-          targetGaji={KPI_TARGETS.porsiGajiYys.value}
-        />
+        <div data-docx-grafik="1.8.5">
+          <GarisKpi
+            bulan={nBulan}
+            kemandirian={trend.map(t => t.kemandirian)}
+            porsiGaji={trend.map(t => t.porsiGaji)}
+            targetMandiri={KPI_TARGETS.rasioMandiri.value}
+            targetGaji={KPI_TARGETS.porsiGajiYys.value}
+          />
+        </div>
         <NarrativeEditor {...narasi('analisis_kpi_tren')} title="Analisis tren KPI" varian="polos" prosa awalan="Analisis:" />
 
         {/* ── 1.9 ── */}
