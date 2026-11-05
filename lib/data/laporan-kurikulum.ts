@@ -515,7 +515,10 @@ export function strukturBab(isi: IsiLaporan): { sub: SubBab[]; nomorMasalah: str
     sub.push({ kunci: kt, nomor: `2.${n}.1`, judul: `Progres Tahsin ${LABEL_UNIT_LAPORAN[j]}`, induk, unit: { jenjang: j, apa: 'tahsin' } })
     sub.push({ kunci: kf, nomor: `2.${n}.2`, judul: `Progres Hafalan (Tahfidz) ${LABEL_UNIT_LAPORAN[j]}`, unit: { jenjang: j, apa: 'tahfidz' } })
   }
-  for (const [kunci, judul] of [['2.5', 'Keaktifan Setoran'], ['2.6', 'Ujian Bulan Ini'], ['2.7', 'Ketercapaian Target Tahfidz'], ['2.8', 'Kelengkapan Data']]) {
+  // Keaktifan Setoran ('2.5') & Kelengkapan Data ('2.8') sengaja tidak dicetak
+  // (keputusan user 2026-11-05): laporan untuk BPH, keterisian data belum perlu.
+  // Angkanya tetap dihitung di IsiLaporan; kunci lama dipertahankan.
+  for (const [kunci, judul] of [['2.6', 'Ujian Bulan Ini'], ['2.7', 'Ketercapaian Target Tahfidz']]) {
     sub.push({ kunci, nomor: `2.${++n}`, judul })
   }
   if (isi.ekstra) sub.push({ kunci: 'eks', nomor: `2.${++n}`, judul: 'Ekstra Tahsin & Tahfidz' })
@@ -587,17 +590,15 @@ export function drafNarasi(isi: IsiLaporan): NarasiLaporan {
     const awalan = (k: KelompokLaporan) => (kel.length > 1 ? `${k.judul}: ` : '')
     analisis[s.kunci] = kotak(kel.map(k => awalan(k) + (s.unit!.apa === 'tahsin' ? kalimatMatriks(k.tahsin, 'tahsin', k.judul) : tahfidzBlok(k))).join(' '))
   }
-  analisis['2.5'] = kotak(isi.keaktifan.map(k => `${k.label}: ${k.setorSalahSatu} dari ${k.siswa} siswa (${pct(k.setorSalahSatu, k.siswa)}%) setor setidaknya sekali; ${k.jumlahTahsin} setoran tahsin dan ${k.jumlahTahfidz} setoran tahfidz.`).join(' ')
-    + (isi.halaqohSepi.length ? ` ${isi.halaqohSepi.length} halaqoh tanpa setoran pada pekan terakhir bulan ini.` : ''))
   analisis['2.6'] = kotak(isi.ujian.map(u => `${u.label}: ${u.tahsinPeserta} peserta ujian tahsin, ${u.juziyyah} juz'iyyah, ${u.tasmi3 + u.tasmi5} tasmi'${u.mengulang ? `, ${u.mengulang} mengulang` : ''}; ${u.antrean} pengajuan menunggu jadwal.`).join(' '))
   analisis['2.7'] = kotak(isi.target.map(r => {
     const t = r.perTingkat.reduce((a, x) => ({ b: a.b + x.diBawah, s: a.s + x.sesuai + x.diAtas, n: a.n + x.belum }), { b: 0, s: 0, n: 0 })
     return `${r.label}: ${t.s} sesuai/di atas target, ${t.b} di bawah target, ${t.n} belum terukur.`
   }).join(' '))
   if (isi.ekstra) analisis.eks = kotak(kalimatEkstra(isi.ekstra))
-  analisis['2.8'] = kotak(isi.kelengkapan.perUnit.map(u => `${u.nama}: posisi tahsin tercatat ${pct(u.tahsin, u.siswa)}% (${u.tahsin}/${u.siswa}), tahfidz ${pct(u.tahfidz, u.siswa)}% (${u.tahfidz}/${u.siswa}).`).join(' '))
 
-  // Sorotan: kelas dengan % target tertinggi; perhatian: terendah & data kosong.
+  // Sorotan: kelas dengan % target tertinggi; perhatian: terendah. Keterisian
+  // data (siswa tanpa setoran, halaqoh sepi) tidak masuk — bukan untuk BPH.
   const semuaBaris = isi.kelompok.flatMap(k => [
     ...k.tahsin.baris.filter(b => b.bertarget >= 5).map(b => ({ k, b, apa: 'tahsin' })),
   ])
@@ -608,18 +609,11 @@ export function drafNarasi(isi: IsiLaporan): NarasiLaporan {
 
   const perhatian = urut.slice(-2).reverse().filter(x => pct(x.b.maju, x.b.bertarget) < 50)
     .map(x => `${x.k.judul} ${x.b.label}: baru ${pct(x.b.maju, x.b.bertarget)}% mencapai target ${x.apa} (${labelTarget(x.b.target)}).`)
-  for (const u of isi.kelengkapan.perUnit) if (pct(u.tahsin, u.siswa) < 80) perhatian.push(`${u.nama}: ${u.siswa - u.tahsin} siswa belum punya setoran tahsin di aplikasi.`)
-  if (isi.halaqohSepi.length) perhatian.push(`${isi.halaqohSepi.length} halaqoh tanpa setoran pada pekan terakhir bulan ini.`)
 
   const masalah: BarisMasalah[] = []
   for (const x of urut.filter(x => pct(x.b.maju, x.b.bertarget) < 25 && x.b.bertarget >= 10).slice(0, 4)) {
     masalah.push({ area: `Tahsin ${x.k.judul} ${x.b.label}`, masalah: `Baru ${pct(x.b.maju, x.b.bertarget)}% (${x.b.maju}/${x.b.bertarget}) mencapai target ${labelTarget(x.b.target)}.`, rekomendasi: '', prioritas: 'Tinggi' })
   }
-  for (const u of isi.kelengkapan.perUnit) if (pct(u.tahsin, u.siswa) < 80) {
-    masalah.push({ area: `Kelengkapan data ${u.nama}`, masalah: `${u.siswa - u.tahsin} dari ${u.siswa} siswa belum punya setoran tahsin di aplikasi.`, rekomendasi: 'Tagih pencatatan setoran ke guru pengampu (lihat 2.8).', prioritas: 'Tinggi' })
-  }
-  if (isi.ekstra?.tanpaPresensi) masalah.push({ area: 'Presensi ekstra', masalah: `${isi.ekstra.tanpaPresensi} jadwal halaqoh ekstra yang sudah lewat belum ada presensinya.`, rekomendasi: 'Ingatkan guru ekstra mengisi presensi.', prioritas: 'Sedang' })
-  if (isi.halaqohSepi.length) masalah.push({ area: 'Keaktifan halaqoh', masalah: `${isi.halaqohSepi.length} halaqoh tanpa setoran pada pekan terakhir.`, rekomendasi: '', prioritas: 'Sedang' })
 
   return { sorotan: sorotan.join('\n'), perhatian: perhatian.join('\n'), analisis, masalah, kesimpulan: '' }
 }

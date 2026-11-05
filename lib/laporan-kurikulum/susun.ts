@@ -182,30 +182,7 @@ export function susunLaporan(isi: IsiLaporan, narasi: NarasiLaporan, lalu: IsiLa
   }
 
   // Bagian lintas-unit — nomornya dari strukturBab.
-  // Keaktifan
-  sub.push({
-    kunci: '2.5', nomor: no('2.5'), judul: 'Keaktifan Setoran',
-    pengantar: `Siswa yang tercatat setor di aplikasi selama ${bulan}.`
-      + (isi.keaktifanTanpaEkstra ? ' Setoran di halaqoh ekstra tidak dihitung di sini; lihat bagian Ekstra.' : ''),
-    tabel: [
-      {
-        header: ['Unit', 'Siswa aktif', 'Setor tahsin', 'Setor tahfidz', 'Setor (salah satu)', 'Jumlah setoran tahsin', 'Jumlah setoran tahfidz'],
-        baris: isi.keaktifan.map(u => [u.label, angka(u.siswa), capai(u.setorTahsin, u.siswa), capai(u.setorTahfidz, u.siswa), capai(u.setorSalahSatu, u.siswa), angka(u.jumlahTahsin), angka(u.jumlahTahfidz)]),
-      },
-      ...isi.keaktifan.map(u => ({
-        judul: `${u.label} per kelas`,
-        header: ['Kelas', 'Siswa', 'Setor tahsin', 'Setor tahfidz'],
-        baris: u.perKelas.map(p => [`Kelas ${p.tingkat}`, angka(p.siswa), capai(p.setorTahsin, p.siswa), capai(p.setorTahfidz, p.siswa)]),
-      })),
-      ...(isi.halaqohSepi.length ? [{
-        judul: `Halaqoh tanpa setoran pada tujuh hari terakhir bulan (${isi.halaqohSepi.length})`,
-        header: ['Halaqoh', 'Pengampu', 'Unit'],
-        baris: isi.halaqohSepi.map(h => [h.halaqoh, h.pengampu, h.unit]),
-      }] : []),
-    ],
-    grafik: [],
-    analisis: an('2.5'),
-  })
+  // Keaktifan Setoran & Kelengkapan Data tidak dicetak — lihat strukturBab.
 
   // Ujian
   sub.push({
@@ -231,25 +208,6 @@ export function susunLaporan(isi: IsiLaporan, narasi: NarasiLaporan, lalu: IsiLa
     })),
     grafik: [],
     analisis: an('2.7'),
-  })
-
-  // Kelengkapan
-  sub.push({
-    kunci: '2.8', nomor: no('2.8'), judul: 'Kelengkapan Data',
-    pengantar: 'Siswa yang posisi tahsin & tahfidznya sudah tercatat dari setoran di aplikasi.',
-    tabel: [
-      {
-        header: ['Unit', 'Siswa', 'Tahsin tercatat', 'Tahfidz tercatat'],
-        baris: isi.kelengkapan.perUnit.map(u => [u.nama, angka(u.siswa), capai(u.tahsin, u.siswa), capai(u.tahfidz, u.siswa)]),
-      },
-      {
-        judul: 'Per guru pengampu (yang paling belum lengkap di atas)',
-        header: ['Guru', 'Unit', 'Siswa', 'Tahsin tercatat', 'Tahfidz tercatat'],
-        baris: isi.kelengkapan.perGuru.map(g => [g.nama, g.unit, angka(g.siswa), capai(g.tahsin, g.siswa), capai(g.tahfidz, g.siswa)]),
-      },
-    ],
-    grafik: [],
-    analisis: an('2.8'),
   })
 
   // Ekstra — sesudah bagian lintas-unit, hanya edisi yang memuatnya.
