@@ -55,6 +55,32 @@ export async function recalcPosisi(
   /** Posisi tempat setoran yang baru dihapus dilakukan — titik balik bila riwayatnya habis. */
   awal?: { method_id: string | null; jilid_id: string | null; halaman: number | null },
 ): Promise<void> {
+  const update = await hitungPosisi(supabase, studentId, { awal })
+  await supabase.from('students').update(update).eq('id', studentId)
+}
+
+/** Isi pengganti satu setoran — untuk menghitung posisi "seandainya" tanpa menyimpannya. */
+export interface GantiSetoran {
+  id: string
+  setoran_date: string
+  halaman: number | null
+  status: string
+}
+
+/**
+ * Inti recalcPosisi tanpa menulis: kolom posisi siswa hasil pemutaran ulang.
+ * Dengan `ganti`, satu setoran diperlakukan seolah sudah berisi nilai baru —
+ * dipakai pratinjau koreksi ("posisi akan menjadi …") sebelum disimpan.
+ */
+export async function hitungPosisi(
+  supabase: Supabase,
+  studentId: string,
+  opsi: {
+    awal?: { method_id: string | null; jilid_id: string | null; halaman: number | null }
+    ganti?: GantiSetoran
+  } = {},
+): Promise<Record<string, string | number | null>> {
+  const { awal, ganti } = opsi
   const { data: logRows } = await supabase
     .from('tahsin_logs')
     .select('id, method_id, jilid_id, halaman, status, drill, setoran_date, created_at, quran_halaman, quran_surat_id, quran_ayat_dari, quran_ayat_ke')
@@ -69,6 +95,13 @@ export async function recalcPosisi(
     quran_halaman: number | null; quran_surat_id: number | null
     quran_ayat_dari: number | null; quran_ayat_ke: number | null
   }[]
+  if (ganti) {
+    const i = logs.findIndex(l => l.id === ganti.id)
+    if (i >= 0) {
+      logs[i] = { ...logs[i], setoran_date: ganti.setoran_date, halaman: ganti.halaman, status: ganti.status }
+      logs.sort((a, b) => a.setoran_date.localeCompare(b.setoran_date) || a.created_at.localeCompare(b.created_at))
+    }
+  }
 
   // Setoran habis seluruhnya: anak kembali ke keadaan "belum pernah setor".
   //
@@ -83,8 +116,7 @@ export async function recalcPosisi(
       current_quran_halaman: null, current_quran_surat_id: null, current_quran_ayat: null,
     }
     if (awal?.method_id) update.current_method_id = awal.method_id
-    await supabase.from('students').update(update).eq('id', studentId)
-    return
+    return update
   }
 
   const jilidIds = [...new Set(logs.map(l => l.jilid_id).filter((x): x is string => Boolean(x)))]
@@ -201,10 +233,7 @@ export async function recalcPosisi(
     }
   }
 
-  await supabase
-    .from('students')
-    .update({ current_method_id: method, current_jilid_id: jilid, current_jilid_page: page, ...posisiQuran })
-    .eq('id', studentId)
+  return { current_method_id: method, current_jilid_id: jilid, current_jilid_page: page, ...posisiQuran }
 }
 
 /**

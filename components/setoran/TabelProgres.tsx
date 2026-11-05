@@ -5,7 +5,8 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { Pencil, Trash2 } from 'lucide-react'
-import { deleteSetoranAction, updateSetoranAction } from '@/app/actions/setoran-koreksi'
+import { deleteSetoranAction, updateSetoranAction, type PeringatanUrutan } from '@/app/actions/setoran-koreksi'
+import { KotakPeringatanUrutan } from '@/components/setoran/PeringatanUrutan'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -264,15 +265,17 @@ export function TabelProgres({
       </div>
 
       {sunting && (
-        <DialogKoreksi key={sunting.s.id} s={sunting.s} nama={sunting.nama} jalur={sunting.jalur} onTutup={() => setSunting(null)} />
+        <DialogKoreksi key={sunting.s.id} s={sunting.s} nama={sunting.nama} jalur={sunting.jalur} hariIni={hariIni} onTutup={() => setSunting(null)} />
       )}
     </div>
   )
 }
 
-function DialogKoreksi({ s, nama, jalur, onTutup }: { s: SuntingSetoran; nama: string; jalur: SelProgres['jalur']; onTutup: () => void }) {
+function DialogKoreksi({ s, nama, jalur, hariIni, onTutup }: { s: SuntingSetoran; nama: string; jalur: SelProgres['jalur']; hariIni: string; onTutup: () => void }) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
+  const [tanggal, setTanggal] = useState(s.tanggal)
+  const [peringatan, setPeringatan] = useState<PeringatanUrutan | null>(null)
   const [status, setStatus] = useState<TahsinStatus>(s.status ?? 'lulus')
   const [yakinHapus, setYakinHapus] = useState(false)
   /*
@@ -292,10 +295,17 @@ function DialogKoreksi({ s, nama, jalur, onTutup }: { s: SuntingSetoran; nama: s
     const fd = new FormData(e.currentTarget)
     if (!disentuh.current.has(namaNilai)) fd.set(namaNilai, s.nilai === null ? '' : String(s.nilai))
     if (!disentuh.current.has('nilai_sikap')) fd.set('nilai_sikap', s.sikap === null ? '' : String(s.sikap))
+    // Tombol "Tetap pindahkan" adalah submitter bernama paksa=1.
+    const submitter = (e.nativeEvent as SubmitEvent).submitter as HTMLButtonElement | null
+    if (submitter?.name === 'paksa') fd.set('paksa', '1')
     startTransition(async () => {
       const hasil = await updateSetoranAction(null, fd)
       if (hasil.error) {
         toast.error(hasil.error)
+        return
+      }
+      if (hasil.peringatan) {
+        setPeringatan(hasil.peringatan)
         return
       }
       toast.success(tahsin ? 'Setoran dikoreksi — posisi siswa dihitung ulang.' : 'Setoran dikoreksi.')
@@ -337,8 +347,19 @@ function DialogKoreksi({ s, nama, jalur, onTutup }: { s: SuntingSetoran; nama: s
         <form onSubmit={kirim} className="space-y-4">
           <input type="hidden" name="table" value={s.tabel} />
           <input type="hidden" name="id" value={s.id} />
-          {/* Tanggal tidak dikoreksi di sini: memindahkannya bisa membuat dua setoran di satu hari. */}
-          <input type="hidden" name="setoran_date" value={s.tanggal} />
+          {/* Server menolak bila tanggal tujuan sudah berisi setoran sejenis — satu setoran per hari. */}
+          <div className="space-y-1.5">
+            <Label htmlFor="k_tanggal">Tanggal setoran</Label>
+            <Input
+              id="k_tanggal" name="setoran_date" type="date" required
+              defaultValue={s.tanggal} max={hariIni}
+              onChange={e => { setTanggal(e.target.value); setPeringatan(null) }}
+              className="w-44"
+            />
+            {tanggal !== s.tanggal && (
+              <p className="text-[11px] text-info">Setoran dipindah dari {tanggalPanjang(s.tanggal)}.</p>
+            )}
+          </div>
 
           {tahsin ? (
             <>
@@ -420,9 +441,11 @@ function DialogKoreksi({ s, nama, jalur, onTutup }: { s: SuntingSetoran; nama: s
 
           {tahsin && (
             <p className="text-[11px] text-muted-foreground">
-              Mengubah halaman atau status menghitung ulang posisi anak dari seluruh riwayat setorannya.
+              Mengubah tanggal, halaman, atau status menghitung ulang posisi anak dari seluruh riwayat setorannya.
             </p>
           )}
+
+          {peringatan && <KotakPeringatanUrutan p={peringatan} />}
 
           <DialogFooter className="gap-2 sm:justify-between">
             {/* Dua langkah: sel tabel mudah salah klik, dan hapus tidak bisa dibatalkan. */}
@@ -438,7 +461,9 @@ function DialogKoreksi({ s, nama, jalur, onTutup }: { s: SuntingSetoran; nama: s
             </Button>
             <div className="flex gap-2">
               <Button type="button" variant="outline" onClick={onTutup} disabled={pending}>Batal</Button>
-              <Button type="submit" disabled={pending}>{pending ? 'Menyimpan…' : 'Simpan koreksi'}</Button>
+              {peringatan
+                ? <Button type="submit" name="paksa" value="1" variant="destructive" disabled={pending}>{pending ? 'Menyimpan…' : 'Tetap pindahkan'}</Button>
+                : <Button type="submit" disabled={pending}>{pending ? 'Menyimpan…' : 'Simpan koreksi'}</Button>}
             </div>
           </DialogFooter>
         </form>

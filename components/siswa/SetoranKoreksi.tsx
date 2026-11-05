@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { useConfirm } from '@/components/ui/confirm-dialog'
+import { KotakPeringatanUrutan } from '@/components/setoran/PeringatanUrutan'
 
 export type LogTable = 'tahsin_logs' | 'tahfidz_logs' | 'tasmi_logs'
 
@@ -239,9 +240,12 @@ function EditForm({ item, onDone }: { item: SetoranItem; onDone: () => void }) {
       </div>
 
       {state?.error && <p className="text-sm text-destructive">{state.error}</p>}
+      {state?.peringatan && <KotakPeringatanUrutan p={state.peringatan} />}
 
       <div className="flex gap-2">
-        <Button type="submit" size="sm" disabled={pending}>{pending ? 'Menyimpan…' : 'Simpan'}</Button>
+        {state?.peringatan
+          ? <Button type="submit" name="paksa" value="1" size="sm" variant="destructive" disabled={pending}>{pending ? 'Menyimpan…' : 'Tetap pindahkan'}</Button>
+          : <Button type="submit" size="sm" disabled={pending}>{pending ? 'Menyimpan…' : 'Simpan'}</Button>}
         <Button type="button" size="sm" variant="outline" onClick={onDone}>Batal</Button>
       </div>
     </form>
