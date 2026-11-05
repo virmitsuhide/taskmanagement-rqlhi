@@ -28,7 +28,6 @@
 -- per tanggal). Ubah keduanya bersamaan.
 -- ============================================================
 
-BEGIN;
 
 CREATE OR REPLACE FUNCTION public.upsert_juz_progress_from_tahfidz()
  RETURNS trigger
@@ -78,45 +77,59 @@ END;
 $function$;
 
 -- ── Hitung ulang seluruh data ─────────────────────────────────
+--
+-- SATU pernyataan (CTE pengubah data), sengaja tanpa tabel sementara:
+-- SQL Editor Supabase bisa menjalankan tiap pernyataan di koneksi berbeda,
+-- dan tabel TEMP hanya terlihat di koneksi pembuatnya ("relation _juz_benar
+-- does not exist"). Keempat perubahan menyentuh baris yang tidak beririsan
+-- — hapus (non-mutqin tanpa ayat), nolkan (mutqin tanpa ayat), ubah (ada
+-- ayat), sisip (belum ada barisnya) — jadi aman berbagi satu snapshot.
 
-DROP TABLE IF EXISTS _juz_benar;
-CREATE TEMP TABLE _juz_benar AS
-SELECT l.student_id, b.juz AS juz_number,
-       count(DISTINCT (l.surat_id, a))::int AS ayat_hafal,
-       MAX(l.created_at) AS terakhir
-  FROM tahfidz_logs l
-  JOIN batas_juz b
-    ON (b.mulai_surat, b.mulai_ayat) <= (l.surat_id, l.ayat_ke)
-   AND (b.selesai_surat, b.selesai_ayat) >= (l.surat_id, l.ayat_dari)
-  CROSS JOIN LATERAL generate_series(
-    GREATEST(l.ayat_dari, CASE WHEN b.mulai_surat = l.surat_id THEN b.mulai_ayat ELSE 1 END),
-    LEAST(l.ayat_ke, CASE WHEN b.selesai_surat = l.surat_id THEN b.selesai_ayat ELSE l.ayat_ke END)
-  ) AS a
- WHERE l.kind IN ('ziyadah', 'hafalan_baru')
-   AND l.ayat_dari IS NOT NULL AND l.ayat_ke IS NOT NULL
- GROUP BY l.student_id, b.juz;
-
--- Baris tanpa ayat lagi: dihapus, kecuali bertanda mutqin (dinolkan).
-DELETE FROM juz_progress p
- WHERE NOT p.mutqin
-   AND NOT EXISTS (SELECT 1 FROM _juz_benar j WHERE j.student_id = p.student_id AND j.juz_number = p.juz_number);
-
-UPDATE juz_progress p SET ayat_hafal = 0, updated_at = now()
- WHERE p.mutqin AND p.ayat_hafal <> 0
-   AND NOT EXISTS (SELECT 1 FROM _juz_benar j WHERE j.student_id = p.student_id AND j.juz_number = p.juz_number);
-
--- Baris yang angkanya berubah saja yang disentuh.
-UPDATE juz_progress p SET ayat_hafal = j.ayat_hafal, updated_at = now()
-  FROM _juz_benar j
- WHERE j.student_id = p.student_id AND j.juz_number = p.juz_number
-   AND p.ayat_hafal <> j.ayat_hafal;
-
-INSERT INTO juz_progress (student_id, juz_number, ayat_hafal, last_setoran_at, updated_at)
-SELECT j.student_id, j.juz_number, j.ayat_hafal, j.terakhir, now() FROM _juz_benar j
- WHERE NOT EXISTS (SELECT 1 FROM juz_progress p WHERE p.student_id = j.student_id AND p.juz_number = j.juz_number);
-
-DROP TABLE _juz_benar;
-COMMIT;
+WITH benar AS (
+  SELECT l.student_id, b.juz AS juz_number,
+         count(DISTINCT (l.surat_id, a))::int AS ayat_hafal,
+         MAX(l.created_at) AS terakhir
+    FROM tahfidz_logs l
+    JOIN batas_juz b
+      ON (b.mulai_surat, b.mulai_ayat) <= (l.surat_id, l.ayat_ke)
+     AND (b.selesai_surat, b.selesai_ayat) >= (l.surat_id, l.ayat_dari)
+    CROSS JOIN LATERAL generate_series(
+      GREATEST(l.ayat_dari, CASE WHEN b.mulai_surat = l.surat_id THEN b.mulai_ayat ELSE 1 END),
+      LEAST(l.ayat_ke, CASE WHEN b.selesai_surat = l.surat_id THEN b.selesai_ayat ELSE l.ayat_ke END)
+    ) AS a
+   WHERE l.kind IN ('ziyadah', 'hafalan_baru')
+     AND l.ayat_dari IS NOT NULL AND l.ayat_ke IS NOT NULL
+   GROUP BY l.student_id, b.juz
+),
+hapus AS (
+  DELETE FROM juz_progress p
+   WHERE NOT p.mutqin
+     AND NOT EXISTS (SELECT 1 FROM benar j WHERE j.student_id = p.student_id AND j.juz_number = p.juz_number)
+  RETURNING 1
+),
+nolkan AS (
+  UPDATE juz_progress p SET ayat_hafal = 0, updated_at = now()
+   WHERE p.mutqin AND p.ayat_hafal <> 0
+     AND NOT EXISTS (SELECT 1 FROM benar j WHERE j.student_id = p.student_id AND j.juz_number = p.juz_number)
+  RETURNING 1
+),
+ubah AS (
+  UPDATE juz_progress p SET ayat_hafal = j.ayat_hafal, updated_at = now()
+    FROM benar j
+   WHERE j.student_id = p.student_id AND j.juz_number = p.juz_number
+     AND p.ayat_hafal <> j.ayat_hafal
+  RETURNING 1
+),
+sisip AS (
+  INSERT INTO juz_progress (student_id, juz_number, ayat_hafal, last_setoran_at, updated_at)
+  SELECT j.student_id, j.juz_number, j.ayat_hafal, j.terakhir, now() FROM benar j
+   WHERE NOT EXISTS (SELECT 1 FROM juz_progress p WHERE p.student_id = j.student_id AND p.juz_number = j.juz_number)
+  RETURNING 1
+)
+SELECT (SELECT count(*) FROM hapus)  AS dihapus,
+       (SELECT count(*) FROM nolkan) AS dinolkan,
+       (SELECT count(*) FROM ubah)   AS diubah,
+       (SELECT count(*) FROM sisip)  AS disisipkan;
 
 -- Verifikasi (opsional):
 --   Ulwan Naufal Zahid (SMA): juz 3 turun dari 331 ke ≤ 126 ayat.
