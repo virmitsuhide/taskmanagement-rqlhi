@@ -10,6 +10,14 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { useConfirm } from '@/components/ui/confirm-dialog'
 import { KotakPeringatanUrutan } from '@/components/setoran/PeringatanUrutan'
+import { NAMA_HARI_JALUR, tanggalJalurSebulan, type JalurBerhari } from '@/lib/rq/hari-jalur'
+
+/** Hari ini menurut WIB — formulir hanya tampil setelah diklik, jadi aman dari selisih hidrasi. */
+const hariIniWib = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' })
+
+function tanggalPanjang(iso: string): string {
+  return new Date(`${iso}T00:00:00`).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+}
 
 export type LogTable = 'tahsin_logs' | 'tahfidz_logs' | 'tasmi_logs'
 
@@ -29,6 +37,8 @@ export interface SetoranItem {
   barisKe?: number | null
   ayatDari?: number | null
   ayatKe?: number | null
+  /** Setoran jalur berhari tetap — tanggalnya hanya bisa dipindah ke Jum'at (TR) / Sabtu (Riyadhoh). */
+  jalurHari?: JalurBerhari | null
 }
 
 const LABEL: Record<LogTable, string> = {
@@ -171,7 +181,21 @@ function EditForm({ item, onDone }: { item: SetoranItem; onDone: () => void }) {
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="space-y-1.5">
           <Label htmlFor="setoran_date">Tanggal</Label>
-          <Input id="setoran_date" name="setoran_date" type="date" required defaultValue={item.tanggal} />
+          {item.jalurHari ? (
+            <>
+              <select id="setoran_date" name="setoran_date" required defaultValue={item.tanggal}
+                className="h-9 w-full rounded-md border bg-background px-2 text-sm">
+                {tanggalJalurSebulan(item.jalurHari, item.tanggal, hariIniWib()).map(t => (
+                  <option key={t} value={t}>{tanggalPanjang(t)}</option>
+                ))}
+              </select>
+              <p className="text-[11px] text-muted-foreground">
+                Setoran {item.jalurHari === 'tr' ? 'Tahsin Rekomendasi' : 'Riyadhoh'} hanya di hari {NAMA_HARI_JALUR[item.jalurHari]}.
+              </p>
+            </>
+          ) : (
+            <Input id="setoran_date" name="setoran_date" type="date" required defaultValue={item.tanggal} />
+          )}
         </div>
 
         {isTahsin && (

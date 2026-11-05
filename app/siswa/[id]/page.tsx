@@ -6,6 +6,8 @@ import { genderAsramaSiswa, getLevelPerSiswa } from '@/lib/data/asrama'
 import { LencanaLevel } from '@/components/asrama/LencanaLevel'
 import { createServerClient } from '@/lib/supabase/server'
 import { SetoranKoreksi, type SetoranItem } from '@/components/siswa/SetoranKoreksi'
+import { jalurSetoran } from '@/lib/rq/jalur'
+import type { JalurBerhari } from '@/lib/rq/hari-jalur'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { Button } from '@/components/ui/button'
 import { Pencil, Phone, Mail, GraduationCap, BookOpen } from 'lucide-react'
@@ -381,7 +383,8 @@ async function ambilSetoran(
   const [tahsin, tahfidz, tasmi, infoSurat] = await Promise.all([
     supabase
       .from('tahsin_logs')
-      .select('id, setoran_date, halaman, baris_dari, baris_ke, status, catatan, nilai_tahsin, nilai_sikap, jilid:jilid_levels!tahsin_logs_jilid_id_fkey(label)')
+      // '*' supaya penanda jalur (riyadhoh 0087, tahsin_rekomendasi 0115) ikut tanpa menggagalkan kueri.
+      .select('*, jilid:jilid_levels!tahsin_logs_jilid_id_fkey(label)')
       .eq('student_id', studentId).order('setoran_date', { ascending: false }).limit(20),
     supabase
       .from('tahfidz_logs')
@@ -409,6 +412,7 @@ async function ambilSetoran(
       nilai: num(r.nilai_tahsin), sikap: num(r.nilai_sikap),
       status: (r.status as string) ?? null, catatan: (r.catatan as string) ?? null,
       halaman: num(r.halaman), barisDari: num(r.baris_dari), barisKe: num(r.baris_ke),
+      jalurHari: jalurBerhari(r),
     })),
     ...((tahfidz.data ?? []) as unknown as Array<Record<string, unknown>>).map(r => ({
       id: String(r.id), table: 'tahfidz_logs' as const,
@@ -417,6 +421,7 @@ async function ambilSetoran(
       nilai: num(r.nilai_tahfidz), sikap: num(r.nilai_sikap),
       status: null, catatan: (r.catatan as string) ?? null,
       ayatDari: num(r.ayat_dari), ayatKe: num(r.ayat_ke),
+      jalurHari: jalurBerhari(r),
     })),
     ...((tasmi.data ?? []) as unknown as Array<Record<string, unknown>>).map(r => ({
       id: String(r.id), table: 'tasmi_logs' as const,
@@ -428,6 +433,12 @@ async function ambilSetoran(
   ]
 
   return items.sort((a, b) => b.tanggal.localeCompare(a.tanggal)).slice(0, 20)
+}
+
+/** Jalur berhari tetap sebuah setoran (TR / Riyadhoh), atau null. */
+function jalurBerhari(r: Record<string, unknown>): JalurBerhari | null {
+  const j = jalurSetoran(r as Parameters<typeof jalurSetoran>[0])
+  return j === 'tr' || j === 'riyadhoh' ? j : null
 }
 
 /** "An-Naba ayat 1–40" / "An-Naba 30 – An-Nazi'at 20" (muroja'ah lintas surat, 0076). */
