@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/dialog'
 import { StarInput } from '@/components/setoran/StarInput'
 import { cn } from '@/lib/utils'
+import { useGeserSeret } from '@/hooks/useGeserSeret'
 import { BARIS_MAKS, LABEL_STATUS_TAHSIN, URUTAN_STATUS_TAHSIN } from '@/lib/rq/status-tahsin'
 import type { TahsinStatus } from '@/types'
 import { LencanaLevel } from '@/components/asrama/LencanaLevel'
@@ -126,6 +127,7 @@ export function TabelProgres({
   const adaAsrama = data.baris.some(b => Object.values(b.sel).some(xs => xs.some(x => x.asrama)))
   const adaJalur = data.baris.some(b => Object.values(b.sel).some(xs => xs.some(x => x.jalur in HURUF_JALUR)))
   const adaRincian = data.baris.some(b => b.jalur.length > 0 || Object.keys(b.capaian).some(j => j !== 'sekolah'))
+  const seret = useGeserSeret<HTMLDivElement>()
 
   return (
     <div className="rounded-2xl border bg-card">
@@ -134,7 +136,7 @@ export function TabelProgres({
           Belum ada setoran {jenis} di sesi ini pada bulan tersebut.
         </p>
       )}
-      <div className="overflow-x-auto">
+      <div {...seret} className="overflow-x-auto md:cursor-grab">
         <table className="w-full border-collapse text-xs">
           <thead>
             <tr className="border-b text-muted-foreground">
