@@ -8,6 +8,9 @@ import { canManageAsrama, canManageEkstra, canManageSetoran } from '@/lib/auth/p
 import { genderAsramaSiswa } from '@/lib/data/asrama'
 import { recalcPosisi, recalcMutqin, recalcJuzProgress, hitungPosisi, type GantiSetoran } from '@/lib/rq/hitung-ulang-setoran'
 import { jalurLog, labelJenisTahfidz } from '@/lib/data/setoran-ganda'
+import { kelompokPadaTanggal } from '@/lib/data/riyadhoh'
+import { hariJumat } from '@/lib/rq/tahsin-rekomendasi'
+import { hariDalamPekan } from '@/lib/rq/hari-jalur'
 import { BARIS_MAKS, statusTahsinSah } from '@/lib/rq/status-tahsin'
 import type { Jenjang } from '@/types'
 
@@ -265,6 +268,30 @@ export async function updateSetoranAction(_: unknown, formData: FormData): Promi
     setoran sejenis di jalur yang sama. Ditolak, bukan ditimpa — pengurus
     memilih sendiri mana yang dihapus.
   */
+  /*
+    Jalur berhari tetap: Tahsin Rekomendasi hanya Jum'at (0115), Riyadhoh
+    hanya Sabtu kelompoknya (0087). Guru sudah dikunci saat mencatat; koreksi
+    pengurus tunduk pada aturan yang sama, supaya rekap & kehadiran jalur itu
+    tidak memuat pertemuan di hari yang tidak pernah ada.
+  */
+  if (pindahTanggal) {
+    const jalurHari = lama as { tahsin_rekomendasi?: boolean | null; riyadhoh?: boolean | null }
+    if (jalurHari.tahsin_rekomendasi && !hariJumat(tanggal)) {
+      return { error: 'Setoran Tahsin Rekomendasi hanya bisa dipindah ke hari Jum’at.' }
+    }
+    if (jalurHari.riyadhoh) {
+      if (hariDalamPekan(tanggal) !== 6) return { error: 'Setoran Riyadhoh hanya bisa dipindah ke hari Sabtu.' }
+      const [kelompok, { data: s }] = await Promise.all([
+        kelompokPadaTanggal(tanggal),
+        supabase.from('students').select('gender').eq('id', auth.studentId).maybeSingle(),
+      ])
+      const gender = (s as { gender: string | null } | null)?.gender ?? null
+      if (kelompok && gender && kelompok !== gender) {
+        return { error: 'Sabtu itu jadwal Riyadhoh kelompok lain. Pilih Sabtu kelompok siswa ini.' }
+      }
+    }
+  }
+
   if (pindahTanggal && table !== 'tasmi_logs') {
     let q = supabase.from(table).select('*').eq('student_id', auth.studentId).eq('setoran_date', tanggal).neq('id', logId)
     if (table === 'tahfidz_logs' && lama.kind) q = q.eq('kind', lama.kind)

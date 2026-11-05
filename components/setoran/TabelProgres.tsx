@@ -7,6 +7,7 @@ import { toast } from 'sonner'
 import { Pencil, Trash2 } from 'lucide-react'
 import { deleteSetoranAction, updateSetoranAction, type PeringatanUrutan } from '@/app/actions/setoran-koreksi'
 import { KotakPeringatanUrutan } from '@/components/setoran/PeringatanUrutan'
+import { NAMA_HARI_JALUR, tanggalJalurSebulan } from '@/lib/rq/hari-jalur'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -350,12 +351,31 @@ function DialogKoreksi({ s, nama, jalur, hariIni, onTutup }: { s: SuntingSetoran
           {/* Server menolak bila tanggal tujuan sudah berisi setoran sejenis — satu setoran per hari. */}
           <div className="space-y-1.5">
             <Label htmlFor="k_tanggal">Tanggal setoran</Label>
-            <Input
-              id="k_tanggal" name="setoran_date" type="date" required
-              defaultValue={s.tanggal} max={hariIni}
-              onChange={e => { setTanggal(e.target.value); setPeringatan(null) }}
-              className="w-44"
-            />
+            {jalur === 'tr' || jalur === 'riyadhoh' ? (
+              <>
+                {/* Jalur berhari tetap: hanya Jum'at (TR) / Sabtu (Riyadhoh) bulan ini yang bisa dipilih. */}
+                <select
+                  id="k_tanggal" name="setoran_date" required
+                  defaultValue={s.tanggal}
+                  onChange={e => { setTanggal(e.target.value); setPeringatan(null) }}
+                  className="h-9 w-56 rounded-md border bg-background px-2 text-sm"
+                >
+                  {tanggalJalurSebulan(jalur, s.tanggal, hariIni).map(t => (
+                    <option key={t} value={t}>{tanggalPanjang(t)}</option>
+                  ))}
+                </select>
+                <p className="text-[11px] text-muted-foreground">
+                  Setoran {jalur === 'tr' ? 'Tahsin Rekomendasi' : 'Riyadhoh'} hanya di hari {NAMA_HARI_JALUR[jalur]}.
+                </p>
+              </>
+            ) : (
+              <Input
+                id="k_tanggal" name="setoran_date" type="date" required
+                defaultValue={s.tanggal} max={hariIni}
+                onChange={e => { setTanggal(e.target.value); setPeringatan(null) }}
+                className="w-44"
+              />
+            )}
             {tanggal !== s.tanggal && (
               <p className="text-[11px] text-info">Setoran dipindah dari {tanggalPanjang(s.tanggal)}.</p>
             )}
