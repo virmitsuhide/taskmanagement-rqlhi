@@ -107,7 +107,7 @@ export function PapanUjian({ kartu, namaPengaju, onKelola, onLihatSemua }: Props
   }
 
   return (
-    <div className="grid gap-4 lg:grid-cols-3">
+    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
       {/* ── Diajukan ── */}
       <Kolom judul="Diajukan" jumlah={diajukan.length} nada="warning" icon={<Inbox className="h-4 w-4" />}>
         {diajukan.length === 0 && <KolomKosong teks="Tidak ada pengajuan yang menunggu." />}
@@ -115,18 +115,17 @@ export function PapanUjian({ kartu, namaPengaju, onKelola, onLihatSemua }: Props
           const kunci = kunciPengaju(k.item)
           return (
             <li key={k.item.id} className="rounded-xl border bg-card p-3.5">
-              <div className="flex items-start gap-3">
-                <Avatar nama={judul(k)} />
-                <div className="min-w-0 flex-1">
-                  <p className="break-words text-sm font-semibold">{judul(k)}</p>
-                  <p className="mt-0.5 break-words text-xs text-muted-foreground">{keterangan(k)}</p>
-                  {k.jenis === 'tahsin' && <AnggotaTahsin item={k.item} className="mt-1.5" />}
-                </div>
+              <div className="flex items-center justify-between gap-2">
                 <JenisBadge k={k} />
+                <span className="text-[11px] text-muted-foreground">{berapaLama(k.item.created_at)}</span>
               </div>
-              <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t pt-2.5">
-                <span className="min-w-0 break-words text-xs text-muted-foreground">
-                  {kunci && namaPengaju[kunci] ? `${namaPengaju[kunci]} · ` : ''}{berapaLama(k.item.created_at)}
+              <Isi k={k} />
+              <div className="mt-3 flex items-center justify-between gap-3 border-t pt-2.5">
+                <span
+                  className="min-w-0 truncate text-xs text-muted-foreground"
+                  title={kunci ? namaPengaju[kunci] : undefined}
+                >
+                  {kunci && namaPengaju[kunci] ? <>oleh <span className="text-foreground">{namaPengaju[kunci]}</span></> : 'Pengaju tidak tercatat'}
                 </span>
                 <Button size="sm" className="h-8 shrink-0" onClick={() => onKelola(k)}>
                   Jadwalkan
@@ -153,24 +152,25 @@ export function PapanUjian({ kartu, namaPengaju, onKelola, onLihatSemua }: Props
                 {lewat && ' · belum dinilai'}
               </p>
               {isi.map(k => (
-                <div key={k.item.id} className="flex gap-3 rounded-xl border bg-card p-3.5">
-                  <span className="w-11 shrink-0 font-display text-lg leading-tight tabular-nums text-primary">
-                    {k.item.jadwal ? jam(k.item.jadwal) : '—'}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="break-words text-sm font-semibold">{judul(k)}</p>
-                    <p className="mt-0.5 break-words text-xs text-muted-foreground">{keterangan(k)}</p>
-                    {k.jenis === 'tahsin' && <AnggotaTahsin item={k.item} className="mt-1.5" />}
-                    <p className="mt-1 break-words text-xs">
+                <div key={k.item.id} className="rounded-xl border bg-card p-3.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-display text-lg leading-none tabular-nums text-primary">
+                      {k.item.jadwal ? jam(k.item.jadwal) : '—'}
+                    </span>
+                    <JenisBadge k={k} />
+                  </div>
+                  <Isi k={k} />
+                  <div className="mt-3 flex items-center justify-between gap-3 border-t pt-2.5">
+                    <span className="min-w-0 truncate text-xs" title={k.item.penguji || undefined}>
                       <span className="text-muted-foreground">Penguji </span>
                       <span className={k.item.penguji ? 'font-medium' : 'text-warning'}>
                         {k.item.penguji || 'belum ditentukan'}
                       </span>
-                    </p>
+                    </span>
+                    <Button size="sm" variant="outline" className="h-8 shrink-0" onClick={() => onKelola(k)}>
+                      {lewat ? 'Nilai' : 'Kelola'}
+                    </Button>
                   </div>
-                  <Button size="sm" variant="outline" className="h-8 shrink-0 self-center" onClick={() => onKelola(k)}>
-                    {lewat ? 'Nilai' : 'Kelola'}
-                  </Button>
                 </div>
               ))}
             </li>
@@ -182,18 +182,15 @@ export function PapanUjian({ kartu, namaPengaju, onKelola, onLihatSemua }: Props
       <Kolom judul="Selesai" jumlah={selesai.length} nada="success" icon={<CheckCircle2 className="h-4 w-4" />}>
         {selesai.length === 0 && <KolomKosong teks="Belum ada ujian yang selesai." />}
         {selesai.slice(0, BATAS_SELESAI).map(k => (
-          <li key={k.item.id}>
-            <button
-              onClick={() => onKelola(k)}
-              className="flex w-full items-center justify-between gap-3 rounded-xl border bg-card px-3.5 py-3 text-left transition-colors hover:border-primary/40"
-            >
+          <li key={k.item.id} className="rounded-xl border bg-card p-3.5 transition-colors hover:border-primary/40">
+            <button onClick={() => onKelola(k)} className="flex w-full items-start justify-between gap-3 text-left">
               <div className="min-w-0">
-                <p className="break-words text-sm font-semibold">{judul(k)}</p>
-                <p className="mt-0.5 break-words text-xs text-muted-foreground">{keterangan(k)}</p>
-                {k.jenis === 'tahsin' && <AnggotaTahsin item={k.item} className="mt-1.5" />}
+                <p className="text-sm font-semibold leading-snug">{judul(k)}</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">{keterangan(k)}</p>
               </div>
               <Hasil k={k} />
             </button>
+            {k.jenis === 'tahsin' && <AnggotaTahsin item={k.item} className="mt-2.5" />}
           </li>
         ))}
         {selesai.length > BATAS_SELESAI && (
@@ -232,11 +229,14 @@ function JenisBadge({ k }: { k: KartuUjian }) {
   )
 }
 
-function Avatar({ nama }: { nama: string }) {
+/** Judul + keterangan kartu, selebar kartu; anggota tahsin di bawahnya. */
+function Isi({ k }: { k: KartuUjian }) {
   return (
-    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
-      {inisial(nama)}
-    </span>
+    <>
+      <p className="mt-2 text-sm font-semibold leading-snug">{judul(k)}</p>
+      <p className="mt-0.5 text-xs text-muted-foreground">{keterangan(k)}</p>
+      {k.jenis === 'tahsin' && <AnggotaTahsin item={k.item} className="mt-2.5" />}
+    </>
   )
 }
 

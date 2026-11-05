@@ -81,17 +81,19 @@ export default async function KelolaUjianPage({ searchParams }: PageProps) {
 
         <UjianSubNav />
 
-        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_300px]">
-          <div className="min-w-0 space-y-6">
-            <KelolaUjian
-              tahfidz={tahfidz}
-              tahsin={tahsin}
-              units={units}
-              pengujiOptions={pengujis.map(p => p.nama)}
-              namaPengaju={namaPengaju}
-              jenisAwal={jenisAwal}
-            />
+        {/* Papan memakai lebar penuh: di samping panel beban, tiga kolomnya
+            terlalu sempit sampai nama terpecah satu kata per baris. */}
+        <KelolaUjian
+          tahfidz={tahfidz}
+          tahsin={tahsin}
+          units={units}
+          pengujiOptions={pengujis.map(p => p.nama)}
+          namaPengaju={namaPengaju}
+          jenisAwal={jenisAwal}
+        />
 
+        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
+          <div className="min-w-0">
             <KalenderUjian
               events={kalender}
               year={tahun}
