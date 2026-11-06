@@ -92,6 +92,7 @@ function segarkan(groupId: string) {
   revalidatePath(`/guru/gukar/${groupId}`)
   revalidatePath(`/guru/gukar/${groupId}/sesi`)
   revalidatePath('/dashboard/analitik/gukar')
+  revalidatePath('/guru/progres')
 }
 
 /** Peserta beserta metodenya — sekaligus bukti ia anggota kelompok ini. */
@@ -183,6 +184,33 @@ function sebagaiAwal(isi: KolomSetoran) {
 }
 
 const adaPosisi = (isi: KolomSetoran) => Boolean(isi.jilid_id || isi.tahfidz_surat)
+
+/**
+ * Riwayat harian (0127): posisi setoran pada satu tanggal, untuk kisi
+ * Progres per Sesi tab Gukar. gukar_monthly tetap sumber rekap; tabel ini
+ * hanya mencatat apa yang disetor hari itu. Satu tanggal satu baris —
+ * setoran ulang di tanggal yang sama adalah ralat dan menimpanya.
+ *
+ * Gagal menulis riwayat (mis. migrasi 0127 belum dijalankan) sengaja tidak
+ * menggagalkan setoran: rekap bulanannya sudah tersimpan.
+ */
+async function catatHarian(supabase: Supabase, participantId: string, tanggal: string, isi: KolomSetoran, recordedBy: string | null) {
+  await supabase.from('gukar_setoran').upsert(
+    {
+      participant_id: participantId,
+      tanggal,
+      jilid_id: isi.jilid_id,
+      halaman: isi.halaman,
+      tahsin_surat: isi.tahsin_surat,
+      tahsin_ayat: isi.tahsin_ayat,
+      tahfidz_surat: isi.tahfidz_surat,
+      tahfidz_ayat: isi.tahfidz_ayat,
+      recorded_by: recordedBy,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: 'participant_id,tanggal' },
+  )
+}
 
 // ─── Setor per sesi ──────────────────────────────────────────────────────────
 
@@ -293,7 +321,9 @@ async function setorSatu(
     },
     { onConflict: 'participant_id,period' },
   )
-  return error ? error.message || 'Gagal menyimpan setoran.' : null
+  if (error) return error.message || 'Gagal menyimpan setoran.'
+  await catatHarian(supabase, participant.id, tanggal, isi, auth.teacherId)
+  return null
 }
 
 // ─── Papan bulanan ───────────────────────────────────────────────────────────
@@ -331,6 +361,7 @@ export async function saveGukarMonthlyAction(_: unknown, formData: FormData): Pr
     statusSetoranBulan(periodKey, hari, await kunciKelompok(supabase, groupId, periodKey)) !== 'berjalan'
 
   let kolomPosisi: Record<string, unknown> = {}
+  let harian: { tanggal: string; isi: KolomSetoran } | null = null
   if (!posisiBeku) {
     const metode = await tetapkanMetode(
       supabase, participant, ((formData.get('metode_id') as string) ?? '').trim() || null,
@@ -383,6 +414,7 @@ export async function saveGukarMonthlyAction(_: unknown, formData: FormData): Pr
         setoran_terakhir: tanggal,
         jumlah_setoran: Math.max(1, kini?.jumlah_setoran ?? 0),
       })
+      harian = { tanggal, isi }
     }
   }
 
@@ -413,6 +445,7 @@ export async function saveGukarMonthlyAction(_: unknown, formData: FormData): Pr
   )
 
   if (error) return { error: error.message || 'Gagal menyimpan catatan.' }
+  if (harian) await catatHarian(supabase, participantId, harian.tanggal, harian.isi, auth.teacherId)
 
   segarkan(groupId)
   return { success: true }
@@ -565,6 +598,11 @@ export async function deleteGukarMonthlyAction(groupId: string, participantId: s
     .eq('period', toPeriodDate(periodKey))
 
   if (error) return { error: error.message || 'Gagal menghapus catatan.' }
+  // Riwayat harian bulan itu ikut hilang — bulannya kembali "belum diisi".
+  await supabase.from('gukar_setoran').delete()
+    .eq('participant_id', participantId)
+    .gte('tanggal', `${periodKey}-01`)
+    .lte('tanggal', akhirBulan(periodKey))
 
   segarkan(groupId)
   return { success: true }

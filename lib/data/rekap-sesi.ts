@@ -100,7 +100,7 @@ async function siswaHalaqoh(supabase: Supabase, halaqohIds: string[]): Promise<S
  * absen. Sabtu–Ahad libur, jadi tidak ditampilkan — kecuali ternyata ada
  * setoran di hari itu, yang tetap dimunculkan supaya tidak ada yang hilang.
  */
-function hariSekolah(periode: string): string[] {
+export function hariSekolah(periode: string): string[] {
   const [tahun, bulan] = periode.split('-').map(Number)
   const jumlahHari = new Date(Date.UTC(tahun, bulan, 0)).getUTCDate()
   const hasil: string[] = []

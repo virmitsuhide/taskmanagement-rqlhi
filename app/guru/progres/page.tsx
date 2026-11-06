@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation'
 import { getTeacherSession } from '@/lib/auth/teacher-session'
 import { getHalaqohSesiGuru, pilihHalaqoh, sasaranSesi, type HalaqohSesi } from '@/lib/data/setoran-sesi'
 import { getKelompokAsrama } from '@/lib/data/asrama'
-import { getProgresSesi, type JenisRekap } from '@/lib/data/rekap-sesi'
+import { getProgresSesi, hariSekolah, type JenisRekap } from '@/lib/data/rekap-sesi'
 import { currentPeriod, isValidPeriod } from '@/lib/finance/period'
 import { FilterSesiBulan } from '@/components/setoran/FilterSesiBulan'
 import { TabProgresSesi } from '@/components/setoran/TabProgresSesi'
@@ -16,9 +16,10 @@ import { getTabTambahanGuru, type TabTambahanGuru } from '@/lib/data/tab-progres
 import { getPesertaTR } from '@/lib/data/tahsin-rekomendasi'
 import { getSiswaRiyadhoh } from '@/lib/data/riyadhoh'
 import { getCurrentTerm } from '@/lib/data/terms'
-import { getDaftarSurat, getGukarGroupsFor, getGukarMonthly, getGukarParticipants, getTahapanGukar } from '@/lib/data/gukar'
+import { getDaftarSurat, getGukarGroupsFor, getGukarMonthly, getGukarParticipants, getGukarSetoranHarian, getTahapanGukar } from '@/lib/data/gukar'
 import { statusSetoranBulan } from '@/lib/rq/gukar-siklus'
 import { RekapGukarBulan } from '@/components/gukar/RekapGukarBulan'
+import { KisiGukarBulan } from '@/components/gukar/KisiGukarBulan'
 
 interface PageProps {
   searchParams: Promise<{ halaqoh?: string; periode?: string; jenis?: string; tab?: string }>
@@ -312,8 +313,9 @@ async function ProgresJalur({ jalur, teacherId, ekstra, tambahan, periode, jenis
 }
 
 /**
- * Tab Gukar: rekap bulanan tiap kelompok mentoring guru & karyawan yang
- * diampu. Gukar dicatat per bulan, bukan per tanggal — lihat RekapGukarBulan.
+ * Tab Gukar: setoran tiap kelompok mentoring guru & karyawan yang diampu,
+ * peserta × tanggal seperti progres siswa (riwayat harian gukar_setoran,
+ * 0127). Sebelum migrasi itu dijalankan, jatuh kembali ke rekap bulanan.
  */
 async function ProgresGukar({ teacherId, ekstra, tambahan, periode }: {
   teacherId: string
@@ -328,7 +330,16 @@ async function ProgresGukar({ teacherId, ekstra, tambahan, periode }: {
     getTahapanGukar(),
     getDaftarSurat(),
   ])
-  const bulanan = await getGukarMonthly(pesertaPer.flat().map(p => p.id), periode)
+  const idPeserta = pesertaPer.flat().map(p => p.id)
+  const [bulanan, harian] = await Promise.all([
+    getGukarMonthly(idPeserta, periode),
+    getGukarSetoranHarian(idPeserta, periode),
+  ])
+  // Senin–Jumat, plus akhir pekan yang ternyata berisi setoran susulan.
+  const tanggal = [...new Set([
+    ...hariSekolah(periode),
+    ...[...harian.per.values()].flatMap(m => [...m.keys()]),
+  ])].sort()
   const tahap = Object.values(tahapan).flat()
   const namaSurat = new Map(surat.map(s => [s.id, s.nama]))
   const hariIni = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' })
@@ -339,7 +350,7 @@ async function ProgresGukar({ teacherId, ekstra, tambahan, periode }: {
       <div className="max-w-6xl mx-auto px-4 md:px-6 py-6 space-y-4">
         <KepalaJalur
           judul="Progres Mentoring Gukar"
-          keterangan="Rekap bulanan peserta pembinaan guru & karyawan yang Anda ampu. Isian dan koreksinya tetap di halaman kelompok."
+          keterangan="Setoran peserta pembinaan guru & karyawan yang Anda ampu sepanjang bulan. Isian dan koreksinya tetap di halaman kelompok."
           aktif="gukar" ekstra={ekstra} tambahan={tambahan} periode={periode}
         />
 
@@ -351,7 +362,34 @@ async function ProgresGukar({ teacherId, ekstra, tambahan, periode }: {
           params={{ tab: 'gukar' }}
         />
 
-        {groups.map((g, i) => (
+        {!harian.tabelAda && (
+          <p className="rounded-xl border border-dashed bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
+            Tampilan per tanggal belum aktif — minta admin menjalankan migrasi 0127. Sementara ditampilkan rekap bulanan.
+          </p>
+        )}
+
+        {groups.length === 0 && (
+          <div className="rounded-2xl border border-dashed bg-muted/30 py-10 text-center text-sm text-muted-foreground">
+            Belum ada kelompok mentoring gukar yang Anda ampu di semester ini.
+          </div>
+        )}
+
+        {harian.tabelAda ? groups.map((g, i) => (
+          <KisiGukarBulan
+            key={g.id}
+            judul={g.name}
+            groupId={g.id}
+            periode={periode}
+            tanggal={tanggal}
+            peserta={pesertaPer[i]}
+            harian={harian.per}
+            bulanan={bulanan}
+            tahap={tahap}
+            namaSurat={namaSurat}
+            berjalan={berjalan}
+            hariIni={hariIni}
+          />
+        )) : groups.map((g, i) => (
           <RekapGukarBulan
             key={g.id}
             judul={g.name}

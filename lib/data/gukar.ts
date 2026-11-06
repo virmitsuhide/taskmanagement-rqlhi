@@ -101,6 +101,47 @@ export async function getGukarMonthly(
   }
 }
 
+/** Posisi setoran gukar pada satu tanggal (gukar_setoran, 0127). */
+export interface GukarSetoranHarian {
+  participant_id: string
+  tanggal: string
+  jilid_id: string | null
+  halaman: number | null
+  tahsin_surat: number | null
+  tahsin_ayat: number | null
+  tahfidz_surat: number | null
+  tahfidz_ayat: number | null
+}
+
+/**
+ * Riwayat setoran harian peserta dalam satu bulan: peserta → tanggal → posisi.
+ * `tabelAda` false bila migrasi 0127 belum dijalankan.
+ */
+export async function getGukarSetoranHarian(
+  participantIds: string[],
+  period: PeriodKey,
+): Promise<{ tabelAda: boolean; per: Map<string, Map<string, GukarSetoranHarian>> }> {
+  const per = new Map<string, Map<string, GukarSetoranHarian>>()
+  if (participantIds.length === 0) return { tabelAda: true, per }
+
+  const [y, m] = period.split('-').map(Number)
+  const akhir = new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10)
+  const supabase = createServerClient()
+  const { data, error } = await supabase
+    .from('gukar_setoran')
+    .select('participant_id, tanggal, jilid_id, halaman, tahsin_surat, tahsin_ayat, tahfidz_surat, tahfidz_ayat')
+    .in('participant_id', participantIds)
+    .gte('tanggal', `${period}-01`)
+    .lte('tanggal', akhir)
+  if (error) return { tabelAda: !(error.code === '42P01' || error.code === 'PGRST205'), per }
+
+  for (const r of (data ?? []) as GukarSetoranHarian[]) {
+    if (!per.has(r.participant_id)) per.set(r.participant_id, new Map())
+    per.get(r.participant_id)!.set(r.tanggal, r)
+  }
+  return { tabelAda: true, per }
+}
+
 export interface GukarRecapRow {
   participant: GukarParticipant
   groupName: string
