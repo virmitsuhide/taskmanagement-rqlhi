@@ -37,6 +37,8 @@ export default async function HalaqohEkstraPage({ searchParams }: {
   const guru = ((guruRes.data ?? []) as { id: string; full_name: string }[]).filter(g => bolehGuruEkstra(guruEkstra, g.id))
 
   const tampilNonaktif = sp.status === 'semua'
+  // Halaqoh nonaktif hilang dari papan — tanpa angka ini koordinator mengira datanya terhapus.
+  const nNonaktif = data.slot.filter(s => !s.aktif).length
   const q = (sp.q ?? '').trim().toLowerCase()
   // Pencarian juga menembus nama peserta: koordinator sering mencari "anak ini di halaqoh mana".
   const pesertaPerSlot = new Map<string, typeof peserta>()
@@ -204,7 +206,7 @@ export default async function HalaqohEkstraPage({ searchParams }: {
 
             {papan && (
               <p className="text-xs text-muted-foreground">
-                {tampilNonaktif ? 'Halaqoh nonaktif ikut tampil (pudar) · ' : 'Halaqoh nonaktif disembunyikan · '}
+                {tampilNonaktif ? `${nNonaktif} halaqoh nonaktif ikut tampil (pudar) · ` : `${nNonaktif} halaqoh nonaktif disembunyikan — datanya tetap tersimpan, buka untuk mengaktifkan kembali · `}
                 <Link href={hrefDengan(PATH, param, { status: tampilNonaktif ? undefined : 'semua' })} className="font-semibold text-primary hover:underline">
                   {tampilNonaktif ? 'sembunyikan' : 'tampilkan'}
                 </Link>
@@ -218,7 +220,7 @@ export default async function HalaqohEkstraPage({ searchParams }: {
                   {daftar.length} halaqoh · {totalPeserta} peserta aktif
                 </p>
                 <Link href={hrefDengan(PATH, param, { status: tampilNonaktif ? undefined : 'semua' })} className="text-xs font-medium text-primary hover:underline">
-                  {tampilNonaktif ? 'Sembunyikan halaqoh nonaktif' : 'Tampilkan juga halaqoh nonaktif'}
+                  {tampilNonaktif ? 'Sembunyikan halaqoh nonaktif' : `Tampilkan juga ${nNonaktif} halaqoh nonaktif`}
                 </Link>
               </div>
               {daftar.length === 0 ? (

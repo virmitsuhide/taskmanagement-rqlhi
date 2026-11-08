@@ -91,7 +91,7 @@ export function FormSlotEkstra({ slot, jenis, guru, onSelesai }: {
         <EditorJadwalEkstra value={waktu} onChange={setWaktu} />
       </div>
       <Kolom label="Kuota (kosong = ikut jenis)"><Input name="kuota" type="number" min={1} max={50} defaultValue={slot?.kuota ?? ''} /></Kolom>
-      <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="aktif" defaultChecked={slot?.aktif ?? true} className="h-4 w-4" />Halaqoh berjalan</label>
+      <label className="flex items-start gap-2 text-sm"><input type="checkbox" name="aktif" defaultChecked={slot?.aktif ?? true} className="mt-0.5 h-4 w-4" /><span>Halaqoh berjalan<span className="block text-xs text-muted-foreground">Tanpa centang = nonaktif: disembunyikan dari jadwal, tetapi peserta &amp; setorannya tetap tersimpan dan bisa diaktifkan kembali.</span></span></label>
       <div className="flex justify-end"><Button type="submit" disabled={pending}>{pending ? 'Menyimpan…' : slot ? 'Simpan perubahan' : 'Buat halaqoh'}</Button></div>
     </form>
   )

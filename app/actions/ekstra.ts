@@ -121,6 +121,23 @@ export async function simpanSlotEkstraAction(_: unknown, fd: FormData): Promise<
   return { success: true }
 }
 
+/**
+ * Aktifkan kembali (atau nonaktifkan) satu halaqoh ekstra tanpa membuka
+ * form sunting. Menonaktifkan tidak menyentuh peserta, kehadiran, maupun
+ * setoran — semuanya muncul lagi begitu halaqohnya diaktifkan.
+ */
+export async function aturAktifHalaqohEkstraAction(slotId: string, aktif: boolean): Promise<Hasil> {
+  const k = await koordinator()
+  if ('error' in k) return { error: k.error }
+  const { data, error } = await createServerClient().from('ekstra_slot')
+    .update({ aktif, updated_at: new Date().toISOString() })
+    .eq('id', slotId).select('id')
+  if (error) return { error: 'Gagal mengubah status halaqoh.' }
+  if (!data?.length) return { error: 'Halaqoh ekstra tidak ditemukan.' }
+  segarkan()
+  return { success: true }
+}
+
 /** Kolom jadwal_tambahan belum ada — migrasi 0125 belum dijalankan. */
 const kolomHilang = (e: { code?: string } | null) => !!e && (e.code === '42703' || e.code === 'PGRST204')
 const PESAN_MIGRASI_JADWAL = 'Jadwal ekstra butuh migrasi 0125. Minta admin menjalankannya lebih dulu.'

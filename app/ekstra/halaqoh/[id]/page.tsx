@@ -10,6 +10,7 @@ import { EkstraSubNav } from '@/components/ekstra/EkstraSubNav'
 import { FormSlotEkstra } from '@/components/ekstra/FormEkstra'
 import { AksiPesertaEkstra } from '@/components/ekstra/AksiPesertaEkstra'
 import { TambahPesertaEkstra } from '@/components/ekstra/TambahPesertaEkstra'
+import { PitaHalaqohNonaktif } from '@/components/ekstra/StatusHalaqohEkstra'
 import { getPesertaLuar } from '@/lib/data/ekstra-luar'
 import { Panel } from '@/components/dashboard/kit'
 import { bolehGuruEkstra, getCalonSiswa, getDataEkstra, getGuruEkstra, getHalaqohEkstra, HARI_PENDEK, hariIniWIB, labelSlot, nomorWa, rupiah, type StatusHadirEkstra } from '@/lib/data/ekstra'
@@ -105,6 +106,8 @@ export default async function DetailHalaqohEkstraPage({ params }: { params: Prom
             <Angka nilai={nCatat ? `${Math.round((nHadir / nCatat) * 100)}%` : '—'} label={`hadir ${bulan.split(' ')[0]}`} />
           </div>
         </header>
+
+        {!slot.aktif && <PitaHalaqohNonaktif slotId={slot.id} peserta={peserta.length} pertemuan={pertemuan.length} />}
 
         <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-12">
           <section className="rounded-2xl border bg-card lg:col-span-8">
