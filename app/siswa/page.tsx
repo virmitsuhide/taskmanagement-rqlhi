@@ -9,10 +9,13 @@ import { createServerClient } from '@/lib/supabase/server'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { SearchInput } from '@/components/ui/search-input'
 import { Button } from '@/components/ui/button'
-import { SiswaRowActions } from '@/components/siswa/SiswaRowActions'
-import { Plus, Users, Upload, ArrowDown, ArrowUp, AlertCircle } from 'lucide-react'
+import { TabelSiswa } from '@/components/siswa/TabelSiswa'
+import { Plus, Users, Upload, ArrowUpDown, AlertCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { SURAH } from '@/lib/rq/quran'
+import {
+  ARAH_AWAL, bacaUrutan, getBarisSiswa, jenjangTerlihat, ketArah, LABEL_SORT, SORT_KEYS, urutKelas, urutkanBaris,
+  type Baris, type SortKey,
+} from '@/lib/data/daftar-siswa'
 import { tingkatOf } from '@/lib/rq/sesi'
 import { kelasJelas } from '@/lib/rq/kelas'
 import type { Jenjang } from '@/types'
@@ -33,11 +36,6 @@ import type { Jenjang } from '@/types'
  * halaman yang sedang terbuka — yang lebih menyesatkan daripada tidak ada.
  */
 
-const UNITS: Jenjang[] = ['paud', 'sd', 'sd_juara', 'smp', 'sma']
-
-type SortKey = 'nama' | 'pengampu' | 'tahsin' | 'tahfidz'
-const SORT_KEYS: SortKey[] = ['nama', 'pengampu', 'tahsin', 'tahfidz']
-
 interface PageProps {
   searchParams: Promise<{
     q?: string
@@ -49,31 +47,6 @@ interface PageProps {
   }>
 }
 
-interface Baris {
-  id: string
-  full_name: string
-  nis: string | null
-  kelas: string | null
-  program: string | null
-  jenjang: Jenjang
-  is_active: boolean
-  halaqoh: string | null
-  pengampu: string | null
-  /** order_num jilid — kunci urut tahsin; label untuk ditampilkan. */
-  tahsinUrut: number
-  tahsinLabel: string
-  /** Nomor surah terjauh; makin KECIL makin jauh hafalannya. */
-  tahfidzUrut: number
-  tahfidzLabel: string
-}
-
-/** Urut kelas secara alami: 1A, 1B, 2A … 10A — bukan 1A, 10A, 2A. */
-function urutKelas(a: string, b: string): number {
-  const ta = tingkatOf(a) ?? 0
-  const tb = tingkatOf(b) ?? 0
-  return ta !== tb ? ta - tb : a.localeCompare(b, 'id')
-}
-
 export default async function SiswaListPage({ searchParams }: PageProps) {
   const session = await getSession()
   if (!session) redirect('/login')
@@ -81,13 +54,10 @@ export default async function SiswaListPage({ searchParams }: PageProps) {
 
   const params = await searchParams
   const query = (params.q ?? '').trim()
-  const sort: SortKey = SORT_KEYS.includes(params.sort as SortKey) ? (params.sort as SortKey) : 'nama'
-  const dir: 'asc' | 'desc' = params.dir === 'desc' ? 'desc' : 'asc'
+  const { sort, dir } = bacaUrutan(params.sort, params.dir)
 
   const allowed = getManageableJenjang(session.role)
-  const viewableJenjang: Jenjang[] = ['kepala_rq', 'kumik', 'sdm', 'bendahara'].includes(session.role)
-    ? UNITS
-    : allowed.filter(j => UNITS.includes(j))
+  const viewableJenjang = jenjangTerlihat(session.role)
 
   if (viewableJenjang.length === 0) await tolakAkses()
 
@@ -175,87 +145,7 @@ export default async function SiswaListPage({ searchParams }: PageProps) {
   // ── Baris kelas terpilih. Tanpa penghalaman: satu rombel puluhan anak.
   let baris: Baris[] = []
   if (kelas) {
-    let q = supabase
-      .from('students')
-      .select(
-        'id, full_name, nis, jenjang, kelas, program, is_active, current_jilid_page, current_jilid_id,' +
-        ' halaqoh:halaqoh!students_halaqoh_id_fkey(name, wali:teachers!halaqoh_wali_teacher_id_fkey(full_name))',
-      )
-      .eq('is_active', true)
-      .eq('jenjang', jenjang)
-      .eq('kelas', kelas)
-    if (programScope) q = q.in('program', programScope as string[])
-    if (query) q = q.or(`full_name.ilike.%${query}%,nis.ilike.%${query}%`)
-
-    const { data } = await q
-    const rows = (data ?? []) as unknown as {
-      id: string; full_name: string; nis: string | null; jenjang: Jenjang
-      kelas: string | null; program: string | null; is_active: boolean
-      current_jilid_page: number | null; current_jilid_id: string | null
-      halaqoh: { name: string; wali: { full_name: string } | null } | null
-    }[]
-
-    const ids = rows.map(r => r.id)
-
-    // Jilid & setoran tahfidz diambil sekali untuk seluruh kelas, lalu
-    // dipasangkan di memori — bukan satu kueri per anak.
-    const [{ data: jilidData }, { data: logData }] = await Promise.all([
-      supabase.from('jilid_levels').select('id, label, order_num'),
-      ids.length > 0
-        ? supabase.from('tahfidz_logs').select('student_id, surat_id').in('student_id', ids)
-        : Promise.resolve({ data: [] }),
-    ])
-
-    const jilid = new Map(
-      ((jilidData ?? []) as { id: string; label: string; order_num: number }[])
-        .map(j => [j.id, j]),
-    )
-
-    // Surah terjauh = NOMOR TERKECIL. Hafalan berjalan mundur dari juz 30
-    // (An-Naba', 78) ke depan, jadi anak yang sudah di Al-Mulk (67) lebih jauh
-    // daripada yang di An-Nas (114) — mengurutkan menaik akan membalikkannya.
-    const surahMin = new Map<string, number>()
-    for (const log of (logData ?? []) as { student_id: string; surat_id: number }[]) {
-      const kini = surahMin.get(log.student_id)
-      if (kini === undefined || log.surat_id < kini) surahMin.set(log.student_id, log.surat_id)
-    }
-
-    baris = rows.map(r => {
-      const j = r.current_jilid_id ? jilid.get(r.current_jilid_id) : undefined
-      const nomor = surahMin.get(r.id)
-      const surah = nomor ? SURAH[nomor - 1] : undefined
-      return {
-        id: r.id,
-        full_name: r.full_name,
-        nis: r.nis,
-        kelas: r.kelas,
-        program: r.program,
-        jenjang: r.jenjang,
-        is_active: r.is_active,
-        halaqoh: r.halaqoh?.name ?? null,
-        pengampu: r.halaqoh?.wali?.full_name ?? null,
-        // Belum terdata ditaruh di ujung apa pun arah urutannya, supaya baris
-        // kosong tidak menyela deretan yang justru sedang dibandingkan.
-        tahsinUrut: j?.order_num ?? Number.MAX_SAFE_INTEGER,
-        tahsinLabel: j ? `${j.label}${r.current_jilid_page ? ` hal ${r.current_jilid_page}` : ''}` : '—',
-        tahfidzUrut: nomor ?? Number.MAX_SAFE_INTEGER,
-        tahfidzLabel: surah ? `Juz ${surah.juz} · ${surah.nama}` : '—',
-      }
-    })
-
-    const arah = dir === 'asc' ? 1 : -1
-    baris.sort((a, b) => {
-      switch (sort) {
-        case 'pengampu':
-          return arah * (a.pengampu ?? 'zzz').localeCompare(b.pengampu ?? 'zzz', 'id')
-        case 'tahsin':
-          return arah * (a.tahsinUrut - b.tahsinUrut) || a.full_name.localeCompare(b.full_name, 'id')
-        case 'tahfidz':
-          return arah * (a.tahfidzUrut - b.tahfidzUrut) || a.full_name.localeCompare(b.full_name, 'id')
-        default:
-          return arah * a.full_name.localeCompare(b.full_name, 'id')
-      }
-    })
+    baris = urutkanBaris(await getBarisSiswa({ role: session.role, jenjang, kelas: [kelas], query }), sort, dir)
   }
 
   const bolehUbah = canManageStudents(session.role, jenjang)
@@ -275,14 +165,20 @@ export default async function SiswaListPage({ searchParams }: PageProps) {
     const s = next.sort ?? sort
     if (s !== 'nama') p.set('sort', s)
     const d = next.dir ?? dir
-    if (d !== 'asc') p.set('dir', d)
+    if (d !== ARAH_AWAL[s]) p.set('dir', d)
     return `/siswa?${p.toString()}`
   }
 
-  /** Klik kolom yang sama membalik arah; kolom lain selalu mulai menaik. */
+  /** Klik urutan yang sama membalik arah; urutan lain mulai dari arah awalnya. */
   function hrefSort(key: SortKey): string {
-    return href({ sort: key, dir: sort === key && dir === 'asc' ? 'desc' : 'asc' })
+    return href({ sort: key, dir: sort === key ? (dir === 'asc' ? 'desc' : 'asc') : ARAH_AWAL[key] })
   }
+
+  // Unduhan membawa unit, kelas, pencarian & urutan yang sedang dipakai di layar.
+  const paramUnduh: Record<string, string> = { jenjang, sort, dir }
+  if (tingkat !== null) paramUnduh.tingkat = String(tingkat)
+  if (kelas) paramUnduh.kelas = kelas
+  if (query) paramUnduh.q = query
 
   // ── Angka ringkas untuk rombel yang sedang terbuka (dari baris yang sudah dimuat).
   const tanpaPengampu = baris.filter(s => !s.pengampu).length
@@ -424,55 +320,42 @@ export default async function SiswaListPage({ searchParams }: PageProps) {
             </p>
           </div>
         ) : (
-          /* Tabel lebar menggulir di dalam wadahnya sendiri — halamannya tidak
-             ikut bergeser mendatar di layar sempit. */
-          <div className="overflow-x-auto rounded-2xl border bg-card">
-            <table className="w-full min-w-[720px] text-sm">
-              <thead className="border-b text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
-                <tr>
-                  <Th href={hrefSort('nama')} aktif={sort === 'nama'} dir={dir}>Nama</Th>
-                  <th className="px-3 py-3 text-left font-bold">Kelas</th>
-                  <Th href={hrefSort('pengampu')} aktif={sort === 'pengampu'} dir={dir}>Pengampu · halaqoh</Th>
-                  <Th href={hrefSort('tahsin')} aktif={sort === 'tahsin'} dir={dir}>Tahsin</Th>
-                  <Th href={hrefSort('tahfidz')} aktif={sort === 'tahfidz'} dir={dir}>Tahfidz</Th>
-                  {bolehUbah && <th className="w-20 px-3 py-3" />}
-                </tr>
-              </thead>
-              <tbody className="divide-y">
-                {baris.map(s => (
-                  <tr key={s.id} className="transition-colors hover:bg-muted/30">
-                    <td className="px-3 py-3 first:pl-5">
-                      <Link href={`/siswa/${s.id}`} className="font-bold hover:underline">
-                        {s.full_name}
-                      </Link>
-                      {s.nis && (
-                        <span className="block text-xs text-muted-foreground">NIS {s.nis}</span>
-                      )}
-                    </td>
-                    <td className="px-3 py-3 font-bold">{s.kelas ?? '—'}</td>
-                    <td className="px-3 py-3">
-                      {s.pengampu
-                        ? <span className="font-semibold">{s.pengampu}</span>
-                        : <span className="font-semibold text-accent-warm">tanpa pengampu</span>}
-                      {s.halaqoh && (
-                        <span className="block text-xs text-muted-foreground">{s.halaqoh}</span>
-                      )}
-                    </td>
-                    <td className={cn('px-3 py-3', s.tahsinLabel === '—' && 'text-accent-warm')}>
-                      {s.tahsinLabel === '—' ? 'belum tercatat' : s.tahsinLabel}
-                    </td>
-                    <td className={cn('px-3 py-3', s.tahfidzLabel === '—' && 'text-accent-warm')}>
-                      {s.tahfidzLabel === '—' ? 'belum tercatat' : s.tahfidzLabel}
-                    </td>
-                    {bolehUbah && (
-                      <td className="px-3 py-3 pr-5">
-                        <SiswaRowActions id={s.id} name={s.full_name} />
-                      </td>
-                    )}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="space-y-2.5">
+          {/* Pilihan urut yang terlihat — kepala kolom tetap bisa diklik, tapi di
+              HP tabelnya menggulir mendatar dan kepala kolom mudah terlewat. */}
+          <nav aria-label="Urutkan" className="flex flex-wrap items-center gap-1.5">
+            <span className="mr-1 inline-flex items-center gap-1 text-[12.5px] text-muted-foreground">
+              <ArrowUpDown className="h-3.5 w-3.5" />Urutkan
+            </span>
+            {SORT_KEYS.map(k => {
+              const on = sort === k
+              return (
+                <Link
+                  key={k}
+                  href={hrefSort(k)}
+                  aria-current={on ? 'true' : undefined}
+                  title={on ? 'Klik lagi untuk membalik arah' : undefined}
+                  className={cn('inline-flex h-[30px] items-center gap-1 rounded-full border px-3 text-[12px] font-semibold transition-colors',
+                    on ? 'border-primary bg-primary/10 text-primary' : 'bg-card text-muted-foreground hover:bg-muted hover:text-foreground')}
+                >
+                  {LABEL_SORT[k]}
+                  {on && <span className="font-normal opacity-80">· {ketArah(k, dir)}</span>}
+                </Link>
+              )
+            })}
+          </nav>
+          <TabelSiswa
+            key={`${jenjang}:${kelas}:${query}`}
+            baris={baris}
+            bolehUbah={bolehUbah}
+            sort={sort}
+            dir={dir}
+            hrefSort={{ nama: hrefSort('nama'), pengampu: hrefSort('pengampu'), tahsin: hrefSort('tahsin'), tahfidz: hrefSort('tahfidz') }}
+            unduh={paramUnduh}
+            kelas={kelas ?? ''}
+            labelAngkatan={tingkat === 0 ? 'Lainnya' : `Kelas ${tingkat}`}
+            jumlahAngkatan={siswaTingkat}
+          />
           </div>
         )}
       </div>
@@ -487,21 +370,5 @@ function StatTile({ label, value, note, warm }: { label: string; value: number; 
       <p className={cn('mt-1 font-heading text-[34px] leading-none tabular-nums', warm && 'text-accent-warm')}>{value}</p>
       <p className="mt-1.5 text-xs text-muted-foreground">{note}</p>
     </div>
-  )
-}
-
-/** Kepala kolom yang bisa diklik untuk mengurutkan. */
-function Th({
-  href, aktif, dir, children,
-}: { href: string; aktif: boolean; dir: 'asc' | 'desc'; children: React.ReactNode }) {
-  return (
-    <th className="px-3 py-3 text-left font-bold first:pl-5">
-      <Link href={href} className="inline-flex items-center gap-1 hover:text-foreground">
-        {children}
-        {aktif && (dir === 'asc'
-          ? <ArrowUp className="h-3 w-3" />
-          : <ArrowDown className="h-3 w-3" />)}
-      </Link>
-    </th>
   )
 }

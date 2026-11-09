@@ -907,12 +907,21 @@ export async function ambilPerPotongSejajar<T>(
   return (await Promise.all(potong.map(p => ambilSemua<T>(() => buat(p))))).flat()
 }
 
-export async function getPosisiUnit(jenjang: Jenjang): Promise<PosisiUnit> {
+/**
+ * `opsi.kelas` = satu rombel saja (daftar /siswa) — aturan penentuan kolomnya
+ * sama persis, hanya siswanya yang dipersempit.
+ */
+export async function getPosisiUnit(jenjang: Jenjang, opsi: { kelas?: string | string[] } = {}): Promise<PosisiUnit> {
   const supabase = createServerClient()
   const [siswaRows, levelRes, methodRes, juzUjian, terujiTahsin] = await Promise.all([
-    ambilSemua<BarisSiswa & { halaqoh_id: string | null }>(() => supabase.from('students')
-      .select('id, jenjang, kelas, program, current_jilid_id, halaqoh_id')
-      .eq('is_active', true).eq('jenjang', jenjang).order('id')),
+    ambilSemua<BarisSiswa & { halaqoh_id: string | null }>(() => {
+      let q = supabase.from('students')
+        .select('id, jenjang, kelas, program, current_jilid_id, halaqoh_id')
+        .eq('is_active', true).eq('jenjang', jenjang)
+      if (typeof opsi.kelas === 'string') q = q.eq('kelas', opsi.kelas)
+      else if (opsi.kelas) q = q.in('kelas', opsi.kelas.length ? opsi.kelas : [''])
+      return q.order('id')
+    }),
     supabase.from('jilid_levels').select('id, method_id, label, order_num, is_quran, is_terminal'),
     supabase.from('tahsin_methods').select('id, name'),
     getJuzUjianPerSiswa(),
