@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { Sparkles, X } from 'lucide-react'
 import { kunciDibaca, LABEL_JENIS, type EntriChangelog, type PembacaChangelog } from '@/lib/rq/changelog'
 import { cn } from '@/lib/utils'
+import { terbaruPembaruanAction } from '@/app/actions/changelog'
 
 /**
  * Penanda "sudah dibaca" per portal, di localStorage peramban pengguna.
@@ -25,6 +26,28 @@ const langgan = (f: () => void) => { pendengar.add(f); return () => { pendengar.
 function useDibaca(p: PembacaChangelog): string | null | undefined {
   // undefined di server & hidrasi pertama: banner belum dirender sama sekali.
   return useSyncExternalStore(langgan, () => baca(p), () => undefined)
+}
+
+/**
+ * Waktu terbit terbaru yang ditanyakan ulang saat tab kembali dilihat.
+ * Kerangka menu tidak dirender ulang ketika berpindah halaman, jadi nilai
+ * dari server bisa basi berjam-jam. Dibagi semua titik di layar (sidebar,
+ * laci, tombol menu): satu pertanyaan ke server, paling sering semenit sekali.
+ */
+const terbaruTerkini = new Map<PembacaChangelog, string | null>()
+const terakhirCek = new Map<PembacaChangelog, number>()
+const JEDA_CEK = 60_000
+
+async function cekUlang(p: 'pengurus' | 'guru') {
+  if (Date.now() - (terakhirCek.get(p) ?? 0) < JEDA_CEK) return
+  terakhirCek.set(p, Date.now())
+  try {
+    const t = await terbaruPembaruanAction(p)
+    if (t !== (terbaruTerkini.get(p) ?? null)) {
+      terbaruTerkini.set(p, t)
+      pendengar.forEach(f => f())
+    }
+  } catch { /* luring / sesi habis: biarkan nilai lama */ }
 }
 
 /** Banner di beranda portal: pembaruan yang terbit sesudah terakhir dibaca. */
@@ -65,12 +88,29 @@ export function PembaruanBaru({ entri, pembaca, href }: { entri: EntriChangelog[
  * penanda yang sama, dan membuka halaman Pembaruan menandai semuanya dibaca.
  */
 export function TitikPembaruan({ pembaca, terbaru, className }: {
-  pembaca: PembacaChangelog
+  pembaca: 'pengurus' | 'guru'
+  /** Dari server saat kerangka menu dirender. */
   terbaru: string | null
   className?: string
 }) {
   const dibaca = useDibaca(pembaca)
-  if (dibaca === undefined || !terbaru || (dibaca && terbaru <= dibaca)) return null
+  const terkini = useSyncExternalStore(langgan, () => terbaruTerkini.get(pembaca), () => undefined)
+
+  useEffect(() => {
+    // Nilai dari server baru saja diambil: pengecekan pertama baru sesudah jeda.
+    if (!terakhirCek.has(pembaca)) terakhirCek.set(pembaca, Date.now())
+    const saatTerlihat = () => { if (document.visibilityState === 'visible') void cekUlang(pembaca) }
+    document.addEventListener('visibilitychange', saatTerlihat)
+    window.addEventListener('focus', saatTerlihat)
+    return () => {
+      document.removeEventListener('visibilitychange', saatTerlihat)
+      window.removeEventListener('focus', saatTerlihat)
+    }
+  }, [pembaca])
+
+  // Yang lebih baru dari keduanya: nilai server bisa diperbarui router.refresh().
+  const efektif = [terbaru, terkini].filter((x): x is string => !!x).sort().pop() ?? null
+  if (dibaca === undefined || !efektif || (dibaca && efektif <= dibaca)) return null
   return (
     <span className={cn('ml-auto h-2 w-2 shrink-0 rounded-full bg-destructive ring-2 ring-background', className)}
       role="status" aria-label="Ada pembaruan baru" />

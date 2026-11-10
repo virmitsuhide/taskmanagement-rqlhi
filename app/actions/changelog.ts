@@ -3,7 +3,9 @@
 import { revalidatePath } from 'next/cache'
 import { createServerClient } from '@/lib/supabase/server'
 import { getSession } from '@/lib/auth/session'
-import { canKelolaChangelog } from '@/lib/auth/permissions'
+import { canKelolaChangelog, canViewChangelog } from '@/lib/auth/permissions'
+import { getTeacherSession } from '@/lib/auth/teacher-session'
+import { getTerbaruChangelog } from '@/lib/data/changelog'
 import { tanggalWIB } from '@/lib/rq/ujian'
 import { URUTAN_JENIS, URUTAN_PEMBACA, type JenisChangelog, type PembacaChangelog } from '@/lib/rq/changelog'
 
@@ -80,4 +82,20 @@ export async function hapusChangelogAction(id: string): Promise<Hasil> {
   if (error) return { error: 'Gagal menghapus pembaruan.' }
   segarkan()
   return { success: true }
+}
+
+/**
+ * Waktu terbit pembaruan terbaru — ditanyakan ulang oleh titik merah menu
+ * Pembaruan Sistem saat tab aplikasi kembali dilihat. Kerangka menu (layout)
+ * tidak dirender ulang ketika berpindah halaman, jadi tanpa ini titiknya
+ * baru muncul sesudah halaman dimuat ulang. Karyawan tidak punya menu ini.
+ */
+export async function terbaruPembaruanAction(pembaca: 'pengurus' | 'guru'): Promise<string | null> {
+  if (pembaca === 'guru') {
+    if (!(await getTeacherSession())) return null
+  } else {
+    const session = await getSession()
+    if (!session || !canViewChangelog(session.role)) return null
+  }
+  return getTerbaruChangelog(pembaca)
 }
