@@ -22,7 +22,7 @@ import { join } from 'path'
 const HARAP = {
   tabel: 109,
   enum: 39,
-  constraint: 515,
+  constraint: 517,
   indeks: 141,
   fungsi: 9,
   trigger: 14,

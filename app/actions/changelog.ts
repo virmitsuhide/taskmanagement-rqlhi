@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { createServerClient } from '@/lib/supabase/server'
 import { getSession } from '@/lib/auth/session'
 import { canKelolaChangelog } from '@/lib/auth/permissions'
+import { tanggalWIB } from '@/lib/rq/ujian'
 import { URUTAN_JENIS, URUTAN_PEMBACA, type JenisChangelog, type PembacaChangelog } from '@/lib/rq/changelog'
 
 type Hasil = { error?: string; success?: boolean }
@@ -15,8 +16,13 @@ export interface InputChangelog {
   isi: string
   jenis: JenisChangelog
   untuk: PembacaChangelog[]
-  /** 'YYYY-MM-DD' (WIB); kosong = sekarang. */
+  /** 'YYYY-MM-DD' (WIB); kosong atau hari ini = saat ini juga. */
   tanggal?: string
+  /**
+   * Untuk draf dari commit (0128): true = terbitkan sekarang, false = tetap
+   * draf. Entri baru selalu terbit; entri yang sudah terbit tidak berubah.
+   */
+  terbitkan?: boolean
 }
 
 const BELUM_ADA = 'Tabel pembaruan belum ada: jalankan drizzle/0121_changelog_PASTE_TO_SUPABASE.sql di Supabase.'
@@ -47,8 +53,13 @@ export async function simpanChangelogAction(i: InputChangelog): Promise<Hasil> {
     untuk_pengurus: untuk.has('pengurus'),
     untuk_guru: untuk.has('guru'),
     untuk_karyawan: untuk.has('karyawan'),
-    // Tanggal saja → pukul 07.00 WIB hari itu, supaya terbit pagi hari, bukan tengah malam UTC.
-    ...(i.tanggal ? { terbit_at: `${i.tanggal}T07:00:00+07:00` } : i.id ? {} : { terbit_at: new Date().toISOString() }),
+    // Tanggal hari ini → saat ini juga, supaya penanda "baru" menyala bagi
+    // yang sudah membaca tadi pagi. Tanggal lain → pukul 07.00 WIB hari itu,
+    // bukan tengah malam UTC.
+    ...(i.tanggal && i.tanggal !== tanggalWIB(new Date())
+      ? { terbit_at: `${i.tanggal}T07:00:00+07:00` }
+      : i.id && !i.tanggal ? {} : { terbit_at: new Date().toISOString() }),
+    ...(i.terbitkan !== undefined && i.id ? { status: i.terbitkan ? 'terbit' : 'draf' } : {}),
     updated_at: new Date().toISOString(),
   }
 

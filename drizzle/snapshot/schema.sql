@@ -587,7 +587,10 @@ CREATE TABLE public.changelog (
   terbit_at timestamp with time zone DEFAULT now() NOT NULL,
   ditulis_oleh uuid,
   created_at timestamp with time zone DEFAULT now() NOT NULL,
-  updated_at timestamp with time zone DEFAULT now() NOT NULL
+  updated_at timestamp with time zone DEFAULT now() NOT NULL,
+  status text DEFAULT 'terbit'::text NOT NULL,
+  commit_sha text,
+  commit_pesan text
 );
 
 CREATE TABLE public.content_requests (
@@ -2026,6 +2029,7 @@ ALTER TABLE public.asrama_kelompok ADD CONSTRAINT asrama_kelompok_pkey PRIMARY K
 ALTER TABLE public.asrama_pengajuan_nonaktif ADD CONSTRAINT asrama_pengajuan_nonaktif_pkey PRIMARY KEY (id);
 ALTER TABLE public.batas_juz ADD CONSTRAINT batas_juz_pkey PRIMARY KEY (juz);
 ALTER TABLE public.changelog ADD CONSTRAINT changelog_pkey PRIMARY KEY (id);
+ALTER TABLE public.changelog ADD CONSTRAINT changelog_commit_sha_key UNIQUE (commit_sha);
 ALTER TABLE public.content_requests ADD CONSTRAINT content_requests_pkey PRIMARY KEY (id);
 ALTER TABLE public.drizzle_migrations ADD CONSTRAINT drizzle_migrations_pkey PRIMARY KEY (id);
 ALTER TABLE public.ekstra_booking ADD CONSTRAINT ekstra_booking_pkey PRIMARY KEY (id);
@@ -2172,6 +2176,7 @@ ALTER TABLE public.asrama_pengajuan_nonaktif ADD CONSTRAINT asrama_pengajuan_non
 ALTER TABLE public.asrama_pengajuan_nonaktif ADD CONSTRAINT asrama_pengajuan_nonaktif_status_check CHECK ((status = ANY (ARRAY['menunggu'::text, 'disetujui'::text, 'ditolak'::text, 'dibatalkan'::text])));
 ALTER TABLE public.changelog ADD CONSTRAINT changelog_ada_pembaca CHECK ((untuk_pengurus OR untuk_guru OR untuk_karyawan));
 ALTER TABLE public.changelog ADD CONSTRAINT changelog_jenis_sah CHECK ((jenis = ANY (ARRAY['baru'::text, 'perubahan'::text, 'perbaikan'::text])));
+ALTER TABLE public.changelog ADD CONSTRAINT changelog_status_sah CHECK ((status = ANY (ARRAY['draf'::text, 'terbit'::text])));
 ALTER TABLE public.ekstra_booking ADD CONSTRAINT ekstra_booking_aktif_punya_halaqoh CHECK (((status <> 'aktif'::text) OR (slot_id IS NOT NULL)));
 ALTER TABLE public.ekstra_booking ADD CONSTRAINT ekstra_booking_asal_check CHECK ((asal = ANY (ARRAY['lhi'::text, 'luar'::text])));
 ALTER TABLE public.ekstra_booking ADD CONSTRAINT ekstra_booking_status_check CHECK ((status = ANY (ARRAY['baru'::text, 'ditawarkan'::text, 'aktif'::text, 'ditolak'::text, 'berhenti'::text])));

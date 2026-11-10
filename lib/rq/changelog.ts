@@ -31,12 +31,19 @@ export interface EntriChangelog {
   isi: string
   jenis: JenisChangelog
   untuk: PembacaChangelog[]
-  /** ISO timestamptz. */
+  /** ISO timestamptz. Untuk draf: waktu commit. */
   terbit_at: string
+  /** 'draf' = masuk otomatis dari commit, belum diterbitkan Kepala RQ (0128). */
+  status: 'draf' | 'terbit'
+  /** Pesan commit asli — hanya diambil untuk layar kelola. */
+  commit_pesan?: string | null
 }
 
 /** Kunci localStorage penanda "sudah dibaca" per portal. */
 export const kunciDibaca = (p: PembacaChangelog) => `changelog:dibaca:${p}`
+
+/** 'YYYY-MM-DD' menurut WIB — kunci pengelompokan per tanggal. */
+export const hariTerbit = (iso: string) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta' }).format(new Date(iso))
 
 /** "17 Oktober 2026" (WIB). */
 export function tanggalTerbit(iso: string): string {

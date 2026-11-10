@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { Pencil, Trash2 } from 'lucide-react'
+import { GitCommitHorizontal, Pencil, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -27,17 +27,25 @@ interface Draf {
   jenis: JenisChangelog
   untuk: PembacaChangelog[]
   tanggal: string
+  /** true = sedang menyunting draf dari commit (0128). */
+  dariCommit?: boolean
+  commitPesan?: string | null
 }
 
 const drafKosong = (hariIni: string, untuk: PembacaChangelog[]): Draf => ({ judul: '', isi: '', jenis: 'baru', untuk, tanggal: hariIni })
+
+/** Baris pertama pesan commit. */
+const subjekCommit = (pesan: string | null | undefined) => (pesan ?? '').replace(/^\uFEFF/, '').split('\n')[0]
 
 /**
  * Layar tulis pembaruan untuk Kepala RQ. Satu entri boleh untuk beberapa
  * portal sekaligus; daftar di bawah form bisa disaring per pembaca dari
  * halamannya (?untuk=).
  */
-export function KelolaChangelog({ daftar, hariIni, sekarang, pembacaAwal }: {
+export function KelolaChangelog({ daftar, drafCommit, hariIni, sekarang, pembacaAwal }: {
   daftar: EntriChangelog[]
+  /** Draf yang masuk otomatis dari commit yang di-push, belum terbit. */
+  drafCommit: EntriChangelog[]
   hariIni: string
   /** ISO waktu server — pembeda entri yang dijadwalkan terbit nanti. */
   sekarang: string
@@ -50,12 +58,12 @@ export function KelolaChangelog({ daftar, hariIni, sekarang, pembacaAwal }: {
   const [hapusId, setHapusId] = useState<string | null>(null)
   const ubah = (sebagian: Partial<Draf>) => setDraf(d => ({ ...d, ...sebagian }))
 
-  async function simpan() {
+  async function simpan(terbitkan?: boolean) {
     setProses(true)
     try {
-      const hasil = await simpanChangelogAction(draf)
+      const hasil = await simpanChangelogAction({ ...draf, terbitkan: draf.dariCommit ? terbitkan : undefined })
       if (hasil.error) { toast.error(hasil.error); return }
-      toast.success(draf.id ? 'Pembaruan diperbarui.' : 'Pembaruan diterbitkan.')
+      toast.success(draf.dariCommit ? (terbitkan ? 'Draf diterbitkan.' : 'Draf disimpan.') : draf.id ? 'Pembaruan diperbarui.' : 'Pembaruan diterbitkan.')
       setDraf(drafKosong(hariIni, pembacaAwal))
       router.refresh()
     } finally {
@@ -78,14 +86,71 @@ export function KelolaChangelog({ daftar, hariIni, sekarang, pembacaAwal }: {
   }
 
   const sunting = (e: EntriChangelog) => {
-    setDraf({ id: e.id, judul: e.judul, isi: e.isi, jenis: e.jenis, untuk: e.untuk, tanggal: tanggalWIB(e.terbit_at) })
+    const dariCommit = e.status === 'draf'
+    setDraf({
+      id: e.id, judul: e.judul, isi: e.isi, jenis: e.jenis, untuk: e.untuk,
+      // Draf terbit pada hari diterbitkan, bukan hari commit-nya.
+      tanggal: dariCommit ? hariIni : tanggalWIB(e.terbit_at),
+      dariCommit, commitPesan: e.commit_pesan,
+    })
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
+  const tombolHapus = (id: string, label: string, tanya: string) => hapusId === id ? (
+    <>
+      <span className="text-xs text-muted-foreground">{tanya}</span>
+      <Button type="button" size="sm" variant="destructive" onClick={() => hapus(id)} disabled={proses}>Ya, {label.toLowerCase()}</Button>
+      <Button type="button" size="sm" variant="ghost" onClick={() => setHapusId(null)} disabled={proses}>Tidak</Button>
+    </>
+  ) : (
+    <Button type="button" size="sm" variant="ghost" className="text-destructive" onClick={() => setHapusId(id)} disabled={proses}>
+      <Trash2 className="mr-1.5 h-3.5 w-3.5" />{label}
+    </Button>
+  )
+
   return (
     <div className="space-y-5">
+      {drafCommit.length > 0 && (
+        <section className="space-y-3 rounded-2xl border border-warning/40 bg-warning/5 p-4">
+          <div>
+            <h2 className="text-sm font-semibold">Draf dari sistem · {drafCommit.length}</h2>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Masuk otomatis setiap ada perubahan sistem. Belum terlihat siapa pun — periksa bahasanya, pilih pembacanya, lalu terbitkan.
+              Perubahan yang tidak perlu dikabarkan cukup dibuang.
+            </p>
+          </div>
+          <ol className="space-y-2">
+            {drafCommit.map(e => (
+              <li key={e.id} className={`rounded-xl border bg-card p-3 ${draf.id === e.id ? 'ring-2 ring-primary' : ''}`}>
+                <IsiChangelog e={e} tampilPembaca />
+                {!e.isi && <p className="mt-1.5 text-xs font-medium text-warning">Belum ada penjelasan sederhana — tulis isinya sebelum terbit.</p>}
+                {e.commit_pesan && (
+                  <details className="mt-2 text-xs">
+                    <summary className="cursor-pointer text-muted-foreground">
+                      <GitCommitHorizontal className="mr-1 inline h-3.5 w-3.5" aria-hidden />Catatan teknis asli
+                    </summary>
+                    <pre className="mt-1.5 max-h-60 overflow-auto whitespace-pre-wrap rounded-lg bg-muted/50 p-2.5 font-mono text-[11px] leading-relaxed">{e.commit_pesan}</pre>
+                  </details>
+                )}
+                <div className="mt-2.5 flex flex-wrap items-center gap-2 border-t pt-2.5">
+                  <Button type="button" size="sm" onClick={() => sunting(e)} disabled={proses}>
+                    <Pencil className="mr-1.5 h-3.5 w-3.5" />Tinjau & terbitkan
+                  </Button>
+                  {tombolHapus(e.id, 'Buang', 'Buang draf ini?')}
+                </div>
+              </li>
+            ))}
+          </ol>
+        </section>
+      )}
+
       <section className="space-y-4 rounded-2xl border bg-card p-5">
-        <h2 className="text-sm font-semibold">{draf.id ? 'Sunting pembaruan' : 'Tulis pembaruan'}</h2>
+        <h2 className="text-sm font-semibold">{draf.dariCommit ? 'Tinjau draf dari sistem' : draf.id ? 'Sunting pembaruan' : 'Tulis pembaruan'}</h2>
+        {draf.dariCommit && (
+          <p className="-mt-2 text-xs text-muted-foreground">
+            Dari: <span className="font-mono">{subjekCommit(draf.commitPesan)}</span>
+          </p>
+        )}
 
         <div className="space-y-1.5">
           <Label htmlFor="judul">Judul</Label>
@@ -131,9 +196,14 @@ export function KelolaChangelog({ daftar, hariIni, sekarang, pembacaAwal }: {
         </div>
 
         <div className="flex flex-wrap gap-2">
-          <Button type="button" onClick={simpan} disabled={proses || !draf.judul.trim() || draf.untuk.length === 0}>
-            {proses ? 'Menyimpan…' : draf.id ? 'Simpan perubahan' : 'Terbitkan'}
+          <Button type="button" onClick={() => simpan(true)} disabled={proses || !draf.judul.trim() || draf.untuk.length === 0}>
+            {proses ? 'Menyimpan…' : draf.dariCommit ? 'Terbitkan' : draf.id ? 'Simpan perubahan' : 'Terbitkan'}
           </Button>
+          {draf.dariCommit && (
+            <Button type="button" variant="outline" onClick={() => simpan(false)} disabled={proses || !draf.judul.trim() || draf.untuk.length === 0}>
+              Simpan sebagai draf
+            </Button>
+          )}
           {draf.id && (
             <Button type="button" variant="outline" onClick={() => setDraf(drafKosong(hariIni, pembacaAwal))} disabled={proses}>Batal sunting</Button>
           )}
@@ -153,17 +223,7 @@ export function KelolaChangelog({ daftar, hariIni, sekarang, pembacaAwal }: {
                   <Button type="button" size="sm" variant="outline" onClick={() => sunting(e)} disabled={proses}>
                     <Pencil className="mr-1.5 h-3.5 w-3.5" />Sunting
                   </Button>
-                  {hapusId === e.id ? (
-                    <>
-                      <span className="text-xs text-muted-foreground">Hapus pembaruan ini?</span>
-                      <Button type="button" size="sm" variant="destructive" onClick={() => hapus(e.id)} disabled={proses}>Ya, hapus</Button>
-                      <Button type="button" size="sm" variant="ghost" onClick={() => setHapusId(null)} disabled={proses}>Tidak</Button>
-                    </>
-                  ) : (
-                    <Button type="button" size="sm" variant="ghost" className="text-destructive" onClick={() => setHapusId(e.id)} disabled={proses}>
-                      <Trash2 className="mr-1.5 h-3.5 w-3.5" />Hapus
-                    </Button>
-                  )}
+                  {tombolHapus(e.id, 'Hapus', 'Hapus pembaruan ini?')}
                 </div>
               </li>
             ))}
