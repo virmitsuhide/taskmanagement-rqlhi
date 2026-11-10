@@ -4,6 +4,7 @@ import { useEffect, useSyncExternalStore } from 'react'
 import Link from 'next/link'
 import { Sparkles, X } from 'lucide-react'
 import { kunciDibaca, LABEL_JENIS, type EntriChangelog, type PembacaChangelog } from '@/lib/rq/changelog'
+import { cn } from '@/lib/utils'
 
 /**
  * Penanda "sudah dibaca" per portal, di localStorage peramban pengguna.
@@ -55,6 +56,24 @@ export function PembaruanBaru({ entri, pembaca, href }: { entri: EntriChangelog[
         <X className="h-4 w-4" />
       </button>
     </aside>
+  )
+}
+
+/**
+ * Titik merah di menu Pembaruan Sistem: ada pembaruan yang terbit sesudah
+ * terakhir dibaca di peramban ini. Padam bersama banner — keduanya membaca
+ * penanda yang sama, dan membuka halaman Pembaruan menandai semuanya dibaca.
+ */
+export function TitikPembaruan({ pembaca, terbaru, className }: {
+  pembaca: PembacaChangelog
+  terbaru: string | null
+  className?: string
+}) {
+  const dibaca = useDibaca(pembaca)
+  if (dibaca === undefined || !terbaru || (dibaca && terbaru <= dibaca)) return null
+  return (
+    <span className={cn('ml-auto h-2 w-2 shrink-0 rounded-full bg-destructive ring-2 ring-background', className)}
+      role="status" aria-label="Ada pembaruan baru" />
   )
 }
 

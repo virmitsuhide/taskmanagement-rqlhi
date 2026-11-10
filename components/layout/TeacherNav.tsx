@@ -62,6 +62,8 @@ export interface TeacherNavItem {
    * membuat orang berhenti membaca lencananya.
    */
   badge?: number
+  /** Penanda selain angka, mis. titik merah Pembaruan Sistem. Tampil bila tak ada lencana angka. */
+  tanda?: React.ReactNode
 }
 
 export interface TeacherNavGroup {
@@ -78,6 +80,8 @@ interface Props {
   children: React.ReactNode
   /** Sidebar diciutkan jadi deretan ikon — dibaca TeacherShell dari cookie. */
   ciutAwal?: boolean
+  /** Penanda di tombol menu HP (mis. titik Pembaruan Sistem), karena menunya ada di laci. */
+  tandaMenu?: React.ReactNode
 }
 
 /**
@@ -105,7 +109,7 @@ function hrefAktif(pathname: string, groups: TeacherNavGroup[]): string | null {
   return terbaik
 }
 
-export function TeacherNav({ fullName, groups, bell, children, ciutAwal = false }: Props) {
+export function TeacherNav({ fullName, groups, bell, children, ciutAwal = false, tandaMenu }: Props) {
   const pathname = usePathname()
   const [ciut, gantiCiut] = useSidebarCiut(ciutAwal)
   const [drawerOpen, setDrawerOpen] = useState(false)
@@ -179,6 +183,9 @@ export function TeacherNav({ fullName, groups, bell, children, ciutAwal = false 
                       <span className={cn(LENCANA_CIUT, 'ml-auto min-w-[18px] rounded-full bg-accent-warm px-1.5 py-0.5 text-center text-[10px] font-bold leading-none text-white')}>
                         {item.badge > 9 ? '9+' : item.badge}
                       </span>
+                    ) : item.tanda ? (
+                      // Pembungkus di sini, bukan di TeacherShell: kelas ciut tinggal di modul klien.
+                      <span className={cn(LENCANA_CIUT, 'ml-auto flex')}>{item.tanda}</span>
                     ) : null}
                   </Link>
                 </li>
@@ -235,9 +242,10 @@ export function TeacherNav({ fullName, groups, bell, children, ciutAwal = false 
             onClick={() => setDrawerOpen(true)}
             aria-label="Buka menu"
             aria-expanded={drawerOpen}
-            className="rounded-md p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground md:hidden"
+            className="relative rounded-md p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground md:hidden"
           >
             <Menu className="h-5 w-5" />
+            {tandaMenu}
           </button>
 
           <Link

@@ -20,6 +20,8 @@ import { hitungRaporBaruGuru } from '@/lib/data/kpi-pengesahan'
 import { getNotifUjianGuru } from '@/lib/data/ujian-notifikasi'
 import { kelompokPengampu } from '@/lib/data/riyadhoh'
 import { punyaKelompokTR } from '@/lib/data/tahsin-rekomendasi'
+import { getTerbaruChangelog } from '@/lib/data/changelog'
+import { TitikPembaruan } from '@/components/changelog/PembaruanBaru'
 
 /**
  * Kerangka Portal Guru: navigasi tetap + wadah isi yang bisa digulung.
@@ -41,7 +43,7 @@ export async function TeacherShell({ children }: { children: React.ReactNode }) 
   // halaman masuk tidak perlu menu yang belum boleh ia pakai.
   if (!session) return <>{children}</>
 
-  const [bolehGukar, unitUjian, konteks, raporBaru, notifUjian, kue, riyadhoh, pengampuEkstra, pengampuAsrama, peranHalaqoh, pengampuTR] = await Promise.all([
+  const [bolehGukar, unitUjian, konteks, raporBaru, notifUjian, kue, riyadhoh, pengampuEkstra, pengampuAsrama, peranHalaqoh, pengampuTR, terbaruPembaruan] = await Promise.all([
     bolehMengampuGukar(session.teacherId),
     getUnitUjianGuru(session.teacherId),
     getKonteksPengumuman(session.teacherId),
@@ -63,6 +65,8 @@ export async function TeacherShell({ children }: { children: React.ReactNode }) 
     getTeacherHalaqohPeran(session.teacherId),
     // Akun Tahsin Rekomendasi Jum'at sore (0115) — TR1, TR2, … milik koordinator SD.
     punyaKelompokTR(session.teacherId),
+    // Titik merah menu Pembaruan Sistem — dibandingkan dengan penanda dibaca di peramban.
+    getTerbaruChangelog('guru'),
   ])
   const halaqohSekolah = [...peranHalaqoh.keys()]
   // Guru SMA berperan khusus (halaqoh_teachers.role): menu sesi jenis lain
@@ -92,13 +96,15 @@ export async function TeacherShell({ children }: { children: React.ReactNode }) 
   const trSaja = pengampuTR && halaqohSekolah.length === 0 && !pengampuAsrama && riyadhoh.length === 0 && !pengampuEkstra
   const menuTR = { label: 'Tahsin Rekomendasi', href: '/guru/tahsin-rekomendasi', icon: <BookHeart /> }
 
+  const titikPembaruan = <TitikPembaruan pembaca="guru" terbaru={terbaruPembaruan} className="ml-0" />
+
   const groups: TeacherNavGroup[] = trSaja ? [
     { title: null, items: [menuTR] },
     {
       title: 'Lainnya',
       items: [
         { label: 'Panduan Guru', href: '/guru/panduan', icon: <LibraryBig /> },
-        { label: 'Pembaruan Sistem', href: '/guru/pembaruan', icon: <Sparkles /> },
+        { label: 'Pembaruan Sistem', href: '/guru/pembaruan', icon: <Sparkles />, tanda: titikPembaruan },
         { label: 'Profil Saya', href: '/guru/profil', icon: <IdCard /> },
         { label: 'Tampilan', href: '/guru/profil/tampilan', icon: <Palette /> },
       ],
@@ -183,7 +189,7 @@ export async function TeacherShell({ children }: { children: React.ReactNode }) 
         ...(bolehGukar ? [{ label: 'Pembinaan Gukar', href: '/guru/gukar', icon: <GraduationCap /> }] : []),
         // SOP & dokumen PDF dari pengurus (0104).
         { label: 'Panduan Guru', href: '/guru/panduan', icon: <LibraryBig /> },
-        { label: 'Pembaruan Sistem', href: '/guru/pembaruan', icon: <Sparkles /> },
+        { label: 'Pembaruan Sistem', href: '/guru/pembaruan', icon: <Sparkles />, tanda: titikPembaruan },
         { label: 'Profil Saya', href: '/guru/profil', icon: <IdCard /> },
         { label: 'Tampilan', href: '/guru/profil/tampilan', icon: <Palette /> },
       ],
@@ -195,6 +201,8 @@ export async function TeacherShell({ children }: { children: React.ReactNode }) 
       fullName={session.fullName}
       groups={groups}
       ciutAwal={kue.get(COOKIE_SIDEBAR_CIUT)?.value === '1'}
+      // Menu Pembaruan ada di dalam laci di HP; titiknya diulang di tombol menu.
+      tandaMenu={<TitikPembaruan pembaca="guru" terbaru={terbaruPembaruan} className="absolute right-1 top-1 ml-0" />}
       bell={
         <PengumumanBell
           items={pengumuman.items}

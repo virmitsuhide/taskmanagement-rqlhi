@@ -23,6 +23,7 @@ import {
 } from '@/lib/auth/permissions'
 import type { UserRole } from '@/types'
 import { logoutAction } from '@/app/actions/auth'
+import { TitikPembaruan } from '@/components/changelog/PembaruanBaru'
 import { Logo } from '@/components/brand/Logo'
 import {
   useSidebarCiut, SEMBUNYI_SAAT_CIUT, HILANG_SAAT_CIUT, TAUTAN_CIUT, LENCANA_CIUT,
@@ -41,6 +42,8 @@ interface Props {
   lencanaKpi?: { publikasi: number; banding: number }
   /** Sidebar diciutkan jadi deretan ikon — dibaca AppShell dari cookie. */
   ciutAwal?: boolean
+  /** Waktu terbit pembaruan sistem terbaru untuk pengurus — titik merah menunya. */
+  terbaruPembaruan?: string | null
 }
 
 const DASHBOARD_ICONS: Record<string, React.ReactNode> = {
@@ -59,7 +62,7 @@ const DASHBOARD_ICONS: Record<string, React.ReactNode> = {
   pribadi: <LayoutDashboard className="h-4 w-4" />,
 }
 
-export function Sidebar({ role, displayName, username, lencanaKpi, ciutAwal = false }: Props) {
+export function Sidebar({ role, displayName, username, lencanaKpi, ciutAwal = false, terbaruPembaruan = null }: Props) {
   const pathname = usePathname()
   const [ciut, gantiCiut] = useSidebarCiut(ciutAwal)
   const dashboards = getAccessibleDashboards(role)
@@ -272,7 +275,8 @@ export function Sidebar({ role, displayName, username, lencanaKpi, ciutAwal = fa
             )}
             {/* Pembaruan Sistem (0121): kabar perubahan fitur dari Kepala RQ. */}
             {canViewChangelog(role) && (
-              <NavItem href="/pembaruan" icon={<Sparkles className="h-4 w-4" />} label="Pembaruan Sistem" active={isActive('/pembaruan')} />
+              <NavItem href="/pembaruan" icon={<Sparkles className="h-4 w-4" />} label="Pembaruan Sistem" active={isActive('/pembaruan')}
+                tanda={<TitikPembaruan pembaca="pengurus" terbaru={terbaruPembaruan} className={LENCANA_CIUT} />} />
             )}
             {canViewHumasRequests(role) && (
               <NavItem href="/humas-request" icon={<ImageIcon className="h-4 w-4" />} label="Request Humas" active={isActive('/humas-request')} />
@@ -417,7 +421,7 @@ export function Sidebar({ role, displayName, username, lencanaKpi, ciutAwal = fa
 }
 
 function NavItem({
-  href, icon, label, active, badge,
+  href, icon, label, active, badge, tanda,
 }: {
   href: string
   icon: React.ReactNode
@@ -425,6 +429,8 @@ function NavItem({
   active: boolean
   /** Jumlah yang menunggu. 0/undefined = tanpa lencana sama sekali. */
   badge?: number
+  /** Penanda selain angka, mis. titik merah Pembaruan Sistem. */
+  tanda?: React.ReactNode
 }) {
   return (
     <li>
@@ -445,9 +451,9 @@ function NavItem({
           <span className={cn(LENCANA_CIUT, 'ml-auto min-w-[18px] rounded-full bg-accent-warm px-1.5 py-0.5 text-center text-[10px] font-bold leading-none text-white')}>
             {badge > 9 ? '9+' : badge}
           </span>
-        ) : active ? (
+        ) : tanda ?? (active ? (
           <ChevronRight className={cn('ml-auto h-3 w-3', HILANG_SAAT_CIUT)} />
-        ) : null}
+        ) : null)}
       </Link>
     </li>
   )

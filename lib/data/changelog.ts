@@ -59,3 +59,22 @@ export async function getChangelog(pembaca: PembacaChangelog | null, batas = 100
   if (error) return null
   return ((data ?? []) as unknown as Baris[]).map(keEntri)
 }
+
+/**
+ * Waktu terbit pembaruan terbaru untuk satu portal — untuk titik merah di
+ * menu Pembaruan Sistem. Satu baris, dipanggil kerangka navigasi tiap halaman.
+ * null = belum ada pembaruan, atau tabelnya belum ada.
+ */
+export async function getTerbaruChangelog(pembaca: PembacaChangelog): Promise<string | null> {
+  const supabase = createServerClient()
+  const tanya = (dengan0128: boolean) => {
+    let q = supabase.from('changelog').select('terbit_at')
+      .eq(`untuk_${pembaca}`, true).lte('terbit_at', new Date().toISOString())
+    if (dengan0128) q = q.eq('status', 'terbit')
+    return q.order('terbit_at', { ascending: false }).limit(1).maybeSingle()
+  }
+  let { data, error } = await tanya(true)
+  if (error) ({ data, error } = await tanya(false))
+  if (error || !data) return null
+  return (data as { terbit_at: string }).terbit_at
+}

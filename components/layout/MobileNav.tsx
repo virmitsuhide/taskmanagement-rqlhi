@@ -23,6 +23,7 @@ import {
 import type { UserRole } from '@/types'
 import { logoutAction } from '@/app/actions/auth'
 import { Logo } from '@/components/brand/Logo'
+import { TitikPembaruan } from '@/components/changelog/PembaruanBaru'
 
 const DASHBOARD_ICONS: Record<string, React.ReactNode> = {
   manajemen: <LayoutDashboard className="h-4 w-4" />,
@@ -51,6 +52,8 @@ interface Props {
    * menembak database dari peramban tiap kali menunya digambar.
    */
   lencanaKpi?: { publikasi: number; banding: number }
+  /** Waktu terbit pembaruan sistem terbaru untuk pengurus — titik merah menunya. */
+  terbaruPembaruan?: string | null
 }
 
 const navLinkClass = (active: boolean) => cn(
@@ -60,7 +63,7 @@ const navLinkClass = (active: boolean) => cn(
     : 'text-sidebar-foreground hover:bg-sidebar-accent/50'
 )
 
-function DrawerLink({ href, icon, label, active, onNavigate, badge }: {
+function DrawerLink({ href, icon, label, active, onNavigate, badge, tanda }: {
   href: string
   icon: ReactNode
   label: string
@@ -68,6 +71,8 @@ function DrawerLink({ href, icon, label, active, onNavigate, badge }: {
   onNavigate: () => void
   /** Jumlah yang menunggu. 0/undefined = tanpa lencana sama sekali. */
   badge?: number
+  /** Penanda selain angka, mis. titik merah Pembaruan Sistem. */
+  tanda?: ReactNode
 }) {
   return (
     <li>
@@ -83,13 +88,13 @@ function DrawerLink({ href, icon, label, active, onNavigate, badge }: {
           <span className="ml-auto min-w-[18px] rounded-full bg-accent-warm px-1.5 py-0.5 text-center text-[10px] font-bold leading-none text-white">
             {badge > 9 ? '9+' : badge}
           </span>
-        ) : null}
+        ) : tanda ?? null}
       </Link>
     </li>
   )
 }
 
-export function MobileNav({ role, displayName, username, lencanaKpi }: Props) {
+export function MobileNav({ role, displayName, username, lencanaKpi, terbaruPembaruan = null }: Props) {
   const [open, setOpen] = useState(false)
   const pathname = usePathname()
   const dashboards = getAccessibleDashboards(role)
@@ -311,7 +316,8 @@ export function MobileNav({ role, displayName, username, lencanaKpi }: Props) {
                 <DrawerLink href="/panduan-guru" icon={<LibraryBig className="h-4 w-4" />} label="Panduan Guru" active={isActive('/panduan-guru')} onNavigate={close} />
               )}
               {canViewChangelog(role) && (
-                <DrawerLink href="/pembaruan" icon={<Sparkles className="h-4 w-4" />} label="Pembaruan Sistem" active={isActive('/pembaruan')} onNavigate={close} />
+                <DrawerLink href="/pembaruan" icon={<Sparkles className="h-4 w-4" />} label="Pembaruan Sistem" active={isActive('/pembaruan')} onNavigate={close}
+                  tanda={<TitikPembaruan pembaca="pengurus" terbaru={terbaruPembaruan} />} />
               )}
               {canViewHumasRequests(role) && (
                 <DrawerLink href="/humas-request" icon={<ImageIcon className="h-4 w-4" />} label="Request Humas" active={isActive('/humas-request')} onNavigate={close} />
@@ -498,9 +504,11 @@ export function MobileNav({ role, displayName, username, lencanaKpi }: Props) {
           aria-expanded={open}
           aria-controls="mobile-drawer"
           aria-haspopup="dialog"
-          className="flex flex-col items-center gap-0.5 px-3 py-1 rounded-lg text-xs text-muted-foreground transition-colors"
+          className="relative flex flex-col items-center gap-0.5 px-3 py-1 rounded-lg text-xs text-muted-foreground transition-colors"
         >
           <Menu className="h-5 w-5" />
+          {/* Menu Pembaruan ada di dalam laci; titiknya diulang di sini supaya terlihat tanpa membuka laci. */}
+          <TitikPembaruan pembaca="pengurus" terbaru={terbaruPembaruan} className="absolute right-3 top-0.5 ml-0" />
           Menu
         </button>
       </nav>
