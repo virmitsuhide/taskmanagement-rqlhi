@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import { ChevronLeft } from 'lucide-react'
+import { ArrowRight, BookOpen, ChevronLeft, Sparkles } from 'lucide-react'
 import { getTeacherSession } from '@/lib/auth/teacher-session'
 import { createServerClient } from '@/lib/supabase/server'
 import { getHadirEkstra, getSlotGuru, hariIniWIB, labelSlot } from '@/lib/data/ekstra'
@@ -29,6 +29,12 @@ export default async function SetorEkstraPage({ searchParams }: { searchParams: 
   // Kelompok materi tidak bersetoran; kelompok khusus tahfidz tidak muncul di tahsin, dan sebaliknya.
   const kelompok = slot.filter(s => s.jenis?.bidang !== 'materi' && s.jenis?.bidang !== (jenis === 'tahsin' ? 'tahfidz' : 'tahsin'))
   if (kelompok.length === 0) redirect('/guru/ekstra')
+  // Jenis lain bisa dibuka bila guru punya kelompok yang menyetor jenis itu —
+  // guru yang selesai tahsin tidak perlu kembali ke halaman Ekstra dulu.
+  const jenisLain = jenis === 'tahsin' ? 'tahfidz' : 'tahsin'
+  const adaJenisLain = slot.some(s => s.jenis?.bidang !== 'materi' && s.jenis?.bidang !== jenis)
+  const hrefJenis = (j: 'tahsin' | 'tahfidz') =>
+    `/guru/ekstra/setor?jenis=${j}&tanggal=${tanggal}${sp.slot ? `&slot=${sp.slot}#slot-${sp.slot}` : ''}`
 
   const tertaut = peserta.filter(p => kelompok.some(s => s.id === p.slot_id) && p.student_id)
   const hadir = await getHadirEkstra(tertaut.map(p => p.id), tanggal, tanggal)
@@ -53,6 +59,19 @@ export default async function SetorEkstraPage({ searchParams }: { searchParams: 
           <Link href={kembali} className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:underline">
             <ChevronLeft className="size-4" /> Ekstra
           </Link>
+          {adaJenisLain && (
+            <nav aria-label="Jenis setoran" className="mt-2 flex w-fit rounded-full border bg-card p-1">
+              {(['tahsin', 'tahfidz'] as const).map(j => (
+                <Link key={j} href={hrefJenis(j)} aria-current={j === jenis ? 'page' : undefined}
+                  className={j === jenis
+                    ? 'inline-flex items-center gap-1.5 rounded-full bg-primary px-3.5 py-1 text-sm font-semibold text-primary-foreground'
+                    : 'inline-flex items-center gap-1.5 rounded-full px-3.5 py-1 text-sm font-medium text-muted-foreground hover:text-foreground'}>
+                  {j === 'tahsin' ? <BookOpen className="size-4" /> : <Sparkles className="size-4" />}
+                  {j === 'tahsin' ? 'Tahsin' : 'Tahfidz'}
+                </Link>
+              ))}
+            </nav>
+          )}
           <h1 className="mt-1 text-3xl tracking-tight">{jenis === 'tahsin' ? 'Setor tahsin' : 'Setor tahfidz'} ekstra</h1>
           <p className="text-sm text-muted-foreground">
             {tanggalTeks} · semua kelompok ekstra Anda. Simpan tiap kelompok dengan tombolnya masing-masing —
@@ -93,6 +112,19 @@ export default async function SetorEkstraPage({ searchParams }: { searchParams: 
             ) : null}
           </section>
         ))}
+
+        {adaJenisLain && (
+          <Link href={hrefJenis(jenisLain)}
+            className="flex items-center justify-between gap-3 rounded-2xl border bg-card px-4 py-3 hover:border-primary/40">
+            <span className="text-sm">
+              <span className="font-semibold">Lanjut setor {jenisLain}</span>
+              <span className="block text-xs text-muted-foreground">
+                Tanggal yang sama. Pastikan tiap kelompok di atas sudah disimpan.
+              </span>
+            </span>
+            <ArrowRight className="size-5 shrink-0 text-primary" />
+          </Link>
+        )}
       </div>
     </div>
   )
