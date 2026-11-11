@@ -26,6 +26,7 @@
     --color-destructive: var(--destructive);
     --color-destructive-foreground: var(--destructive-foreground);
     --color-destructive-wash: var(--destructive-wash);
+    --color-titik-baru: var(--titik-baru);
     --color-success: var(--success);
     --color-success-foreground: var(--success-foreground);
     --color-success-wash: var(--success-wash);
@@ -87,6 +88,11 @@
     --destructive: #A8261D;
     --destructive-foreground: #FFFFFF;
     --destructive-wash: #FAE6E3;
+    /* Titik "ada yang baru" (menu Pembaruan Sistem). Sengaja bukan
+       --destructive: merah tua itu hanya 1.9:1 di sidebar teal gelap
+       pengurus. Merah terang ini >= 3.5:1 di semua sidebar, gelap maupun
+       kertas, di tiap suasana -- satu nilai cukup untuk semua tema. */
+    --titik-baru: #EF4444;
     --success: #1E6B4E;
     --success-foreground: #FFFFFF;
     --success-wash: #E1F0E8;

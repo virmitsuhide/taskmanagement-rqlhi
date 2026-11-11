@@ -112,7 +112,9 @@ export function TitikPembaruan({ pembaca, terbaru, className }: {
   const efektif = [terbaru, terkini].filter((x): x is string => !!x).sort().pop() ?? null
   if (dibaca === undefined || !efektif || (dibaca && efektif <= dibaca)) return null
   return (
-    <span className={cn('ml-auto h-2 w-2 shrink-0 rounded-full bg-destructive ring-2 ring-background', className)}
+    // Cincin = warna sidebar tempat titik ini paling sering duduk (sidebar &
+    // laci HP); tombol Menu di bilah bawah menimpanya dengan ring-background.
+    <span className={cn('ml-auto h-2 w-2 shrink-0 rounded-full bg-titik-baru ring-2 ring-sidebar', className)}
       role="status" aria-label="Ada pembaruan baru" />
   )
 }

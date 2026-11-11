@@ -508,7 +508,7 @@ export function MobileNav({ role, displayName, username, lencanaKpi, terbaruPemb
         >
           <Menu className="h-5 w-5" />
           {/* Menu Pembaruan ada di dalam laci; titiknya diulang di sini supaya terlihat tanpa membuka laci. */}
-          <TitikPembaruan pembaca="pengurus" terbaru={terbaruPembaruan} className="absolute right-3 top-0.5 ml-0" />
+          <TitikPembaruan pembaca="pengurus" terbaru={terbaruPembaruan} className="absolute right-3 top-0.5 ml-0 ring-background" />
           Menu
         </button>
       </nav>

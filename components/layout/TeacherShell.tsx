@@ -202,7 +202,7 @@ export async function TeacherShell({ children }: { children: React.ReactNode }) 
       groups={groups}
       ciutAwal={kue.get(COOKIE_SIDEBAR_CIUT)?.value === '1'}
       // Menu Pembaruan ada di dalam laci di HP; titiknya diulang di tombol menu.
-      tandaMenu={<TitikPembaruan pembaca="guru" terbaru={terbaruPembaruan} className="absolute right-1 top-1 ml-0" />}
+      tandaMenu={<TitikPembaruan pembaca="guru" terbaru={terbaruPembaruan} className="absolute right-1 top-1 ml-0 ring-background" />}
       bell={
         <PengumumanBell
           items={pengumuman.items}
