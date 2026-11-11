@@ -427,7 +427,14 @@ export async function updateTahsinUjianAction(
     // Baru setelah barisnya tersimpan: kelulusan diteruskan ke capaian anak.
     // Urutannya penting — kalau penyimpanan gagal, tidak boleh ada anak yang
     // sudah terlanjur dinaikkan atas ujian yang tidak tercatat.
-    if (data.status === 'selesai') {
+    //
+    // Tiap anak naik begitu IA ditandai lulus — tidak menunggu kelompoknya
+    // Selesai. Dulu satu anak yang belum diuji (absen, susulan) menahan
+    // kenaikan semua temannya berminggu-minggu. Menyimpan berulang aman:
+    // indeks unik (student_id, source_ujian_id) mencegah naik dua kali.
+    // Ralat lulus → mengulang TIDAK memundurkan jilid; itu lewat Edit Siswa.
+    const adaLulus = (data.siswa ?? []).some(s => s.predikat === 'lulus')
+    if (data.status === 'selesai' || adaLulus) {
       const tidakCocok = await terapkanKelulusanTahsin(id)
       if (tidakCocok.length > 0) {
         /*

@@ -206,7 +206,8 @@ export function EditTahsinDialog({ item, pengujiOptions, onClose }: Props) {
 
         <p className="rounded-lg bg-info-wash px-3 py-2 text-xs text-info">
           Status berubah sendiri: <strong>Dijadwalkan</strong> saat jadwal &amp; penguji terisi,
-          <strong> Selesai</strong> saat semua siswa sudah dinilai.
+          <strong> Selesai</strong> saat semua siswa sudah dinilai. Siswa yang ditandai
+          <strong> Lulus</strong> langsung naik jilid saat disimpan, tanpa menunggu teman sekelompoknya.
         </p>
 
         {error && (
